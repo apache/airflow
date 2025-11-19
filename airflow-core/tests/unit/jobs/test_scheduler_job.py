@@ -69,7 +69,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -950,7 +950,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "state, total_executed_ti",
+        ("state", "total_executed_ti"),
         [
             (DagRunState.SUCCESS, 0),
             (DagRunState.FAILED, 0),
@@ -1824,7 +1824,7 @@ class TestSchedulerJob:
         mock_queue_workload.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -1967,7 +1967,7 @@ class TestSchedulerJob:
             assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2106,7 +2106,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "task1_exec, task2_exec",
+        ("task1_exec", "task2_exec"),
         [
             ("default_exec", "default_exec"),
             ("default_exec", "secondary_exec"),
@@ -2641,7 +2641,7 @@ class TestSchedulerJob:
         assert len(dag_runs) == 2
 
     @pytest.mark.parametrize(
-        "ti_state, final_ti_span_status",
+        ("ti_state", "final_ti_span_status"),
         [
             pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
             pytest.param(State.RUNNING, SpanStatus.ACTIVE, id="dr_still_running"),
@@ -2766,7 +2766,7 @@ class TestSchedulerJob:
         assert self.job_runner.active_spans.get("ti:" + ti.id) is None
 
     @pytest.mark.parametrize(
-        "state, final_span_status",
+        ("state", "final_span_status"),
         [
             pytest.param(State.SUCCESS, SpanStatus.ENDED, id="dr_ended_successfully"),
             pytest.param(State.RUNNING, SpanStatus.NEEDS_CONTINUANCE, id="dr_still_running"),
@@ -2956,7 +2956,7 @@ class TestSchedulerJob:
         )
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker, session):
         """
@@ -3001,7 +3001,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize(
-        "state, expected_callback_msg", [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
+        ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
@@ -3156,7 +3156,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    @pytest.mark.parametrize("state, msg", [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
+    @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
         """
         Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
@@ -3278,7 +3278,7 @@ class TestSchedulerJob:
         assert len(new_tis) == 0
 
     @pytest.mark.parametrize(
-        "ti_states, run_state",
+        ("ti_states", "run_state"),
         [
             (["failed", "success"], "failed"),
             (["success", "success"], "success"),
@@ -3795,7 +3795,7 @@ class TestSchedulerJob:
         SerializedDagModel.write_dag(
             LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
         )
-
+        session.commit()
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
@@ -4257,7 +4257,7 @@ class TestSchedulerJob:
         assert actual == should_update
 
     @pytest.mark.parametrize(
-        "run_type, expected",
+        ("run_type", "expected"),
         [
             (DagRunType.MANUAL, False),
             (DagRunType.SCHEDULED, True),
@@ -4498,7 +4498,7 @@ class TestSchedulerJob:
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
-        "disable, enable",
+        ("disable", "enable"),
         [
             pytest.param({"is_stale": True}, {"is_stale": False}, id="active"),
             pytest.param({"is_paused": True}, {"is_paused": False}, id="paused"),
@@ -5613,7 +5613,7 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
     @pytest.mark.parametrize(
-        "pause_it, expected_running",
+        ("pause_it", "expected_running"),
         [
             (True, 0),
             (False, 3),
@@ -5820,7 +5820,7 @@ class TestSchedulerJob:
         assert DagRun.find(run_id="dr1_run_2")[0].state == State.RUNNING
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5862,7 +5862,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5908,7 +5908,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state,start_date,end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -5954,7 +5954,7 @@ class TestSchedulerJob:
             assert ti.state == State.SCHEDULED
 
     @pytest.mark.parametrize(
-        "state, start_date, end_date",
+        ("state", "start_date", "end_date"),
         [
             [State.NONE, None, None],
             [
@@ -6712,7 +6712,7 @@ class TestSchedulerJob:
         assert [asset.updated_at for asset in orphaned] == updated_at_timestamps
 
     @pytest.mark.parametrize(
-        "paused, stale, expected_classpath",
+        ("paused", "stale", "expected_classpath"),
         [
             pytest.param(
                 False,
@@ -6931,7 +6931,7 @@ class TestSchedulerJob:
         assert callback_request.context_from_server.max_tries == ti.max_tries
 
     @pytest.mark.parametrize(
-        "retries,callback_kind,expected",
+        ("retries", "callback_kind", "expected"),
         [
             (1, "retry", TaskInstanceState.UP_FOR_RETRY),
             (0, "failure", TaskInstanceState.FAILED),
@@ -7037,6 +7037,62 @@ class TestSchedulerJob:
             last_ti=dag_run.get_task_instance(task_id="test_task"),
         )
 
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_start_notifies_with_started_msg(self, mock_get_listener_manager, dag_maker, session):
+        """Test that notify_dagrun_state_changed is called with msg='started' when DAG starts."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(dag_id="test_dag_start_notify", session=session):
+            EmptyOperator(task_id="test_task")
+
+        # Create a QUEUED dag run that will be started
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.QUEUED)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        self.job_runner._start_queued_dagruns(session)
+
+        # Verify that the listener hook was called with msg="started"
+        mock_listener_manager.hook.on_dag_run_running.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_running.call_args
+        assert call_args.kwargs["msg"] == "started"
+        assert call_args.kwargs["dag_run"].dag_id == dag_run.dag_id
+
+    @mock.patch("airflow.models.dagrun.get_listener_manager")
+    def test_dag_timeout_notifies_with_timed_out_msg(self, mock_get_listener_manager, dag_maker, session):
+        """Test that notify_dagrun_state_changed is called with msg='timed_out' when DAG times out."""
+        mock_listener_manager = MagicMock()
+        mock_get_listener_manager.return_value = mock_listener_manager
+
+        with dag_maker(
+            dag_id="test_dag_timeout_notify",
+            session=session,
+            dagrun_timeout=timedelta(seconds=60),
+        ):
+            EmptyOperator(task_id="test_task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+        # Set the start time to make it appear timed out
+        dag_run.start_date = timezone.utcnow() - timedelta(seconds=120)  # 2 minutes ago
+        session.merge(dag_run)
+        session.commit()
+
+        mock_executor = MagicMock()
+        scheduler_job = Job(executor=mock_executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        self.job_runner._schedule_dag_run(dag_run, session)
+
+        # Verify that the listener hook was called with msg="timed_out"
+        mock_listener_manager.hook.on_dag_run_failed.assert_called_once()
+        call_args = mock_listener_manager.hook.on_dag_run_failed.call_args
+        assert call_args.kwargs["msg"] == "timed_out"
+        assert call_args.kwargs["dag_run"] == dag_run
+
     @mock.patch("airflow.models.Deadline.handle_miss")
     def test_process_expired_deadlines(self, mock_handle_miss, session, dag_maker):
         """Verify all expired and unhandled deadlines (and only those) are processed by the scheduler."""
@@ -7109,6 +7165,29 @@ class TestSchedulerJob:
         # The handler should not be called, but no exceptions should be raised either.`
         mock_handle_miss.assert_not_called()
 
+    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
+        """Test that the running_dags metric is emitted correctly."""
+        with dag_maker("metric_dag") as dag:
+            _ = dag
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
+        dag_maker.create_dagrun(
+            run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
+        )
+
+        recorded: list[tuple[str, int]] = []
+
+        def _fake_gauge(metric: str, value: int, *_, **__):
+            recorded.append((metric, value))
+
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.Stats.gauge", _fake_gauge, raising=True)
+
+        with conf_vars({("metrics", "statsd_on"): "True"}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner._emit_running_dags_metric()
+
+        assert recorded == [("scheduler.dagruns.running", 2)]
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
@@ -7148,6 +7227,105 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     # dummy3 should be skipped because dummy1 is skipped.
     assert tis[dummy3.task_id].state == State.SKIPPED
 
+    def test_start_queued_dagruns_uses_latest_max_active_runs_from_dag_model(self, dag_maker, session):
+        """
+        Test that _start_queued_dagruns uses max_active_runs from DagModel (via dag_run)
+        instead of stale SerializedDAG max_active_runs.
+
+        This test verifies the fix where SerializedDAG may have stale max_active_runs,
+        but DagModel has the latest value updated by version changes(versioned bundles). The scheduler should
+        use the latest value from DagModel to respect user updates.
+        """
+        # Create a DAG with max_active_runs=1 initially
+        with dag_maker(
+            dag_id="test_max_active_runs_stale_serialized",
+            max_active_runs=1,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="dummy_task")
+
+        dag_model = dag_maker.dag_model
+        assert dag_model.max_active_runs == 1
+
+        # Create a SerializedDAG (which will have max_active_runs=1)
+        # This simulates the SerializedDAG being created/updated from the DAG file
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        self.job_runner._create_dag_runs([dag_model], session)
+
+        # Verify SerializedDAG has max_active_runs=1
+        dag_run_1 = (
+            session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).first()
+        )
+        assert dag_run_1 is not None
+        serialized_dag = self.job_runner.scheduler_dag_bag.get_dag_for_run(dag_run_1, session=session)
+        assert serialized_dag is not None
+        assert serialized_dag.max_active_runs == 1
+
+        # Now update DagModel.max_active_runs to 2 (simulating a versioned bundle update)
+        # This is the latest value, but SerializedDAG still has the old value
+        dag_model.max_active_runs = 2
+        session.commit()
+        session.refresh(dag_model)
+
+        # Create 1 running dag run
+        dag_run_1.state = DagRunState.RUNNING
+        session.commit()
+
+        # Create 1 queued dag run
+        dag_run_2 = dag_maker.create_dagrun(
+            run_id="test_run_2",
+            state=DagRunState.QUEUED,
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+
+        # Ensure dag_run_2 has the updated DagModel relationship loaded
+        # The association proxy dag_run.max_active_runs accesses dag_model.max_active_runs
+        # so we need to ensure the relationship is loaded
+        session.refresh(dag_run_2)
+
+        # Verify we have 1 running and 1 queued
+        running_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
+            .count()
+        )
+        queued_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
+            .count()
+        )
+        assert running_count == 1
+        assert queued_count == 1
+
+        # The SerializedDAG still has max_active_runs=1 (stale)
+        # But DagModel has max_active_runs=2 (latest)
+        assert serialized_dag.max_active_runs == 1
+        assert dag_model.max_active_runs == 2
+
+        # Call _start_queued_dagruns
+        # With the fix: Should start the queued run (using DagModel max_active_runs=2, active_runs=1 < 2)
+        # Without the fix: Would block the queued run (using SerializedDAG max_active_runs=1, active_runs=1 >= 1)
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        # Verify that the queued dag run started (proves it used DagModel.max_active_runs=2)
+        dag_run_2 = session.get(DagRun, dag_run_2.id)
+        assert dag_run_2.state == DagRunState.RUNNING, (
+            "The queued dag run should have started because DagModel.max_active_runs=2 "
+            "allows it (active_runs=1 < 2), even though SerializedDAG.max_active_runs=1 for that dagrun serdag version "
+            "would have blocked it."
+        )
+
+        # Verify we now have 2 running dag runs
+        running_count = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
+            .count()
+        )
+        assert running_count == 2
+
 
 class TestSchedulerJobQueriesCount:
     """
@@ -7178,7 +7356,7 @@ class TestSchedulerJobQueriesCount:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "expected_query_count, dag_count, task_count",
+        ("expected_query_count", "dag_count", "task_count"),
         [
             (21, 1, 1),  # One DAG with one task per DAG file.
             (21, 1, 5),  # One DAG with five tasks per DAG file.
@@ -7244,7 +7422,7 @@ class TestSchedulerJobQueriesCount:
 
     @pytest.mark.flaky(reruns=3, reruns_delay=5)
     @pytest.mark.parametrize(
-        "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
+        ("expected_query_counts", "dag_count", "task_count", "start_ago", "schedule", "shape"),
         [
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),

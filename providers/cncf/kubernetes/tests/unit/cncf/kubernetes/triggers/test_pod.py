@@ -254,12 +254,12 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "logging_interval, exp_event",
+        ("logging_interval", "exp_event"),
         [
             pytest.param(
                 0,
                 {
-                    "status": "running",
+                    "status": "success",
                     "last_log_time": DateTime(2022, 1, 1),
                     "name": POD_NAME,
                     "namespace": NAMESPACE,
@@ -268,26 +268,45 @@ class TestKubernetesPodTrigger:
             ),
         ],
     )
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.datetime")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.fetch_container_logs_before_current_sec"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
     async def test_running_log_interval(
-        self, mock_get_pod, mock_wait_pod, define_container_state, logging_interval, exp_event
+        self,
+        mock_get_pod,
+        mock_fetch_container_logs_before_current_sec,
+        mock_wait_pod,
+        define_container_state,
+        mock_datetime,
+        logging_interval,
+        exp_event,
     ):
         """
-        If log interval given, should emit event with running status and last log time.
-        Otherwise, should make it to second loop and emit "done" event.
-        For this test we emit container status "running, running not".
-        The first "running" status gets us out of wait_for_pod_start.
-        The second "running" will fire a "running" event when logging interval is non-None.  When logging
-        interval is None, the second "running" status will just result in continuation of the loop.  And
-        when in the next loop we get a non-running status, the trigger fires a "done" event.
+        If log interval given, check that the trigger fetches logs at the right times.
         """
-        define_container_state.return_value = "running"
+        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        mock_datetime.datetime.now.side_effect = [
+            fixed_now,
+            fixed_now + datetime.timedelta(seconds=1),
+            fixed_now + datetime.timedelta(seconds=2),
+        ]
+
+        mock_datetime.timedelta = datetime.timedelta
+        mock_datetime.timezone = datetime.timezone
+
+        async def async_datetime_return(*args, **kwargs):
+            return DateTime(2022, 1, 1)
+
+        mock_fetch_container_logs_before_current_sec.side_effect = async_datetime_return
+        define_container_state.side_effect = ["running", "running", "terminated"]
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
-            trigger_start_time=datetime.datetime.now(tz=datetime.timezone.utc),
+            trigger_start_time=fixed_now,
             base_container_name=BASE_CONTAINER_NAME,
             startup_timeout=5,
             poll_interval=1,
@@ -295,9 +314,10 @@ class TestKubernetesPodTrigger:
             last_log_time=DateTime(2022, 1, 1),
         )
         assert await trigger.run().__anext__() == TriggerEvent(exp_event)
+        assert mock_fetch_container_logs_before_current_sec.call_count == 2
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
@@ -444,7 +464,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "exc_count, call_count",
+        ("exc_count", "call_count"),
         [
             pytest.param(0, 1, id="no exception"),
             pytest.param(2, 3, id="2 exc, 1 success"),

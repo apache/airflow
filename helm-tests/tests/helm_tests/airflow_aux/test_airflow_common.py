@@ -491,3 +491,62 @@ class TestAirflowCommon:
                 priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"
+
+    @pytest.mark.parametrize(
+        ("image_pull_secrets", "registry_secret_name", "registry_connection", "expected_image_pull_secrets"),
+        [
+            ([], None, {}, []),
+            (
+                [],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["test-basic-registry"],
+            ),
+            ([], "regcred", {}, ["regcred"]),
+            (["regcred2"], "regcred", {}, ["regcred2"]),
+            (
+                ["regcred2"],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["regcred2"],
+            ),
+            (["regcred", {"name": "regcred2"}, ""], None, {}, ["regcred", "regcred2"]),
+        ],
+    )
+    def test_image_pull_secrets(
+        self, image_pull_secrets, registry_secret_name, registry_connection, expected_image_pull_secrets
+    ):
+        release_name = "test-basic"
+        docs = render_chart(
+            name=release_name,
+            values={
+                "imagePullSecrets": image_pull_secrets,
+                "registry": {"secretName": registry_secret_name, "connection": registry_connection},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "cleanup": {"enabled": True},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
+            ],
+        )
+
+        expected_image_pull_secrets = [{"name": name} for name in expected_image_pull_secrets]
+
+        for doc in docs:
+            got_image_pull_secrets = (
+                doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["imagePullSecrets"]
+                if doc["kind"] == "CronJob"
+                else doc["spec"]["template"]["spec"]["imagePullSecrets"]
+            )
+            assert got_image_pull_secrets == expected_image_pull_secrets

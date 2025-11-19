@@ -53,6 +53,7 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
@@ -259,6 +260,7 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
+          <TaskStreamFilter />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>

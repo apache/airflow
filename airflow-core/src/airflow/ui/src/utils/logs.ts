@@ -57,11 +57,13 @@ export const logLevelOptions = createListCollection<{
 export const parseStreamingLogContent = (
   data: TaskInstancesLogResponse | undefined,
 ): TaskInstancesLogResponse["content"] => {
-  if (!data?.content) {
-    const content = data as unknown as string;
+  if (data?.content) {
+    return data.content;
+  }
 
+  if (typeof data === "string") {
     try {
-      return content
+      return (data as string)
         .split("\n")
         .filter((line) => line.trim() !== "")
         .map((line) => JSON.parse(line) as string);
@@ -70,5 +72,10 @@ export const parseStreamingLogContent = (
     }
   }
 
-  return data.content;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (typeof data === "object" && data !== null) {
+    return [data] as unknown as TaskInstancesLogResponse["content"];
+  }
+
+  return [];
 };

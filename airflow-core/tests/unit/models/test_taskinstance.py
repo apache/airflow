@@ -607,7 +607,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -649,7 +649,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -675,7 +675,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 retries=3,
                 retry_delay=delay,
-                retry_exponential_backoff=True,
+                retry_exponential_backoff=2.0,
                 max_retry_delay=max_delay,
             )
         ti = dag_maker.create_dagrun().task_instances[0]
@@ -684,6 +684,31 @@ class TestTaskInstance:
 
         date = ti.next_retry_datetime()
         assert date == ti.end_date + datetime.timedelta(seconds=1)
+
+    def test_next_retry_datetime_with_custom_multiplier(self, dag_maker):
+        delay = datetime.timedelta(minutes=4)
+
+        with dag_maker(dag_id="fail_dag"):
+            task = BashOperator(
+                task_id="task_with_custom_multiplier",
+                bash_command="exit 1",
+                retries=3,
+                retry_delay=delay,
+                retry_exponential_backoff=5.0,
+            )
+        ti = dag_maker.create_dagrun().task_instances[0]
+        ti.task = task
+        ti.end_date = pendulum.instance(timezone.utcnow())
+
+        ti.try_number = 1
+        date = ti.next_retry_datetime()
+        period = ti.end_date.add(seconds=1200) - ti.end_date.add(seconds=240)
+        assert date in period
+
+        ti.try_number = 2
+        date = ti.next_retry_datetime()
+        period = ti.end_date.add(seconds=6000) - ti.end_date.add(seconds=1200)
+        assert date in period
 
     @pytest.mark.usefixtures("test_pool")
     def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
@@ -891,7 +916,14 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, removed, done
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_setups, upstream_states, flag_upstream_failed, expect_state, expect_passed",
+        (
+            "trigger_rule",
+            "upstream_setups",
+            "upstream_states",
+            "flag_upstream_failed",
+            "expect_state",
+            "expect_passed",
+        ),
         [
             #
             # Tests for all_success
@@ -1165,7 +1197,7 @@ class TestTaskInstance:
     # Does not work for database isolation mode because there is local test monkeypatching of upstream_failed
     # That never gets propagated to internal_api
     @pytest.mark.parametrize(
-        "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
+        ("trigger_rule", "upstream_states", "flag_upstream_failed", "expect_state", "expect_completed"),
         [
             #
             # Tests for all_success
@@ -1304,7 +1336,7 @@ class TestTaskInstance:
             assert ti.are_dependencies_met()
 
     @pytest.mark.parametrize(
-        "downstream_ti_state, expected_are_dependents_done",
+        ("downstream_ti_state", "expected_are_dependents_done"),
         [
             (State.SUCCESS, True),
             (State.SKIPPED, True),
@@ -1685,7 +1717,7 @@ class TestTaskInstance:
         for ti in dr.get_task_instances(session=session):
             ti.run(session=session)
 
-        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
+        events = dict((tuple(row)) for row in session.execute(select(AssetEvent.source_task_id, AssetEvent)))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
@@ -2155,7 +2187,7 @@ class TestTaskInstance:
         pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
     ]
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -2167,7 +2199,7 @@ class TestTaskInstance:
 
         assert ti_list[2].get_previous_ti().run_id != ti_list[0].run_id
 
-    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    @pytest.mark.parametrize(("schedule", "catchup"), _prev_dates_param_list)
     def test_previous_ti_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
@@ -2264,7 +2296,7 @@ class TestTaskInstance:
         assert result == "Task: test_template_render -> test_template_render_task"
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ('{{ conn.get("a_connection").host }}', "hostvalue"),
             ('{{ conn.get("a_connection", "unused_fallback").host }}', "hostvalue"),
@@ -2307,7 +2339,7 @@ class TestTaskInstance:
         assert result == expected_output
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", "a test value"),
             ('{{ var.value.get("a_variable") }}', "a test value"),
@@ -2340,7 +2372,7 @@ class TestTaskInstance:
             ti.task.render_template('{{ var.value.get("missing_variable") }}', context)
 
     @pytest.mark.parametrize(
-        "content, expected_output",
+        ("content", "expected_output"),
         [
             ("{{ var.value.a_variable }}", '{\n  "a": {\n    "test": "value"\n  }\n}'),
             ('{{ var.json.a_variable["a"]["test"] }}', "value"),
@@ -2943,7 +2975,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
 class TestMappedTaskInstanceReceiveValue:
     @pytest.mark.parametrize(
-        "literal, expected_outputs",
+        ("literal", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),
@@ -2975,7 +3007,7 @@ class TestMappedTaskInstanceReceiveValue:
         assert outputs == expected_outputs
 
     @pytest.mark.parametrize(
-        "upstream_return, expected_outputs",
+        ("upstream_return", "expected_outputs"),
         [
             pytest.param([1, 2, 3], [1, 2, 3], id="list"),
             pytest.param({"a": 1, "b": 2}, [("a", 1), ("b", 2)], id="dict"),

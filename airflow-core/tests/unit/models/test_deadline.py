@@ -28,7 +28,8 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.models import DagRun
 from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineReference, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
@@ -184,7 +185,7 @@ class TestCalculatedDeadlineDatabaseCalls:
         _clean_db()
 
     @pytest.mark.parametrize(
-        "column, conditions, expected_query",
+        ("column", "conditions", "expected_query"),
         [
             pytest.param(
                 DagRun.logical_date,
@@ -227,7 +228,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             assert compiled.params[f"{key}_1"] == value
 
     @pytest.mark.parametrize(
-        "use_valid_conditions, scalar_side_effect, expected_error, expected_message",
+        ("use_valid_conditions", "scalar_side_effect", "expected_error", "expected_message"),
         [
             pytest.param(
                 False,
@@ -263,7 +264,7 @@ class TestCalculatedDeadlineDatabaseCalls:
             _fetch_from_db(model_reference, session=mock_session, **conditions)
 
     @pytest.mark.parametrize(
-        "reference, expected_column",
+        ("reference", "expected_column"),
         [
             pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, DagRun.logical_date, id="logical_date"),
             pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, DagRun.queued_at, id="queued_at"),

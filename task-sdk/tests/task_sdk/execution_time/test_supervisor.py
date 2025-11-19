@@ -231,6 +231,26 @@ class TestWatchedSubprocess:
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
 
+    @pytest.fixture(autouse=True)
+    def use_real_secrets_backends(self, monkeypatch):
+        """
+        Ensure that real secrets backend instances are used instead of mocks.
+
+        This prevents Python 3.13 RuntimeWarning when hasattr checks async methods
+        on mocked backends. The warning occurs because hasattr on AsyncMock creates
+        unawaited coroutines.
+
+        This fixture ensures test isolation when running in parallel with pytest-xdist,
+        regardless of what other tests patch.
+        """
+        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+        )
+
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -2049,6 +2069,7 @@ REQUEST_TEST_CASES = [
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "partition_key": None,
                 "run_type": "scheduled",
                 "start_date": timezone.parse("2024-01-15T12:00:00Z"),
                 "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2674,7 +2695,7 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
 
 
 class TestSignalRetryLogic:
-    """Test signal based retry logic in ActivitySubprocess."""
+    """Test retry logic for exit codes (signals and non-signal failures) in ActivitySubprocess."""
 
     @pytest.mark.parametrize(
         "signal",
@@ -2727,8 +2748,8 @@ class TestSignalRetryLogic:
         result = mock_watched_subprocess.final_state
         assert result == TaskInstanceState.FAILED
 
-    def test_non_signal_exit_code_goes_to_failed(self, mocker):
-        """Test that non signal exit codes go to failed regardless of task retries."""
+    def test_non_signal_exit_code_with_retry_goes_to_up_for_retry(self, mocker):
+        """Test that non-signal exit codes with retries enabled go to UP_FOR_RETRY."""
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -2739,6 +2760,21 @@ class TestSignalRetryLogic:
         )
         mock_watched_subprocess._exit_code = 1
         mock_watched_subprocess._should_retry = True
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
+        """Test that non-signal exit codes without retries enabled go to FAILED."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = False
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 

@@ -35,7 +35,7 @@ from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
@@ -239,7 +239,7 @@ def test_submit_failure(session, create_task_instance):
 
 
 @pytest.mark.parametrize(
-    "event_cls, expected",
+    ("event_cls", "expected"),
     [
         (TaskSuccessEvent, "success"),
         (TaskFailedEvent, "failed"),
@@ -480,6 +480,23 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     """
     Tests that triggers are sorted by the priority_weight.
     """
+    callback_triggers = [
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+    ]
+    session.add_all(callback_triggers)
+    session.flush()
+
+    callbacks = [
+        TriggererCallback(callback_def=AsyncCallback("classpath.low"), priority_weight=1),
+        TriggererCallback(callback_def=AsyncCallback("classpath.mid"), priority_weight=5),
+        TriggererCallback(callback_def=AsyncCallback("classpath.high"), priority_weight=10),
+    ]
+    for callback, trigger in zip(callbacks, callback_triggers):
+        callback.trigger = trigger
+    session.add_all(callbacks)
+
     old_logical_date = datetime.datetime(
         2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
@@ -517,11 +534,17 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.add(TI_new)
 
     session.commit()
-    assert session.query(Trigger).count() == 2
+    assert session.query(Trigger).count() == 5
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
-    assert trigger_ids_query == [(trigger_new.id,), (trigger_old.id,)]
+    assert trigger_ids_query == [
+        (callback_triggers[2].id,),
+        (callback_triggers[1].id,),
+        (callback_triggers[0].id,),
+        (trigger_new.id,),
+        (trigger_old.id,),
+    ]
 
 
 class SensitiveKwargsTrigger(BaseTrigger):
