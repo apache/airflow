@@ -935,6 +935,8 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
+            if self.do_xcom_push:
+                return xcom_sidecar_output
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
