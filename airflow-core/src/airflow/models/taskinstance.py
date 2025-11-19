@@ -1454,7 +1454,7 @@ class TaskInstance(Base, LoggingMixin):
                 context = self.get_template_context()
                 if self.task.expand_start_from_trigger(context=context):
                     return self.task.expand_start_trigger_args(context=context)
-            elif self.task.start_from_trigger:
+            elif self.task.start_from_trigger is True:
                 return self.task.start_trigger_args
         return None
 
