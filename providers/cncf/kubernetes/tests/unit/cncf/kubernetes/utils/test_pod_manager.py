@@ -46,17 +46,6 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 
-@pytest.fixture(autouse=True)
-def no_retry_wait():
-    patcher = mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    patcher.start()
-    yield
-    patcher.stop()
-
-
 def test_parse_log_line():
     log_message = "This should return no timestamp"
     timestamp, line = parse_log_line(log_message)

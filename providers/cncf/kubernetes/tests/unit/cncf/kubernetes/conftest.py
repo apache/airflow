@@ -18,10 +18,22 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
+
+
+@pytest.fixture(autouse=True)
+def no_retry_wait():
+    patcher = mock.patch(
+        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
+        return_value=0,
+    )
+    patcher.start()
+    yield
+    patcher.stop()
 
 
 @pytest.fixture
