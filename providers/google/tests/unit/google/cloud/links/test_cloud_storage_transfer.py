@@ -113,8 +113,9 @@ class TestCloudStorageTransferListLink:
 
         # Create a mock operator with project_id
         class MockOperator:
-            def __init__(self, project_id):
+            def __init__(self, project_id, task_id=None):
                 self.project_id = project_id
+                self.task_id = task_id
                 self.extra_links_params = {"project_id": project_id}
 
         ti = create_task_instance_of_operator(
@@ -163,9 +164,10 @@ class TestCloudStorageTransferJobLink:
 
         # Create a mock operator with required parameters
         class MockOperator:
-            def __init__(self, project_id, transfer_job):
+            def __init__(self, project_id, transfer_job, task_id=None):
                 self.project_id = project_id
                 self.transfer_job = transfer_job
+                self.task_id = task_id
                 self.extra_links_params = {
                     "project_id": project_id,
                     "transfer_job": transfer_job,
@@ -260,8 +262,9 @@ class TestCloudStorageTransferDetailsLink:
 
         # Create a mock operator
         class MockOperator:
-            def __init__(self, project_id):
+            def __init__(self, project_id, task_id=None):
                 self.project_id = project_id
+                self.task_id = task_id
                 self.extra_links_params = {"project_id": project_id}
 
         ti = create_task_instance_of_operator(
@@ -302,8 +305,9 @@ class TestCloudStorageTransferDetailsLink:
         link = CloudStorageTransferDetailsLink()
 
         class MockOperator:
-            def __init__(self, project_id):
+            def __init__(self, project_id, task_id=None):
                 self.project_id = project_id
+                self.task_id = task_id
                 self.extra_links_params = {"project_id": project_id}
 
         ti = create_task_instance_of_operator(
@@ -344,8 +348,9 @@ class TestCloudStorageTransferDetailsLink:
         link = CloudStorageTransferDetailsLink()
 
         class MockOperator:
-            def __init__(self, project_id):
+            def __init__(self, project_id, task_id=None):
                 self.project_id = project_id
+                self.task_id = task_id
                 self.extra_links_params = {"project_id": project_id}
 
         ti = create_task_instance_of_operator(
