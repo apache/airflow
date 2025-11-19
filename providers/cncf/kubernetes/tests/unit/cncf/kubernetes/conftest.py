@@ -25,6 +25,12 @@ import pytest
 DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "no_wait_patch_disabled: disable autouse WaitRetryAfterOrExponential patch"
+    )
+
+
 @pytest.fixture(autouse=True)
 def no_retry_wait(request):
     # Skip patching if test has marker
