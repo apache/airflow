@@ -124,7 +124,7 @@ class OklchColor(BaseModel):
     @classmethod
     def parse_oklch_string(cls, data):
         if isinstance(data, str):
-            oklch_regex_pattern = r"^oklch\((-?[\d.]+) (-?[\d.]+) (-?[\d.]+)\)$"
+            oklch_regex_pattern = r"^oklch\((-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)\)$"
             match = re.match(oklch_regex_pattern, data)
 
             if not match:
