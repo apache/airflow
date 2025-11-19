@@ -589,6 +589,26 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
             del self.sensitive_config_values
         self._providers_configuration_loaded = True
 
+    def _get_config_value_from_secret_backend(self, config_key: str) -> str | None:
+        """
+        Override to use module-level function that reads from global conf.
+
+        This ensures as_dict() and other methods use the same secrets backend
+        configuration as the global conf instance (set via conf_vars in tests).
+        """
+        secrets_client = get_custom_secret_backend()
+        if not secrets_client:
+            return None
+        try:
+            return secrets_client.get_config(config_key)
+        except Exception as e:
+            raise AirflowConfigException(
+                "Cannot retrieve config from alternative secrets backend. "
+                "Make sure it is configured properly and that the Backend "
+                "is accessible.\n"
+                f"{e}"
+            )
+
     def __getstate__(self) -> dict[str, Any]:
         """Return the state of the object as a dictionary for pickling."""
         return {
