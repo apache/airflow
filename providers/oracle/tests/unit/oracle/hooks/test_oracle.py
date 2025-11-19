@@ -330,7 +330,7 @@ class TestOracleHookConn:
         for key, value in params.items():
             assert kwargs[key] == value
 
-            
+
 class TestOracleHook:
     def setup_method(self):
         self.cur = mock.MagicMock(rowcount=0)

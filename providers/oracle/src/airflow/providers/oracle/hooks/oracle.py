@@ -150,15 +150,15 @@ class OracleHook(DbApiHook):
         :param sid: Oracle System ID that identifies a particular
               database on a system
         :param wallet_location: Specify the directory where the wallet can be found.
-        :param wallet_password: the password to use to decrypt the wallet, if it is encrypted. 
+        :param wallet_password: the password to use to decrypt the wallet, if it is encrypted.
             For Oracle Autonomous Database this is the password created when downloading the wallet.
-        :param ssl_server_cert_dn: Specify the distinguished name (DN) which should be matched 
+        :param ssl_server_cert_dn: Specify the distinguished name (DN) which should be matched
             with the server. This value is ignored if the ``ssl_server_dn_match`` parameter is not
             set to the value True.
-        :param ssl_server_dn_match: Specify whether the server certificate distinguished name 
+        :param ssl_server_dn_match: Specify whether the server certificate distinguished name
             (DN) should be matched in addition to the regular certificate verification that is performed.
         :param cclass:  the connection class to use for Database Resident Connection Pooling (DRCP).
-        :param pool_name: the name of the DRCP pool when using multi-pool DRCP with Oracle Database 23.4, or higher.              
+        :param pool_name: the name of the DRCP pool when using multi-pool DRCP with Oracle Database 23.4, or higher.
 
         You can set these parameters in the extra fields of your connection
         as in
@@ -274,7 +274,7 @@ class OracleHook(DbApiHook):
             value = conn.extra_dejson.get(name)
             if value is not None:
                 conn_config[name] = value
-                
+
         oracle_conn = oracledb.connect(**conn_config)
         if mod is not None:
             oracle_conn.module = mod
