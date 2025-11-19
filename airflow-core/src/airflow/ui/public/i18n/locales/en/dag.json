@@ -123,6 +123,7 @@
         "showBundleVersion": "Show Bundle Version",
         "showDagVersion": "Show Dag Version"
       }
+    },
     "taskStreamFilter": {
       "activeFilter": "Active filter",
       "clearFilter": "Clear Filter",
