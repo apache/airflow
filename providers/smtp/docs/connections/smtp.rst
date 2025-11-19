@@ -239,7 +239,7 @@ connection via **CLI**:
    *and* supply a ``smtp_conn_id``, the hook's connection settings take
    precedence and the global ``[smtp]`` options may be ignored.
 
-Using ``SmtpHook`` in a DAG
+Using ``SmtpHook`` in a Dag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python

@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.5"
+defaultAirflowTag: "3.1.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.5"
+airflowVersion: "3.1.3"
 
 # Images
 images:
@@ -124,6 +124,9 @@ images:
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
+    # NOTE:
+    # - If the tag is "v3.x.x" or any version < 4.0.0 - use GIT_SYNC_* env variables
+    # - If the tag is "v4.x.x" or "latest" - use GITSYNC_* env variables
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -135,6 +138,10 @@ schedulerName: ~
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+
+# List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
+# registries. Items can be either strings or {name: secret} objects.
+imagePullSecrets: []
 
 # Ingress configuration
 ingress:
@@ -736,7 +743,9 @@ workers:
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
-      AND executor != 'KubernetesExecutor'
+      AND executor IS DISTINCT FROM 'KubernetesExecutor'
+      {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
+      AND executor IS DISTINCT FROM 'EdgeExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
@@ -1234,6 +1243,8 @@ createUserJob:
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
 
+  restartPolicy: OnFailure
+
   # Labels specific to createUserJob objects and pods
   labels: {}
 
@@ -1328,6 +1339,8 @@ migrateDatabaseJob:
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  restartPolicy: OnFailure
 
   # Labels specific to migrate database job objects and pods
   labels: {}
@@ -2165,6 +2178,10 @@ dagProcessor:
     securityContexts:
       container: {}
 
+  # Labels specific to dag processor objects
+  labels: {}
+
+  # Environment variables to add to dag processor container
   env: []
 
 # Flower settings
@@ -2395,6 +2412,10 @@ statsd:
   overrideMappings: []
 
   podAnnotations: {}
+
+  # Labels specific to statsd objects and pods
+  labels: {}
+  # Environment variables to add to statsd container
   env: []
 
 # PgBouncer settings
@@ -2708,12 +2729,20 @@ redis:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Labels specific to redis objects and pods
+  labels: {}
+
   podAnnotations: {}
-# Auth secret for a private registry
+
+# Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
 # This is used if pulling airflow images from a private registry
 registry:
+  # Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry
+  # (Deprecated - renamed to `imagePullSecrets`).
   secretName: ~
 
+  # Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret
+  # (Deprecated - create manually the credentials secret and add to `imagePullSecrets` instead).
   # Example:
   # connection:
   #   user: ~
@@ -2847,9 +2876,13 @@ cleanup:
   successfulJobsHistoryLimit: ~
 
 # Configuration for postgresql subchart
-# Not recommended for production
+# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
+# Not recommended for production - use external database instead
 postgresql:
   enabled: true
+  image:
+    repository: postgres
+    tag: "13"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
@@ -3037,7 +3070,7 @@ dags:
     # sshKeySecret: airflow-ssh-secret
     #
     # Or set sshKeySecret with your key
-    # sshKey: |-
+    # sshKey: |
     #   -----BEGIN {OPENSSH PRIVATE KEY}-----
     #   ...
     #   -----END {OPENSSH PRIVATE KEY}-----

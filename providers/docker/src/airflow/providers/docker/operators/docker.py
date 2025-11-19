@@ -42,16 +42,11 @@ from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.providers.docker.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from logging import Logger
-
     from docker import APIClient
     from docker.types import DeviceRequest
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
+    from airflow.sdk.types import Logger
 
 
 def stringify(line: str | bytes):
@@ -64,8 +59,8 @@ def stringify(line: str | bytes):
 
 def fetch_logs(log_stream, log: Logger):
     log_lines = []
-    for log_chunk in log_stream:
-        log_chunk = stringify(log_chunk).rstrip()
+    for log_chunk_raw in log_stream:
+        log_chunk = stringify(log_chunk_raw).rstrip()
         log_lines.append(log_chunk)
         for log_chunk_line in log_chunk.split("\n"):
             log.info("%s", log_chunk_line)

@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{count}} / {{total}} 个资源事件已更新",
+  "dagActions": {
+    "delete": {
+      "button": "删除 Dag",
+      "warning": "这将会删除所有与此 Dag 相关的系统数据，包括 Dag 执行与任务。"
+    }
+  },
+  "favoriteDag": "将 Dag 加入收藏",
+  "filters": {
+    "allRunTypes": "全部执行类型",
+    "allStates": "全部状态",
+    "favorite": {
+      "all": "全部",
+      "favorite": "已加入收藏",
+      "unfavorite": "未加入收藏"
+    },
+    "paused": {
+      "active": "已启用",
+      "all": "全部",
+      "paused": "暂停"
+    },
+    "runIdPatternFilter": "搜索 Dag 执行"
+  },
+  "ownerLink": "拥有者 {{owner}} 的地址",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "找不到任务。",
+      "title": "受影响的任务: {{count}}"
+    },
+    "clear": {
+      "button": "清除 {{type}}",
+      "buttonTooltip": "按下 shift+c 清除",
+      "error": "清除 {{type}} 时发生错误",
+      "title": "清除 {{type}}"
+    },
+    "delete": {
+      "button": "删除 {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "删除 {{type}}",
+        "warning": "这将会删除所有与此 {{type}} 相关的系统数据。"
+      },
+      "error": "删除 {{type}} 时发生错误",
+      "success": {
+        "description": "{{type}} 删除请求成功。",
+        "title": "{{type}} 删除成功"
+      }
+    },
+    "markAs": {
+      "button": "标记 {{type}} 为...",
+      "buttonTooltip": {
+        "failed": "按下 shift+f 标记为失败",
+        "success": "按下 shift+s 标记为成功"
+      },
+      "title": "标记为 {{type}} 为 {{state}}"
+    },
+    "options": {
+      "downstream": "下游",
+      "existingTasks": "清除现有任务",
+      "future": "未来",
+      "onlyFailed": "只清除失败任务",
+      "past": "过去",
+      "queueNew": "加入新任务到队列",
+      "runOnLatestVersion": "执行最新套件包版本",
+      "upstream": "上游"
+    }
+  },
+  "search": {
+    "advanced": "高级搜索",
+    "clear": "清除搜索",
+    "dags": "搜索 Dags",
+    "hotkey": "+K",
+    "tasks": "搜索任务"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "按显示名称排序 (A-Z)",
+      "desc": "按显示名称排序 (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "按上次开始执行日期排序 (从新到旧)",
+      "desc": "按上次开始执行日期排序 (从新到旧)"
+    },
+    "lastRunState": {
+      "asc": "按上次执行状态排序 (A-Z)",
+      "desc": "按上次执行状态排序 (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "按下次执行时间排序 (由近而远)",
+      "desc": "按下次执行时间排序 (由远而近)"
+    },
+    "placeholder": "排序方式"
+  },
+  "unfavoriteDag": "将 Dag 移出收藏"
+}

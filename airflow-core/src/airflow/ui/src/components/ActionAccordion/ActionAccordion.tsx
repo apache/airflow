@@ -18,6 +18,7 @@
  */
 import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
@@ -39,6 +40,8 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
   const { t: translate } = useTranslation();
 
+  const columns = useMemo(() => getColumns(translate), [translate]);
+
   return (
     <Accordion.Root
       collapsible
@@ -58,7 +61,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
           <Accordion.ItemContent>
             <Box maxH="400px" overflowY="scroll">
               <DataTable
-                columns={getColumns(translate)}
+                columns={columns}
                 data={affectedTasks.task_instances}
                 displayMode="table"
                 modelName={translate("common:taskInstance_other")}

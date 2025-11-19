@@ -5,9 +5,39 @@
     "reason": "原因",
     "title": "依賴 (Dependencies) 阻礙任務排程"
   },
+  "calendar": {
+    "daily": "每日",
+    "hourly": "每小時",
+    "legend": {
+      "less": "較少",
+      "mixed": "混合",
+      "more": "較多"
+    },
+    "navigation": {
+      "nextMonth": "下一月",
+      "nextYear": "下一年",
+      "previousMonth": "上一月",
+      "previousYear": "上一年"
+    },
+    "noData": "沒有可用的資料",
+    "noFailedRuns": "無失敗的執行",
+    "noRuns": "無執行",
+    "totalRuns": "總執行數",
+    "week": "第 {{weekNumber}} 週",
+    "weekdays": {
+      "friday": "五",
+      "monday": "一",
+      "saturday": "六",
+      "sunday": "日",
+      "thursday": "四",
+      "tuesday": "二",
+      "wednesday": "三"
+    }
+  },
   "code": {
     "bundleUrl": "套件包網址",
     "noCode": "找不到程式碼",
+    "parseDuration": "解析時長：",
     "parsedAt": "解析時間："
   },
   "extraLinks": "額外連結",
@@ -34,13 +64,12 @@
       "tooltip": "按下 {{hotkey}} 進入全螢幕"
     },
     "info": "INFO",
-    "noTryNumber": "沒有嘗試次數",
+    "noTryNumber": "無嘗試次數",
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
   },
   "navigation": {
-    "jump": "跳躍: Shift+{{arrow}}",
     "navigation": "導航: {{arrow}}",
     "toggleGroup": "展開/收合群組: 空白鍵"
   },
@@ -58,6 +87,8 @@
       "assetEvent_other": "已建立資源事件"
     },
     "failedLogs": {
+      "hideLogs": "隱藏日誌",
+      "showLogs": "顯示日誌",
       "title": "最近失敗任務的日誌",
       "viewFullLogs": "檢視完整日誌"
     }
@@ -66,8 +97,8 @@
     "buttons": {
       "options": "選項",
       "showGantt": "顯示甘特圖",
-      "showGraph": "顯示圖表",
-      "showGrid": "顯示網格"
+      "showGraphShortcut": "顯示圖表 (按 g)",
+      "showGridShortcut": "顯示網格 (按 g)"
     },
     "dagRuns": {
       "label": "Dag 執行次數"
@@ -102,6 +133,7 @@
     "assetEvents": "資源事件",
     "auditLog": "審計日誌",
     "backfills": "回填",
+    "calendar": "日曆",
     "code": "程式碼",
     "details": "詳細資訊",
     "logs": "日誌",

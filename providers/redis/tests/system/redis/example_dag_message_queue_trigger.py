@@ -22,7 +22,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, Asset, AssetWatcher
 
 # Define a trigger that listens to an external message queue (Redis in this case)
-trigger = MessageQueueTrigger(queue="redis+pubsub://localhost:6379/test")
+trigger = MessageQueueTrigger(scheme="redis+pubsub", channels=["test"])
 
 # Define an asset that watches for messages on the queue
 asset = Asset("redis_queue_asset_1", watchers=[AssetWatcher(name="redis_watcher_1", trigger=trigger)])

@@ -17,9 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections import OrderedDict
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import pytest
 import sqlalchemy
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
@@ -405,14 +407,14 @@ class TestGcpSpannerHookDefaultProjectId:
         res = self.spanner_hook_default_project_id.execute_dml(
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            queries="",
+            queries=[""],
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
         )
         get_client.assert_called_once_with(project_id="example-project")
         instance_method.assert_called_once_with(instance_id="instance")
         database_method.assert_called_once_with(database_id="database-name")
         run_in_transaction_method.assert_called_once_with(mock.ANY)
-        assert res is None
+        assert res == []
 
     @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
     def test_execute_dml_overridden_project_id(self, get_client):
@@ -422,13 +424,75 @@ class TestGcpSpannerHookDefaultProjectId:
         database_method = instance_method.return_value.database
         run_in_transaction_method = database_method.return_value.run_in_transaction
         res = self.spanner_hook_default_project_id.execute_dml(
-            project_id="new-project", instance_id=SPANNER_INSTANCE, database_id=SPANNER_DATABASE, queries=""
+            project_id="new-project", instance_id=SPANNER_INSTANCE, database_id=SPANNER_DATABASE, queries=[""]
         )
         get_client.assert_called_once_with(project_id="new-project")
         instance_method.assert_called_once_with(instance_id="instance")
         database_method.assert_called_once_with(database_id="database-name")
         run_in_transaction_method.assert_called_once_with(mock.ANY)
-        assert res is None
+        assert res == []
+
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
+    def test_execute_dml_oqueries_row_count(self, get_client):
+        pass
+
+    @pytest.mark.parametrize(
+        ("returned_items", "expected_counts"),
+        [
+            pytest.param(
+                [
+                    ("DELETE FROM T WHERE archived = TRUE", 5),
+                    ("SELECT * FROM T", 42),
+                    ("UPDATE U SET flag = FALSE WHERE x = 1", 3),
+                ],
+                [5, 3],
+            ),
+            pytest.param(
+                [
+                    ("DELETE FROM Logs WHERE created_at < '2024-01-01'", 7),
+                ],
+                [7],
+            ),
+            pytest.param(
+                [
+                    (
+                        "UPDATE Accounts SET active=false WHERE last_login < DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY)",
+                        11,
+                    ),
+                    ("DELETE FROM Sessions WHERE expires_at < CURRENT_TIMESTAMP()", 23),
+                ],
+                [11, 23],
+            ),
+            pytest.param(
+                [
+                    ("SELECT COUNT(*) FROM Users", 50000),
+                    ("SELECT * FROM BigTable", 123456),
+                ],
+                [],
+            ),
+            pytest.param(
+                [],
+                [],
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
+    def test_execute_dml_parametrized(self, get_client, returned_items, expected_counts):
+        instance_method = get_client.return_value.instance
+        database_method = instance_method.return_value.database
+        run_in_tx = database_method.return_value.run_in_transaction
+
+        returned_mapping = OrderedDict(returned_items)
+        run_in_tx.return_value = returned_mapping
+
+        res = self.spanner_hook_default_project_id.execute_dml(
+            instance_id=SPANNER_INSTANCE,
+            database_id=SPANNER_DATABASE,
+            queries=[sql for sql, _ in returned_items],
+            project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
+        )
+
+        assert res == expected_counts
 
     def test_get_uri(self):
         self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
@@ -682,13 +746,13 @@ class TestGcpSpannerHookNoDefaultProjectID:
             project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             instance_id=SPANNER_INSTANCE,
             database_id=SPANNER_DATABASE,
-            queries="",
+            queries=[""],
         )
         get_client.assert_called_once_with(project_id="example-project")
         instance_method.assert_called_once_with(instance_id="instance")
         database_method.assert_called_once_with(database_id="database-name")
         run_in_transaction_method.assert_called_once_with(mock.ANY)
-        assert res is None
+        assert res == []
 
     def test_get_uri(self):
         self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)

@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "Első {{count}} kedvenc Dag",
+    "favoriteDags_other": "Első {{count}} kedvenc Dag-ek",
+    "noDagRuns": "Ehhez a Dag-hez még nincs futtatás.",
+    "noFavoriteDags": "Még nincs kedvenc. Kattintson a csillag ikonra a listában egy Dag mellett, hogy hozzáadja a kedvenceihez."
+  },
+  "group": "Csoport",
+  "health": {
+    "dagProcessor": "Dag Feldolgozó",
+    "health": "Állapot",
+    "healthy": "Egészséges",
+    "lastHeartbeat": "Legutóbbi életjel",
+    "metaDatabase": "MetaAdatbázis",
+    "scheduler": "Ütemező",
+    "status": "Státusz",
+    "triggerer": "Indító",
+    "unhealthy": "Nem egészséges"
+  },
+  "history": "Előzmények",
+  "importErrors": {
+    "dagImportError_one": "Dag import hiba",
+    "dagImportError_other": "Dag import hibák",
+    "searchByFile": "Keresés fájl szerint",
+    "timestamp": "Időbélyeg"
+  },
+  "managePools": "Pool-ok kezelése",
+  "noAssetEvents": "Nem találhatók adatkészlet események.",
+  "poolSlots": "Pool slotok",
+  "sortBy": {
+    "newestFirst": "Legújabb először",
+    "oldestFirst": "Legrégebbi először"
+  },
+  "source": "Forrás",
+  "stats": {
+    "activeDags": "Aktív Dag-ek",
+    "failedDags": "Sikertelen Dag-ek",
+    "queuedDags": "Sorban álló Dag-ek",
+    "requiredActions": "Szükséges műveletek",
+    "runningDags": "Futó Dag-ek",
+    "stats": "Statisztika"
+  },
+  "uri": "URI",
+  "welcome": "Üdvözöljük"
+}

@@ -72,7 +72,7 @@ if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
     from google.type.interval_pb2 import Interval
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class PreemptibilityType(Enum):
@@ -628,6 +628,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         "virtual_cluster_config",
         "cluster_name",
         "labels",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
@@ -951,7 +952,13 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "cluster_name", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "region",
+        "cluster_name",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -1077,6 +1084,7 @@ class _DataprocStartStopClusterBaseOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "request_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
 
@@ -1422,7 +1430,7 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("region", "template")
+    template_fields: Sequence[str] = ("region", "template", "gcp_conn_id")
     template_fields_renderers = {"template": "json"}
     operator_extra_links = (DataprocWorkflowTemplateLink(),)
 
@@ -1516,7 +1524,13 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
     :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
-    template_fields: Sequence[str] = ("template_id", "impersonation_chain", "request_id", "parameters")
+    template_fields: Sequence[str] = (
+        "template_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "request_id",
+        "parameters",
+    )
     template_fields_renderers = {"parameters": "json"}
     operator_extra_links = (DataprocWorkflowLink(),)
 
@@ -1664,7 +1678,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
     :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
-    template_fields: Sequence[str] = ("template", "impersonation_chain")
+    template_fields: Sequence[str] = ("template", "gcp_conn_id", "impersonation_chain")
     template_fields_renderers = {"template": "json"}
     operator_extra_links = (DataprocWorkflowLink(),)
 
@@ -1832,7 +1846,14 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     :param wait_timeout: How many seconds wait for job to be ready. Used only if ``asynchronous`` is False
     """
 
-    template_fields: Sequence[str] = ("project_id", "region", "job", "impersonation_chain", "request_id")
+    template_fields: Sequence[str] = (
+        "project_id",
+        "region",
+        "job",
+        "gcp_conn_id",
+        "impersonation_chain",
+        "request_id",
+    )
     template_fields_renderers = {"job": "json"}
 
     operator_extra_links = (DataprocJobLink(),)
@@ -1952,9 +1973,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         job_state = event["job_state"]
         job_id = event["job_id"]
         job = event["job"]
-        if job_state == JobStatus.State.ERROR:
+        if job_state == JobStatus.State.ERROR.name:  # type: ignore
             raise AirflowException(f"Job {job_id} failed:\n{job}")
-        if job_state == JobStatus.State.CANCELLED:
+        if job_state == JobStatus.State.CANCELLED.name:  # type: ignore
             raise AirflowException(f"Job {job_id} was cancelled:\n{job}")
         self.log.info("%s completed successfully.", self.task_id)
         return job_id
@@ -2031,6 +2052,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         "region",
         "request_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     operator_extra_links = (DataprocClusterLink(),)
@@ -2166,6 +2188,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
         "project_id",
         "region",
         "cluster_name",
+        "gcp_conn_id",
         "impersonation_chain",
         "tarball_gcs_dir",
         "diagnosis_interval",
@@ -2312,6 +2335,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         "batch",
         "batch_id",
         "region",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     operator_extra_links = (DataprocBatchLink(),)
@@ -2462,7 +2486,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 if not self.hook.check_error_for_resource_is_not_ready_msg(batch.state_message):
                     break
 
-        self.handle_batch_status(context, batch.state, batch_id, batch.state_message)
+        self.handle_batch_status(context, batch.state.name, batch_id, batch.state_message)
         return Batch.to_dict(batch)
 
     @cached_property
@@ -2487,19 +2511,19 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             self.operation.cancel()
 
     def handle_batch_status(
-        self, context: Context, state: Batch.State, batch_id: str, state_message: str | None = None
+        self, context: Context, state: str, batch_id: str, state_message: str | None = None
     ) -> None:
         # The existing batch may be a number of states other than 'SUCCEEDED'\
         # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
         # finds a cancelling|canceled|unspecified job from wait_for_batch or the deferred trigger
         link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
-        if state == Batch.State.FAILED:
+        if state == Batch.State.FAILED.name:  # type: ignore
             raise AirflowException(
                 f"Batch job {batch_id} failed with error: {state_message}.\nDriver logs: {link}"
             )
-        if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
+        if state in (Batch.State.CANCELLED.name, Batch.State.CANCELLING.name):  # type: ignore
             raise AirflowException(f"Batch job {batch_id} was cancelled.\nDriver logs: {link}")
-        if state == Batch.State.STATE_UNSPECIFIED:
+        if state == Batch.State.STATE_UNSPECIFIED.name:  # type: ignore
             raise AirflowException(f"Batch job {batch_id} unspecified.\nDriver logs: {link}")
         self.log.info("Batch job %s completed.\nDriver logs: %s", batch_id, link)
 
@@ -2573,7 +2597,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         dag_id = re.sub(r"[.\s]", "_", self.dag_id.lower())
         task_id = re.sub(r"[.\s]", "_", self.task_id.lower())
 
-        labels_regex = re.compile(r"^[a-z][\w-]{0,63}$")
+        labels_regex = re.compile(r"^[a-z][\w-]{0,62}$")
         if not labels_regex.match(dag_id) or not labels_regex.match(task_id):
             return
 
@@ -2620,7 +2644,13 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "batch_id",
+        "region",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -2684,7 +2714,13 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "batch_id",
+        "region",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (DataprocBatchLink(),)
 
     def __init__(
@@ -2760,7 +2796,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
     :param order_by: How to order results as specified in ListBatchesRequest
     """
 
-    template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("region", "project_id", "gcp_conn_id", "impersonation_chain")
     operator_extra_links = (DataprocBatchesListLink(),)
 
     def __init__(
@@ -2834,7 +2870,13 @@ class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("operation_name", "region", "project_id", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "operation_name",
+        "region",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,

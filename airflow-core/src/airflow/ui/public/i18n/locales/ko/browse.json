@@ -10,6 +10,9 @@
       "user": "사용자",
       "when": "시점"
     },
+    "filters": {
+      "eventType": "이벤트 유형"
+    },
     "title": "감사 로그"
   },
   "xcom": {

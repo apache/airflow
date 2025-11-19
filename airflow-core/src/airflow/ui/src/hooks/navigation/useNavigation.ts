@@ -17,11 +17,11 @@
  * under the License.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { getTaskInstanceLinkFromObj } from "src/utils/links";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 import type {
   NavigationDirection,
@@ -59,26 +59,18 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
   }
 };
 
-const getNextIndex = (
-  current: number,
-  direction: number,
-  options: { isJump: boolean; max: number },
-): number => {
-  if (options.isJump) {
-    return direction > 0 ? options.max - 1 : 0;
-  }
-
-  return Math.max(0, Math.min(options.max - 1, current + direction));
-};
+const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
+  Math.max(0, Math.min(options.max - 1, current + direction));
 
 const buildPath = (params: {
   dagId: string;
   mapIndex?: string;
   mode: NavigationMode;
+  pathname: string;
   run: GridRunsResponse;
   task: GridTask;
 }): string => {
-  const { dagId, mapIndex = "-1", mode, run, task } = params;
+  const { dagId, mapIndex = "-1", mode, pathname, run, task } = params;
   const groupPath = task.isGroup ? "group/" : "";
 
   switch (mode) {
@@ -87,34 +79,25 @@ const buildPath = (params: {
     case "task":
       return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
     case "TI":
-      if (task.is_mapped ?? false) {
-        if (mapIndex !== "-1") {
-          return getTaskInstanceLinkFromObj({
-            dagId,
-            dagRunId: run.run_id,
-            mapIndex: parseInt(mapIndex, 10),
-            taskId: `${groupPath}${task.id}`,
-          });
-        }
-
-        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped`;
-      }
-
-      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}`;
+      return buildTaskInstanceUrl({
+        currentPathname: pathname,
+        dagId,
+        isGroup: task.isGroup,
+        isMapped: task.is_mapped ?? false,
+        mapIndex,
+        runId: run.run_id,
+        taskId: task.id,
+      });
     default:
       return `/dags/${dagId}`;
   }
 };
 
-export const useNavigation = ({
-  enabled = true,
-  onEscapePress,
-  onToggleGroup,
-  runs,
-  tasks,
-}: UseNavigationProps): UseNavigationReturn => {
+export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<NavigationMode>("TI");
 
   useEffect(() => {
@@ -137,7 +120,7 @@ export const useNavigation = ({
   const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
 
   const handleNavigation = useCallback(
-    (direction: NavigationDirection, isJump: boolean = false) => {
+    (direction: NavigationDirection) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
@@ -151,7 +134,7 @@ export const useNavigation = ({
 
       const isAtBoundary = boundaries[direction];
 
-      if (!isJump && isAtBoundary) {
+      if (isAtBoundary) {
         return;
       }
 
@@ -171,11 +154,10 @@ export const useNavigation = ({
 
       if (nav.index === "taskIndex") {
         newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
-          isJump,
           max: nav.max,
         });
       } else {
-        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { isJump, max: nav.max });
+        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
       }
 
       const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
@@ -188,17 +170,23 @@ export const useNavigation = ({
       const task = tasks[newTaskIndex];
 
       if (run && task) {
-        const path = buildPath({ dagId, mapIndex, mode, run, task });
+        const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
 
         navigate(path, { replace: true });
+
+        const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
+
+        // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
+        if (grid) {
+          (grid as HTMLLinkElement).focus();
+        }
       }
     },
-    [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
+    [currentIndices, dagId, enabled, location.pathname, mapIndex, mode, runs, tasks, navigate],
   );
 
   useKeyboardNavigation({
-    enabled: enabled && Boolean(dagId),
-    onEscapePress,
+    enabled,
     onNavigate: handleNavigation,
     onToggleGroup: currentTask?.isGroup && onToggleGroup ? () => onToggleGroup(currentTask.id) : undefined,
   });
@@ -206,7 +194,6 @@ export const useNavigation = ({
   return {
     currentIndices,
     currentTask,
-    enabled: enabled && Boolean(dagId),
     handleNavigation,
     mode,
     setMode,

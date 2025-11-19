@@ -28,14 +28,14 @@ from airflow.sdk.definitions._internal.templater import LiteralValue, SandboxedE
 
 class TestTemplater:
     def test_get_template_env(self):
-        # Test get_template_env when a DAG is provided
+        # Test get_template_env when a Dag is provided
         templater = Templater()
         dag = DAG(dag_id="test_dag", schedule=None, render_template_as_native_obj=True)
         env = templater.get_template_env(dag)
         assert isinstance(env, jinja2.Environment)
         assert not env.sandboxed
 
-        # Test get_template_env when no DAG is provided
+        # Test get_template_env when no Dag is provided
         templater = Templater()
         env = templater.get_template_env()
         assert isinstance(env, jinja2.Environment)
@@ -110,7 +110,7 @@ def test_private_access(env):
 
 
 @pytest.mark.parametrize(
-    ["name", "expected"],
+    ("name", "expected"),
     (
         ("ds", "2012-07-24"),
         ("ds_nodash", "20120724"),

@@ -35,7 +35,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         pytest.param(None, {"dags-folder"}, id="default"),
         pytest.param("{}", set(), id="empty dict"),
@@ -56,6 +56,20 @@ from tests_common.test_utils.db import clear_db_dag_bundles
             ),
             {"my-bundle"},
             id="remove_dags_folder_default_add_bundle",
+        ),
+        pytest.param(
+            json.dumps(
+                [
+                    {
+                        "name": "my-bundle",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {"path": "/tmp/hihi", "refresh_interval": 1},
+                        "team_name": "test",
+                    }
+                ]
+            ),
+            "cannot have a team name when multi-team mode is disabled.",
+            id="add_bundle_with_team",
         ),
         pytest.param(
             "[]",

@@ -1,0 +1,39 @@
+{
+  "filters": {
+    "body": "Törzs",
+    "createdAtFrom": "Kezdő létrehozás dátum",
+    "createdAtTo": "Végső létrehozás dátum",
+    "response": {
+      "all": "Összes",
+      "pending": "Függőben",
+      "received": "Fogadva"
+    }
+  },
+  "requiredAction_one": "Szükséges művelet",
+  "requiredAction_other": "Szükséges műveletek",
+  "requiredActionCount_one": "Szükséges teendők ({{count}})",
+  "requiredActionCount_other": "Szükséges teendők ({{count}})",
+  "requiredActionState": "Szükséges művelet állapota",
+  "response": {
+    "created": "Válasz létrehozva: ",
+    "error": "Válasz sikertelen",
+    "optionsDescription": "Válassza ki a lehetőségeket ehhez a feladatpéldányhoz",
+    "optionsLabel": "Lehetőségek",
+    "received": "Válasz beérkezett: ",
+    "respond": "Válaszadás",
+    "responded_by_user_name": "Válaszolta: {{userName}}",
+    "success": "A(z) {{taskId}} feladatpéldányhoz tartozó válasz sikeres",
+    "title": "Emberi feladat példány - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "Jóváhagyás megérkezett",
+    "approvalRequired": "Jóváhagyás szükséges",
+    "choiceReceived": "Választás megérkezett",
+    "choiceRequired": "Választás szükséges",
+    "noResponseReceived": "Nem érkezett válasz",
+    "rejectionReceived": "Elutasítás megérkezett",
+    "responseReceived": "Válasz megérkezett",
+    "responseRequired": "Válasz szükséges"
+  },
+  "subject": "Tárgy"
+}

@@ -1,14 +1,16 @@
 {
   "backfill": {
+    "affected_many": "Se activarán {{count}} ejecuciones.",
     "affected_one": "1 ejecución será activada.",
-    "affected_other": "{{count}} ejecuciones serán activadas.",
+    "affected_other": "Se activarán {{count}} ejecuciones.",
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
+    "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
     "dateRange": "Rango de Fechas",
-    "dateRangeFrom": "Desde",
-    "dateRangeTo": "Hasta",
     "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
     "maxRuns": "Máximo de Ejecuciones Activas",
+    "missingAndErroredRuns": "Ejecutaciones Faltantes y con Errores",
+    "missingRuns": "Ejecutaciones Faltantes",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
     "selectDescription": "Ejecutar este Dag para un rango de fechas",
@@ -43,15 +45,20 @@
     "invalidJson": "Formato JSON inválido: {{errorMessage}}"
   },
   "dagWarnings": {
+    "error_many": "Errores",
     "error_one": "1 Error",
+    "error_other": "Errores",
     "errorAndWarning": "1 Error y {{warningText}}",
-    "warning_one": "1 Aviso",
+    "warning_many": "{{count}} Advertencias",
+    "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
   },
   "durationChart": {
     "duration": "Duración (segundos)",
+    "lastDagRun_many": "Últimas {{count}} Ejecuciones de Dag",
     "lastDagRun_one": "Última Ejecución de Dag",
     "lastDagRun_other": "Últimas {{count}} Ejecuciones de Dag",
+    "lastTaskInstance_many": "Últimas {{count}} Instancias de Tarea",
     "lastTaskInstance_one": "Última Instancia de Tarea",
     "lastTaskInstance_other": "Últimas {{count}} Instancias de Tarea",
     "queuedDuration": "Duración en Cola",
@@ -59,6 +66,8 @@
     "runDuration": "Duración de la Ejecución"
   },
   "fileUpload": {
+    "files_many": "{{count}} archivos",
+    "files_one": "{{count}} archivo",
     "files_other": "{{count}} archivos"
   },
   "flexibleForm": {
@@ -80,11 +89,22 @@
     "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
     "otherDagRuns": "+Otras Ejecuciones de Dag",
+    "taskCount_many": "{{count}} Tareas",
     "taskCount_one": "{{count}} Tarea",
     "taskCount_other": "{{count}} Tareas",
     "taskGroup": "Grupo de Tareas"
   },
   "limitedList": "+{{count}} más",
+  "limitedList.allItems": "Todos los {{count}} elementos:",
+  "limitedList.allTags_many": "Todas las etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas las etiquetas (1)",
+  "limitedList.allTags_other": "Todas las etiquetas ({{count}})",
+  "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
+  "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
+  "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementos",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementos",
   "logs": {
     "file": "Archivo",
     "location": "línea {{line}} en {{name}}"

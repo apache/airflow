@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -65,6 +66,7 @@ AnExampleDisplayName
 AnnotateTextResponse
 AnotherExampleDisplayName
 ans
+anser
 Ansible
 anyOf
 apache
@@ -224,6 +226,7 @@ bytestring
 cacert
 Cadwyn
 callables
+callsite
 camelCase
 Cancelled
 cancelled
@@ -250,6 +253,8 @@ chakra
 Changelog
 changelog
 charset
+chatbot
+chatbots
 Checklicence
 checklicence
 CheckOperator
@@ -270,6 +275,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -360,6 +366,7 @@ csrf
 CSRFProtect
 css
 csv
+Ctl
 ctor
 Ctrl
 cubeName
@@ -474,6 +481,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -605,6 +613,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
@@ -698,6 +707,8 @@ Firehose
 Firestore
 firestore
 firstname
+Flamegraph
+flamegraph
 Flink
 flink
 flinkDeployment
@@ -1114,6 +1125,7 @@ memberOf
 memcached
 Memorystore
 memorystore
+memray
 Mesos
 mesos
 MessageAttributes
@@ -1574,6 +1586,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1608,6 +1621,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
@@ -1877,6 +1891,8 @@ tsql
 tsv
 ttl
 ttlSecondsAfterFinished
+TTU
+Ttu
 TTY
 Tunables
 tunables
@@ -1966,6 +1982,8 @@ utilise
 Utils
 utils
 uuid
+uv
+uvicorn
 V1JobList
 validator
 validators

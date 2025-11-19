@@ -23,6 +23,7 @@ import pytest
 from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
@@ -32,6 +33,7 @@ DAG_ID = "TEST_DAG_ID"
 DAG_DISPLAY_NAME = "TEST_DAG_ID"
 DAG_RUN_ID = "TEST_DAG_RUN_ID"
 TASK_ID = "TEST_TASK_ID"
+TASK_DISPLAY_NAME = "TEST_TASK_ID"
 DAG_EXECUTION_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 OWNER = "TEST_OWNER"
 OWNER_DISPLAY_NAME = "Test Owner"
@@ -107,7 +109,7 @@ class TestEventLogsEndpoint:
 
 class TestGetEventLog(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
-        "event_log_key, expected_status_code, expected_body",
+        ("event_log_key", "expected_status_code", "expected_body"),
         [
             (
                 EVENT_NORMAL,
@@ -135,6 +137,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "owner": OWNER_AIRFLOW,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
+                    "task_display_name": TASK_DISPLAY_NAME,
                 },
             ),
             (
@@ -148,6 +151,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
                     "owner": OWNER,
                     "run_id": DAG_RUN_ID,
                     "task_id": TASK_ID,
+                    "task_display_name": TASK_DISPLAY_NAME,
                     "try_number": 0,
                 },
             ),
@@ -168,6 +172,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "dag_display_name": expected_body.get("dag_display_name"),
             "dag_id": expected_body.get("dag_id"),
             "task_id": expected_body.get("task_id"),
+            "task_display_name": expected_body.get("task_display_name"),
             "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
@@ -194,7 +199,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
 class TestGetEventLogs(TestEventLogsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_events",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_events"),
         [
             (
                 {},
@@ -311,7 +316,8 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        response = test_client.get("/eventLogs", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

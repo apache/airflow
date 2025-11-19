@@ -22,53 +22,58 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "module_path, attr_name, expected_value, warning_message",
+    ("module_path", "attr_name", "expected_value", "warning_message"),
     (
-        (
+        pytest.param(
             "airflow",
             "Dataset",
             "airflow.sdk.definitions.asset.Asset",
             (
-                "Import 'Dataset' directly from the airflow module is deprecated and will be removed in the future. "
-                "Please import it from 'airflow.sdk.definitions.asset.Asset'."
+                "Import 'Dataset' directly from the airflow module is deprecated "
+                "and will be removed in the future. Please import it from 'airflow.sdk.Asset'."
             ),
+            id="airflow.Dataset",
         ),
-        (
+        pytest.param(
             "airflow.datasets",
             "Dataset",
             "airflow.sdk.definitions.asset.Asset",
             (
-                "Import 'airflow.dataset.Dataset' is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.Asset'."
+                "Import 'airflow.datasets.Dataset' is deprecated and "
+                "will be removed in Airflow 3.2. Please import it from 'airflow.sdk.Asset'."
             ),
+            id="airflow.datasets.Dataset",
         ),
-        (
+        pytest.param(
             "airflow.datasets",
             "DatasetAlias",
             "airflow.sdk.definitions.asset.AssetAlias",
             (
-                "Import 'airflow.dataset.DatasetAlias' is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.AssetAlias'."
+                "Import 'airflow.datasets.DatasetAlias' is deprecated and "
+                "will be removed in Airflow 3.2. Please import it from 'airflow.sdk.AssetAlias'."
             ),
+            id="airflow.datasets.DatasetAlias",
         ),
-        (
+        pytest.param(
             "airflow.datasets",
             "expand_alias_to_datasets",
             "airflow.models.asset.expand_alias_to_assets",
             (
-                "Import 'airflow.dataset.expand_alias_to_datasets' is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from 'airflow.models.asset.expand_alias_to_assets'."
+                "Import 'airflow.datasets.expand_alias_to_datasets' is deprecated and will be removed "
+                "in Airflow 3.2. Please import it from 'airflow.models.asset.expand_alias_to_assets'."
             ),
+            id="airflow.datasets.expand_alias_to_datasets",
         ),
-        (
+        pytest.param(
             "airflow.datasets.metadata",
             "Metadata",
             "airflow.sdk.definitions.asset.metadata.Metadata",
             (
-                "Import from the airflow.dataset module is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from "
-                "'airflow.sdk.definitions.asset.metadata'."
+                "Import from the airflow.datasets.metadata module is deprecated and "
+                "will be removed in Airflow 3.2. Please import it from "
+                "'airflow.sdk'."
             ),
+            id="airflow.datasets.metadata.Metadata",
         ),
     ),
 )
@@ -79,7 +84,9 @@ def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, expec
         mod = importlib.import_module(module_path, __name__)
         attr = getattr(mod, attr_name)
     assert f"{attr.__module__}.{attr.__name__}" == expected_value
-    assert record[0].category is DeprecationWarning
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+    assert record[0].category is DeprecatedImportWarning
     assert str(record[0].message) == warning_message
 
 

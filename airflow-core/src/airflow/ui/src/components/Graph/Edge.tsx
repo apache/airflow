@@ -22,17 +22,12 @@ import { LinePath } from "@visx/shape";
 import type { Edge as EdgeType } from "@xyflow/react";
 import type { ElkPoint } from "elkjs";
 
-import { useColorMode } from "src/context/colorMode";
-
 import type { EdgeData } from "./reactflowUtils";
 
 type Props = EdgeType<EdgeData>;
 
 const CustomEdge = ({ data }: Props) => {
-  const { colorMode } = useColorMode();
-
-  // corresponds to the "border.inverted" semantic token
-  const [lightStroke, darkStroke] = useToken("colors", ["gray.800", "gray.200"]);
+  const [strokeColor, blueColor] = useToken("colors", ["border.inverted", "blue.500"]);
 
   if (data === undefined) {
     return undefined;
@@ -65,9 +60,9 @@ const CustomEdge = ({ data }: Props) => {
         <LinePath
           data={[section.startPoint, ...(section.bendPoints ?? []), section.endPoint]}
           key={section.id}
-          stroke={colorMode === "dark" ? darkStroke : lightStroke}
+          stroke={rest.isSelected ? blueColor : strokeColor}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
-          strokeWidth={rest.isSelected ? 2 : 1}
+          strokeWidth={rest.isSelected ? 3 : 1}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}
         />

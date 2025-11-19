@@ -24,20 +24,26 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.models.team import Team
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
+    from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
+    from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
+    from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -49,17 +55,19 @@ class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
     __NO_DEFAULT_SENTINEL = object()
 
-    id = Column(Integer, primary_key=True)
-    key = Column(String(ID_LEN), unique=True)
-    _val = Column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
-    description = Column(Text)
-    is_encrypted = Column(Boolean, unique=False, default=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    key: Mapped[str] = mapped_column(String(ID_LEN), unique=True)
+    _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
 
-    def __init__(self, key=None, val=None, description=None):
+    def __init__(self, key=None, val=None, description=None, team_id=None):
         super().__init__()
         self.key = key
         self.val = val
         self.description = description
+        self.team_id = team_id
 
     @reconstructor
     def on_db_load(self):
@@ -146,18 +154,14 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
             from airflow.sdk import Variable as TaskSDKVariable
-            from airflow.sdk.definitions._internal.types import NOTSET
 
-            var_val = TaskSDKVariable.get(
-                key,
-                default=NOTSET if default_var is cls.__NO_DEFAULT_SENTINEL else default_var,
-                deserialize_json=deserialize_json,
-            )
+            default_kwargs = {} if default_var is cls.__NO_DEFAULT_SENTINEL else {"default": default_var}
+            var_val = TaskSDKVariable.get(key, deserialize_json=deserialize_json, **default_kwargs)
             if isinstance(var_val, str):
                 mask_secret(var_val, key)
 
@@ -203,7 +207,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -236,33 +240,51 @@ class Variable(Base, LoggingMixin):
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
 
-            # Import dialect-specific insert function
-            if (dialect_name := session.get_bind().dialect.name) == "postgresql":
-                from sqlalchemy.dialects.postgresql import insert
+            # Create dialect-specific upsert statement
+            dialect_name = session.get_bind().dialect.name
+            stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
+
+            if dialect_name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+                pg_stmt = pg_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = pg_stmt.on_conflict_do_update(
+                    index_elements=["key"],
+                    set_=dict(
+                        val=val,
+                        description=description,
+                        is_encrypted=is_encrypted,
+                    ),
+                )
             elif dialect_name == "mysql":
-                from sqlalchemy.dialects.mysql import insert
-            else:
-                from sqlalchemy.dialects.sqlite import insert
+                from sqlalchemy.dialects.mysql import insert as mysql_insert
 
-            # Create the insert statement (common for all dialects)
-            stmt = insert(Variable).values(
-                key=key,
-                val=val,
-                description=description,
-                is_encrypted=is_encrypted,
-            )
-
-            # Apply dialect-specific upsert
-            if dialect_name == "mysql":
-                # MySQL: ON DUPLICATE KEY UPDATE
-                stmt = stmt.on_duplicate_key_update(
+                mysql_stmt = mysql_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = mysql_stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
                 )
             else:
-                # PostgreSQL and SQLite: ON CONFLICT DO UPDATE
-                stmt = stmt.on_conflict_do_update(
+                from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+                sqlite_stmt = sqlite_insert(Variable).values(
+                    key=key,
+                    val=val,
+                    description=description,
+                    is_encrypted=is_encrypted,
+                )
+                stmt = sqlite_stmt.on_conflict_do_update(
                     index_elements=["key"],
                     set_=dict(
                         val=val,
@@ -301,7 +323,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead and use `Variable.set` as it is an upsert.",
+                "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -356,7 +378,7 @@ class Variable(Base, LoggingMixin):
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Variable` instead",
+                "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -374,7 +396,8 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+            result = session.execute(delete(Variable).where(Variable.key == key))
+            rows = getattr(result, "rowcount", 0) or 0
             SecretCache.invalidate_variable(key)
             return rows
 
@@ -450,3 +473,21 @@ class Variable(Base, LoggingMixin):
 
         SecretCache.save_variable(key, var_val)  # we save None as well
         return var_val
+
+    @staticmethod
+    @provide_session
+    def get_team_name(variable_key: str, session=NEW_SESSION) -> str | None:
+        stmt = (
+            select(Team.name).join(Variable, Team.id == Variable.team_id).where(Variable.key == variable_key)
+        )
+        return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_key_to_team_name_mapping(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+        stmt = (
+            select(Variable.key, Team.name)
+            .join(Team, Variable.team_id == Team.id)
+            .where(Variable.key.in_(variable_keys))
+        )
+        return {key: team_name for key, team_name in session.execute(stmt)}

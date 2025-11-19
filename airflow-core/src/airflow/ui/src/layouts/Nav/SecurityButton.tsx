@@ -36,7 +36,7 @@ export const SecurityButton = () => {
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiLock size="1.75rem" />} title={translate("nav.security")} />
+        <NavButton icon={FiLock} title={translate("nav.security")} />
       </Menu.Trigger>
       <Menu.Content>
         {authLinks.extra_menu_items.map(({ text }) => {

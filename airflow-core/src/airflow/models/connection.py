@@ -27,18 +27,22 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
-from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy_utils import UUIDType
 
+from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.models.team import Team
 from airflow.sdk import SecretCache
-from airflow.sdk.execution_time.secrets_masker import mask_secret
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -123,18 +127,21 @@ class Connection(Base, LoggingMixin):
 
     __tablename__ = "connection"
 
-    id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
-    host = Column(String(500))
-    schema = Column(String(500))
-    login = Column(Text())
-    _password = Column("password", Text())
-    port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    _extra = Column("extra", Text())
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True)
+    conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
+    )
+    host: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    login: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,
@@ -148,9 +155,9 @@ class Connection(Base, LoggingMixin):
         port: int | None = None,
         extra: str | dict | None = None,
         uri: str | None = None,
+        team_id: str | None = None,
     ):
         super().__init__()
-        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -163,19 +170,27 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
-            self.conn_type = conn_type
+            if conn_type is not None:
+                self.conn_type = conn_type
+
             self.host = host
             self.login = login
             self.password = password
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if conn_id is not None:
+            sanitized_id = sanitize_conn_id(conn_id)
+            if sanitized_id is not None:
+                self.conn_id = sanitized_id
         if self.extra:
             self._validate_extra(self.extra, self.conn_id)
 
         if self.password:
             mask_secret(self.password)
             mask_secret(quote(self.password))
+        self.team_id = team_id
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -264,6 +279,9 @@ class Connection(Base, LoggingMixin):
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
             uri = "//"
+
+        host_to_use: str | None
+        protocol_to_add: str | None
 
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
@@ -479,7 +497,7 @@ class Connection(Base, LoggingMixin):
 
             warnings.warn(
                 "Using Connection.get_connection_from_secrets from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
+                "Please use `get` on Connection from sdk(`airflow.sdk.Connection`) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -555,7 +573,7 @@ class Connection(Base, LoggingMixin):
 
             warnings.warn(
                 "Using Connection.from_json from `airflow.models` is deprecated."
-                "Please use `from airflow.sdk import Connection` instead",
+                "Please use `from_json` on Connection from sdk(airflow.sdk.Connection) instead",
                 DeprecationWarning,
                 stacklevel=1,
             )
@@ -582,3 +600,25 @@ class Connection(Base, LoggingMixin):
         conn_repr = self.to_dict(prune_empty=True, validate=False)
         conn_repr.pop("conn_id", None)
         return json.dumps(conn_repr)
+
+    @staticmethod
+    @provide_session
+    def get_team_name(connection_id: str, session=NEW_SESSION) -> str | None:
+        stmt = (
+            select(Team.name)
+            .join(Connection, Team.id == Connection.team_id)
+            .where(Connection.conn_id == connection_id)
+        )
+        return session.scalar(stmt)
+
+    @staticmethod
+    @provide_session
+    def get_conn_id_to_team_name_mapping(
+        connection_ids: list[str], session=NEW_SESSION
+    ) -> dict[str, str | None]:
+        stmt = (
+            select(Connection.conn_id, Team.name)
+            .join(Team, Connection.team_id == Team.id)
+            .where(Connection.conn_id.in_(connection_ids))
+        )
+        return {conn_id: team_name for conn_id, team_name in session.execute(stmt)}

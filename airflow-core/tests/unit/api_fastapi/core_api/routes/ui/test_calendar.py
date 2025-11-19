@@ -25,6 +25,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -65,7 +66,7 @@ class TestCalendar:
         clear_db_dags()
 
     @pytest.mark.parametrize(
-        "query_params, result",
+        ("query_params", "result"),
         [
             (
                 {},
@@ -103,7 +104,8 @@ class TestCalendar:
         ],
     )
     def test_daily_calendar(self, test_client, query_params, result):
-        response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
+        with assert_queries_count(4):
+            response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
         assert response.status_code == 200
         body = response.json()
         print(body)
@@ -111,7 +113,7 @@ class TestCalendar:
         assert body == result
 
     @pytest.mark.parametrize(
-        "query_params, result",
+        ("query_params", "result"),
         [
             (
                 {"granularity": "hourly"},
@@ -141,10 +143,40 @@ class TestCalendar:
                     ],
                 },
             ),
+            (
+                {
+                    "granularity": "hourly",
+                    "logical_date_gte": "2025-01-02T00:00:00Z",
+                    "logical_date_lte": "2025-01-02T23:23:59Z",
+                    "logical_date_gt": "2025-01-02T00:00:00Z",
+                    "logical_date_lt": "2025-01-02T23:23:59Z",
+                },
+                {
+                    "total_entries": 0,
+                    "dag_runs": [],
+                },
+            ),
+            (
+                {
+                    "granularity": "hourly",
+                    "logical_date_gte": "2025-01-02T00:00:00Z",
+                    "logical_date_lte": "2025-01-02T23:23:59Z",
+                    "logical_date_gt": "2025-01-01T23:00:00Z",
+                    "logical_date_lt": "2025-01-03T00:00:00Z",
+                },
+                {
+                    "total_entries": 2,
+                    "dag_runs": [
+                        {"date": "2025-01-02T00:00:00Z", "state": "running", "count": 1},
+                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                    ],
+                },
+            ),
         ],
     )
     def test_hourly_calendar(self, setup_dag_runs, test_client, query_params, result):
-        response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
+        with assert_queries_count(4):
+            response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
         assert response.status_code == 200
         body = response.json()
 

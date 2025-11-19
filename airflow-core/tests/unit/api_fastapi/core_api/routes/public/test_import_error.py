@@ -22,11 +22,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
@@ -142,7 +144,7 @@ def set_mock_auth_manager__batch_is_authorized_dag(
 
 class TestGetImportError:
     @pytest.mark.parametrize(
-        "prepared_import_error_idx, expected_status_code, expected_body",
+        ("prepared_import_error_idx", "expected_status_code", "expected_body"),
         [
             (
                 0,
@@ -240,7 +242,7 @@ class TestGetImportError:
 
 class TestGetImportErrors:
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_filenames",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_filenames"),
         [
             (
                 {},
@@ -322,7 +324,8 @@ class TestGetImportErrors:
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/importErrors", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -343,10 +346,19 @@ class TestGetImportErrors:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "batch_is_authorized_dag_return_value, expected_stack_trace",
+        ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),
         [
-            pytest.param(True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file"),
             pytest.param(
+                "test_team",
+                True,
+                STACKTRACE1,
+                id="user_has_read_access_to_all_dags_in_current_file_with_team",
+            ),
+            pytest.param(
+                None, True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file_without_team"
+            ),
+            pytest.param(
+                None,
                 False,
                 "REDACTED - you do not have read permission on all DAGs in the file",
                 id="user_does_not_have_read_access_to_all_dags_in_current_file",
@@ -354,25 +366,30 @@ class TestGetImportErrors:
         ],
     )
     @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_user_can_not_read_all_dags_in_file(
         self,
         mock_get_auth_manager,
+        mock_get_dag_id_to_team_name_mapping,
         test_client,
+        team,
         batch_is_authorized_dag_return_value,
         expected_stack_trace,
         permitted_dag_model,
         import_errors,
     ):
+        mock_get_dag_id_to_team_name_mapping.return_value = {permitted_dag_model.dag_id: team}
         set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
             mock_get_auth_manager, {permitted_dag_model.dag_id}
         )
-        set_mock_auth_manager__batch_is_authorized_dag(
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
-        response = test_client.get("/importErrors")
+        with assert_queries_count(3):
+            response = test_client.get("/importErrors")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
         assert response.status_code == 200
@@ -389,6 +406,15 @@ class TestGetImportErrors:
                 }
             ],
         }
+        mock_batch_is_authorized_dag.assert_called_once_with(
+            [
+                {
+                    "method": "GET",
+                    "details": DagDetails(id=permitted_dag_model.dag_id, team_name=team),
+                }
+            ],
+            user=mock.ANY,
+        )
 
     @pytest.mark.usefixtures("permitted_dag_model")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")

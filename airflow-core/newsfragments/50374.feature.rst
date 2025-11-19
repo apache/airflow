@@ -1,1 +1,0 @@
-When a dag specifies ``schedule="@once"`` without an explicit ``start_date``, run it as soon as convenient. (Previously, the dag would never run.)

@@ -51,8 +51,8 @@ def download_file(url):
 def construct_old_to_new_tuple_mapping(file_name: Path) -> list[tuple[str, str]]:
     old_to_new_tuples: list[tuple[str, str]] = []
     with file_name.open() as f:
-        for line in f:
-            line = line.strip()
+        for line_raw in f:
+            line = line_raw.strip()
             if line and not line.startswith("#"):
                 old_path, new_path = line.split(" ")
                 old_path = old_path.replace(".rst", ".html")
@@ -155,6 +155,10 @@ def start_generating_back_references(
     if "apache-airflow-providers" in short_provider_ids:
         get_console().print("[info]Skipping apache-airflow-providers package. No back-reference needed.")
         short_provider_ids.remove("apache-airflow-providers")
+    if "apache-airflow-ctl" in short_provider_ids:
+        get_console().print("[info]Skipping airflowctl package. No back-reference needed.")
+        short_provider_ids.remove("apache-airflow-ctl")
+
     if short_provider_ids:
         for p in short_provider_ids:
             slash_based_short_provider_id = p.replace(".", "/")

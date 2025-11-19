@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+4.11.1
+......
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate samba provider to ''common.compat'' (#57082)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to samba Provider test(transfers, hooks) (#57926)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+4.11.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Added support for Windows paths in SambaHook (#54459)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix windows path joining in sambahook (#54573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
 4.10.3
 ......
 

@@ -16,14 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID
 
 from pydantic import Field
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.hitl import HITLDetail
+
+
+class HITLUser(BaseModel):
+    """Schema for a Human-in-the-loop users."""
+
+    id: str
+    name: str
 
 
 class HITLDetailRequest(BaseModel):
@@ -36,7 +44,7 @@ class HITLDetailRequest(BaseModel):
     defaults: list[str] | None = None
     multiple: bool = False
     params: dict[str, Any] = Field(default_factory=dict)
-    respondents: list[str] | None = None
+    assigned_users: list[HITLUser] = Field(default_factory=list)
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -51,18 +59,27 @@ class HITLDetailResponse(BaseModel):
     """Schema for the response part of a Human-in-the-loop detail for a specific task instance."""
 
     response_received: bool
-    user_id: str | None
-    response_at: datetime | None
+    responded_by_user: HITLUser | None = None
+    responded_at: UtcDateTime | None
     # It's empty if the user has not yet responded.
-    chosen_options: list[str] | None
+    chosen_options: Iterable[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def from_hitl_detail_orm(cls, hitl_detail: HITLDetail) -> HITLDetailResponse:
+        hitl_user = (
+            HITLUser(
+                id=hitl_detail.responded_by_user_id,
+                name=hitl_detail.responded_by_user_name,
+            )
+            if hitl_detail.responded_by_user
+            else None
+        )
+
         return HITLDetailResponse(
             response_received=hitl_detail.response_received,
-            response_at=hitl_detail.response_at,
-            user_id=hitl_detail.user_id,
-            chosen_options=hitl_detail.chosen_options,
+            responded_at=hitl_detail.responded_at,
+            responded_by_user=hitl_user,
+            chosen_options=hitl_detail.chosen_options or (),
             params_input=hitl_detail.params_input or {},
         )

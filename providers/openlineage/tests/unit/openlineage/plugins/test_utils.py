@@ -20,7 +20,7 @@ import datetime
 import json
 import uuid
 from json import JSONEncoder
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -28,8 +28,8 @@ from attrs import define
 from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
-from airflow.models import DAG, DagModel
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     DagInfo,
@@ -44,25 +44,34 @@ from airflow.providers.openlineage.utils.utils import (
     is_operator_disabled,
 )
 from airflow.serialization.enums import DagAttributeTypes, Encoding
-from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.models.dag import get_next_data_interval
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS, SecretsMasker
+elif AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.execution_time.secrets_masker import (  # type: ignore[no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
+else:
+    from airflow.utils.log.secrets_masker import (  # type: ignore[attr-defined,no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
+
+from airflow.providers.common.compat.sdk import DAG
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
-
-if TYPE_CHECKING:
-    from airflow.sdk.execution_time.secrets_masker import _secrets_masker
-else:
-    try:
-        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
-    except ImportError:
-        from airflow.utils.log.secrets_masker import _secrets_masker
 
 
 class SafeStrDict(dict):
@@ -99,16 +108,19 @@ def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_
 
 
 @pytest.mark.db_test
+@pytest.mark.need_serialized_dag
 def test_get_dagrun_start_end(dag_maker):
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
     with dag_maker("test", start_date=start_date, end_date=end_date, schedule="@once") as dag:
         pass
     dag_maker.sync_dagbag_to_db()
-    dag_model = DagModel.get_dagmodel(dag.dag_id)
 
     run_id = str(uuid.uuid1())
-    data_interval = dag.get_next_data_interval(dag_model)
+    if AIRFLOW_V_3_1_PLUS:
+        data_interval = get_next_data_interval(dag.timetable, dag_maker.dag_model)
+    else:
+        data_interval = dag.get_next_data_interval(dag_maker.dag_model)
     if AIRFLOW_V_3_0_PLUS:
         dagrun_kwargs = {
             "logical_date": data_interval.start,
@@ -243,7 +255,10 @@ def test_is_name_redactable():
 
 @pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
-    redactor = OpenLineageRedactor.from_masker(_secrets_masker())
+    sm = SecretsMasker()
+    if AIRFLOW_V_3_1_PLUS:
+        sm.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    redactor = OpenLineageRedactor.from_masker(sm)
 
     class NotMixin:
         def __init__(self):

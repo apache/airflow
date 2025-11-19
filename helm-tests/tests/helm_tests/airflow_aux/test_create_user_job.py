@@ -343,7 +343,7 @@ class TestCreateUserJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("airflow_version", "expected_arg"),
         [
             ("1.10.14", "airflow create_user"),
             ("2.0.2", "airflow users create"),
@@ -454,6 +454,20 @@ class TestCreateUserJob:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "restart_policy",
+        [
+            "OnFailure",
+            "Never",
+        ],
+    )
+    def test_restart_policy(self, restart_policy):
+        docs = render_chart(
+            values={"createUserJob": {"restartPolicy": restart_policy}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
 
 
 class TestCreateUserJobServiceAccount:

@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import Generator, Iterator
+from datetime import datetime, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename
+from airflow.utils.log.file_task_handler import FileTaskHandler, StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -51,6 +54,26 @@ class TaskLogReader:
     STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS = 10
     """Number of empty loop iterations before stopping the stream"""
 
+    @staticmethod
+    def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
+        """Yield standardized no-log messages for a given TI state."""
+        if ti.state == TaskInstanceState.SKIPPED:
+            msg = "Task was skipped — no logs available."
+        elif ti.state == TaskInstanceState.UPSTREAM_FAILED:
+            msg = "Task did not run because upstream task(s) failed."
+        else:
+            msg = "No logs available for this task."
+
+        yield StructuredLogMessage(
+            timestamp=None,
+            event="::group::Log message source details",
+        )
+        yield StructuredLogMessage(timestamp=None, event="::endgroup::")
+        yield StructuredLogMessage(
+            timestamp=ti.updated_at or datetime.now(timezone.utc),
+            event=msg,
+        )
+
     def read_log_chunks(
         self,
         ti: TaskInstance | TaskInstanceHistory,
@@ -75,6 +98,11 @@ class TaskLogReader:
         contain information about the task log which can enable you read logs to the
         end.
         """
+        if try_number == 0:
+            msg = self.get_no_log_state_message(ti)  # returns StructuredLogMessage
+            # one message + tell the caller it's the end so stream stops
+            return msg, {"end_of_log": True}
+
         return self.log_handler.read(ti, try_number, metadata=metadata)
 
     def read_log_stream(
@@ -92,6 +120,12 @@ class TaskLogReader:
         """
         if try_number is None:
             try_number = ti.try_number
+
+        # Handle skipped / upstream_failed case directly
+        if try_number == 0:
+            for msg in self.get_no_log_state_message(ti):
+                yield f"{msg.model_dump_json()}\n"
+            return
 
         for key in ("end_of_log", "max_offset", "offset", "log_pos"):
             # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
@@ -115,7 +149,8 @@ class TaskLogReader:
                     empty_iterations += 1
                     if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
                         # we have not received any logs for a while, so we stop the stream
-                        yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
+                        # this is emitted as json to avoid breaking the ndjson stream format
+                        yield '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n'
                         return
             else:
                 # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations
@@ -136,6 +171,10 @@ class TaskLogReader:
             """
             yield from logging.getLogger("airflow.task").handlers
             yield from logging.getLogger().handlers
+
+            fallback = FileTaskHandler(os.devnull)
+            fallback.name = task_log_reader
+            yield fallback
 
         return next((h for h in handlers() if h.name == task_log_reader), None)
 

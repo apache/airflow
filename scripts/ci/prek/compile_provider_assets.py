@@ -41,6 +41,20 @@ PROVIDERS_PATHS = {
         "dist": PROVIDERS_ROOT / "fab" / "src" / "airflow" / "providers" / "fab" / "www" / "static" / "dist",
         "hash": PROVIDERS_ROOT / "fab" / "www-hash.txt",
     },
+    "edge": {
+        "root": PROVIDERS_ROOT / "edge3",
+        "www": PROVIDERS_ROOT / "edge3" / "src" / "airflow" / "providers" / "edge3" / "plugins" / "www",
+        "dist": PROVIDERS_ROOT
+        / "edge3"
+        / "src"
+        / "airflow"
+        / "providers"
+        / "edge3"
+        / "plugins"
+        / "www"
+        / "dist",
+        "hash": PROVIDERS_ROOT / "edge3" / "www-hash.txt",
+    },
 }
 
 
@@ -64,7 +78,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
 
-SKIP_PATH_REGEXPS = [".*/node_modules.*"]
+SKIP_PATH_REGEXPS = [".*/node_modules.*", ".*/.pnpm-store.*"]
 
 
 def compile_assets(provider_name: str):

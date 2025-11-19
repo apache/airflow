@@ -61,10 +61,10 @@ export const ErrorPage = () => {
           </VStack>
 
           <HStack gap={4}>
-            <Button colorPalette="blue" onClick={() => navigate(-1)} size="lg">
+            <Button colorPalette="brand" onClick={() => navigate(-1)} size="lg">
               {translate("error.back")}
             </Button>
-            <Button colorPalette="blue" onClick={() => navigate("/")} size="lg" variant="outline">
+            <Button colorPalette="brand" onClick={() => navigate("/")} size="lg" variant="outline">
               {translate("error.home")}
             </Button>
           </HStack>

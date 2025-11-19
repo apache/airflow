@@ -77,6 +77,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         env:
           HELM_TEST_PACKAGE: "${{ matrix.helm-test-package }}"
@@ -97,8 +98,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Setup git for tagging
@@ -123,6 +122,10 @@ jobs:
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Helm release package (RC version)"
+        run: >
+          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+          --version-suffix rc1
       - name: "Sign artifacts for ASF distribution"
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:

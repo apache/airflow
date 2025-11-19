@@ -20,9 +20,13 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import oracledb
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -116,6 +120,20 @@ class OracleHook(DbApiHook):
         self.thick_mode_config_dir = thick_mode_config_dir
         self.fetch_decimals = fetch_decimals
         self.fetch_lobs = fetch_lobs
+        self._service_name: str | None = None
+        self._sid: str | None = None
+
+    @property
+    def service_name(self) -> str | None:
+        if self._service_name is None:
+            self._service_name = self.get_connection(self.get_conn_id()).extra_dejson.get("service_name")
+        return self._service_name
+
+    @property
+    def sid(self) -> str | None:
+        if self._sid is None:
+            self._sid = self.get_connection(self.get_conn_id()).extra_dejson.get("sid")
+        return self._sid
 
     def get_conn(self) -> oracledb.Connection:
         """
@@ -447,6 +465,33 @@ class OracleHook(DbApiHook):
         )
 
         return result
+
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Oracle specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=DEFAULT_DB_PORT),
+            information_schema_table_name="ALL_TAB_COLUMNS",
+            information_schema_columns=[
+                "owner",
+                "table_name",
+                "column_name",
+                "column_id",
+                "data_type",
+            ],
+            database=self.service_name or self.sid,
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        """Return database dialect."""
+        return "oracle"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return current schema."""
+        return self.get_first("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual")[0]
 
     def get_uri(self) -> str:
         """Get the URI for the Oracle connection."""

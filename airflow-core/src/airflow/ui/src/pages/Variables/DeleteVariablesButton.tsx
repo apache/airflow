@@ -37,6 +37,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
   return (
     <>
       <Button
+        colorPalette="danger"
         onClick={() => {
           onOpen();
         }}
@@ -61,7 +62,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
 
           <Dialog.CloseTrigger />
           <Dialog.Body width="full">
-            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
               {translate("variables.delete.firstConfirmMessage", { count: variableKeys.length })}
               <br />
               <Code mb={2} mt={2} p={4}>
@@ -74,7 +75,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
             <ErrorAlert error={error} />
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({

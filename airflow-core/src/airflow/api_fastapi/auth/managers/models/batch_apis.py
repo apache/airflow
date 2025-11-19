@@ -22,9 +22,19 @@ from typing import TYPE_CHECKING, TypedDict
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
+        ConnectionDetails,
         DagAccessEntity,
         DagDetails,
+        PoolDetails,
+        VariableDetails,
     )
+
+
+class IsAuthorizedConnectionRequest(TypedDict, total=False):
+    """Represent the parameters of ``is_authorized_connection`` API in the auth manager."""
+
+    method: ResourceMethod
+    details: ConnectionDetails | None
 
 
 class IsAuthorizedDagRequest(TypedDict, total=False):
@@ -33,3 +43,17 @@ class IsAuthorizedDagRequest(TypedDict, total=False):
     method: ResourceMethod
     access_entity: DagAccessEntity | None
     details: DagDetails | None
+
+
+class IsAuthorizedPoolRequest(TypedDict, total=False):
+    """Represent the parameters of ``is_authorized_pool`` API in the auth manager."""
+
+    method: ResourceMethod
+    details: PoolDetails | None
+
+
+class IsAuthorizedVariableRequest(TypedDict, total=False):
+    """Represent the parameters of ``is_authorized_variable`` API in the auth manager."""
+
+    method: ResourceMethod
+    details: VariableDetails | None

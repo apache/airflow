@@ -38,9 +38,6 @@ import re
 from typing import Any
 
 import yaml
-from packaging.version import parse as parse_version
-
-import airflow
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -59,6 +56,9 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
 )
+from packaging.version import parse as parse_version
+
+import airflow
 
 PACKAGE_NAME = "helm-chart"
 CHART_ROOT_PATH = AIRFLOW_REPO_ROOT_PATH / "chart"
@@ -204,9 +204,8 @@ def _format_examples(param_name: str, schema: dict) -> str | None:
 
     # Nicer to have the parameter name shown as well
     out = ""
-    for ex in schema["examples"]:
-        if schema["type"] == "array":
-            ex = [ex]
+    for ex_data in schema["examples"]:
+        ex = [ex_data] if schema["type"] == "array" else ex_data
         out += yaml.dump({param_name: ex})
     return out
 

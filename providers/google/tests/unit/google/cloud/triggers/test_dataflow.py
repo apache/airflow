@@ -160,7 +160,7 @@ class TestTemplateJobStartTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -229,8 +229,8 @@ class TestTemplateJobStartTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current job status is: {JobState.JOB_STATE_RUNNING}"
-        assert f"Sleeping for {POLL_SLEEP} seconds."
+        assert "Current job status is: JOB_STATE_RUNNING" in caplog.text
+        assert f"Sleeping for {POLL_SLEEP} seconds." in caplog.text
         # cancel the task to suppress test warnings
         task.cancel()
 
@@ -253,7 +253,7 @@ class TestDataflowJobAutoScalingEventTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -393,7 +393,7 @@ class TestDataflowJobMessagesTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -529,7 +529,7 @@ class TestDataflowJobMetricsTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -659,7 +659,7 @@ class TestDataflowJobStatusTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -780,7 +780,7 @@ class TestDataflowStartYamlJobTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),
@@ -897,7 +897,7 @@ class TestDataflowJobStateCompleteTrigger:
         assert actual_data == expected_data
 
     @pytest.mark.parametrize(
-        "attr, expected",
+        ("attr", "expected"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("poll_sleep", POLL_SLEEP),

@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Tüketen Dag'ler",
+  "createEvent": {
+    "button": "Olay oluştur",
+    "manual": {
+      "description": "Kaynak olayı elle oluştur",
+      "extra": "Kaynak olayı hakkında ek bilgiler",
+      "label": "Manuel"
+    },
+    "materialize": {
+      "description": "Bu kaynağa bağlı olan Dag'ı çalıştır",
+      "descriptionWithDag": "Bu kaynağa bağlı olan Dag'ı çalıştır: {{dagName}}",
+      "label": "Gerçekleştir",
+      "unpauseDag": "Çağrıldığında {{dagName}} Dag'ını devam ettir"
+    },
+    "success": {
+      "manualDescription": "Kaynak olayı manuel olarak başarıyla oluşturuldu.",
+      "manualTitle": "Kaynak olayı oluşturuldu",
+      "materializeDescription": "Bağlı Dag {{dagId}} başarıyla çağrıldı.",
+      "materializeTitle": "Kaynağı gerçekleştirme"
+    },
+    "title": "{{name}} için kaynak olayı oluştur"
+  },
+  "group": "Grup",
+  "lastAssetEvent": "Son kaynak olayı",
+  "name": "Ad",
+  "producingTasks": "Üreten görevler",
+  "scheduledDags": "Planlanan Dag'ler",
+  "searchPlaceholder": "Kaynakları ara"
+}

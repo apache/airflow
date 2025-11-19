@@ -51,7 +51,7 @@ replacement available from Airflow core:
 
 * ``airflow.security.permissions.ACTION_*`` --> ``airflow.api_fastapi.auth.managers.base_auth_manager.ResourceMethod``
 * ``airflow.security.permissions.RESOURCE_*`` --> ``airflow.api_fastapi.auth.managers.models.resource_details``
-* ``DAG.access_control`` --> DAG-level permissions should be handled by the chosen Auth Manager's ``filter_authorized_dag_ids`` method.
+* ``DAG.access_control`` --> Dag-level permissions should be handled by the chosen Auth Manager's ``filter_authorized_dag_ids`` method.
 
 If you maintain a custom :doc:`/core-concepts/auth-manager/index` which relies on the deprecated module, it is
 recommended you refer to the ``SimpleAuthManager``'s `source code <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/api_fastapi/auth/managers/simple/simple_auth_manager.py>`_

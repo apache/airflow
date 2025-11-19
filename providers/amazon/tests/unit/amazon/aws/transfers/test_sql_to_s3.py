@@ -22,6 +22,7 @@ import io
 from unittest import mock
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -31,7 +32,7 @@ from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
 
 class TestSqlToS3Operator:
     @pytest.mark.parametrize(
-        "file_format, dtype_backend, df_kwargs, expected_key_suffix",
+        ("file_format", "dtype_backend", "df_kwargs", "expected_key_suffix"),
         [
             ("csv", "numpy_nullable", {"index": False, "header": False}, ".csv"),
             ("csv", "pyarrow", {"index": False, "header": False}, ".csv"),
@@ -365,7 +366,7 @@ class TestSqlToS3Operator:
         assert hook.log_sql == op.sql_hook_params["log_sql"]
 
     @pytest.mark.parametrize(
-        "df_type_param,expected_df_type",
+        ("df_type_param", "expected_df_type"),
         [
             pytest.param("polars", "polars", id="with-polars"),
             pytest.param("pandas", "pandas", id="with-pandas"),
@@ -409,7 +410,7 @@ class TestSqlToS3Operator:
         )
 
     @pytest.mark.parametrize(
-        "df_type,input_df_creator",
+        ("df_type", "input_df_creator"),
         [
             pytest.param(
                 "pandas",
@@ -442,11 +443,14 @@ class TestSqlToS3Operator:
 
         assert len(partitions) == 2
         for group_name, df in partitions:
-            assert isinstance(df, pd.DataFrame)
+            if df_type == "polars":
+                assert isinstance(df, pl.DataFrame)
+            else:
+                assert isinstance(df, pd.DataFrame)
             assert group_name in ["A", "B"]
 
     @pytest.mark.parametrize(
-        "kwargs,expected_warning,expected_error,expected_read_kwargs",
+        ("kwargs", "expected_warning", "expected_error", "expected_read_kwargs"),
         [
             pytest.param(
                 {"read_pd_kwargs": {"dtype_backend": "pyarrow"}},
@@ -513,7 +517,7 @@ class TestSqlToS3Operator:
                 assert op.read_kwargs == expected_read_kwargs
 
     @pytest.mark.parametrize(
-        "df_type,should_call_fix_dtypes",
+        ("df_type", "should_call_fix_dtypes"),
         [
             pytest.param("pandas", True, id="pandas-calls-fix-dtypes"),
             pytest.param("polars", False, id="polars-skips-fix-dtypes"),
@@ -553,7 +557,7 @@ class TestSqlToS3Operator:
             mock_fix_dtypes.assert_not_called()
 
     @pytest.mark.parametrize(
-        "kwargs,expected_warning,expected_read_kwargs,expected_df_kwargs",
+        ("kwargs", "expected_warning", "expected_read_kwargs", "expected_df_kwargs"),
         [
             pytest.param(
                 {
@@ -611,7 +615,7 @@ class TestSqlToS3Operator:
         assert op.df_kwargs == expected_df_kwargs
 
     @pytest.mark.parametrize(
-        "fmt, df_kwargs, expected_key",
+        ("fmt", "df_kwargs", "expected_key"),
         [
             ("csv", {"compression": "gzip", "index": False}, "data.csv.gz"),
             ("csv", {"index": False}, "data.csv"),
@@ -648,7 +652,7 @@ class TestSqlToS3Operator:
         assert uploaded_key == expected_key
 
     @pytest.mark.parametrize(
-        "file_format, df_kwargs, expected_suffix",
+        ("file_format", "df_kwargs", "expected_suffix"),
         [
             ("csv", {"compression": "gzip", "index": False}, ".csv.gz"),
             ("csv", {"index": False}, ".csv"),

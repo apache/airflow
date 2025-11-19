@@ -54,7 +54,7 @@ def assert_expected_waiter_type(waiter: mock.MagicMock, expected: str):
 
 class TestWaiter:
     @pytest.mark.parametrize(
-        "get_state_responses, fails, expected_exception, expected_num_calls",
+        ("get_state_responses", "fails", "expected_exception", "expected_num_calls"),
         [
             ([generate_response("Created")], False, None, 1),
             ([generate_response("Failed")], True, AirflowException, 1),

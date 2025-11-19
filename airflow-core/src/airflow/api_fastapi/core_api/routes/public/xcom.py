@@ -86,14 +86,13 @@ def get_xcom_entry(
         task_ids=task_id,
         dag_ids=dag_id,
         map_indexes=map_index,
-        session=session,
         limit=1,
-    )
+    ).options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
 
     # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
     # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
     # retrieves the raw serialized value from the database.
-    result = xcom_query.limit(1).first()
+    result = session.scalars(xcom_query).first()
 
     if result is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
@@ -163,7 +162,7 @@ def get_xcom_entries(
     query = (
         query.join(DR, and_(XComModel.dag_id == DR.dag_id, XComModel.run_id == DR.run_id))
         .join(DagModel, DR.dag_id == DagModel.dag_id)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if task_id != "~":
@@ -194,8 +193,7 @@ def get_xcom_entries(
     query = query.order_by(
         XComModel.dag_id, XComModel.task_id, XComModel.run_id, XComModel.map_index, XComModel.key
     )
-    xcoms = session.scalars(query)
-    return XComCollectionResponse(xcom_entries=xcoms, total_entries=total_entries)
+    return XComCollectionResponse(xcom_entries=session.scalars(query), total_entries=total_entries)
 
 
 @xcom_router.post(
@@ -249,9 +247,8 @@ def create_xcom_entry(
         dag_ids=dag_id,
         run_id=dag_run_id,
         map_indexes=request_body.map_index,
-        session=session,
     )
-    result = already_existing_query.with_entities(XComModel.value).first()
+    result = session.execute(already_existing_query.with_only_columns(XComModel.value)).first()
     if result:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -287,7 +284,7 @@ def create_xcom_entry(
             XComModel.map_index == request_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     return XComResponseNative.model_validate(xcom)
@@ -328,7 +325,7 @@ def update_xcom_entry(
             XComModel.map_index == patch_body.map_index,
         )
         .limit(1)
-        .options(joinedload(XComModel.dag_run).joinedload(DR.dag_model))
+        .options(joinedload(XComModel.task), joinedload(XComModel.dag_run).joinedload(DR.dag_model))
     )
 
     if not xcom_entry:

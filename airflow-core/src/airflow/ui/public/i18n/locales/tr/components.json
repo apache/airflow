@@ -1,0 +1,142 @@
+{
+  "backfill": {
+    "affected_one": "1 çalıştırma tetiklenecek.",
+    "affected_other": "{{count}} çalıştırma tetiklenecek.",
+    "affectedNone": "Seçilen kriterlere uygun çalıştırma bulunamadı.",
+    "allRuns": "Bütün Dag Çalıştırmaları",
+    "backwards": "Geriye Dönük Çalıştır",
+    "dateRange": "Tarih Aralığı",
+    "errorStartDateBeforeEndDate": "Başlangıç Tarihi, Bitiş Tarihinden önce olmalıdır",
+    "maxRuns": "Maksimum Aktif Çalıştırma",
+    "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
+    "missingRuns": "Eksik Dag Çalıştırmaları",
+    "reprocessBehavior": "Yeniden İşleme Davranışı",
+    "run": "Geriye Dönük Çalıştır",
+    "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",
+    "selectLabel": "Geriye Dönük Çalıştırma",
+    "title": "Geriye Doldurma Çalıştır",
+    "toaster": {
+      "success": {
+        "description": "Geriye dönük çalıştırma işlemleri başarıyla tetiklendi.",
+        "title": "Geriye dönük çalıştırma oluşturuldu"
+      }
+    },
+    "tooltip": "Geriye dönük çalıştırma için bir zamanlama gereklidir",
+    "unpause": "Tetiklendiğinde {{dag_display_name}} duraklatmasını kaldır",
+    "validation": {
+      "datesRequired": "Hem Veri Aralığı Başlangıç Tarihi hem de Bitiş Tarihi sağlanmalıdır.",
+      "startBeforeEnd": "Veri Aralığı Başlangıç Tarihi, Veri Aralığı Bitiş Tarihine eşit veya daha küçük olmalıdır."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Geriye dönük çalıştırma devam ediyor",
+    "cancel": "Geriye dönük çalıştırmayı iptal et",
+    "pause": "Geriye dönük çalıştırmayı duraklat",
+    "unpause": "Geriye dönük çalıştırmayı devam ettir"
+  },
+  "clipboard": {
+    "copy": "Kopyala"
+  },
+  "close": "Kapat",
+  "configForm": {
+    "advancedOptions": "Gelişmiş Seçenekler",
+    "configJson": "Yapılandırma JSON",
+    "invalidJson": "Geçersiz JSON formatı: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 Hata",
+    "error_other": "{{count}} Hata(lar)",
+    "errorAndWarning": "1 Hata ve {{warningText}}",
+    "warning_one": "1 Uyarı",
+    "warning_other": "{{count}} Uyarı"
+  },
+  "durationChart": {
+    "duration": "Süre (saniye)",
+    "lastDagRun_one": "Son Dag Çalıştırması",
+    "lastDagRun_other": "Son {{count}} Dag Çalıştırması",
+    "lastTaskInstance_one": "Son Görev Örneği",
+    "lastTaskInstance_other": "Son {{count}} Görev Örneği",
+    "queuedDuration": "Kuyrukta Kalma Süresi",
+    "runAfter": "Sonra Çalıştır",
+    "runDuration": "Çalışma Süresi"
+  },
+  "fileUpload": {
+    "files_one": "{{count}} dosya(lar)",
+    "files_other": "{{count}} dosya"
+  },
+  "flexibleForm": {
+    "placeholder": "Değer Seçin",
+    "placeholderArray": "Metinleri yeni satır olarak girin",
+    "placeholderExamples": "Seçenekleri görmek için yazmaya başlayın",
+    "placeholderMulti": "Bir veya birden fazla değer seçin",
+    "validationErrorArrayNotArray": "Değer bir dizi olmalıdır.",
+    "validationErrorArrayNotNumbers": "Dizideki tüm öğeler sayı olmalıdır.",
+    "validationErrorArrayNotObject": "Dizideki tüm öğeler nesne olmalıdır.",
+    "validationErrorRequired": "Bu alan zorunludur"
+  },
+  "graph": {
+    "directionDown": "Yukarıdan Aşağıya",
+    "directionLeft": "Sağdan Sola",
+    "directionRight": "Soldan Sağa",
+    "directionUp": "Aşağıdan Yukarıya",
+    "downloadImage": "Grafik görselini indir",
+    "downloadImageError": "Grafik görseli indirilemedi.",
+    "downloadImageErrorTitle": "İndirme Başarısız",
+    "otherDagRuns": "+Diğer Dag Çalıştırmaları",
+    "taskCount_one": "{{count}} Görev",
+    "taskCount_other": "{{count}} Görev",
+    "taskGroup": "Görev Grubu"
+  },
+  "limitedList": "+{{count}} daha",
+  "limitedList.allItems": "Tüm {{count}} öğeler:",
+  "limitedList.allTags_one": "Tüm Etiketler (1)",
+  "limitedList.allTags_other": "Tüm Etiketler ({{count}})",
+  "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
+  "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
+  "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
+  "limitedList.showingItems_one": "1 öğe gösteriliyor",
+  "limitedList.showingItems_other": "{{count}} öğeler gösteriliyor",
+  "logs": {
+    "file": "Dosya",
+    "location": "{{name}} içinde satır {{line}}"
+  },
+  "reparseDag": "Dag'ı Yeniden Ayrıştır",
+  "sortedAscending": "artan sıralı",
+  "sortedDescending": "azalan sıralı",
+  "sortedUnsorted": "sıralanmamış",
+  "taskTries": "Görev Denemeleri",
+  "toggleCardView": "Kart görünümünü göster",
+  "toggleTableView": "Tablo görünümünü göster",
+  "triggerDag": {
+    "button": "Tetikle",
+    "loading": "Dag bilgisi yükleniyor...",
+    "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
+    "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
+    "selectDescription": "Bu Dag'ın tek bir çalıştırmasını tetikle",
+    "selectLabel": "Tek Çalıştırma",
+    "title": "Dag Tetikle",
+    "toaster": {
+      "success": {
+        "description": "Dag çalıştırması başarıyla tetiklendi.",
+        "title": "Dag Çalıştırması Tetiklendi"
+      }
+    },
+    "unpause": "Tetiklendiğinde {{dagDisplayName}} duraklatmasını kaldır"
+  },
+  "trimText": {
+    "details": "Detaylar",
+    "empty": "Boş",
+    "noContent": "İçerik bulunamadı."
+  },
+  "versionDetails": {
+    "bundleLink": "Paket Bağlantısı",
+    "bundleName": "Paket Adı",
+    "bundleVersion": "Paket Versiyonu",
+    "createdAt": "Oluşturulma",
+    "versionId": "Versiyon Kimliği"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag Versiyonu",
+    "versionCode": "v{{versionCode}}"
+  }
+}

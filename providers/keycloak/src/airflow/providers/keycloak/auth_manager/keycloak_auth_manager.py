@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import logging
+import time
+from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
@@ -34,7 +37,7 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, GroupCommand
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
@@ -69,6 +72,17 @@ log = logging.getLogger(__name__)
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 
 
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in KeycloakAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
+
+
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     """
     Keycloak auth manager.
@@ -96,9 +110,20 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
-    def get_url_refresh(self) -> str | None:
+    def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
-        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/refresh")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
+    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        if self._token_expired(user.access_token):
+            log.debug("Refreshing the token")
+            client = self.get_keycloak_client()
+            tokens = client.refresh_token(user.refresh_token)
+            user.refresh_token = tokens["refresh_token"]
+            user.access_token = tokens["access_token"]
+            return user
+
+        return None
 
     def is_authorized_configuration(
         self,
@@ -274,6 +299,8 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         context_attributes = prune_dict(attributes or {})
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
+        elif method == "GET":
+            method = "LIST"
 
         resp = requests.post(
             self._get_token_url(server_url, realm),
@@ -352,3 +379,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_expired(token: str) -> bool:
+        """
+        Check whether a JWT token is expired.
+
+        :meta private:
+
+        :param token: the token
+        """
+        payload_b64 = token.split(".")[1] + "=="
+        payload_bytes = urlsafe_b64decode(payload_b64)
+        payload = json.loads(payload_bytes)
+        return payload["exp"] < int(time.time())

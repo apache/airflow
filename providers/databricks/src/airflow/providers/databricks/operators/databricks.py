@@ -24,11 +24,11 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from functools import cached_property
-from logging import Logger
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,
@@ -52,7 +52,7 @@ from airflow.providers.databricks.utils.databricks import (
     validate_trigger_event,
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -60,19 +60,8 @@ if TYPE_CHECKING:
         DatabricksWorkflowTaskGroup,
     )
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
-
-    try:
-        from airflow.sdk import TaskGroup
-    except ImportError:
-        from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.sdk import TaskGroup
+    from airflow.sdk.types import Context, Logger
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"

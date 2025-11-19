@@ -133,7 +133,7 @@ class TestXComsGetEndpoint:
         assert any(msg.startswith("Checking read XCom access") for msg in caplog.messages)
 
     @pytest.mark.parametrize(
-        "offset, expected_status, expected_json",
+        ("offset", "expected_status", "expected_json"),
         [
             pytest.param(
                 -4,
@@ -275,7 +275,7 @@ class TestXComsGetEndpoint:
         assert response.json() == ["f", "o", "b"][key]
 
     @pytest.mark.parametrize(
-        "include_prior_dates, expected_xcoms",
+        ("include_prior_dates", "expected_xcoms"),
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],
     )
     def test_xcom_get_slice_accepts_include_prior_dates(
@@ -331,13 +331,17 @@ class TestXComsSetEndpoint:
             ('{"key2": "value2"}', '{"key2": "value2"}'),
             ('{"key2": "value2", "key3": ["value3"]}', '{"key2": "value2", "key3": ["value3"]}'),
             ('["value1"]', '["value1"]'),
+            (None, None),
         ],
     )
     def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
         """
-        Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
-        XCom.set then uses json.dumps to serialize it and store the value in the database.
-        This is done so that Task SDK in multiple languages can use the same API to set XCom values.
+        Test that XCom value is set correctly. The request body can be either:
+        - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
+        - the JSON literal null, which is stored as a None
+
+        This mirrors the Execution API contract where the body is the JSON value itself; Task SDKs may send
+        pre-serialized JSON strings or null.
         """
         ti = create_task_instance()
         session.commit()
@@ -356,7 +360,7 @@ class TestXComsSetEndpoint:
         assert task_map is None, "Should not be mapped"
 
     @pytest.mark.parametrize(
-        "orig_value, ser_value, deser_value",
+        ("orig_value", "ser_value", "deser_value"),
         [
             pytest.param(1, 1, 1, id="int"),
             pytest.param(1.0, 1.0, 1.0, id="float"),
@@ -404,12 +408,13 @@ class TestXComsSetEndpoint:
 
         assert response.status_code == 201
 
-        stored_value = XComModel.get_many(
-            key="xcom_1",
-            dag_ids=ti.dag_id,
-            task_ids=ti.task_id,
-            run_id=ti.run_id,
-            session=session,
+        stored_value = session.execute(
+            XComModel.get_many(
+                key="xcom_1",
+                dag_ids=ti.dag_id,
+                task_ids=ti.task_id,
+                run_id=ti.run_id,
+            ).with_only_columns(XComModel.value)
         ).first()
         deserialized_value = XComModel.deserialize_value(stored_value)
 

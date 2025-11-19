@@ -18,13 +18,11 @@
 from __future__ import annotations
 
 import logging
-import logging.config
 from importlib import reload
 from unittest import mock
 
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -56,7 +54,6 @@ class TestFileTaskLogHandler:
             session.query(TaskInstance).delete()
 
     def setup_method(self):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = False
         self.clean_up()
         # We use file task handler by default.

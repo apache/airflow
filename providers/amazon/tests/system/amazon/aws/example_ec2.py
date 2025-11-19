@@ -89,7 +89,7 @@ with DAG(
     image_id = get_latest_ami_id()
 
     config = {
-        "InstanceType": "t3.micro",
+        "InstanceType": "t4g.micro",
         "KeyName": key_name,
         "TagSpecifications": [
             {"ResourceType": "instance", "Tags": [{"Key": "Name", "Value": instance_name}]}

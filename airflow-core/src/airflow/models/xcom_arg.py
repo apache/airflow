@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
 from sqlalchemy import func, or_, select
@@ -27,18 +27,16 @@ from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.sdk.definitions._internal.types import ArgNotSet
 from airflow.sdk.definitions.xcom_arg import XComArg
+from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
-from airflow.utils.types import NOTSET
 
 __all__ = ["XComArg", "get_task_map_length"]
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -46,7 +44,7 @@ if TYPE_CHECKING:
 
 class SchedulerXComArg:
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         """
         Deserialize an XComArg.
 
@@ -92,9 +90,8 @@ class SchedulerPlainXComArg(SchedulerXComArg):
     key: str
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
-        # TODO (GH-52141): SchedulerDAG should return scheduler operator instead.
-        return cls(cast("Operator", dag.get_task(data["task_id"])), data["key"])
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
+        return cls(dag.get_task(data["task_id"]), data["key"])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
@@ -106,7 +103,7 @@ class SchedulerMapXComArg(SchedulerXComArg):
     callables: Sequence[str]
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         # We are deliberately NOT deserializing the callables. These are shown
         # in the UI, and displaying a function object is useless.
         return cls(deserialize_xcom_arg(data["arg"], dag), data["callables"])
@@ -120,7 +117,7 @@ class SchedulerConcatXComArg(SchedulerXComArg):
     args: Sequence[SchedulerXComArg]
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
@@ -134,7 +131,7 @@ class SchedulerZipXComArg(SchedulerXComArg):
     fillvalue: Any
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: SchedulerDAG) -> Self:
+    def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         return cls(
             [deserialize_xcom_arg(arg, dag) for arg in data["args"]],
             fillvalue=data.get("fillvalue", NOTSET),
@@ -152,7 +149,7 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
+def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
     from airflow.models.mappedoperator import is_mapped
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskmap import TaskMap
@@ -195,23 +192,23 @@ def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session):
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session):
+def _(xcom_arg: SchedulerMapXComArg, run_id: str, *, session: Session) -> int | None:
     return get_task_map_length(xcom_arg.arg, run_id, session=session)
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session):
+def _(xcom_arg: SchedulerZipXComArg, run_id: str, *, session: Session) -> int | None:
     all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
-    if isinstance(xcom_arg.fillvalue, ArgNotSet):
-        return min(ready_lengths)
-    return max(ready_lengths)
+    if is_arg_set(xcom_arg.fillvalue):
+        return max(ready_lengths)
+    return min(ready_lengths)
 
 
 @get_task_map_length.register
-def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
+def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session) -> int | None:
     all_lengths = (get_task_map_length(arg, run_id, session=session) for arg in xcom_arg.args)
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
@@ -219,7 +216,7 @@ def _(xcom_arg: SchedulerConcatXComArg, run_id: str, *, session: Session):
     return sum(ready_lengths)
 
 
-def deserialize_xcom_arg(data: dict[str, Any], dag: SchedulerDAG):
+def deserialize_xcom_arg(data: dict[str, Any], dag: SerializedDAG):
     """DAG serialization interface."""
     klass = _XCOM_ARG_TYPES[data.get("type", "")]
     return klass._deserialize(data, dag)

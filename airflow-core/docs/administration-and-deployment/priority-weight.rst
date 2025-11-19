@@ -37,8 +37,8 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
     downstream descendants. As a result, upstream tasks will have
     higher weight and will be scheduled more aggressively when
     using positive weight values. This is useful when you have
-    multiple DAG run instances and desire to have all upstream
-    tasks to complete for all runs before each DAG can continue
+    multiple Dag run instances and desire to have all upstream
+    tasks to complete for all runs before each Dag can continue
     processing downstream tasks.
 
   .. grid-item-card:: ``upstream``
@@ -47,9 +47,9 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
     The effective weight is the aggregate sum of all upstream ancestors.
     This is the opposite where downstream tasks have higher weight
     and will be scheduled more aggressively when using positive weight
-    values. This is useful when you have multiple DAG run instances
-    and prefer to have each DAG complete before starting upstream
-    tasks of other DAG runs.
+    values. This is useful when you have multiple Dag run instances
+    and prefer to have each Dag complete before starting upstream
+    tasks of other Dag runs.
 
   .. grid-item-card:: ``absolute``
     :shadow: none
@@ -59,7 +59,7 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
     know exactly what priority weight each task should have.
     Additionally, when set to ``absolute``, there is bonus effect of
     significantly speeding up the task creation process as for very
-    large dags.
+    large Dags.
 
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.
@@ -96,7 +96,7 @@ To check if the custom priority weight strategy is already available in Airflow,
     :end-before: [END example_custom_weight_dag]
 
 
-After the DAG is running, you can check the ``priority_weight`` parameter on the task to verify that it is using
+After the Dag is running, you can check the ``priority_weight`` parameter on the task to verify that it is using
 the custom priority strategy rule.
 
 |experimental|

@@ -59,9 +59,21 @@ def triggerer_run(skip_serve_logs: bool, capacity: int, triggerer_heartrate: flo
 @providers_configuration_loaded
 def triggerer(args):
     """Start Airflow Triggerer."""
-    settings.MASK_SECRETS_IN_LOGS = True
+    from airflow.sdk._shared.secrets_masker import SecretsMasker
+
+    SecretsMasker.enable_log_masking()
+
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+
+    if cli_utils.should_enable_hot_reload(args):
+        from airflow.cli.hot_reload import run_with_reloader
+
+        run_with_reloader(
+            lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+            process_name="triggerer",
+        )
+        return
 
     run_command_with_daemon_option(
         args=args,

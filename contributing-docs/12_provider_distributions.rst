@@ -235,7 +235,7 @@ The rules are as follows:
        * PROVIDER
     * system
       * PROVIDER
-          * example_dags -> example DAGs are stored here (used for documentation and System Tests)
+          * example_dags -> example Dags are stored here (used for documentation and System Tests)
 
 * Module names do not contain word "hooks", "operators" etc. The right type comes from
   the python package. For example 'hooks.datastore' module contains DataStore hook and
@@ -293,7 +293,7 @@ Well documented provider contains those:
 You can see for example ``google`` provider which has very comprehensive documentation:
 
 * `Documentation <../../providers/google/docs>`_
-* `System tests/Example DAGs <../providers/google/tests/system/google/>`_
+* `System tests/Example Dags <../providers/google/tests/system/google/>`_
 
 Part of the documentation are example dags (placed in the ``tests/system`` folder). The reason why
 they are in ``tests/system`` is because we are using the example dags for various purposes:

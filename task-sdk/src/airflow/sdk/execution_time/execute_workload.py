@@ -48,7 +48,7 @@ def execute_workload(workload: ExecuteTask) -> None:
 
     dispose_orm(do_log=False)
 
-    configure_logging(output=sys.stdout.buffer, enable_pretty_log=False)
+    configure_logging(output=sys.stdout.buffer, json_output=True)
 
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"Executor does not know how to handle {type(workload)}")

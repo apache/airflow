@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from airflow.providers.fab.auth_manager.models import Role
+from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
     create_role,
@@ -30,33 +32,36 @@ from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import Role
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
-
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
-    create_user(
-        app,
-        username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
-    yield app
+    with app.app_context():
+        create_user(
+            app,
+            username="test",
+            role_name="Test",
+            permissions=[
+                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE),
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
+            ],
+        )
+        create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+        yield app
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
+        delete_user(app, username="test")
+        delete_user(app, username="test_no_permissions")
+        session = app.appbuilder.session
+        existing_roles = set(EXISTING_ROLES)
+        existing_roles.update(["Test", "TestNoPermissions"])
+        roles = session.scalars(select(Role).where(~Role.name.in_(existing_roles))).unique().all()
+        for role in roles:
+            delete_role(app, role.name)
 
 
 class TestRoleEndpoint:
@@ -64,18 +69,6 @@ class TestRoleEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-
-    def teardown_method(self):
-        """
-        Delete all roles except these ones.
-        Test and TestNoPermissions are deleted by delete_user above
-        """
-        session = self.app.appbuilder.get_session
-        existing_roles = set(EXISTING_ROLES)
-        existing_roles.update(["Test", "TestNoPermissions"])
-        roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
-        for role in roles:
-            delete_role(self.app, role.name)
 
 
 class TestGetRoleEndpoint(TestRoleEndpoint):
@@ -105,7 +98,7 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -141,7 +134,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -152,7 +145,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
 
 class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_roles",
+        ("url", "expected_roles"),
         [
             ("/fab/v1/roles?limit=1", ["Admin"]),
             ("/fab/v1/roles?limit=2", ["Admin", "Op"]),
@@ -203,7 +196,7 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -224,7 +217,7 @@ class TestPostRole(TestRoleEndpoint):
         assert role is not None
 
     @pytest.mark.parametrize(
-        "payload, error_message",
+        ("payload", "error_message"),
         [
             (
                 {
@@ -335,7 +328,7 @@ class TestPostRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -353,7 +346,7 @@ class TestDeleteRole(TestRoleEndpoint):
         role = create_role(self.app, "mytestrole")
         response = self.client.delete(f"/fab/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 204
-        role_obj = session.query(Role).filter(Role.name == role.name).all()
+        role_obj = session.scalars(select(Role).where(Role.name == role.name)).all()
         assert len(role_obj) == 0
 
     def test_delete_should_respond_404(self):
@@ -380,7 +373,7 @@ class TestDeleteRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 204)),
         indirect=["set_auth_role_public"],
     )
@@ -392,7 +385,7 @@ class TestDeleteRole(TestRoleEndpoint):
 
 class TestPatchRole(TestRoleEndpoint):
     @pytest.mark.parametrize(
-        "payload, expected_name, expected_actions",
+        ("payload", "expected_name", "expected_actions"),
         [
             ({"name": "mytest"}, "mytest", []),
             (
@@ -436,7 +429,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
     @pytest.mark.parametrize(
-        "update_mask, payload, expected_name, expected_actions",
+        ("update_mask", "payload", "expected_name", "expected_actions"),
         [
             (
                 "?update_mask=name",
@@ -484,7 +477,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.json["detail"] == "'invalid_name' in update_mask is unknown"
 
     @pytest.mark.parametrize(
-        "payload, expected_error",
+        ("payload", "expected_error"),
         [
             (
                 {
@@ -566,7 +559,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )

@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, IconButton, Text } from "@chakra-ui/react";
+import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
+import { useStructureServiceStructureData } from "openapi/queries";
+import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -35,40 +37,32 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
-import { useGridStore } from "./useGridStore";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
-const getArrowsForMode = (navigationMode: string) => {
-  switch (navigationMode) {
-    case "run":
-      return "←→";
-    case "task":
-      return "↑↓";
-    case "TI":
-      return "↑↓←→";
-    default:
-      return "↑↓←→";
-  }
-};
-
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
+  readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit, showGantt }: Props) => {
+export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
-  const { isGridFocused, setIsGridFocused } = useGridStore();
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
-  const [hasActiveRun, setHasActiveRun] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
+  const [searchParams] = useSearchParams();
 
-  const { data: gridRuns, isLoading } = useGridRuns({ limit });
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
+
+  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
   // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
   // Eventually we should redo the api endpoint to make this work better
@@ -82,19 +76,57 @@ export const Grid = ({ limit, showGantt }: Props) => {
     }
   }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
 
-  useEffect(() => {
-    if (gridRuns) {
-      const run = gridRuns.some((dr: GridRunsResponse) => isStatePending(dr.state));
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
+    limit,
+    runType,
+    triggeringUser,
+  });
 
-      if (!run) {
-        setHasActiveRun(false);
-      }
+  const selectedVersion = useSelectedVersion();
+
+  const hasActiveFilter = includeUpstream || includeDownstream;
+
+  // fetch filtered structure when filter is active
+  const { data: taskStructure } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: false,
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    {
+      enabled: selectedVersion !== undefined && hasActiveFilter && filterRoot !== undefined,
+    },
+  );
+
+  // extract allowed task IDs from task structure when filter is active
+  const allowedTaskIds = useMemo(() => {
+    if (!hasActiveFilter || filterRoot === undefined || taskStructure === undefined) {
+      return undefined;
     }
-  }, [gridRuns, setHasActiveRun]);
 
-  const { data: dagStructure } = useGridStructure({ hasActiveRun, limit });
+    const taskIds = new Set<string>();
+
+    const addNodeAndChildren = <T extends { children?: Array<T> | null; id: string }>(currentNode: T) => {
+      taskIds.add(currentNode.id);
+      if (currentNode.children) {
+        currentNode.children.forEach((child) => addNodeAndChildren(child));
+      }
+    };
+
+    taskStructure.nodes.forEach((node) => {
+      addNodeAndChildren(node);
+    });
+
+    return taskIds;
+  }, [hasActiveFilter, filterRoot, taskStructure]);
+
   // calculate dag run bar heights relative to max
-
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -104,23 +136,21 @@ export const Grid = ({ limit, showGantt }: Props) => {
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(() => {
+    const nodes = flattenNodes(dagStructure, openGroupIds);
 
-  const setGridFocus = useCallback(
-    (focused: boolean) => {
-      setIsGridFocused(focused);
-      if (focused) {
-        gridRef.current?.focus();
-      } else {
-        gridRef.current?.blur();
-      }
-    },
-    [setIsGridFocused],
-  );
+    // filter nodes based on task stream filter if active
+    if (allowedTaskIds !== undefined) {
+      return {
+        ...nodes,
+        flatNodes: nodes.flatNodes.filter((node) => allowedTaskIds.has(node.id)),
+      };
+    }
 
-  const { mode, setMode } = useNavigation({
-    enabled: isGridFocused,
-    onEscapePress: () => setGridFocus(false),
+    return nodes;
+  }, [dagStructure, openGroupIds, allowedTaskIds]);
+
+  const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
@@ -128,29 +158,15 @@ export const Grid = ({ limit, showGantt }: Props) => {
 
   return (
     <Flex
-      _focus={{
-        borderRadius: "4px",
-        boxShadow: "0 0 0 2px rgba(59, 130, 246, 0.5)",
-      }}
-      cursor="pointer"
       justifyContent="flex-start"
-      onBlur={() => setGridFocus(false)}
-      onFocus={() => setGridFocus(true)}
-      onMouseDown={() => setGridFocus(true)}
       outline="none"
       position="relative"
       pt={20}
       ref={gridRef}
       tabIndex={0}
-      width={showGantt ? undefined : "100%"}
+      width={showGantt ? "1/2" : "full"}
     >
-      <Box borderRadius="md" color="gray.400" fontSize="xs" position="absolute" px={0} py={12} top={0}>
-        <Text>{translate("navigation.navigation", { arrow: getArrowsForMode(mode) })}</Text>
-        <Text>{translate("navigation.jump", { arrow: getArrowsForMode(mode) })}</Text>
-        {mode !== "run" && <Text>{translate("navigation.toggleGroup")}</Text>}
-      </Box>
-
-      <Box flexGrow={1} minWidth={7} position="relative" top="100px">
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
@@ -158,12 +174,7 @@ export const Grid = ({ limit, showGantt }: Props) => {
           <DurationAxis top="100px" />
           <DurationAxis top="50px" />
           <DurationAxis top="4px" />
-          <Flex
-            flexDirection="column-reverse"
-            height="100px"
-            position="relative"
-            width={showGantt ? undefined : "100%"}
-          >
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
             {Boolean(gridRuns?.length) && (
               <>
                 <DurationTick bottom="92px" duration={max} />

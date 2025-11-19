@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+from pendulum import duration
 
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import (
@@ -133,6 +134,15 @@ with DAG(
     # only describe the pod if the task above failed, to help diagnose
     describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
+    # Wait for nodegroup to be in stable state before deletion
+    await_nodegroup_stable = EksNodegroupStateSensor(
+        task_id="await_nodegroup_stable",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        nodegroup_name=nodegroup_name,
+        target_state=NodegroupStates.ACTIVE,
+    )
+
     # [START howto_operator_eks_force_delete_cluster]
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
@@ -140,6 +150,9 @@ with DAG(
         task_id="delete_nodegroup_and_cluster",
         cluster_name=cluster_name,
         force_delete_compute=True,
+        retries=4,
+        retry_delay=duration(seconds=30),
+        retry_exponential_backoff=True,
     )
     # [END howto_operator_eks_force_delete_cluster]
     delete_nodegroup_and_cluster.trigger_rule = TriggerRule.ALL_DONE
@@ -162,6 +175,7 @@ with DAG(
         start_pod,
         # TEST TEARDOWN
         describe_pod,
+        await_nodegroup_stable,
         delete_nodegroup_and_cluster,
         await_delete_cluster,
         delete_launch_template(launch_template_name),

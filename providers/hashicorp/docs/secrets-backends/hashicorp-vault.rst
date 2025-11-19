@@ -235,7 +235,7 @@ Using multiple mount points
 
 You can use multiple mount points to store your secrets. For example, you might want to store the Airflow instance configurations
 in one Vault KV engine only accessible by your Airflow deployment tools, while storing the variables and connections in another KV engine
-available to your DAGs, in order to grant them more specific Vault ACLs.
+available to your Dags, in order to grant them more specific Vault ACLs.
 
 In order to do this, you will need to setup you configuration this way:
 

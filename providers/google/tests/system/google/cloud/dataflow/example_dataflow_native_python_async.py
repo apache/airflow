@@ -22,6 +22,7 @@ Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Asyn
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from datetime import datetime
@@ -63,6 +64,7 @@ default_args = {
         "stagingLocation": GCS_STAGING,
     }
 }
+log = logging.getLogger(__name__)
 
 with DAG(
     DAG_ID,
@@ -83,7 +85,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={
@@ -108,7 +110,7 @@ with DAG(
         """Check is metric greater than equals to given value."""
 
         def callback(metrics: list[dict]) -> bool:
-            dag.log.info("Looking for '%s' >= %d", metric_name, value)
+            log.info("Looking for '%s' >= %d", metric_name, value)
             for metric in metrics:
                 context = metric.get("name", {}).get("context", {})
                 original_name = context.get("original_name", "")

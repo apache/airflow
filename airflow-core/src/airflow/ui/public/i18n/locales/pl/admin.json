@@ -78,7 +78,6 @@
     "tooltip": "Usuń wybrane połączenia"
   },
   "formActions": {
-    "reset": "Resetuj",
     "save": "Zapisz"
   },
   "plugins": {

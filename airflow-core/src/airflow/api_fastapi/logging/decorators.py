@@ -19,15 +19,16 @@ from __future__ import annotations
 import itertools
 import json
 import logging
+from datetime import datetime
 
 import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Log
-from airflow.sdk.execution_time import secrets_masker
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,7 @@ def action_logging(event: str | None = None):
     ):
         """Log user actions."""
         event_name = event or request.scope["endpoint"].__name__
+        skip_dry_run_events = {"clear_dag_run", "post_clear_task_instances"}
 
         if not user:
             user_name = "anonymous"
@@ -97,6 +99,9 @@ def action_logging(event: str | None = None):
         else:
             request_body = {}
             masked_body_json = {}
+
+        if event_name in skip_dry_run_events and request_body.get("dry_run", True):
+            return
 
         fields_skip_logging = {
             "csrf_token",
@@ -133,7 +138,7 @@ def action_logging(event: str | None = None):
         if has_json_body:
             params.update(masked_body_json)
         if params and "is_paused" in params:
-            extra_fields["is_paused"] = params["is_paused"] == "false"
+            extra_fields["is_paused"] = params["is_paused"]
 
         extra_fields["method"] = request.method
 
@@ -153,7 +158,10 @@ def action_logging(event: str | None = None):
             logical_date_value = request.query_params.get("logical_date")
             if logical_date_value:
                 try:
-                    log.logical_date = pendulum.parse(logical_date_value, strict=False)
+                    logical_date = pendulum.parse(logical_date_value, strict=False)
+                    if not isinstance(logical_date, datetime):
+                        raise ParserError
+                    log.logical_date = logical_date
                 except ParserError:
                     logger.exception("Failed to parse logical_date from the request: %s", logical_date_value)
             else:

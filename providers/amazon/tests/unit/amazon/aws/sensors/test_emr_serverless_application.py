@@ -46,7 +46,7 @@ class TestEmrServerlessApplicationSensor:
 
 class TestPokeReturnValue(TestEmrServerlessApplicationSensor):
     @pytest.mark.parametrize(
-        "state, expected_result",
+        ("state", "expected_result"),
         [
             ("CREATING", False),
             ("STARTING", False),

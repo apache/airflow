@@ -68,6 +68,7 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
+DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
@@ -304,12 +305,15 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     rendered_content = self.render_template(value, context, jinja_env, seen_oids)
             except Exception:
-                # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
+                masked_value = redact(value)
                 log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    masked_value,
                 )
                 raise
             else:
@@ -319,10 +323,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that are direct dependencies of the current task.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -348,7 +352,7 @@ class AbstractOperator(Templater, DAGNode):
 
         dag = self.get_dag()
         if not dag:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+            raise RuntimeError("Cannot check for mapped dependants when not attached to a Dag")
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
@@ -361,10 +365,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that depend on the current task the expansion.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
         """
         return (
             downstream
@@ -386,7 +390,7 @@ class AbstractOperator(Templater, DAGNode):
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """
-        Get the mapped task group "closest" to this task in the DAG.
+        Get the mapped task group "closest" to this task in the Dag.
 
         :meta private:
         """
@@ -408,7 +412,7 @@ class AbstractOperator(Templater, DAGNode):
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         """
-        Return the number of mapped task instances that can be created on DAG run creation.
+        Return the number of mapped task instances that can be created on Dag run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.

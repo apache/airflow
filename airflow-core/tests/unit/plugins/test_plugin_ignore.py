@@ -77,8 +77,8 @@ class TestIgnorePluginFile:
             "test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore"
-        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "regexp"):
-            file_path = Path(file_path)
+        for raw_file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "regexp"):
+            file_path = Path(raw_file_path)
             if file_path.is_file() and file_path.suffix == ".py":
                 detected_files.add(file_path.name)
         assert detected_files == should_not_ignore_files
@@ -104,8 +104,8 @@ class TestIgnorePluginFile:
         }
         ignore_list_file = ".airflowignore_glob"
         print("-" * 20)
-        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "glob"):
-            file_path = Path(file_path)
+        for raw_file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "glob"):
+            file_path = Path(raw_file_path)
             if file_path.is_file() and file_path.suffix == ".py":
                 detected_files.add(file_path.name)
                 print(file_path)

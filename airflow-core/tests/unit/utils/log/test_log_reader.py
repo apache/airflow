@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import copy
 import datetime
-import logging
 import os
 import sys
 import tempfile
+import types
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -79,16 +79,26 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def configure_loggers(self, log_dir, settings_folder):
-        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        logging_config["handlers"]["task"]["base_log_folder"] = log_dir
-        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
-        with open(settings_file, "w") as handle:
-            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
-            handle.writelines(new_logging_file)
+        logging_config = {**DEFAULT_LOGGING_CONFIG}
+        logging_config["handlers"] = {**logging_config["handlers"]}
+        logging_config["handlers"]["task"] = {
+            **logging_config["handlers"]["task"],
+            "base_log_folder": log_dir,
+        }
+
+        mod = types.SimpleNamespace()
+        mod.LOGGING_CONFIG = logging_config
+
+        # "Inject" a fake module into sys so it loads it without needing to write valid python code
+        sys.modules["airflow_local_settings_test"] = mod
+
         with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
             settings.configure_logging()
-        yield
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        try:
+            yield
+        finally:
+            del sys.modules["airflow_local_settings_test"]
+            settings.configure_logging()
 
     @pytest.fixture(autouse=True)
     def prepare_log_files(self, log_dir):
@@ -258,7 +268,7 @@ class TestLogView:
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert list(log_stream) == [
             '{"timestamp":null,"event":"hello"}\n',
-            "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
+            '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n',
         ]
         assert mock_read.call_count == 11
 
@@ -329,3 +339,60 @@ class TestLogView:
 
         reader = TaskLogReader()
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
+
+    @pytest.mark.parametrize(
+        ("state", "try_number", "expected_event", "use_self_ti"),
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_chunks_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
+
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # already prepared with log files
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
+
+        ti.state = state
+        logs, _ = task_log_reader.read_log_chunks(ti=ti, try_number=try_number, metadata={})
+        events = [log.event for log in logs]
+
+        assert any(expected_event in e for e in events)
+
+    @pytest.mark.parametrize(
+        ("state", "try_number", "expected_event", "use_self_ti"),
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_stream_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
+
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # session-bound TI with logs
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
+
+        ti.state = state
+        stream = task_log_reader.read_log_stream(ti=ti, try_number=try_number, metadata={})
+
+        assert any(expected_event in line for line in stream)

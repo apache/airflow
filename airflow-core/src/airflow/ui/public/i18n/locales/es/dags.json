@@ -6,14 +6,21 @@
       "warning": "Esto eliminará toda la metadata relacionada con el Dag, incluyendo Ejecuciones y Tareas."
     }
   },
+  "favoriteDag": "Dag Favorito",
   "filters": {
     "allRunTypes": "Todos los Tipos de Ejecución",
     "allStates": "Todos los Estados",
+    "favorite": {
+      "all": "Todos",
+      "favorite": "Favoritos",
+      "unfavorite": "No Favoritos"
+    },
     "paused": {
       "active": "Activo",
       "all": "Todos",
       "paused": "Pausado"
-    }
+    },
+    "runIdPatternFilter": "Buscar Ejecuciones de Dag"
   },
   "ownerLink": "Enlace de Propietario para {{owner}}",
   "runAndTaskActions": {
@@ -55,6 +62,7 @@
       "onlyFailed": "Limpiar solo tareas fallidas",
       "past": "Pasado",
       "queueNew": "Poner en cola nuevas tareas",
+      "runOnLatestVersion": "Ejecutar en la última versión del bundle",
       "upstream": "Upstream"
     }
   },
@@ -83,5 +91,6 @@
       "desc": "Ordenar por Ejecución de Dag (Más Reciente-Más Antiguo)"
     },
     "placeholder": "Ordenar por"
-  }
+  },
+  "unfavoriteDag": "Desmarcar Dag como favorito"
 }

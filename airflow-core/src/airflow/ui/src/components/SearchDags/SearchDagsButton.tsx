@@ -47,7 +47,13 @@ export const SearchDagsButton = () => {
 
   return (
     <Box>
-      <Button justifyContent="flex-start" minWidth={200} onClick={() => setIsOpen(true)} variant="subtle">
+      <Button
+        colorPalette="brand"
+        justifyContent="flex-start"
+        minWidth={200}
+        onClick={() => setIsOpen(true)}
+        variant="subtle"
+      >
         <MdSearch /> {translate("search.dags")}{" "}
         <Kbd size="sm">
           {metaKey}

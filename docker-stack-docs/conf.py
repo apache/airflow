@@ -35,7 +35,6 @@ import logging
 import os
 from typing import Any
 
-import airflow
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
     AIRFLOW_REPO_ROOT_PATH,
@@ -55,6 +54,8 @@ from docs.utils.conf_constants import (
     get_intersphinx_mapping,
     get_rst_epilogue,
 )
+
+import airflow
 
 PACKAGE_NAME = "docker-stack"
 DOCKER_STACK_DOCS_PATH = AIRFLOW_REPO_ROOT_PATH / "docker-stack-docs"

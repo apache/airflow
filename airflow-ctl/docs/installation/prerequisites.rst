@@ -18,16 +18,16 @@
 Prerequisites
 -------------
 
-Airflow CTL is tested with:
+airflowctl is tested with:
 
 
-The minimum memory required we recommend Airflow CTL to run with is 4GB, but the actual requirements depend
+The minimum memory required we recommend airflowctl to run with is 200MB, but the actual requirements depend
 wildly on the deployment options you have.
 The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
 
 Keyring Backend
 '''''''''''''''
-Airflow CTL uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
+airflowctl uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
 
 Recommended keyring backends are:
 * `macOS Keychain <https://en.wikipedia.org/wiki/Keychain_%28software%29>`_

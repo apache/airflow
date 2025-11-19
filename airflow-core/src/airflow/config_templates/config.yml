@@ -121,12 +121,11 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each dag run.
+        This is also configurable per-dag with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new dag run with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
@@ -509,6 +508,15 @@ core:
       type: string
       example: ~
       default: ~
+    multi_team:
+      description: |
+        Whether to run the Airflow environment in multi-team mode.
+        In this mode, different teams can have scoped access to their own resources while still sharing the
+        same underlying deployment.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 database:
   description: ~
   options:
@@ -788,11 +796,34 @@ logging:
       description: |
         Logging level.
 
+        Individual loggers can be set at a different level with the :ref:`config:logging__namespace_levels`
+        option.
+
         Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
       version_added: 2.0.0
       type: string
       example: ~
       default: "INFO"
+    namespace_levels:
+      description: |
+        Set the log level for individual named loggers.
+
+        A very common convention in Python is to use the module name as the name of the logger from which log
+        messages originate. This config option gives us the ability to set log levels for those loggers
+        easily.
+
+        The format of this variable is a series of ``<logger>=<level>`` pairs, separated by whitespace or
+        commas.
+
+        Each level is one of the possible values to ``logging_level``.
+
+        The logger names are viewable in task logs (as the "source" attribute), or in server components by
+        including ``%(name)s`` in your format string, or in the between ``[]`` after the message in the
+        default format.
+      version_added: 3.2.0
+      type: string
+      example: "sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor"
+      default: ~
     celery_logging_level:
       description: |
         Logging level for celery. If not set, it uses the value of logging_level
@@ -828,29 +859,32 @@ logging:
       type: string
       example: ~
       default: "True"
-    colored_log_format:
-      description: |
-        Log format for when Colored logs is enabled
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: >-
-        [%%(blue)s%%(asctime)s%%(reset)s] {{%%(blue)s%%(filename)s:%%(reset)s%%(lineno)d}}
-        %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
-    colored_formatter_class:
-      description: |
-        Specifies the class utilized by Airflow to implement colored logging
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "airflow.utils.log.colored_log.CustomTTYColoredFormatter"
     log_format:
       description: |
         Format of Log line
+
+        *Changed in 3.1.0*: This can now contain color escape sequences ``%(blue)s`` etc which will only
+        result in colours if :ref:`config:logging__colored_console_log` is true.
+
       version_added: 2.0.0
       type: string
+      example: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
+      default: ""
+    callsite_parameters:
+      description: |
+        A comma separated list of information about the callsite (such as line number of filename etc) of
+        logger calls to include in each message.
+
+        See :class:`structlog.processors.CallsiteParameter` for the possible values.The values should be the
+        constant names (``FUNC_NAME``) or the values (``func_name``)
+
+        Including these in a log message adds a lot to the usability to the logs, but collecting these has a
+        (tiny) cost -- if you are super concerned with eking out every last ounce of performance you could
+        turn these off (by setting this value to an empty string)
+      version_added: 3.1.0
+      type: string
+      default: "filename,lineno"
       example: ~
-      default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration
@@ -1386,11 +1420,13 @@ api:
       default: "8080"
     workers:
       description: |
-        Number of workers to run on the API server
+        Number of workers to run on the API server. Should be roughly equal to the number of cpu cores
+        available. If you need to scale the API server, strongly consider deploying multiple API servers
+        instead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.
       version_added: ~
       type: integer
       example: ~
-      default: "4"
+      default: "1"
     worker_timeout:
       description: |
         Number of seconds the API server waits before timing out on a worker
@@ -1581,6 +1617,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    execution_api_timeout:
+      description: |
+        The timeout (in seconds) for HTTP requests from workers to the Execution API server.
+        This controls how long a worker will wait for a response from the API server before
+        timing out. Increase this value if you experience timeout errors under high load.
+      version_added: 3.1.1
+      type: float
+      example: ~
+      default: "5.0"
     socket_cleanup_timeout:
       description: |
         Number of seconds to wait after a task process exits before forcibly closing any
@@ -2043,6 +2088,14 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_interval:
+      description: |
+        How often (in seconds) the scheduler emits metrics on running DAG runs
+        to StatsD (if statsd_on is enabled)
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "30.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
@@ -2158,13 +2211,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    dag_stale_not_seen_duration:
-      description: |
-        Time in seconds after which dags, which were not updated by Dag Processor are deactivated.
-      version_added: 2.4.0
-      type: integer
-      example: ~
-      default: "600"
     use_job_schedule:
       description: |
         Turn off scheduler use of cron intervals by setting this to ``False``.
@@ -2467,6 +2513,11 @@ dag_processor:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
         be stored on the dag run and therefore, the latest code will always be used.
+
+        .. note::
+
+          This setting only applies to bundles that support versioning and does not affect
+          DAG versions displayed in the UI.
       version_added: ~
       type: boolean
       example: ~
@@ -2522,3 +2573,26 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+profiling:
+  description: |
+    Configuration for memory profiling in Airflow component.
+    Currently, we provide profiling using Memray and additional tools may be added in the future
+    Also, see the guide in Link (TBD)
+  options:
+    memray_trace_components:
+      description: |
+        Comma-separated list of Airflow components to profile with memray.
+        Valid components are: scheduler, api, dag_processor
+
+        This option only takes effect when it is not set to blank (default option).
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.1.2
+      type: string
+      example: "scheduler,api,dag_processor"
+      default: ""

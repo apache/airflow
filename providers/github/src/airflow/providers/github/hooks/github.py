@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING
 
 from github import Auth, Github as GithubClient
 
-from airflow.providers.github.version_compat import BaseHook
+from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class GithubHook(BaseHook):

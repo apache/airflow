@@ -25,6 +25,7 @@ import pytest
 from airflow.models.variable import Variable
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_variables
 from tests_common.test_utils.logs import check_last_log
 
@@ -140,7 +141,7 @@ class TestDeleteVariable(TestVariableEndpoint):
 class TestGetVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, expected_response",
+        ("key", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -213,7 +214,7 @@ class TestGetVariable(TestVariableEndpoint):
 class TestGetVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_keys",
+        ("query_params", "expected_total_entries", "expected_keys"),
         [
             # Filters
             (
@@ -293,7 +294,8 @@ class TestGetVariables(TestVariableEndpoint):
         self, session, test_client, query_params, expected_total_entries, expected_keys
     ):
         self.create_variables()
-        response = test_client.get("/variables", params=query_params)
+        with assert_queries_count(3):
+            response = test_client.get("/variables", params=query_params)
 
         assert response.status_code == 200
         body = response.json()
@@ -308,11 +310,25 @@ class TestGetVariables(TestVariableEndpoint):
         response = unauthorized_test_client.get("/variables")
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_variables"
+    )
+    def test_should_call_get_authorized_variables(self, mock_get_authorized_variables, test_client):
+        self.create_variables()
+        mock_get_authorized_variables.return_value = {TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2}
+        response = test_client.get("/variables")
+        mock_get_authorized_variables.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [variable["key"] for variable in body["variables"]] == [TEST_VARIABLE_KEY, TEST_VARIABLE_KEY2]
+
 
 class TestPatchVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "key, body, params, expected_response",
+        ("key", "body", "params", "expected_response"),
         [
             (
                 TEST_VARIABLE_KEY,
@@ -434,7 +450,7 @@ class TestPatchVariable(TestVariableEndpoint):
 class TestPostVariable(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {
@@ -577,7 +593,7 @@ class TestPostVariable(TestVariableEndpoint):
 class TestBulkVariables(TestVariableEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -730,6 +746,81 @@ class TestBulkVariables(TestVariableEndpoint):
                     }
                 },
                 id="test_update_not_found",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "update_mask_value",
+                                    "description": "Updated variable 1",
+                                }
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": ["test_variable_key"], "errors": []}},
+                id="test_successful_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Updated description",
+                                }
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": ["test_variable_key"],
+                        "errors": [],
+                    }
+                },
+                id="test_variable_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "key": "test_variable_key",
+                                    "value": "new_value",
+                                    "description": "Updated description",
+                                }
+                            ],
+                            "update_mask": ["key", "value"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [],
+                        "errors": [
+                            {
+                                "error": "Update not allowed: the following fields are immutable and cannot be modified: {'key'}",
+                                "status_code": 400,
+                            }
+                        ],
+                    }
+                },
+                id="test_bulk_update_should_fail_on_restricted_key",
             ),
             pytest.param(
                 {
@@ -1050,6 +1141,38 @@ class TestBulkVariables(TestVariableEndpoint):
                 },
                 id="test_repeated_actions",
             ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [
+                                {"key": "var1", "value": "initial", "description": "Initial Description"}
+                            ],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {"key": "var1", "value": "updated", "description": "Updated Description"}
+                            ],
+                            "update_mask": ["value"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["var1"],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["var1"], "errors": []},
+                    "update": {"success": ["var1"], "errors": []},
+                    "delete": {"success": ["var1"], "errors": []},
+                },
+                id="test_variable_dependent_actions_with_update_mask",
+            ),
         ],
     )
     def test_bulk_variables(self, test_client, actions, expected_results, session):
@@ -1061,7 +1184,7 @@ class TestBulkVariables(TestVariableEndpoint):
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
 
     @pytest.mark.parametrize(
-        "entity_key, entity_value, entity_description",
+        ("entity_key", "entity_value", "entity_description"),
         [
             (
                 "my_dict_var_param",
@@ -1114,5 +1237,17 @@ class TestBulkVariables(TestVariableEndpoint):
         assert response.status_code == 401
 
     def test_bulk_variables_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.patch("/variables", json={})
+        response = unauthorized_test_client.patch(
+            "/variables",
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "var1", "value": "value1"},
+                        ],
+                    },
+                ]
+            },
+        )
         assert response.status_code == 403

@@ -64,7 +64,7 @@ class TestCliBackfill:
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
     @pytest.mark.parametrize(
-        "repro, expected_repro",
+        ("repro", "expected_repro"),
         [
             (None, None),
             ("none", ReprocessBehavior.NONE),
@@ -161,4 +161,79 @@ class TestCliBackfill:
             reverse=reverse,
             reprocess_behavior="none",
             session=mock.ANY,
+        )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
+    def test_backfill_with_dag_run_conf(self, mock_create):
+        """Test that dag_run_conf is properly parsed from JSON string."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dag-run-conf",
+            '{"example_key": "example_value"}',
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_create.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE,
+            to_date=DEFAULT_DATE,
+            max_active_runs=None,
+            reverse=False,
+            dag_run_conf={"example_key": "example_value"},
+            reprocess_behavior=None,
+            triggering_user_name="root",
+            run_on_latest_version=False,
+        )
+
+    def test_backfill_with_invalid_dag_run_conf(self):
+        """Test that invalid JSON in dag_run_conf raises ValueError."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dag-run-conf",
+            '{"invalid": json}',  # Invalid JSON
+        ]
+        with pytest.raises(ValueError, match="Invalid JSON in --dag-run-conf"):
+            airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
+    def test_backfill_with_empty_dag_run_conf(self, mock_create):
+        """Test that empty dag_run_conf is properly parsed."""
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--dag-run-conf",
+            "{}",
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        mock_create.assert_called_once_with(
+            dag_id="example_bash_operator",
+            from_date=DEFAULT_DATE,
+            to_date=DEFAULT_DATE,
+            max_active_runs=None,
+            reverse=False,
+            dag_run_conf={},
+            reprocess_behavior=None,
+            triggering_user_name="root",
+            run_on_latest_version=False,
         )

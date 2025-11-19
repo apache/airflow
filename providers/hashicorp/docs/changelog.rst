@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+4.3.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Synchronize boto3 and sqlalchemy dependency lower-binds (#57385)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to hashicorp Provider test (#57916)``
+
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Migrate hashicorp provider to common.compat (#57015)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Make term Dag consistent in providers docs (#55101)``
+   * ``Switch pre-commit to prek (#54258)``
+
 4.3.2
 .....
 
@@ -416,7 +451,8 @@ Bug Fixes
 
 * ``Fix empty paths in Vault secrets backend (#29908)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs for 03/2023 wave of Providers (#29878)``
 
 3.2.0

@@ -31,7 +31,7 @@ MOCK_INSTANCE_ID = "mock_instance_id"
 
 class TestMaxComputeLogViewLink:
     @pytest.mark.parametrize(
-        "xcom_value, expected_link",
+        ("xcom_value", "expected_link"),
         [
             pytest.param("http://mock_url.com", "http://mock_url.com", id="has-log-link"),
             pytest.param(None, "", id="no-log-link"),

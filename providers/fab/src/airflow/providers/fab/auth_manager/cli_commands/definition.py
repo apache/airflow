@@ -108,6 +108,14 @@ ARG_INCLUDE_DAGS = Arg(
     ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
+# permissions cleanup
+ARG_DRY_RUN = Arg(
+    ("--dry-run",), help="Show what would be cleaned up without making any changes.", action="store_true"
+)
+ARG_DAG_ID_OPTIONAL = Arg(
+    ("-d", "--dag-id"), help="Optional: Clean up permissions for specific DAG ID only", type=str
+)
+
 ################
 # # COMMANDS # #
 ################
@@ -251,6 +259,30 @@ SYNC_PERM_COMMAND = ActionCommand(
     help="Update permissions for existing roles and optionally DAGs",
     func=lazy_load_command("airflow.providers.fab.auth_manager.cli_commands.sync_perm_command.sync_perm"),
     args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
+)
+
+PERMISSIONS_CLEANUP_COMMAND = ActionCommand(
+    name="permissions-cleanup",
+    help="Clean up DAG permissions in Flask-AppBuilder tables",
+    description=(
+        "Clean up DAG-specific permissions. By default, cleans up orphaned permissions "
+        "for deleted DAGs. Use --dag-id to clean up permissions for a specific DAG."
+    ),
+    func=lazy_load_command(
+        "airflow.providers.fab.auth_manager.cli_commands.permissions_command.permissions_cleanup"
+    ),
+    args=(ARG_DAG_ID_OPTIONAL, ARG_DRY_RUN, ARG_YES, ARG_VERBOSE),
+    epilog=(
+        "examples:\n"
+        "To see what orphaned permissions would be cleaned up:\n"
+        "    $ airflow fab-auth-manager permissions-cleanup --dry-run\n"
+        "To clean up all orphaned permissions:\n"
+        "    $ airflow fab-auth-manager permissions-cleanup\n"
+        "To clean up permissions for specific DAG:\n"
+        "    $ airflow fab-auth-manager permissions-cleanup --dag-id my_dag\n"
+        "To clean up without confirmation:\n"
+        "    $ airflow fab-auth-manager permissions-cleanup --yes"
+    ),
 )
 
 DB_COMMANDS = (

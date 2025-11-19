@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -31,13 +32,17 @@ from airflow.secrets.metastore import MetastoreBackend
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
+
 pytestmark = pytest.mark.db_test
 
 
 class TestVariable:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
-        crypto._fernet = None
         db.clear_db_variables()
         SecretCache.reset()
         with conf_vars({("secrets", "use_cache"): "true"}):
@@ -46,13 +51,13 @@ class TestVariable:
             self.mask_secret = m
             yield
         db.clear_db_variables()
-        crypto._fernet = None
 
     @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): "True"})
     def test_variable_no_encryption(self, session):
         """
         Test variables without encryption
         """
+        crypto.get_fernet.cache_clear()
         Variable.set(key="key", value="value", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert not test_var.is_encrypted
@@ -66,6 +71,7 @@ class TestVariable:
         """
         Test variables with encryption
         """
+        crypto.get_fernet.cache_clear()
         Variable.set(key="key", value="value", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
         assert test_var.is_encrypted
@@ -80,6 +86,7 @@ class TestVariable:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
+            crypto.get_fernet.cache_clear()
             Variable.set(key="key", value=test_value, session=session)
             test_var = session.query(Variable).filter(Variable.key == "key").one()
             assert test_var.is_encrypted
@@ -88,7 +95,7 @@ class TestVariable:
 
         # Test decrypt of old value with new key
         with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
-            crypto._fernet = None
+            crypto.get_fernet.cache_clear()
             assert test_var.val == test_value
 
             # Test decrypt of new value with new key
@@ -311,9 +318,25 @@ class TestVariable:
 
         assert c != b
 
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        var = Variable(key="key", val="value", team_id=testing_team.id)
+        session.add(var)
+        session.flush()
+
+        assert Variable.get_team_name("key", session=session) == "testing"
+
+    def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
+        var1 = Variable(key="key1", val="value1", team_id=testing_team.id)
+        var2 = Variable(key="key2", val="value2")
+        session.add(var1)
+        session.add(var2)
+        session.flush()
+
+        assert Variable.get_key_to_team_name_mapping(["key1", "key2"], session=session) == {"key1": "testing"}
+
 
 @pytest.mark.parametrize(
-    "variable_value, deserialize_json, expected_masked_values",
+    ("variable_value", "deserialize_json", "expected_masked_values"),
     [
         ("s3cr3t", False, ["s3cr3t"]),
         ('{"api_key": "s3cr3t"}', True, ["s3cr3t"]),
@@ -322,12 +345,7 @@ class TestVariable:
     ],
 )
 def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values, session):
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk.execution_time.secrets_masker import _secrets_masker
-    else:
-        from airflow.utils.log.secrets_masker import _secrets_masker
+    from airflow._shared.secrets_masker import _secrets_masker
 
     SecretCache.reset()
 

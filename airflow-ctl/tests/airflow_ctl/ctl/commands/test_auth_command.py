@@ -67,7 +67,7 @@ class TestCliAuthCommands:
                 assert json.load(f) == {"api_url": "http://localhost:8080"}
 
             mock_keyring.set_password.assert_called_once_with(
-                "airflowctl", "api_token-TEST_AUTH_LOGIN", "TEST_TOKEN"
+                "airflowctl", "api_token_TEST_AUTH_LOGIN", "TEST_TOKEN"
             )
 
     # Test auth login with username and password
@@ -102,7 +102,7 @@ class TestCliAuthCommands:
             )
             mock_keyring.set_password.assert_has_calls(
                 [
-                    mock.call("airflowctl", "api_token-production", ""),
-                    mock.call("airflowctl", "api_token-production", "TEST_TOKEN"),
+                    mock.call("airflowctl", "api_token_production", ""),
+                    mock.call("airflowctl", "api_token_production", "TEST_TOKEN"),
                 ]
             )

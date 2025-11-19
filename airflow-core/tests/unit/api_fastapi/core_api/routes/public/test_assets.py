@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -31,10 +31,12 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
@@ -51,7 +53,7 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 from tests_common.test_utils.logs import check_last_log
 
-DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
+DEFAULT_DATE = timezone.datetime(2020, 6, 11, 18, 0, 0)
 
 pytestmark = pytest.mark.db_test
 
@@ -70,6 +72,51 @@ def _create_assets(session, num: int = 2) -> list[AssetModel]:
         for i in range(1, 1 + num)
     ]
     session.add_all(assets)
+    session.add_all(AssetActive.for_asset(a) for a in assets)
+    session.commit()
+    return assets
+
+
+def _create_assets_with_watchers(session, num: int = 2) -> list[AssetModel]:
+    """Create assets with watchers for testing."""
+    assets = [
+        AssetModel(
+            id=i,
+            name=f"watched{i}",
+            uri=f"s3://watched/bucket/key/{i}",
+            group="asset",
+            extra={"foo": "bar"},
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    # Create triggers for the watchers
+    triggers = [
+        Trigger(
+            classpath=f"airflow.triggers.testing.TestTrigger{i}",
+            kwargs={"timeout": 60 * i},
+            created_date=DEFAULT_DATE,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    session.add_all(assets)
+    session.add_all(triggers)
+    session.flush()  # Flush to get IDs
+
+    # Create watchers that link assets to triggers
+    watchers = [
+        AssetWatcherModel(
+            name=f"watcher_{i}",
+            asset_id=assets[i - 1].id,
+            trigger_id=triggers[i - 1].id,
+        )
+        for i in range(1, 1 + num)
+    ]
+
+    session.add_all(watchers)
     session.add_all(AssetActive.for_asset(a) for a in assets)
     session.commit()
     return assets
@@ -215,6 +262,10 @@ class TestAssets:
         return _create_assets(session=session, num=num)
 
     @provide_session
+    def create_assets_with_watchers(self, session, num: int = 2) -> list[AssetModel]:
+        return _create_assets_with_watchers(session=session, num=num)
+
+    @provide_session
     def create_assets_with_sensitive_extra(self, session, num: int = 2):
         _create_assets_with_sensitive_extra(session=session, num=num)
 
@@ -252,7 +303,9 @@ class TestGetAssets(TestAssets):
         assert len(session.query(AssetModel).all()) == 3
         assert len(session.query(AssetActive).all()) == 2
 
-        response = test_client.get("/assets")
+        with assert_queries_count(7):
+            response = test_client.get("/assets")
+
         assert response.status_code == 200
         response_data = response.json()
         tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
@@ -270,6 +323,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     # No AssetEvent, so no data!
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
@@ -285,6 +339,64 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
+                    "last_asset_event": {"id": None, "timestamp": None},
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_should_respond_200_with_watchers(self, test_client, session):
+        """Test that assets with watchers return the watcher information in the API response."""
+        asset1, asset2 = self.create_assets_with_watchers(session, num=2)
+
+        response = test_client.get("/assets")
+        assert response.status_code == 200
+        response_data = response.json()
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
+        assert response_data == {
+            "assets": [
+                {
+                    "id": asset1.id,
+                    "name": "watched1",
+                    "uri": "s3://watched/bucket/key/1",
+                    "group": "asset",
+                    "extra": {"foo": "bar"},
+                    "created_at": tz_datetime_format,
+                    "updated_at": tz_datetime_format,
+                    "scheduled_dags": [],
+                    "producing_tasks": [],
+                    "consuming_tasks": [],
+                    "aliases": [],
+                    "watchers": [
+                        {
+                            "name": "watcher_1",
+                            "trigger_id": asset1.watchers[0].trigger_id,
+                            "created_date": tz_datetime_format,
+                        }
+                    ],
+                    "last_asset_event": {"id": None, "timestamp": None},
+                },
+                {
+                    "id": asset2.id,
+                    "name": "watched2",
+                    "uri": "s3://watched/bucket/key/2",
+                    "group": "asset",
+                    "extra": {"foo": "bar"},
+                    "created_at": tz_datetime_format,
+                    "updated_at": tz_datetime_format,
+                    "scheduled_dags": [],
+                    "producing_tasks": [],
+                    "consuming_tasks": [],
+                    "aliases": [],
+                    "watchers": [
+                        {
+                            "name": "watcher_2",
+                            "trigger_id": asset2.watchers[0].trigger_id,
+                            "created_date": tz_datetime_format,
+                        }
+                    ],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
@@ -326,6 +438,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
@@ -340,6 +453,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
                 {
@@ -354,6 +468,7 @@ class TestGetAssets(TestAssets):
                     "producing_tasks": [],
                     "consuming_tasks": [],
                     "aliases": [],
+                    "watchers": [],
                     "last_asset_event": {"id": None, "timestamp": None},
                 },
             ],
@@ -376,7 +491,7 @@ class TestGetAssets(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_assets",
+        ("params", "expected_assets"),
         [
             ({"name_pattern": "s3"}, {"s3://folder/key"}),
             ({"name_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
@@ -412,7 +527,7 @@ class TestGetAssets(TestAssets):
         assert expected_assets == asset_urls
 
     @pytest.mark.parametrize(
-        "params, expected_assets",
+        ("params", "expected_assets"),
         [
             ({"uri_pattern": "s3"}, {"s3://folder/key"}),
             ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
@@ -447,7 +562,7 @@ class TestGetAssets(TestAssets):
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
 
-    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @pytest.mark.parametrize(("dag_ids", "expected_num"), [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
     def test_filter_assets_by_dag_ids_works(
         self, test_client, dag_ids, expected_num, testing_dag_bundle, session
@@ -484,7 +599,7 @@ class TestGetAssets(TestAssets):
         assert len(response_data["assets"]) == expected_num
 
     @pytest.mark.parametrize(
-        "dag_ids, uri_pattern,expected_num",
+        ("dag_ids", "uri_pattern", "expected_num"),
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
     @provide_session
@@ -525,7 +640,7 @@ class TestGetAssets(TestAssets):
 
 class TestGetAssetsEndpointPagination(TestAssets):
     @pytest.mark.parametrize(
-        "url, expected_asset_uris",
+        ("url", "expected_asset_uris"),
         [
             # Limit test data
             ("/assets?limit=1", ["s3://bucket/key/1"]),
@@ -585,7 +700,9 @@ class TestGetAssetAliases(TestAssetAliases):
         asset_aliases = session.query(AssetAliasModel).all()
         assert len(asset_aliases) == 2
 
-        response = test_client.get("/assets/aliases")
+        with assert_queries_count(2):
+            response = test_client.get("/assets/aliases")
+
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -604,7 +721,7 @@ class TestGetAssetAliases(TestAssetAliases):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_asset_aliases",
+        ("params", "expected_asset_aliases"),
         [
             ({"name_pattern": "foo"}, {"foo1"}),
             ({"name_pattern": "1"}, {"foo1", "bar12"}),
@@ -631,7 +748,7 @@ class TestGetAssetAliases(TestAssetAliases):
 
 class TestGetAssetAliasesEndpointPagination(TestAssetAliases):
     @pytest.mark.parametrize(
-        "url, expected_asset_aliases",
+        ("url", "expected_asset_aliases"),
         [
             # Limit test data
             ("/assets/aliases?limit=1", ["simple1"]),
@@ -668,7 +785,10 @@ class TestGetAssetEvents(TestAssets):
         assets = session.query(AssetEvent).all()
         session.commit()
         assert len(assets) == 2
-        response = test_client.get("/assets/events")
+
+        with assert_queries_count(3):
+            response = test_client.get("/assets/events")
+
         assert response.status_code == 200
         response_data = response.json()
         assert response_data == {
@@ -697,6 +817,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -724,6 +845,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
             ],
             "total_entries": 2,
@@ -738,13 +860,16 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "params, total_entries",
+        ("params", "total_entries"),
         [
             ({"asset_id": "2"}, 1),
             ({"source_dag_id": "source_dag_id"}, 2),
             ({"source_task_id": "source_task_id"}, 2),
             ({"source_run_id": "source_run_id_1"}, 1),
             ({"source_map_index": "-1"}, 2),
+            ({"name_pattern": "simple1"}, 1),
+            ({"name_pattern": "simple%"}, 2),
+            ({"name_pattern": "nonexistent"}, 0),
         ],
     )
     @provide_session
@@ -758,7 +883,7 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["total_entries"] == total_entries
 
     @pytest.mark.parametrize(
-        "params, expected_ids",
+        ("params", "expected_ids"),
         [
             # Test Case 1: Filtering with both timestamp_gte and timestamp_lte set to the same date
             (
@@ -817,7 +942,7 @@ class TestGetAssetEvents(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "params, expected_asset_ids",
+        ("params", "expected_asset_ids"),
         [
             # Limit test data
             ({"limit": "1"}, [1]),
@@ -875,6 +1000,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -902,6 +1028,7 @@ class TestGetAssetEvents(TestAssets):
                         }
                     ],
                     "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                    "partition_key": None,
                 },
             ],
             "total_entries": 2,
@@ -929,6 +1056,40 @@ class TestGetAssetEndpoint(TestAssets):
             "producing_tasks": [],
             "consuming_tasks": [],
             "aliases": [],
+            "watchers": [],
+            "last_asset_event": {"id": None, "timestamp": None},
+        }
+
+    @provide_session
+    def test_should_respond_200_with_watchers(self, test_client, session):
+        """Test that single asset endpoint returns watcher information."""
+        assets = self.create_assets_with_watchers(session, num=1)
+        asset = assets[0]
+
+        response = test_client.get(f"/assets/{asset.id}")
+        assert response.status_code == 200
+        response_data = response.json()
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
+
+        assert response_data == {
+            "id": asset.id,
+            "name": "watched1",
+            "uri": "s3://watched/bucket/key/1",
+            "group": "asset",
+            "extra": {"foo": "bar"},
+            "created_at": tz_datetime_format,
+            "updated_at": tz_datetime_format,
+            "scheduled_dags": [],
+            "producing_tasks": [],
+            "consuming_tasks": [],
+            "aliases": [],
+            "watchers": [
+                {
+                    "name": "watcher_1",
+                    "trigger_id": asset.watchers[0].trigger_id,
+                    "created_date": tz_datetime_format,
+                }
+            ],
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
@@ -964,6 +1125,7 @@ class TestGetAssetEndpoint(TestAssets):
             "producing_tasks": [],
             "consuming_tasks": [],
             "aliases": [],
+            "watchers": [],
             "last_asset_event": {"id": None, "timestamp": None},
         }
 
@@ -1002,9 +1164,10 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        response = test_client.get(
-            f"/dags/{dag_id}/assets/queuedEvents",
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/dags/{dag_id}/assets/queuedEvents",
+            )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -1111,6 +1274,7 @@ class TestPostAssetEvents(TestAssets):
             "source_map_index": -1,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+            "partition_key": None,
         }
         check_last_log(session, dag_id=None, event="create_asset_event", logical_date=None)
 
@@ -1149,6 +1313,7 @@ class TestPostAssetEvents(TestAssets):
             "source_map_index": -1,
             "created_dagruns": [],
             "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+            "partition_key": None,
         }
 
     def test_should_update_asset_endpoint(self, test_client, session):
@@ -1219,6 +1384,7 @@ class TestPostAssetMaterialize(TestAssets):
             "dag_id": self.DAG_ASSET1_ID,
             "dag_versions": mock.ANY,
             "logical_date": None,
+            "partition_key": None,
             "queued_at": mock.ANY,
             "run_after": mock.ANY,
             "start_date": None,
@@ -1262,7 +1428,9 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         (asset,) = self.create_assets(session=session, num=1)
         self._create_asset_dag_run_queues(dag_id, asset.id, session)
 
-        response = test_client.get(f"/assets/{asset.id}/queuedEvents")
+        with assert_queries_count(3):
+            response = test_client.get(f"/assets/{asset.id}/queuedEvents")
+
         assert response.status_code == 200
         assert response.json() == {
             "queued_events": [

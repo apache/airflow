@@ -27,8 +27,9 @@ import svcs
 from cadwyn import (
     Cadwyn,
 )
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
     JWTGenerator,
@@ -42,12 +43,14 @@ if TYPE_CHECKING:
     from fastapi.routing import APIRoute
 
 import structlog
+from structlog.contextvars import bind_contextvars
 
 logger = structlog.get_logger(logger_name=__name__)
 
 __all__ = [
     "create_task_execution_api_app",
     "lifespan",
+    "CorrelationIdMiddleware",
 ]
 
 
@@ -94,6 +97,33 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
 
     yield
+
+
+class CorrelationIdMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to handle correlation-id for request tracing.
+
+    This middleware:
+    1. Extracts correlation-id from request headers
+    2. Binds it to structlog context for all logs within the request
+    3. Echoes correlation-id back in response headers for tracing
+
+    Note: Context variables are automatically isolated per async task in Python,
+    so manual cleanup is not necessary. Each request gets its own context copy.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        correlation_id = request.headers.get("correlation-id")
+
+        if correlation_id:
+            bind_contextvars(correlation_id=correlation_id)
+
+        response: Response = await call_next(request)
+
+        if correlation_id:
+            response.headers["correlation-id"] = correlation_id
+
+        return response
 
 
 class CadwynWithOpenAPICustomization(Cadwyn):
@@ -179,6 +209,9 @@ def create_task_execution_api_app() -> FastAPI:
         versions=bundle,
     )
 
+    # Add correlation-id middleware for request tracing
+    app.add_middleware(CorrelationIdMiddleware)
+
     app.generate_and_include_versioned_routers(execution_api_router)
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
@@ -186,8 +219,8 @@ def create_task_execution_api_app() -> FastAPI:
     def handle_exceptions(request: Request, exc: Exception):
         logger.exception("Handle died with an error", exc_info=(type(exc), exc, exc.__traceback__))
         content = {"message": "Internal server error"}
-        if "correlation-id" in request.headers:
-            content["correlation-id"] = request.headers["correlation-id"]
+        if correlation_id := request.headers.get("correlation-id"):
+            content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)
 
     return app

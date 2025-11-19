@@ -37,7 +37,7 @@ def mock_client():
     client.version.get.return_value.model_dump.return_value = {
         "version": "3.1.0",
         "git_version": None,
-        "airflowctl_version": "1.0.0",
+        "airflowctl_version": "0.1.0",
     }
 
     return client
@@ -48,19 +48,16 @@ class TestVersionCommand:
 
     parser = cli_parser.get_parser()
 
-    def test_ctl_version(self, mock_client):
+    def test_ctl_version_remote(self, mock_client):
         with redirect_stdout(StringIO()) as stdout:
-            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            version_info(self.parser.parse_args(["version", "--remote"]), api_client=mock_client)
             assert "version" in stdout.getvalue()
             assert "git_version" in stdout.getvalue()
             assert "airflowctl_version" in stdout.getvalue()
 
-    def test_ctl_version_exception(self, mock_client):
+    def test_ctl_version_only_local_version(self, mock_client):
         """Test the version command with an exception."""
-        mock_client.version.get.side_effect = Exception("Test exception")
         with redirect_stdout(StringIO()) as stdout:
-            with pytest.raises(SystemExit):
-                version_info(self.parser.parse_args(["version"]), api_client=mock_client)
+            version_info(self.parser.parse_args(["version"]), api_client=mock_client)
             output = stdout.getvalue()
-        assert "Error fetching version information: Test exception" in output
         assert "airflowctl_version" in output
