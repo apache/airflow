@@ -46,6 +46,17 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 
+@pytest.fixture(autouse=True)
+def no_retry_wait():
+    patcher = mock.patch(
+        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
+        return_value=0,
+    )
+    patcher.start()
+    yield
+    patcher.stop()
+
+
 def test_parse_log_line():
     log_message = "This should return no timestamp"
     timestamp, line = parse_log_line(log_message)
@@ -73,11 +84,7 @@ class TestPodManager:
         assert isinstance(logs, PodLogsConsumer)
         assert logs.response == mock.sentinel.logs
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_logs_retries_successfully(self, _mock_wait):
+    def test_read_pod_logs_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
             BaseHTTPError("Boom"),
@@ -122,11 +129,7 @@ class TestPodManager:
             self.pod_manager.fetch_container_logs(mock.MagicMock(), "container-name", follow=True)
             assert "[container-name] None" not in (record.message for record in caplog.records)
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_logs_retries_fails(self, mock_wait_call):
+    def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
             BaseHTTPError("Boom"),
@@ -218,11 +221,7 @@ class TestPodManager:
         events = self.pod_manager.read_pod_events(mock.sentinel)
         assert mock.sentinel.events == events
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_events_retries_successfully(self, mock_wait_call):
+    def test_read_pod_events_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.side_effect = [
             BaseHTTPError("Boom"),
@@ -243,11 +242,7 @@ class TestPodManager:
             ]
         )
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_events_retries_fails(self, mock_wait_call):
+    def test_read_pod_events_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.side_effect = [
             BaseHTTPError("Boom"),
@@ -265,11 +260,7 @@ class TestPodManager:
         pod_info = self.pod_manager.read_pod(mock.sentinel)
         assert mock.sentinel.pod_info == pod_info
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_retries_successfully(self, mock_wait_call):
+    def test_read_pod_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod.side_effect = [
             BaseHTTPError("Boom"),
@@ -301,11 +292,7 @@ class TestPodManager:
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock_response
         self.pod_manager.fetch_container_logs(mock.sentinel, "base")
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_monitor_pod_logs_failures_non_fatal(self, mock_wait_call):
+    def test_monitor_pod_logs_failures_non_fatal(self):
         mock.sentinel.metadata = mock.MagicMock()
         running_status = mock.MagicMock()
         running_status.configure_mock(**{"name": "base", "state.running": True})
@@ -328,11 +315,7 @@ class TestPodManager:
 
         self.pod_manager.fetch_container_logs(mock.sentinel, "base")
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
-    def test_read_pod_retries_fails(self, mock_wait_call):
+    def test_read_pod_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod.side_effect = [
             BaseHTTPError("Boom"),
@@ -377,12 +360,8 @@ class TestPodManager:
             ]
         )
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    def test_fetch_container_logs_failures(self, mock_container_is_running, mock_wait_call):
+    def test_fetch_container_logs_failures(self, mock_container_is_running):
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
         last_timestamp_string = "2020-10-08T14:18:17.793417674Z"
@@ -434,12 +413,8 @@ class TestPodManager:
         assert "ERROR" not in caplog.text
 
     @pytest.mark.parametrize("status", [409, 429])
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, mock__wait_call, status):
+    def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, status):
         mock_run_pod_async.side_effect = [
             ApiException(status=status),
             mock.MagicMock(),
@@ -447,22 +422,14 @@ class TestPodManager:
         self.pod_manager.create_pod(mock.sentinel)
         assert mock_run_pod_async.call_count == 2
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_fails_on_other_exception(self, mock_run_pod_async, mock_wait_call):
+    def test_start_pod_fails_on_other_exception(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [ApiException(status=401)]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_retries_three_times(self, mock_run_pod_async, mock_wait_call):
+    def test_start_pod_retries_three_times(self, mock_run_pod_async):
         mock_run_pod_async.side_effect = [
             ApiException(status=409),
             ApiException(status=409),
@@ -682,13 +649,9 @@ class TestPodManager:
         assert ret == xcom_json
         assert mock_exec_xcom_kill.call_count == 1
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_kubernetes_stream, mock_wait_call):
+    def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when invalid json is retrieved from xcom sidecar container."""
         xcom_json = """{"a": "tru"""  # codespell:ignore tru
         mock_pod = MagicMock()
@@ -714,13 +677,9 @@ class TestPodManager:
         assert ret == xcom_result
         assert mock_exec_xcom_kill.call_count == 1
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_kubernetes_stream, mock_wait_call):
+    def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_kubernetes_stream):
         """test when None is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         mock_client = MagicMock()
@@ -731,14 +690,10 @@ class TestPodManager:
             self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_terminated")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_await_xcom_sidecar_container_timeout(
-        self, mock_container_is_running, mock_container_is_terminated, mock_wait_call
+        self, mock_container_is_running, mock_container_is_terminated
     ):
         mock_pod = MagicMock()
         mock_container_is_running.return_value = False
@@ -984,12 +939,8 @@ class TestAsyncPodManager:
                     unexpected_call = mock.call("[%s] %s", container_name, not_expected)
                     assert unexpected_call not in mock_log_info.mock_calls
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
-        return_value=0,
-    )
     @pytest.mark.asyncio
-    async def test_fetch_container_logs_before_current_sec_error_handling(self, mock_wait_call):
+    async def test_fetch_container_logs_before_current_sec_error_handling(self):
         pod = mock.MagicMock()
         container_name = "base"
         since_time = pendulum.now().subtract(minutes=1)

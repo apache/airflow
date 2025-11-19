@@ -94,6 +94,7 @@ def generic_api_retry(func):
         wait=WaitRetryAfterOrExponential(),
         retry=tenacity.retry_if_exception(_should_retry_api),
         reraise=True,
+        before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
     )(func)
 
 
