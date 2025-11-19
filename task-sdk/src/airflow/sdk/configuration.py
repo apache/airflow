@@ -36,14 +36,26 @@ log = logging.getLogger(__name__)
 def _default_config_file_path(file_name: str) -> str:
     """Get path to airflow core config.yml file."""
     # TODO: Task SDK will have its own config.yml
-    core_config_dir = (
+    # Temporary: SDK uses Core's config files during development
+
+    # Option 1: For installed packages
+    config_path = pathlib.Path(__file__).parent.parent / "config_templates" / file_name
+    if config_path.exists():
+        return str(config_path)
+
+    # Option 2: Monorepo structure
+    config_path = (
         pathlib.Path(__file__).parent.parent.parent.parent.parent
         / "airflow-core"
         / "src"
         / "airflow"
         / "config_templates"
+        / file_name
     )
-    return str(core_config_dir / file_name)
+    if config_path.exists():
+        return str(config_path)
+
+    raise FileNotFoundError(f"Could not find '{file_name}' in config_templates. ")
 
 
 def retrieve_configuration_description() -> dict[str, dict[str, Any]]:
