@@ -23,13 +23,19 @@ from airflow.api_fastapi.common.types import OklchColor
 
 
 class TestOklchColor:
-    def test_valid_oklch(self):
-        color_str = "oklch(0.637 0.237 25.331)"
-        color = OklchColor.model_validate(color_str)
-        assert color.lightness == pytest.approx(0.637)
-        assert color.chroma == pytest.approx(0.237)
-        assert color.hue == pytest.approx(25.331)
-        assert color.model_dump() == color_str
+    @pytest.mark.parametrize(
+        ("input_str", "expected"),
+        [
+            ("oklch(0.637 0.237 25.331)", (0.637, 0.237, 25.331, "oklch(0.637 0.237 25.331)")),
+            ("oklch(1 0.230 25.331)", (1.0, 0.23, 25.331, "oklch(1.0 0.23 25.331)")),
+        ],
+    )
+    def test_valid_oklch(self, input_str, expected):
+        color = OklchColor.model_validate(input_str)
+        assert color.lightness == pytest.approx(expected[0])
+        assert color.chroma == pytest.approx(expected[1])
+        assert color.hue == pytest.approx(expected[2])
+        assert color.model_dump() == expected[3]
 
     @pytest.mark.parametrize(
         ("input_str", "error_message"),
@@ -49,6 +55,18 @@ class TestOklchColor:
             (
                 "oklch(abc 0.15 240)",
                 "Invalid OKLCH format: oklch(abc 0.15 240) Expected format oklch(l c h)",
+            ),
+            (
+                "oklch(10 0. 240)",
+                "Invalid OKLCH format: oklch(10 0. 240) Expected format oklch(l c h)",
+            ),
+            (
+                "oklch(10 3 .240)",
+                "Invalid OKLCH format: oklch(10 3 .240) Expected format oklch(l c h)",
+            ),
+            (
+                "oklch(. 3 240)",
+                "Invalid OKLCH format: oklch(. 3 240) Expected format oklch(l c h)",
             ),
         ],
     )
