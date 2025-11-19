@@ -201,6 +201,33 @@ Sensors and the TaskFlow API
 For an example of writing a Sensor using the TaskFlow API, see
 :ref:`Using the TaskFlow API with Sensor operators <taskflow-using-sensors>`.
 
+Decorator Utilities Migration
+-----------------------------
+
+Several helper functions previously located in ``airflow.utils.decorators`` have been moved to more appropriate modules.
+
+The following imports are deprecated and will be removed in a future version:
+
+.. code-block:: python
+
+   from airflow.utils.decorators import classproperty
+   from airflow.utils.decorators import remove_task_decorator
+   from airflow.utils.decorators import fixup_decorator_warning_stack
+
+Use the updated import paths instead:
+
+.. code-block:: python
+
+   # classproperty is now part of the deadline model
+   from airflow.models.deadline import classproperty
+
+   # decorator utilities relocated to the Task SDK internal definitions module
+   from airflow.sdk.definitions._internal.decorators import remove_task_decorator
+   from airflow.sdk.definitions._internal.decorators import fixup_decorator_warning_stack
+
+These utilities will continue to resolve through ``airflow.utils.decorators`` temporarily
+for compatibility, but new code should use the updated paths.
+
 History
 -------
 
