@@ -1505,8 +1505,7 @@ class TaskInstance(Base, LoggingMixin):
 
             # If an execution_timeout is set, set the timeout to the minimum of
             # it and the trigger timeout
-            execution_timeout = self.task.execution_timeout
-            if execution_timeout:
+            if execution_timeout := self.task.execution_timeout:
                 if TYPE_CHECKING:
                     assert self.start_date
                 if self.trigger_timeout:
