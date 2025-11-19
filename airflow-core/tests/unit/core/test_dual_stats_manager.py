@@ -26,7 +26,7 @@ from airflow.metrics import dual_stats_manager
 
 class TestDualStatsManager:
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             pytest.param(
                 1,
@@ -55,7 +55,7 @@ class TestDualStatsManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "count, rate, delta, tags, expected_args_dict",
+        ("count", "rate", "delta", "tags", "expected_args_dict"),
         [
             pytest.param(
                 1,
@@ -119,7 +119,7 @@ class TestDualStatsManager:
         assert sorted(args_dict) == sorted(expected_args_dict)
 
     @pytest.mark.parametrize(
-        "args_dict, tags, extra_tags, expected_args_dict",
+        ("args_dict", "tags", "extra_tags", "expected_args_dict"),
         [
             pytest.param(
                 {"count": 1},
@@ -186,7 +186,7 @@ class TestDualStatsManager:
         assert sorted(dict_full) == sorted(expected_args_dict)
 
     @pytest.mark.parametrize(
-        "tags, extra_tags, expected_tags_dict",
+        ("tags", "extra_tags", "expected_tags_dict"),
         [
             pytest.param(
                 {"test": True},
@@ -236,7 +236,7 @@ class TestDualStatsManager:
         assert sorted(tags_full) == sorted(expected_tags_dict)
 
     @pytest.mark.parametrize(
-        "stat, variables, expected_legacy_stat, raises_value_error, expected_error_msg",
+        ("stat", "variables", "expected_legacy_stat", "raises_value_error", "expected_error_msg"),
         [
             pytest.param(
                 "operator_failures",
