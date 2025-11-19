@@ -374,7 +374,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 ```shell
 git fetch apache --tags
-git checkout providers/${VERSION_RC}
+git checkout python-client/${VERSION_RC}
 ```
 
 4) Build the distribution and source tarball:
