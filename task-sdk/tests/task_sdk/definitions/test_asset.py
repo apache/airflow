@@ -144,17 +144,22 @@ def test_uri_with_scheme(uri: str, normalized: str) -> None:
     assert os.fspath(asset) == normalized
 
 
-def test_uri_with_auth() -> None:
-    with pytest.warns(UserWarning, match="username") as record:
-        asset = Asset("ftp://user@localhost/foo.txt")
+def test_uri_with_password() -> None:
+    with pytest.warns(UserWarning, match="password") as record:
+        asset = Asset("ftp://user:password@localhost/foo.txt")
     assert len(record) == 1
     assert str(record[0].message) == (
-        "An Asset URI should not contain auth info (e.g. username or "
-        "password). It has been automatically dropped."
+        "An Asset URI should not contain a password. User info has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[asset])
     assert asset.uri == "ftp://localhost/foo.txt"
     assert os.fspath(asset) == "ftp://localhost/foo.txt"
+
+
+def test_uri_without_password() -> None:
+    uri = "abfss://filesystem@account.dfs.core.windows.net/path"
+    asset = Asset(uri)
+    assert asset.uri == uri
 
 
 def test_uri_without_scheme():

@@ -166,15 +166,16 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
         return uri
     if normalized_scheme == "airflow":
         raise ValueError("Asset scheme 'airflow' is reserved")
-    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
-    if auth_exists:
+    if parsed.password:
         # TODO: Collect this into a DagWarning.
         warnings.warn(
-            "An Asset URI should not contain auth info (e.g. username or "
-            "password). It has been automatically dropped.",
+            "An Asset URI should not contain a password. User info has been automatically dropped.",
             UserWarning,
             stacklevel=3,
         )
+        _, _, normalized_netloc = parsed.netloc.rpartition("@")
+    else:
+        normalized_netloc = parsed.netloc
     if parsed.query:
         normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:
