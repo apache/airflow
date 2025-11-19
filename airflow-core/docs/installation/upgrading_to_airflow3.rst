@@ -179,15 +179,6 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
    * - ``airflow.io.*``
      - ``airflow.sdk.io.*``
 
-**XCom Module Changes**
-
-The ``airflow.utils.xcom`` module has been removed and its constants moved to more appropriate locations:
-
-- ``XCOM_RETURN_KEY`` constant has been moved from ``airflow.utils.xcom`` to ``airflow.models.xcom``
-- Access the constant as ``XCom.XCOM_RETURN_KEY`` or import from ``airflow.models.xcom``
-- In Task SDK, use ``BaseXCom.XCOM_RETURN_KEY`` or ``XCom.XCOM_RETURN_KEY``
-- The old ``airflow.utils.xcom`` module has been removed, but backward compatibility is maintained through deprecation shims
-
 **Migration Timeline**
 
 - **Airflow 3.1**: Legacy imports show deprecation warnings but continue to work
