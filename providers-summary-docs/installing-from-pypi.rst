@@ -24,7 +24,7 @@ PyPI <https://pypi.org/search/?q=apache-airflow-providers>`__.
 Installation tools
 ''''''''''''''''''
 
-Only ``pip`` installation is currently officially supported.
+Only ``pip`` and ``uv`` installation is officially supported.
 
 .. note::
 
