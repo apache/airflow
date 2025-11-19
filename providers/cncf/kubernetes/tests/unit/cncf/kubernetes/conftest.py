@@ -26,7 +26,11 @@ DATA_FILE_DIRECTORY = Path(__file__).resolve().parent / "data_files"
 
 
 @pytest.fixture(autouse=True)
-def no_retry_wait():
+def no_retry_wait(request):
+    # Skip patching if test has marker
+    if request.node.get_closest_marker("no_wait_patch_disabled"):
+        yield
+        return
     patcher = mock.patch(
         "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.WaitRetryAfterOrExponential.__call__",
         return_value=0,

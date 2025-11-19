@@ -40,6 +40,7 @@ class DummyRetryState:
 
 
 class TestWaitRetryAfterOrExponential:
+    @pytest.mark.no_wait_patch_disabled
     def test_call_with_retry_after_header(self):
         exc = ApiException(status=429)
         exc.headers = {"Retry-After": "15"}
@@ -47,6 +48,7 @@ class TestWaitRetryAfterOrExponential:
         wait = WaitRetryAfterOrExponential()(retry_state)
         assert wait == 15
 
+    @pytest.mark.no_wait_patch_disabled
     @pytest.mark.parametrize(("attempt_number", "expected_wait"), [(1, 1), (4, 8)])
     def test_call_without_retry_after_header(self, attempt_number, expected_wait):
         exc = ApiException(status=409)
