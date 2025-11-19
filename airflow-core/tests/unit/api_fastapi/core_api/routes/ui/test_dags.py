@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -26,6 +25,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from airflow.models import DagRun
+from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.sdk.timezone import utcnow
@@ -33,6 +33,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import count_queries
 from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
     DAG2_ID,
@@ -56,7 +57,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         for dag_id in [DAG1_ID, DAG2_ID, DAG3_ID, DAG4_ID, DAG5_ID]:
             dag_runs_count = 5 if dag_id in [DAG1_ID, DAG2_ID] else 2
             for i in range(dag_runs_count):
-                start_date = datetime(2021 + i, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+                start_date = pendulum.datetime(2021 + i, 1, 1, 0, 0, 0, tz="UTC")
                 dag_run = DagRun(
                     dag_id=dag_id,
                     run_id=f"run_id_{i + 1}",
@@ -67,12 +68,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     state=(DagRunState.FAILED if i % 2 == 0 else DagRunState.SUCCESS),
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
-                dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
+                if dag_run.start_date is not None:
+                    dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)
         session.commit()
 
     @pytest.mark.parametrize(
-        "query_params, expected_ids,expected_total_dag_runs",
+        ("query_params", "expected_ids", "expected_total_dag_runs"),
         [
             # Filters
             ({}, [DAG1_ID, DAG2_ID], 11),
@@ -107,11 +109,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
         required_dag_run_key = [
-            "dag_run_id",
             "dag_id",
+            "run_id",
             "state",
             "run_after",
-            "dag_versions",
+            "start_date",
+            "end_date",
+            "logical_date",
         ]
         for recent_dag_runs in body["dags"]:
             dag_runs = recent_dag_runs["latest_dag_runs"]
@@ -170,7 +174,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.commit()
 
     @pytest.mark.parametrize(
-        "has_pending_actions, expected_total_entries, expected_pending_actions",
+        ("has_pending_actions", "expected_total_entries", "expected_pending_actions"),
         [
             # Without has_pending_actions param, should query all DAGs
             (None, 3, None),
@@ -231,6 +235,71 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         response = unauthorized_test_client.get("/dags", params={})
         assert response.status_code == 403
 
+    def test_get_dags_no_n_plus_one_queries(self, session, test_client):
+        """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
+        num_dags = 5
+        for i in range(num_dags):
+            dag_id = f"test_dag_queries_ui_{i}"
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="dag_maker",
+                fileloc=f"/tmp/{dag_id}.py",
+                is_stale=False,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            for j in range(3):
+                tag = DagTag(name=f"tag_ui_{i}_{j}", dag_id=dag_id)
+                session.add(tag)
+
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result:
+            response = test_client.get("/dags", params={"limit": 10})
+
+        assert response.status_code == 200
+        body = response.json()
+        dags_with_our_prefix = [d for d in body["dags"] if d["dag_id"].startswith("test_dag_queries_ui_")]
+        assert len(dags_with_our_prefix) == num_dags
+        for dag in dags_with_our_prefix:
+            assert len(dag["tags"]) == 3
+
+        first_query_count = sum(result.values())
+
+        # Add more DAGs and verify query count doesn't scale linearly
+        for i in range(num_dags, num_dags + 3):
+            dag_id = f"test_dag_queries_ui_{i}"
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="dag_maker",
+                fileloc=f"/tmp/{dag_id}.py",
+                is_stale=False,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            for j in range(3):
+                tag = DagTag(name=f"tag_ui_{i}_{j}", dag_id=dag_id)
+                session.add(tag)
+
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result2:
+            response = test_client.get("/dags", params={"limit": 15})
+
+        assert response.status_code == 200
+        second_query_count = sum(result2.values())
+
+        # With n+1, adding 3 DAGs would add ~3 tag queries
+        # Without n+1, query count should remain nearly identical
+        assert second_query_count - first_query_count < 3, (
+            f"Added 3 DAGs but query count increased by {second_query_count - first_query_count} "
+            f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
+        )
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_latest_run_should_return_200(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/latest_run")
@@ -245,6 +314,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             "start_date": "2025-01-01T00:00:00Z",
             "end_date": "2025-01-01T01:00:00Z",
             "state": "failed",
+            "duration": 3600.0,
         }
 
     def test_latest_run_should_response_401(self, unauthenticated_test_client):
@@ -256,7 +326,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_count",
+        ("query_params", "expected_dag_count"),
         [
             ({"has_asset_schedule": True}, 3),
             ({"has_asset_schedule": False}, 2),

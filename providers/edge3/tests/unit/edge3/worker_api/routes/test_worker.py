@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.providers.edge3.version_compat import timezone
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
 from airflow.providers.edge3.worker_api.routes._v2_compat import HTTPException
 from airflow.providers.edge3.worker_api.routes.worker import (
@@ -96,7 +96,7 @@ class TestWorkerApiRoutes:
             assert worker[0].queues is None
 
     @pytest.mark.parametrize(
-        "worker_state, body_state, expected_state",
+        ("worker_state", "body_state", "expected_state"),
         [
             pytest.param(
                 EdgeWorkerState.MAINTENANCE_REQUEST,
@@ -197,7 +197,7 @@ class TestWorkerApiRoutes:
         assert return_queues == ["default", "default2"]
 
     @pytest.mark.parametrize(
-        "add_queues, remove_queues, expected_queues",
+        ("add_queues", "remove_queues", "expected_queues"),
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(

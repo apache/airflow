@@ -129,7 +129,7 @@ class TestSmtpHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, use_ssl, expected_port, create_context",
+        ("conn_id", "use_ssl", "expected_port", "create_context"),
         [
             pytest.param(CONN_ID_DEFAULT, True, DEFAULT_PORT, True, id="ssl-connection"),
             pytest.param(CONN_ID_NONSSL, False, NONSSL_PORT, False, id="non-ssl-connection"),
@@ -263,7 +263,7 @@ class TestSmtpHook:
         assert smtp_client_mock.close.called
 
     @pytest.mark.parametrize(
-        "conn_id, ssl_context, create_context_called, use_default_context",
+        ("conn_id", "ssl_context", "create_context_called", "use_default_context"),
         [
             pytest.param(CONN_ID_DEFAULT, "default", True, True, id="default_context"),
             pytest.param(CONN_ID_SSL_EXTRA, "none", False, False, id="none_context"),
@@ -558,7 +558,7 @@ class TestSmtpHookAsync:
         return mock_client
 
     @pytest.mark.parametrize(
-        "conn_id, expected_port, expected_ssl",
+        ("conn_id", "expected_port", "expected_ssl"),
         [
             pytest.param(CONN_ID_NONSSL, NONSSL_PORT, False, id="non-ssl-connection"),
             pytest.param(CONN_ID_DEFAULT, DEFAULT_PORT, True, id="ssl-connection"),
@@ -604,7 +604,7 @@ class TestSmtpHookAsync:
         assert f"Subject: {TEST_SUBJECT}" in call_args[2]  # message is the third positional arg
 
     @pytest.mark.parametrize(
-        "side_effect, expected_calls, should_raise",
+        ("side_effect", "expected_calls", "should_raise"),
         [
             pytest.param(
                 [SERVER_DISCONNECTED_ERROR, SERVER_DISCONNECTED_ERROR, None],

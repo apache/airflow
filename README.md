@@ -29,11 +29,11 @@
 
 
 
-| Version | Build Status                                                                                                                                                                                                                                                                                                            |
-|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Main    | [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg)](https://github.com/apache/airflow/actions) [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg)](https://github.com/apache/airflow/actions)                                 |
-| 3.x     | [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-amd.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-arm.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) |
-| 2.x     | [![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)                                                                                                                                                               |
+| Version | Build Status                                                                                                                                                                                                                                                                                                                    |
+|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Main    | [![GitHub Build main](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg)](https://github.com/apache/airflow/actions)                                                                                                                                                                                 |
+| 3.x     | [![GitHub Build 3.1](https://github.com/apache/airflow/actions/workflows/ci-amd-arm.yml/badge.svg?branch=v3-1-test)](https://github.com/apache/airflow/actions) |
+| 2.x     | [![GitHub Build 2.11](https://github.com/apache/airflow/actions/workflows/ci.yml/badge.svg?branch=v2-11-test)](https://github.com/apache/airflow/actions)                                                                                                                                                                       |
 
 
 
@@ -99,12 +99,12 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)           | Stable version (3.1.0) |
+|            | Main version (dev)           | Stable version (3.1.3) |
 |------------|------------------------------|------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13       | 3.10, 3.11, 3.12, 3.13 |
 | Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
 | Kubernetes | 1.30, 1.31, 1.32, 1.33, 1.34 | 1.30, 1.31, 1.32, 1.33 |
-| PostgreSQL | 13, 14, 15, 16, 17           | 13, 14, 15, 16, 17     |
+| PostgreSQL | 14, 15, 16, 17, 18           | 13, 14, 15, 16, 17     |
 | MySQL      | 8.0, 8.4, Innovation         | 8.0, 8.4, Innovation   |
 | SQLite     | 3.15.0+                      | 3.15.0+                |
 
@@ -167,25 +167,20 @@ While it is possible to install Airflow with tools like [Poetry](https://python-
 `pip` - especially when it comes to constraint vs. requirements management.
 Installing via `Poetry` or `pip-tools` is not currently supported.
 
-There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
-Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
-the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
-newer versions of ``bazel`` will handle it.
-
 If you wish to install Airflow using those tools, you should use the constraint files and convert
 them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.1.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.10.txt"
+pip install 'apache-airflow==3.1.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.3/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.1.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.0/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.1.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.3/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check
@@ -275,7 +270,7 @@ packages:
   Changing limits for versions of Airflow dependencies is not a breaking change on its own.
 * **Airflow Providers**: SemVer rules apply to changes in the particular provider's code only.
   SemVer MAJOR and MINOR versions for the packages are independent of the Airflow version.
-  For example, `google 4.1.0` and `amazon 3.1.0` providers can happily be installed
+  For example, `google 4.1.0` and `amazon 3.1.1` providers can happily be installed
   with `Airflow 2.1.2`. If there are limits of cross-dependencies between providers and Airflow packages,
   they are present in providers as `install_requires` limitations. We aim to keep backwards
   compatibility of providers with all previously released Airflow 2 versions but
@@ -299,7 +294,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-----------------------|------------------|
-| 3         | 3.1.0                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.1.3                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.0                | Supported | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |

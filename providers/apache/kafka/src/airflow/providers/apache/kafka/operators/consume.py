@@ -22,7 +22,7 @@ from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.providers.apache.kafka.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.utils.module_loading import import_string
 
 VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}

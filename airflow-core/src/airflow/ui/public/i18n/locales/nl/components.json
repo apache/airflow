@@ -89,10 +89,13 @@
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
+  "limitedList.allTags_one": "Alle labels (1)",
+  "limitedList.allTags_other": "Alle labels ({{count}})",
   "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
   "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
   "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
-  "limitedList.showingItems": "{{count}} items weergegeven",
+  "limitedList.showingItems_one": "Toont 1 item",
+  "limitedList.showingItems_other": "Toont {{count}} items",
   "logs": {
     "file": "Bestand",
     "location": "regel {{line}} in {{name}}"

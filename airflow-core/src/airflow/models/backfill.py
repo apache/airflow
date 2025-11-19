@@ -24,6 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -52,6 +53,9 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dagrun import DagRun
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -98,6 +102,17 @@ class InvalidBackfillDate(AirflowException):
     """
 
 
+class UnknownActiveBackfills(AirflowException):
+    """
+    Raised when the quantity of active backfills cannot be determined.
+
+    :meta private:
+    """
+
+    def __init__(self, dag_id: str):
+        super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
+
+
 class ReprocessBehavior(str, Enum):
     """
     Internal enum for setting reprocess behavior in a backfill.
@@ -117,9 +132,9 @@ class Backfill(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     dag_id: Mapped[str] = mapped_column(StringID(), nullable=False)
-    from_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
-    to_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
-    dag_run_conf: Mapped[JSONField] = mapped_column(JSONField(json=json), nullable=False, default={})
+    from_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    to_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
+    dag_run_conf: Mapped[dict] = mapped_column(JSONField(json=json), nullable=False, default={})
     is_paused: Mapped[bool | None] = mapped_column(Boolean, default=False, nullable=True)
     """
     Controls whether new dag runs will be created for this backfill.
@@ -130,9 +145,9 @@ class Backfill(Base):
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    completed_at: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    updated_at: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
     triggering_user_name: Mapped[str | None] = mapped_column(
@@ -173,7 +188,7 @@ class BackfillDagRun(Base):
     backfill_id: Mapped[int] = mapped_column(Integer, nullable=False)
     dag_run_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     exception_reason: Mapped[str | None] = mapped_column(StringID(), nullable=True)
-    logical_date: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False)
+    logical_date: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False)
     sort_ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
 
     backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
@@ -199,13 +214,13 @@ class BackfillDagRun(Base):
     )
 
     @validates("sort_ordinal")
-    def validate_sort_ordinal(self, key, val):
+    def validate_sort_ordinal(self, key: str, val: int) -> int:
         if val < 1:
             raise ValueError("sort_ordinal must be >= 1")
         return val
 
 
-def _get_latest_dag_run_row_query(*, dag_id, info, session):
+def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo, session: Session):
     from airflow.models import DagRun
 
     return (
@@ -231,7 +246,13 @@ def _get_dag_run_no_create_reason(dr, reprocess_behavior: ReprocessBehavior) -> 
     return non_create_reason
 
 
-def _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior: ReprocessBehavior | None):
+def _validate_backfill_params(
+    dag: SerializedDAG,
+    reverse: bool,
+    from_date: datetime,
+    to_date: datetime,
+    reprocess_behavior: ReprocessBehavior | None,
+) -> None:
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
         if reverse is True:
@@ -248,7 +269,15 @@ def _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavi
         raise InvalidBackfillDate("Backfill cannot be executed for future dates.")
 
 
-def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, session) -> list[datetime]:
+def _do_dry_run(
+    *,
+    dag_id: str,
+    from_date: datetime,
+    to_date: datetime,
+    reverse: bool,
+    reprocess_behavior: ReprocessBehavior,
+    session: Session,
+) -> Sequence[datetime]:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -270,7 +299,7 @@ def _do_dry_run(*, dag_id, from_date, to_date, reverse, reprocess_behavior, sess
         to_date=to_date,
         reverse=reverse,
     )
-    logical_dates = []
+    logical_dates: list[datetime] = []
     for info in dagrun_info_list:
         dr = session.scalar(
             statement=_get_latest_dag_run_row_query(dag_id=dag_id, info=info, session=session),
@@ -289,13 +318,13 @@ def _create_backfill_dag_run(
     dag: SerializedDAG,
     info: DagRunInfo,
     reprocess_behavior: ReprocessBehavior,
-    backfill_id,
-    dag_run_conf,
-    backfill_sort_ordinal,
-    triggering_user_name,
-    run_on_latest_version,
-    session,
-):
+    backfill_id: int,
+    dag_run_conf: dict | None,
+    backfill_sort_ordinal: int,
+    triggering_user_name: str | None,
+    run_on_latest_version: bool,
+    session: Session,
+) -> None:
     from airflow.models.dagrun import DagRun
 
     with session.begin_nested() as nested:
@@ -392,20 +421,28 @@ def _create_backfill_dag_run(
 
 def _get_info_list(
     *,
-    from_date,
-    to_date,
-    reverse,
-    dag,
-):
+    from_date: datetime,
+    to_date: datetime,
+    reverse: bool,
+    dag: SerializedDAG,
+) -> list[DagRunInfo]:
     infos = dag.iter_dagrun_infos_between(from_date, to_date)
     now = timezone.utcnow()
     dagrun_info_list = [x for x in infos if x.data_interval.end < now]
     if reverse:
-        dagrun_info_list = reversed(dagrun_info_list)
+        dagrun_info_list = list(reversed(dagrun_info_list))
     return dagrun_info_list
 
 
-def _handle_clear_run(session, dag, dr, info, backfill_id, sort_ordinal, run_on_latest=False):
+def _handle_clear_run(
+    session: Session,
+    dag: SerializedDAG,
+    dr: DagRun,
+    info: DagRunInfo,
+    backfill_id: int,
+    sort_ordinal: int,
+    run_on_latest: bool = False,
+) -> None:
     """Clear the existing DAG run and update backfill metadata."""
     from sqlalchemy.sql import update
 
@@ -452,7 +489,7 @@ def _create_backfill(
     triggering_user_name: str | None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
-) -> Backfill | None:
+) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
 
@@ -472,6 +509,8 @@ def _create_backfill(
                 Backfill.completed_at.is_(None),
             )
         )
+        if num_active is None:
+            raise UnknownActiveBackfills(dag_id)
         if num_active > 0:
             raise AlreadyRunningBackfill(
                 f"Another backfill is running for dag {dag_id}. "
@@ -512,7 +551,7 @@ def _create_backfill(
                 info=info,
                 backfill_id=br.id,
                 dag_run_conf=br.dag_run_conf,
-                reprocess_behavior=br.reprocess_behavior,
+                reprocess_behavior=ReprocessBehavior(br.reprocess_behavior),
                 backfill_sort_ordinal=backfill_sort_ordinal,
                 triggering_user_name=br.triggering_user_name,
                 run_on_latest_version=run_on_latest_version,

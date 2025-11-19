@@ -35,10 +35,13 @@ export const useToggleFavoriteDag = (dagId: string) => {
       queryKey: [useDagServiceGetDagsUiKey, UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }])],
     });
 
-    // Invalidate the specific DAG details query for this DAG
-    await queryClient.invalidateQueries({
-      queryKey: UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
-    });
+    const queryKeys = [
+      // Invalidate the specific DAG details query for this DAG and DAGs list query.
+      UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
+      [useDagServiceGetDagsUiKey],
+    ];
+
+    await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   }, [queryClient, dagId]);
 
   const favoriteMutation = useDagServiceFavoriteDag({

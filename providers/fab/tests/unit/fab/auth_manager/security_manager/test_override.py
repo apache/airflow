@@ -76,7 +76,7 @@ class TestFabAirflowSecurityManagerOverride:
         assert not sm.check_password("test_user", "test_password")
 
     @pytest.mark.parametrize(
-        "provider, resp, user_info",
+        ("provider", "resp", "user_info"),
         [
             ("github", {"login": "test"}, {"username": "github_test"}),
             ("githublocal", {"login": "test"}, {"username": "github_test"}),

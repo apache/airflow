@@ -22,16 +22,11 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):

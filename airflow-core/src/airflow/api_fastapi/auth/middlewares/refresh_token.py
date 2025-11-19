@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Request
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -41,28 +42,34 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         new_user = None
         current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-        if current_token:
-            new_user = await self._refresh_user(current_token)
+        try:
+            if current_token:
+                new_user = await self._refresh_user(current_token)
+                if new_user:
+                    request.state.user = new_user
+
+            response = await call_next(request)
+
             if new_user:
-                request.state.user = new_user
-
-        response = await call_next(request)
-
-        if new_user:
-            # If we created a new user, serialize it and set it as a cookie
-            new_token = get_auth_manager().generate_jwt(new_user)
-            secure = bool(conf.get("api", "ssl_cert", fallback=""))
-            response.set_cookie(
-                COOKIE_NAME_JWT_TOKEN,
-                new_token,
-                httponly=True,
-                secure=secure,
-                samesite="lax",
-            )
-
+                # If we created a new user, serialize it and set it as a cookie
+                new_token = get_auth_manager().generate_jwt(new_user)
+                secure = bool(conf.get("api", "ssl_cert", fallback=""))
+                response.set_cookie(
+                    COOKIE_NAME_JWT_TOKEN,
+                    new_token,
+                    httponly=True,
+                    secure=secure,
+                    samesite="lax",
+                )
+        except HTTPException as exc:
+            # If any HTTPException is raised during user resolution or refresh, return it as response
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
         return response
 
     @staticmethod
     async def _refresh_user(current_token: str) -> BaseUser | None:
-        user = await resolve_user_from_token(current_token)
+        try:
+            user = await resolve_user_from_token(current_token)
+        except HTTPException:
+            return None
         return get_auth_manager().refresh_user(user=user)

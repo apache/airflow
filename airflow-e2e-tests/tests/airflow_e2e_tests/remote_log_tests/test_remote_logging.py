@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 
 import boto3
@@ -27,6 +28,9 @@ from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 class TestRemoteLogging:
     airflow_client = AirflowClient()
     dag_id = "example_xcom_test"
+    task_count = 6
+    retry_interval_in_seconds = 1
+    max_retries = 5
 
     def test_dag_unpause(self):
         self.airflow_client.un_pause_dag(
@@ -50,6 +54,33 @@ class TestRemoteLogging:
             f"DAG {TestRemoteLogging.dag_id} did not complete successfully. Final state: {state}"
         )
 
+        # This bucket will be created part of the docker-compose setup in
+        bucket_name = "test-airflow-logs"
+        s3_client = boto3.client(
+            "s3",
+            endpoint_url="http://localhost:4566",
+            aws_access_key_id="test",
+            aws_secret_access_key="test",
+            region_name="us-east-1",
+        )
+
+        # Wait for logs to be available in S3 before we call `get_task_logs`
+        for _ in range(self.max_retries):
+            response = s3_client.list_objects_v2(Bucket=bucket_name)
+            contents = response.get("Contents", [])
+            if len(contents) >= self.task_count:
+                break
+
+            print(f"Expected at least {self.task_count} log files, found {len(contents)}. Retrying...")
+            time.sleep(self.retry_interval_in_seconds)
+
+        if len(contents) < self.task_count:
+            pytest.fail(
+                f"Expected at least {self.task_count} log files in S3 bucket {bucket_name}, "
+                f"but found {len(contents)} objects: {[obj.get('Key') for obj in contents]}. \n"
+                f"List Objects Response: {response}"
+            )
+
         task_logs = self.airflow_client.get_task_logs(
             dag_id=TestRemoteLogging.dag_id,
             task_id="bash_pull",
@@ -59,17 +90,6 @@ class TestRemoteLogging:
         task_log_sources = [
             source for content in task_logs.get("content", [{}]) for source in content.get("sources", [])
         ]
-
-        s3_client = boto3.client(
-            "s3",
-            endpoint_url="http://localhost:4566",
-            aws_access_key_id="test",
-            aws_secret_access_key="test",
-            region_name="us-east-1",
-        )
-
-        # This bucket will be created part of the docker-compose setup in
-        bucket_name = "test-airflow-logs"
         response = s3_client.list_objects_v2(Bucket=bucket_name)
 
         if "Contents" not in response:

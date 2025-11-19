@@ -362,7 +362,7 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -522,7 +522,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -559,7 +559,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),

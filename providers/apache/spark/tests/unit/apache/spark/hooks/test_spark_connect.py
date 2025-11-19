@@ -66,5 +66,5 @@ class TestSparkConnectHook:
         assert hook.get_connection_url() == expected_url
 
         hook = SparkConnectHook(conn_id="spark-app")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="not supported in Spark Connect connection URL"):
             hook.get_connection_url()

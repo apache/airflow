@@ -35,6 +35,7 @@ Helm Chart for Apache Airflow
     keda
     using-additional-containers
     customizing-workers
+    customizing-labels
     Installing from sources<installing-helm-chart-from-sources>
     Extending the Chart<extending-the-chart>
 

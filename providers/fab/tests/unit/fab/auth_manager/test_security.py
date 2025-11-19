@@ -29,13 +29,15 @@ import time_machine
 from flask_appbuilder import Model, expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
-from sqlalchemy import Column, Date, Float, Integer, String, delete
+from sqlalchemy import Date, Float, Integer, String, delete
+from sqlalchemy.orm import Mapped
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
 from airflow.models.dagbundle import DagBundleModel
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
@@ -91,11 +93,11 @@ class MockSecurityManager(FabAirflowSecurityManagerOverride):
 class SomeModel(Model):
     __tablename__ = "some_model"
 
-    id = Column(Integer, primary_key=True)
-    field_string = Column(String(50), unique=True, nullable=False)
-    field_integer = Column(Integer())
-    field_float = Column(Float())
-    field_date = Column(Date())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    field_string: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    field_integer: Mapped[int | None] = mapped_column(Integer())
+    field_float: Mapped[float | None] = mapped_column(Float())
+    field_date: Mapped[datetime.date | None] = mapped_column(Date())
 
     def __repr__(self):
         return str(self.field_string)
@@ -891,7 +893,7 @@ def test_access_control_is_set_on_init(
 
 
 @pytest.mark.parametrize(
-    "access_control_before, access_control_after",
+    ("access_control_before", "access_control_after"),
     [
         (READ_WRITE, READ_ONLY),
         # old access control format

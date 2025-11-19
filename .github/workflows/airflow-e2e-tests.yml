@@ -24,6 +24,10 @@ permissions:
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
       runners:
         description: "The array of labels (in json form) determining runners."
         type: string
@@ -51,6 +55,10 @@ on:  # yamllint disable-line rule:truthy
 
   workflow_call:
     inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -79,7 +87,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   test-e2e-integration-tests:
     timeout-minutes: 60
-    name: "Test e2e integration tests with PROD image"
+    name: ${{ inputs.workflow-name }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"

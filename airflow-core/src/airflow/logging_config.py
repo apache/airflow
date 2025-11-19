@@ -38,7 +38,6 @@ DEFAULT_REMOTE_CONN_ID: str | None = None
 
 def __getattr__(name: str):
     if name == "REMOTE_TASK_LOG":
-        global REMOTE_TASK_LOG
         load_logging_config()
         return REMOTE_TASK_LOG
 
@@ -131,8 +130,6 @@ def configure_logging():
         base_log_folder,
         new_folder_permissions=new_folder_permissions,
     )
-
-    return logging_class_path
 
 
 def validate_logging_config():

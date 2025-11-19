@@ -37,6 +37,7 @@ from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
     _get_latest_runs_stmt,
+    _update_dag_tags,
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
@@ -48,6 +49,7 @@ from airflow.models.asset import (
     DagScheduleAssetNameReference,
     DagScheduleAssetUriReference,
 )
+from airflow.models.dag import DagTag
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -126,7 +128,7 @@ class TestAssetModelOperation:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        "is_active, is_paused, expected_num_triggers",
+        ("is_active", "is_paused", "expected_num_triggers"),
         [
             (True, True, 0),
             (True, False, 1),
@@ -168,7 +170,7 @@ class TestAssetModelOperation:
         assert len(asset_model.triggers) == expected_num_triggers
 
     @pytest.mark.parametrize(
-        "schedule, model, columns, expected",
+        ("schedule", "model", "columns", "expected"),
         [
             pytest.param(
                 Asset.ref(name="name1"),
@@ -941,3 +943,33 @@ class TestUpdateDagParsingResults:
             update_dag_parsing_results_in_db("testing", None, [dag], {}, 0.1, set(), session)
             orm_dag = session.get(DagModel, "dag_max_failed_runs_default")
             assert orm_dag.max_consecutive_failed_dag_runs == 6
+
+
+@pytest.mark.db_test
+class TestUpdateDagTags:
+    @pytest.fixture(autouse=True)
+    def setup_teardown(self, session):
+        yield
+        session.query(DagModel).filter(DagModel.dag_id == "test_dag").delete()
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("initial_tags", "new_tags", "expected_tags"),
+        [
+            (["dangerous"], {"DANGEROUS"}, {"DANGEROUS"}),
+            (["existing"], {"existing", "new"}, {"existing", "new"}),
+            (["tag1", "tag2"], {"tag1"}, {"tag1"}),
+            (["keep", "remove", "lowercase"], {"keep", "LOWERCASE", "new"}, {"keep", "LOWERCASE", "new"}),
+            (["tag1", "tag2"], set(), set()),
+        ],
+    )
+    def test_update_dag_tags(self, testing_dag_bundle, session, initial_tags, new_tags, expected_tags):
+        dag_model = DagModel(dag_id="test_dag", bundle_name="testing")
+        dag_model.tags = [DagTag(name=tag, dag_id="test_dag") for tag in initial_tags]
+        session.add(dag_model)
+        session.commit()
+
+        _update_dag_tags(new_tags, dag_model, session=session)
+        session.commit()
+
+        assert {t.name for t in dag_model.tags} == expected_tags

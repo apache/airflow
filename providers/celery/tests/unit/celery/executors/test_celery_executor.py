@@ -178,7 +178,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
-        "command, raise_exception",
+        ("command", "raise_exception"),
         [
             pytest.param(["true"], True, id="wrong-command"),
             pytest.param(["airflow", "tasks"], True, id="incomplete-command"),

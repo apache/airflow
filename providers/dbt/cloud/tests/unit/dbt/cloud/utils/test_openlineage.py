@@ -21,7 +21,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from openlineage.common import __version__
+from openlineage.client.constants import __version__
 from packaging.version import parse
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -90,7 +90,7 @@ def get_dbt_artifact(*args, **kwargs):
 
 
 @pytest.mark.parametrize(
-    "value, is_error",
+    ("value", "is_error"),
     [
         ("1.99.0", True),
         ("2.0.0", True),

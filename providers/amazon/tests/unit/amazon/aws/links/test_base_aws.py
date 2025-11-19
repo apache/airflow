@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
-from airflow.providers.amazon.version_compat import XCom
+from airflow.providers.common.compat.sdk import XCom
 from airflow.serialization.serialized_objects import SerializedDAG
 
 from tests_common.test_utils.mock_operators import MockOperator
@@ -47,7 +47,7 @@ class SimpleBaseAwsLink(BaseAwsLink):
 
 class TestBaseAwsLink:
     @pytest.mark.parametrize(
-        "region_name, aws_partition,keywords,expected_value",
+        ("region_name", "aws_partition", "keywords", "expected_value"),
         [
             ("eu-central-1", "aws", {}, {"region_name": "eu-central-1", "aws_domain": "aws.amazon.com"}),
             ("cn-north-1", "aws-cn", {}, {"region_name": "cn-north-1", "aws_domain": "amazonaws.cn"}),

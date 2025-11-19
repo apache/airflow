@@ -153,7 +153,7 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ inputs.platform }}
-          save-cache: false
+          save-cache: true
       - name: "Static checks"
         run: prek --all-files --show-diff-on-failure --color always
         env:
@@ -163,6 +163,9 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+      - name: "Show prek log on failure"
+        run: cat ~/.cache/prek/prek.log || true
+        if: failure()
 
   mypy:
     timeout-minutes: 45

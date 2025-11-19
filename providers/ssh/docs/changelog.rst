@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+4.1.6
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to ssh Provider test (#57929)``
+
+4.1.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass required remote_host arg to SSHHook (#55664)``
+
+Misc
+~~~~
+
+* ``Migrate ssh provider to ''common.compat'' (#57004)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to provider tests (#55935)``
+
 4.1.4
 .....
 
@@ -691,7 +732,7 @@ Bug Fixes
    * ``Updated documentation for June 2021 provider release (#16294)``
    * ``Add Connection Documentation to more Providers (#15408)``
    * ``More documentation update for June providers release (#16405)``
-   * ``Synchronizes updated changelog after buggfix release (#16464)``
+   * ``Synchronizes updated changelog after bugfix release (#16464)``
 
 1.3.0
 .....

@@ -59,6 +59,7 @@
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
     "lastSchedulingDecision": "Last Scheduling Decision",
+    "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
@@ -77,6 +78,11 @@
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
+  },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
   },
   "duration": "Duration",
   "endDate": "End Date",

@@ -27,6 +27,7 @@ import os
 import selectors
 import signal
 import sys
+import threading
 import time
 import weakref
 from collections import deque
@@ -86,6 +87,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -94,6 +96,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    HITLDetailRequestResult,
     InactiveAssetsResult,
     MaskSecret,
     PrevSuccessfulDagRunResult,
@@ -103,10 +106,12 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskState,
     TaskStatesResult,
     ToSupervisor,
@@ -128,12 +133,12 @@ except ImportError:
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
+    from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.secrets import BaseSecretsBackend
-    from airflow.typing_compat import Self
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -924,6 +929,9 @@ class ActivitySubprocess(WatchedSubprocess):
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
+    _should_retry: bool = attrs.field(default=False, init=False)
+    """Whether the task should retry or not as decided by the API server."""
+
     # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
     # will kill theprocess. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
@@ -963,6 +971,7 @@ class ActivitySubprocess(WatchedSubprocess):
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
             ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
@@ -1129,7 +1138,7 @@ class ActivitySubprocess(WatchedSubprocess):
         except Exception as e:
             self._handle_heartbeat_failures(e)
 
-    def _handle_heartbeat_failures(self, exc: Exception | None):
+    def _handle_heartbeat_failures(self, exc: Exception):
         """Increment the failed heartbeats counter and kill the process if too many failures."""
         self.failed_heartbeats += 1
         log.warning(
@@ -1137,7 +1146,7 @@ class ActivitySubprocess(WatchedSubprocess):
             failed_heartbeats=self.failed_heartbeats,
             ti_id=self.id,
             max_retries=MAX_FAILED_HEARTBEATS,
-            exception=exc,
+            exc_info=exc,
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
@@ -1161,6 +1170,15 @@ class ActivitySubprocess(WatchedSubprocess):
             return self._terminal_state or TaskInstanceState.SUCCESS
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
+
+        # Any non zero exit code indicates a failure
+        # If retries are configured, mark as UP_FOR_RETRY
+        # Negative exit codes indicate signal kills (often transient)
+        # Positive exit codes can also be transient failures like network issues in a task communicating to
+        # external services
+        if self._exit_code != 0 and self._should_retry:
+            return TaskInstanceState.UP_FOR_RETRY
+
         return TaskInstanceState.FAILED
 
     def _handle_request(self, msg: ToSupervisor, log: FilteringBoundLogger, req_id: int):
@@ -1263,6 +1281,8 @@ class ActivitySubprocess(WatchedSubprocess):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
             self.client.task_instances.set_rtif(self.id, msg.rendered_fields)
+        elif isinstance(msg, SetRenderedMapIndex):
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
         elif isinstance(msg, GetAssetByName):
             asset_resp = self.client.assets.get(name=msg.name)
             if isinstance(asset_resp, AssetResponse):
@@ -1280,12 +1300,25 @@ class ActivitySubprocess(WatchedSubprocess):
             else:
                 resp = asset_resp
         elif isinstance(msg, GetAssetEventByAsset):
-            asset_event_resp = self.client.asset_events.get(uri=msg.uri, name=msg.name)
+            asset_event_resp = self.client.asset_events.get(
+                uri=msg.uri,
+                name=msg.name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
         elif isinstance(msg, GetAssetEventByAssetAlias):
-            asset_event_resp = self.client.asset_events.get(alias_name=msg.alias_name)
+            asset_event_resp = self.client.asset_events.get(
+                alias_name=msg.alias_name,
+                after=msg.after,
+                before=msg.before,
+                ascending=msg.ascending,
+                limit=msg.limit,
+            )
             asset_event_result = AssetEventsResult.from_asset_events_response(asset_event_resp)
             resp = asset_event_result
             dump_opts = {"exclude_unset": True}
@@ -1330,6 +1363,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetTaskBreadcrumbs):
+            api_resp = self.client.task_instances.get_task_breakcrumbs(dag_id=msg.dag_id, run_id=msg.run_id)
+            resp = TaskBreadcrumbsResult.from_api_response(api_resp)
         elif isinstance(msg, GetDRCount):
             resp = self.client.dag_runs.get_count(
                 dag_id=msg.dag_id,
@@ -1356,7 +1392,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 # Since we've sent the message, return. Nothing else in this ifelse/switch should return directly
                 return
         elif isinstance(msg, CreateHITLDetailPayload):
-            resp = self.client.hitl.add_response(
+            hitl_detail_request = self.client.hitl.add_response(
                 ti_id=msg.ti_id,
                 options=msg.options,
                 subject=msg.subject,
@@ -1366,7 +1402,8 @@ class ActivitySubprocess(WatchedSubprocess):
                 multiple=msg.multiple,
                 assigned_users=msg.assigned_users,
             )
-            self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+            resp = HITLDetailRequestResult.from_api_response(hitl_detail_request)
+            dump_opts = {"exclude_unset": True}
         elif isinstance(msg, MaskSecret):
             mask_secret(msg.value, msg.name)
         else:
@@ -1461,6 +1498,44 @@ class InProcessTestSupervisor(ActivitySubprocess):
             # Bypass the tenacity retries!
             return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
 
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
+        # InProcessSupervisor has no subprocess, so we don't need to poll anything. This is called from
+        # _handle_socket_comms, so we need to override it
+        return None
+
+    def _handle_socket_comms(self):
+        while self._open_sockets:
+            self._service_subprocess(1.0)
+
+    @contextlib.contextmanager
+    def _setup_subprocess_socket(self):
+        thread = threading.Thread(target=self._handle_socket_comms, daemon=True)
+
+        requests, child_sock = socketpair()
+
+        self._open_sockets[requests] = "requests"
+        self.stdin = requests
+
+        self.selector.register(
+            requests,
+            selectors.EVENT_READ,
+            length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
+        )
+        os.set_inheritable(child_sock.fileno(), True)
+        os.environ["__AIRFLOW_SUPERVISOR_FD"] = str(child_sock.fileno())
+
+        try:
+            thread.start()
+            yield child_sock
+        finally:
+            requests.close()
+            child_sock.close()
+            self._on_socket_closed(requests)
+            thread.join(0)
+            os.environ.pop("__AIRFLOW_SUPERVISOR_FD", None)
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1513,16 +1588,19 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 start_date=start_date,
                 state=TaskInstanceState.RUNNING,
             )
-            context = ti.get_template_context()
-            log = structlog.get_logger(logger_name="task")
 
-            state, msg, error = run(ti, context, log)
-            finalize(ti, state, context, log, error)
+            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run_as_user
+            with supervisor._setup_subprocess_socket():
+                context = ti.get_template_context()
+                log = structlog.get_logger(logger_name="task")
 
-            # In the normal subprocess model, the task runner calls this before exiting.
-            # Since we're running in-process, we manually notify the API server that
-            # the task has finished—unless the terminal state was already sent explicitly.
-            supervisor.update_task_state_if_needed()
+                state, msg, error = run(ti, context, log)
+                finalize(ti, state, context, log, error)
+
+                # In the normal subprocess model, the task runner calls this before exiting.
+                # Since we're running in-process, we manually notify the API server that
+                # the task has finished—unless the terminal state was already sent explicitly.
+                supervisor.update_task_state_if_needed()
 
         return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
 
@@ -1914,6 +1992,7 @@ def supervise(
         limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
         client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
         close_client = True
+        log.debug("Connecting to execution API server", server=server)
 
     start = time.monotonic()
 

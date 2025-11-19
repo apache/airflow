@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
@@ -33,17 +34,19 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
 
 
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
-    total: int
+    total: int | float  # Note: float("inf") is used to mark infinite slots
     running: int
     deferred: int
     queued: int
-    open: int
+    open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
 
 
@@ -67,7 +70,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
+    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 
@@ -173,15 +176,14 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] | Query[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
-        for pool_name, total_slots, include_deferred in pool_rows:
-            if total_slots == -1:
-                total_slots = float("inf")
+        for pool_name, total_slots_in, include_deferred in pool_rows:
+            total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
@@ -198,9 +200,9 @@ class Pool(Base):
         )
 
         # calculate queued and running metrics
-        for pool_name, state, count in state_count_by_pool:
+        for pool_name, state, decimal_count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
-            count = int(count)
+            count = int(decimal_count)
 
             stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:
@@ -357,13 +359,15 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_team_name(pool_name: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(pool_name: str, session: Session = NEW_SESSION) -> str | None:
         stmt = select(Team.name).join(Pool, Team.id == Pool.team_id).where(Pool.pool == pool_name)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
-    def get_name_to_team_name_mapping(pool_names: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_name_to_team_name_mapping(
+        pool_names: list[str], session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = (
             select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
         )
