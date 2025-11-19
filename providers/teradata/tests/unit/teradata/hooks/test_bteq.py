@@ -150,7 +150,7 @@ def test_execute_bteq_script_at_local_success(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         shell=True,
-        preexec_fn=os.setsid,
+        start_new_session=True,
     )
     assert ret_code == 0
 

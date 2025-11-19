@@ -324,3 +324,6 @@ www-hash.txt
 
 # Git ignore file
 .gitignore
+
+# Last release date is automatically generated
+**/.last_release_date.txt

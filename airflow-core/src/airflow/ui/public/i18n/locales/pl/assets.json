@@ -1,4 +1,9 @@
 {
+  "additional_data": "Dodatkowe dane",
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
   "consumingDags": "Przetwarzanie Dagów",
   "createEvent": {
     "button": "Utwórz zdarzenie",

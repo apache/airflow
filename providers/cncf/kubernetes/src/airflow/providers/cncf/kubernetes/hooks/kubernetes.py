@@ -831,6 +831,13 @@ class AsyncKubernetesHook(KubernetesHook):
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
+                if isinstance(kubeconfig, dict):
+                    self.log.debug(
+                        LOADING_KUBE_CONFIG_FILE_RESOURCE.format(
+                            "connection kube_config dictionary (serializing)"
+                        )
+                    )
+                    kubeconfig = json.dumps(kubeconfig)
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 self._is_in_cluster = False
@@ -910,7 +917,9 @@ class AsyncKubernetesHook(KubernetesHook):
                 if str(e.status) != "404":
                     raise
 
-    async def read_logs(self, name: str, namespace: str):
+    async def read_logs(
+        self, name: str, namespace: str, container_name: str | None = None, since_seconds: int | None = None
+    ) -> list[str]:
         """
         Read logs inside the pod while starting containers inside.
 
@@ -921,6 +930,8 @@ class AsyncKubernetesHook(KubernetesHook):
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param container_name: Name of the container inside the pod.
+        :param since_seconds: Only return logs newer than a relative duration in seconds.
         """
         async with self.get_conn() as connection:
             try:
@@ -928,16 +939,15 @@ class AsyncKubernetesHook(KubernetesHook):
                 logs = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
+                    container_name=container_name,
                     follow=False,
                     timestamps=True,
+                    since_seconds=since_seconds,
                 )
                 logs = logs.splitlines()
-                for line in logs:
-                    self.log.info("Container logs from %s", line)
                 return logs
-            except HTTPError:
-                self.log.exception("There was an error reading the kubernetes API.")
-                raise
+            except HTTPError as e:
+                raise KubernetesApiError from e
 
     async def get_pod_events(self, name: str, namespace: str) -> CoreV1EventList:
         """Get pod's events."""

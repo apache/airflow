@@ -47,7 +47,19 @@ class EmailOperator(BaseOperator):
     :param custom_headers: additional headers to add to the MIME message.
     """
 
-    template_fields: Sequence[str] = ("to", "from_email", "subject", "html_content", "files", "cc", "bcc")
+    template_fields: Sequence[str] = (
+        "to",
+        "subject",
+        "html_content",
+        "from_email",
+        "files",
+        "cc",
+        "bcc",
+        "mime_subtype",
+        "mime_charset",
+        "conn_id",
+        "custom_headers",
+    )
     template_fields_renderers = {"html_content": "html"}
     template_ext: Sequence[str] = (".html",)
     ui_color = "#e6faf9"

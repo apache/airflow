@@ -162,8 +162,8 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     if update_mask is not None:
         masked_data = {}
         missing_mask_names = []
-        for field in update_mask:
-            field = field.strip()
+        for field_raw in update_mask:
+            field = field_raw.strip()
             try:
                 masked_data[field] = data[field]
             except KeyError:

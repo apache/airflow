@@ -37,7 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -207,7 +207,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
 
     @pytest.mark.parametrize(
-        "launch_type, capacity_provider_strategy,platform_version,tags,volume_configurations,expected_args",
+        (
+            "launch_type",
+            "capacity_provider_strategy",
+            "platform_version",
+            "tags",
+            "volume_configurations",
+            "expected_args",
+        ),
         [
             [
                 "EC2",
@@ -596,7 +603,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @pytest.mark.parametrize(
-        "launch_type, tags",
+        ("launch_type", "tags"),
         [
             ["EC2", None],
             ["FARGATE", None],
@@ -605,7 +612,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         ],
     )
     @pytest.mark.parametrize(
-        "arns, expected_arn",
+        ("arns", "expected_arn"),
         [
             pytest.param(
                 [
@@ -668,7 +675,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == expected_arn
 
     @pytest.mark.parametrize(
-        "launch_type, tags",
+        ("launch_type", "tags"),
         [
             ["EC2", None],
             ["FARGATE", None],
@@ -847,7 +854,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    @pytest.mark.parametrize(("waiter_delay", "waiter_max_attempts"), WAITERS_TEST_CASES)
     def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters
@@ -921,7 +928,7 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
 
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    @pytest.mark.parametrize(("waiter_delay", "waiter_max_attempts"), WAITERS_TEST_CASES)
     def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters

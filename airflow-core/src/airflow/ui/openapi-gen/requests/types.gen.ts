@@ -72,6 +72,7 @@ export type AssetEventResponse = {
     source_map_index: number;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
+    partition_key?: string | null;
 };
 
 /**
@@ -501,6 +502,7 @@ export type ConnectionTestResponse = {
  */
 export type CreateAssetEventsBody = {
     asset_id: number;
+    partition_key?: string | null;
     extra?: {
         [key: string]: unknown;
     };
@@ -684,6 +686,7 @@ export type DAGRunResponse = {
     dag_versions: Array<DagVersionResponse>;
     bundle_version: string | null;
     dag_display_name: string;
+    partition_key: string | null;
 };
 
 /**
@@ -1211,7 +1214,7 @@ export type PoolPatchBody = {
 export type PoolResponse = {
     name: string;
     slots: number;
-    description: string | null;
+    description?: string | null;
     include_deferred: boolean;
     occupied_slots: number;
     running_slots: number;
@@ -1499,7 +1502,7 @@ export type TaskResponse = {
     pool_slots: number | null;
     execution_timeout: TimeDelta | null;
     retry_delay: TimeDelta | null;
-    retry_exponential_backoff: boolean;
+    retry_exponential_backoff: number;
     priority_weight: number | null;
     weight_rule: string | null;
     ui_color: string | null;
@@ -1544,6 +1547,7 @@ export type TriggerDAGRunPostBody = {
     [key: string]: unknown;
 } | null;
     note?: string | null;
+    partition_key?: string | null;
 };
 
 /**
