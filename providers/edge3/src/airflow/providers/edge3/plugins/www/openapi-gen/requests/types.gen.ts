@@ -467,6 +467,7 @@ export type HealthResponse = {
 };
 
 export type WorkerData = {
+    queueNamePattern?: string | null;
     workerNamePattern?: string | null;
 };
 
