@@ -243,6 +243,7 @@ class TarBallType(Enum):
     PROVIDERS = "apache_airflow_providers"
     TASK_SDK = "apache_airflow_task_sdk"
     AIRFLOW_CTL = "apache_airflow_ctl"
+    PYTHON_CLIENT = "apache_airflow_python_client"
     HELM_CHART = "helm-chart"
 
 

@@ -67,7 +67,8 @@ from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task as task_decora
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.task.trigger_rule import TriggerRule

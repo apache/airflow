@@ -271,6 +271,12 @@ def prod_image():
 @option_run_in_parallel
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@click.option(
+    "--skip-asset-compiled-check",
+    help="Skip asset compilation check when building image even for source build method.",
+    is_flag=True,
+    envvar="SKIP_ASSET_COMPILED_CHECK",
+)
 @option_skip_cleanup
 @option_use_uv_default_depends_on_installation_method
 @option_uv_http_timeout
@@ -322,6 +328,7 @@ def build(
     run_in_parallel: bool,
     runtime_apt_command: str | None,
     runtime_apt_deps: str | None,
+    skip_asset_compiled_check: bool,
     skip_cleanup: bool,
     use_constraints_for_context_distributions: bool,
     use_uv: bool | None,
@@ -352,19 +359,25 @@ def build(
             get_console().print("[info]Installing Airflow from local distributions in docker context[/]")
         else:
             get_console().print("[info]Installing Airflow from sources[/]")
-            if not UI_VITE_MANIFEST_PATH.exists():
+            if skip_asset_compiled_check:
                 get_console().print(
-                    f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
-                    f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                    "[info]Skipping asset compilation check as requested.[/]\n\n"
+                    "You can still build the assets manually with\n\n   [info]breeze compile-assets[/]\n"
                 )
-                sys.exit(1)
-            if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
-                get_console().print(
-                    f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
-                    f"does not exist.[/]\n\n"
-                    f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
-                )
-                sys.exit(1)
+            else:
+                if not UI_VITE_MANIFEST_PATH.exists():
+                    get_console().print(
+                        f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
+                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                    )
+                    sys.exit(1)
+                if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
+                    get_console().print(
+                        f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
+                        f"does not exist.[/]\n\n"
+                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                    )
+                    sys.exit(1)
     else:
         get_console().print("[info]Installing Airflow from packages[/]")
 

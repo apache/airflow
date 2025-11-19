@@ -258,7 +258,7 @@ AIRFLOW_UV_VERSION = "0.9.10"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.16"
+PREK_VERSION = "0.2.17"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -783,7 +783,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
-@argument_provider_distributions
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -827,6 +826,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Planned release date for the providers release in format "
     "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
 )
+@argument_provider_distributions
 @option_verbose
 @option_answer
 @option_dry_run
@@ -1012,11 +1012,21 @@ def _build_provider_distributions(
     distribution_format: str,
     skip_tag_check: bool,
     skip_deleting_generated_files: bool,
-):
+) -> bool:
+    """
+    Builds provider distribution.
+
+    :param provider_id: id of the provider package
+    :param package_version_suffix: suffix to append to the package version
+    :param distribution_format: format of the distribution to build (wheel or sdist)
+    :param skip_tag_check: whether to skip tag check
+    :param skip_deleting_generated_files: whether to skip deleting generated files
+    :return: True if package was built, False if it was skipped.
+    """
     if not skip_tag_check:
         should_skip, package_version_suffix = should_skip_the_package(provider_id, package_version_suffix)
         if should_skip:
-            return
+            return False
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
@@ -1039,6 +1049,7 @@ def _build_provider_distributions(
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
+    return True
 
 
 @release_management.command(
@@ -1137,7 +1148,7 @@ def prepare_provider_distributions(
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
-            _build_provider_distributions(
+            created = _build_provider_distributions(
                 provider_id,
                 version_suffix,
                 distribution_format,
@@ -1154,12 +1165,15 @@ def prepare_provider_distributions(
             suspended_packages.append(provider_id)
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
-            success_packages.append(provider_id)
+            if created:
+                success_packages.append(provider_id)
+            else:
+                skipped_as_already_released_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
     provider_action_summary(
-        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
+        "Skipped as already released", MessageType.INFO, skipped_as_already_released_packages
     )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
