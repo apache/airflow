@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-18T14:14:54.505930
+# This constraints file was automatically generated on 2025-11-19T10:29:39.024843
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -63,12 +63,12 @@ alembic==1.17.2
 alibabacloud-adb20211201==3.5.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.3
+alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.4
 alibabacloud_gateway_spi==0.0.3
 alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.16
-alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.3
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
@@ -143,7 +143,7 @@ celery==5.5.3
 certifi==2025.11.12
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.40.4
+cfn-lint==1.41.0
 chardet==5.2.0
 charset-normalizer==3.4.4
 checksumdir==1.3.0
@@ -167,7 +167,7 @@ cron_descriptor==2.0.6
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
-databricks-sql-connector==4.2.0
+databricks-sql-connector==4.1.4
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -226,7 +226,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.127.0
+google-cloud-aiplatform==1.128.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -333,7 +333,7 @@ jeepney==0.9.0
 jiter==0.12.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.4.2
+joserfc==1.4.3
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -465,7 +465,7 @@ polars==1.35.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.4.0
-prek==0.2.16
+prek==0.2.17
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
@@ -684,7 +684,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.9
+uv==0.9.10
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
