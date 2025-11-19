@@ -19,6 +19,7 @@
 import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -237,11 +238,13 @@ export const DagRuns = () => {
     },
   );
 
+  const columns = useMemo(() => runColumns(translate, dagId), [translate, dagId]);
+
   return (
     <>
       <DagRunsFilters dagId={dagId} />
       <DataTable
-        columns={runColumns(translate, dagId)}
+        columns={columns}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

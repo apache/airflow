@@ -254,7 +254,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "logging_interval, exp_event",
+        ("logging_interval", "exp_event"),
         [
             pytest.param(
                 0,
@@ -297,7 +297,11 @@ class TestKubernetesPodTrigger:
 
         mock_datetime.timedelta = datetime.timedelta
         mock_datetime.timezone = datetime.timezone
-        mock_fetch_container_logs_before_current_sec.return_value = DateTime(2022, 1, 1)
+
+        async def async_datetime_return(*args, **kwargs):
+            return DateTime(2022, 1, 1)
+
+        mock_fetch_container_logs_before_current_sec.side_effect = async_datetime_return
         define_container_state.side_effect = ["running", "running", "terminated"]
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
@@ -313,7 +317,7 @@ class TestKubernetesPodTrigger:
         assert mock_fetch_container_logs_before_current_sec.call_count == 2
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
@@ -460,7 +464,7 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "exc_count, call_count",
+        ("exc_count", "call_count"),
         [
             pytest.param(0, 1, id="no exception"),
             pytest.param(2, 3, id="2 exc, 1 success"),

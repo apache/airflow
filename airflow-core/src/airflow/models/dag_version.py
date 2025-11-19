@@ -95,6 +95,8 @@ class DagVersion(Base):
 
         # fallback to the deprecated option if the bundle model does not have a signed_url_template
         # attribute
+        if self.bundle_name is None:
+            return None
         try:
             return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
         except ValueError:
@@ -135,7 +137,6 @@ class DagVersion(Base):
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
-        session.commit()
         log.debug("DagVersion %s written to the DB", dag_version)
         return dag_version
 
