@@ -4940,6 +4940,11 @@
             "x-docsSection": "API Server",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable Airflow API server deployment.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the API server configmap.",
                     "type": "object",
