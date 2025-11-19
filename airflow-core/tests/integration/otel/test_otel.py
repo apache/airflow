@@ -766,7 +766,7 @@ class TestOtelIntegration:
             log.error("Could not delete leftover control file '%s', error: '%s'.", self.control_file, ex)
 
     @pytest.mark.parametrize(
-        "legacy_names_on_bool, legacy_names_exported",
+        ("legacy_names_on_bool", "legacy_names_exported"),
         [
             pytest.param(True, True, id="export_legacy_names"),
             pytest.param(False, False, id="dont_export_legacy_names"),
