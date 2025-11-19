@@ -27,6 +27,8 @@ from airflow.configuration import AirflowConfigParser
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.hashicorp.hooks.vault import VaultHook
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestVaultHook:
     @staticmethod
@@ -1308,6 +1310,12 @@ class TestVaultHook:
 
 class TestConfigurationFromSecrets:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
     def test_config_from_secret_backend(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
         mock_client = mock.MagicMock()
@@ -1339,8 +1347,6 @@ class TestConfigurationFromSecrets:
     """
 
         test_conf = AirflowConfigParser(default_config=test_config_default)
-        test_conf.set("secrets", "backend", "airflow.providers.hashicorp.secrets.vault.VaultBackend")
-        test_conf.set("secrets", "backend_kwargs", '{"url": "http://127.0.0.1:8200", "token": "token"}')
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -1349,6 +1355,12 @@ class TestConfigurationFromSecrets:
         assert test_conf.get("test", "sql_alchemy_conn") == "sqlite:////Users/airflow/airflow/airflow.db"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    @conf_vars(
+        {
+            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+        }
+    )
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
 
@@ -1364,8 +1376,6 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
         test_conf = AirflowConfigParser(default_config=test_config_default)
-        test_conf.set("secrets", "backend", "airflow.providers.hashicorp.secrets.vault.VaultBackend")
-        test_conf.set("secrets", "backend_kwargs", '{"url": "http://127.0.0.1:8200", "token": "token"}')
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
