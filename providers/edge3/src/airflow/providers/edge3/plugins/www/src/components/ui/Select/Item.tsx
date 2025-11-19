@@ -17,9 +17,18 @@
  * under the License.
  */
 
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./createToaster";
-export * from "./InputGroup";
-export * from "./ScrollToAnchor";
-export * from "./Select";
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { Select as ChakraSelect } from "@chakra-ui/react";
+import { forwardRef } from "react";
+
+export const Item = forwardRef<HTMLDivElement, ChakraSelect.ItemProps>((props, ref) => {
+  const { children, item, ...rest } = props;
+
+  return (
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    <ChakraSelect.Item item={item} key={item.value} {...rest} ref={ref}>
+      {children}
+      <ChakraSelect.ItemIndicator />
+    </ChakraSelect.Item>
+  );
+});

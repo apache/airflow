@@ -16,10 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./createToaster";
-export * from "./InputGroup";
-export * from "./ScrollToAnchor";
-export * from "./Select";
+type ContentProps = {
+  readonly portalled?: boolean;
+  readonly portalRef?: React.RefObject<HTMLElement>;
+} & ChakraSelect.ContentProps;
+
+export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {
+  const { portalled = true, portalRef, ...rest } = props;
+
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      <ChakraSelect.Positioner>
+        <ChakraSelect.Content {...rest} ref={ref} />
+      </ChakraSelect.Positioner>
+    </Portal>
+  );
+});
