@@ -292,7 +292,10 @@ def block_orm_access():
     conn = "airflow-db-not-allowed:///"
     if "airflow.settings" in sys.modules:
         from airflow import settings
-        from airflow.sdk.configuration import conf
+
+        # This one needs to be from core, because we are checking if settings is loaded to disallow ORM
+        # If settings is loaded, airflow.configuration will be too
+        from airflow.configuration import conf
 
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
         for attr in to_block:
