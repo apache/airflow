@@ -242,7 +242,7 @@ class AssetManager(LoggingMixin):
     def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
         try:
-            # todo: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
+            # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
             #  maybe we should just add the event to the signature
             #  or add a new hook `on_asset_event`
             get_listener_manager().hook.on_asset_changed(asset=asset)
@@ -296,7 +296,7 @@ class AssetManager(LoggingMixin):
         partition_key: str,
         session: Session,
     ) -> list[DagModel]:
-        # todo: AIP-76 there may be a better way to identify that timetable is partition-driven
+        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
         partition_dags = [x for x in all_dags if x.timetable_summary == "Partitioned Asset"]
 
         for target_dag in partition_dags:

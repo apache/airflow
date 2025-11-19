@@ -1315,7 +1315,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> None:
         from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 
-        # todo: AIP-76 should we provide an interface to override this?
+        # TODO: AIP-76 should we provide an interface to override this?
         partition_key = ti.dag_run.partition_key
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)

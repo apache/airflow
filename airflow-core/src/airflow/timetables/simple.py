@@ -271,7 +271,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         if not mapper_class_name:
             mapper_class = IdentityMapper
         else:
-            # todo: AIP-76 what is the right way to do this?
+            # TODO: AIP-76 what is the right way to do this?
             if mapper_class_name in globals():
                 mapper_class = globals()[mapper_class_name]
             else:
