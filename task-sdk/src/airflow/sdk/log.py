@@ -143,12 +143,11 @@ def init_log_file(local_relative_path: str) -> Path:
     Ensure log file and parent directories are created.
 
     Any directories that are missing are created with the right permission bits.
-
-    Uses Core's config parser for consistency with remote logging functions
-    and to ensure variables like {AIRFLOW_HOME} are properly expanded.
     """
-    from airflow.sdk._shared.logging import init_log_file
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
+    from airflow.sdk._shared.logging import init_log_file
 
     new_file_permissions = int(
         conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"),
@@ -178,7 +177,8 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
 
-    # S3RemoteLogIO uses airflow.configuration, so we need to use it here too
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
@@ -188,12 +188,6 @@ def load_remote_conn_id() -> str | None:
 
 
 def relative_path_from_logger(logger) -> Path | None:
-    """
-    Extract relative log path from logger for remote logging upload.
-
-    Uses Core's config parser for consistency with other remote logging functions
-    and to ensure variables like {AIRFLOW_HOME} are properly expanded.
-    """
     if not logger:
         return None
     if not hasattr(logger, "_file"):
@@ -207,8 +201,8 @@ def relative_path_from_logger(logger) -> Path | None:
         # Logging to stdout, or something odd about this logger, don't try to upload!
         return None
 
-    # Use Core's conf for consistency with other remote logging functions
-    # and because Core's config expands variables like {AIRFLOW_HOME} correctly
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency
     from airflow.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")
