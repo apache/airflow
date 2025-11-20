@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -119,7 +119,6 @@ export const Variables = () => {
   const [variableKeyPattern, setVariableKeyPattern] = useState(
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
-  const [selectedVariables, setSelectedVariables] = useState<Record<string, string | undefined>>({});
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
@@ -162,30 +161,6 @@ export const Variables = () => {
     setSearchParams(searchParams);
     setVariableKeyPattern(value);
   };
-
-
-  useEffect(() => {
-    const newSelection: Record<string, string | undefined> = { ...selectedVariables };
-
-    data?.variables.forEach((variable) => {
-      if (selectedRows.has(variable.key)) {
-        newSelection[variable.key] = variable.value;
-      }
-    });
-
-    // Filter out keys that are not in selectedRows
-    const filteredSelection = Object.keys(newSelection)
-      .filter((key) => selectedRows.has(key))
-      .reduce<Record<string, string | undefined>>((acc, key) => {
-        acc[key] = newSelection[key];
-
-        return acc;
-      }, {});
-
-    if (Object.keys(filteredSelection).length !== Object.keys(selectedVariables).length) {
-      setSelectedVariables(filteredSelection);
-    }
-  }, [selectedRows, data, selectedVariables]);
 
   return (
     <>
