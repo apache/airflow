@@ -118,6 +118,7 @@ from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_validators import validate_release_date
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.constraints_version_check import constraints_version_check
@@ -156,6 +157,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
@@ -176,7 +178,7 @@ from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_dete
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.version_utils import (
     is_local_package_version,
 )
@@ -252,11 +254,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.7"
+AIRFLOW_UV_VERSION = "0.9.10"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.13"
+PREK_VERSION = "0.2.17"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -781,7 +783,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
-@argument_provider_distributions
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -807,10 +808,25 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip changelog generation. This is used in prek that updates build-files only.",
 )
 @click.option(
+    "--incremental-update",
+    is_flag=True,
+    help="Runs incremental update only after rebase of earlier branch to check if there are no changes.",
+)
+@click.option(
     "--skip-readme",
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
+@click.option(
+    "--release-date",
+    required=True,
+    type=str,
+    callback=validate_release_date,
+    envvar="RELEASE_DATE",
+    help="Planned release date for the providers release in format "
+    "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
+)
+@argument_provider_distributions
 @option_verbose
 @option_answer
 @option_dry_run
@@ -826,6 +842,8 @@ def prepare_provider_documentation(
     skip_git_fetch: bool,
     skip_changelog: bool,
     skip_readme: bool,
+    incremental_update: bool,
+    release_date: str,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -841,6 +859,8 @@ def prepare_provider_documentation(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    if incremental_update:
+        set_forced_answer("yes")
     if not provider_distributions:
         provider_distributions = get_available_distributions(
             include_removed=include_removed_providers, include_not_ready=include_not_ready_providers
@@ -944,6 +964,23 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
+    if incremental_update:
+        get_console().print(r"\[warning] Generated changes:")
+        run_command(["git", "diff"])
+        get_console().print("\n")
+        get_console().print("[warning]Important")
+        get_console().print(
+            " * Please review manually the changes in changelogs above and move the new changelog "
+            "entries to the right sections."
+        )
+        get_console().print(
+            "* Remove the `Please review ...` comments from the changelogs after moving changeslogs"
+        )
+        get_console().print(
+            "* Update both changelog.rst AND provider.yaml in case the new changes require "
+            "different classification of the upgrade (patchlevel/minor/major)"
+        )
 
 
 def basic_provider_checks(provider_id: str) -> dict[str, Any]:
@@ -975,11 +1012,21 @@ def _build_provider_distributions(
     distribution_format: str,
     skip_tag_check: bool,
     skip_deleting_generated_files: bool,
-):
+) -> bool:
+    """
+    Builds provider distribution.
+
+    :param provider_id: id of the provider package
+    :param package_version_suffix: suffix to append to the package version
+    :param distribution_format: format of the distribution to build (wheel or sdist)
+    :param skip_tag_check: whether to skip tag check
+    :param skip_deleting_generated_files: whether to skip deleting generated files
+    :return: True if package was built, False if it was skipped.
+    """
     if not skip_tag_check:
         should_skip, package_version_suffix = should_skip_the_package(provider_id, package_version_suffix)
         if should_skip:
-            return
+            return False
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
@@ -1002,6 +1049,7 @@ def _build_provider_distributions(
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
+    return True
 
 
 @release_management.command(
@@ -1100,7 +1148,7 @@ def prepare_provider_distributions(
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
-            _build_provider_distributions(
+            created = _build_provider_distributions(
                 provider_id,
                 version_suffix,
                 distribution_format,
@@ -1117,12 +1165,15 @@ def prepare_provider_distributions(
             suspended_packages.append(provider_id)
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
-            success_packages.append(provider_id)
+            if created:
+                success_packages.append(provider_id)
+            else:
+                skipped_as_already_released_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
     provider_action_summary(
-        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
+        "Skipped as already released", MessageType.INFO, skipped_as_already_released_packages
     )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
@@ -1966,6 +2017,8 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
+            if "-source" in file:
+                continue
             versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
@@ -2313,11 +2366,11 @@ VERSION_MATCH = re.compile(r"([0-9]+)\.([0-9]+)\.([0-9]+)(.*)")
 
 def get_suffix_from_package_in_dist(dist_files: list[str], package: str) -> str | None:
     """Get suffix from package prepared in dist folder."""
-    for file in dist_files:
-        if file.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and file.endswith(
+    for filename in dist_files:
+        if filename.startswith(f"apache_airflow_providers_{package.replace('.', '_')}") and filename.endswith(
             ".tar.gz"
         ):
-            file = file[: -len(".tar.gz")]
+            file = filename[: -len(".tar.gz")]
             version = file.split("-")[-1]
             match = VERSION_MATCH.match(version)
             if match:
@@ -2375,6 +2428,56 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     )
 
 
+def get_commented_out_prs_from_provider_changelogs() -> list[int]:
+    """
+    Returns list of PRs that are commented out in the changelog.
+    :return: list of PR numbers that appear only in comments in changelog.rst files in "providers" dir
+    """
+    pr_matcher = re.compile(r".*\(#([0-9]+)\).*")
+    commented_prs = set()
+
+    # Get all provider distributions
+    provider_distributions_metadata = get_provider_distributions_metadata()
+
+    for provider_id in provider_distributions_metadata.keys():
+        provider_details = get_provider_details(provider_id)
+        changelog_path = provider_details.changelog_path
+        print(f"[info]Checking changelog {changelog_path} for PRs to be excluded automatically.")
+        if not changelog_path.exists():
+            continue
+
+        changelog_lines = changelog_path.read_text().splitlines()
+        in_excluded_section = False
+
+        for line in changelog_lines:
+            # Check if we're entering an excluded/commented section
+            if line.strip().startswith(
+                ".. Below changes are excluded from the changelog"
+            ) or line.strip().startswith(".. Review and move the new changes"):
+                in_excluded_section = True
+                continue
+            # Check if we're exiting the excluded section (new version header or regular content)
+            # Version headers are lines that contain only dots (like "4.10.1" followed by "......")
+            # Or lines that start with actual content sections like "Misc", "Features", etc.
+            if (
+                in_excluded_section
+                and line
+                and not line.strip().startswith("..")
+                and not line.strip().startswith("*")
+            ):
+                # end excluded section with empty line
+                if line.strip() == "":
+                    in_excluded_section = False
+
+            # Extract PRs from excluded sections
+            if in_excluded_section and line.strip().startswith("*"):
+                match_result = pr_matcher.search(line)
+                if match_result:
+                    commented_prs.add(int(match_result.group(1)))
+
+    return sorted(commented_prs)
+
+
 @release_management.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
@@ -2396,20 +2499,12 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     is_flag=True,
     help="Only consider package ids with packages prepared in the dist folder",
 )
-@click.option(
-    "--no-include-browser-link",
-    "include_browser_link",
-    flag_value=False,
-    default=True,
-    help="Do not include browser link to prefill GitHub issue",
-)
 @argument_provider_distributions
 def generate_issue_content_providers(
     disable_progress: bool,
     excluded_pr_list: str,
     github_token: str,
     only_available_in_dist: bool,
-    include_browser_link: bool,
     provider_distributions: list[str],
 ):
     import jinja2
@@ -2429,10 +2524,15 @@ def generate_issue_content_providers(
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
         else:
             excluded_prs = []
+        commented_prs = get_commented_out_prs_from_provider_changelogs()
+        get_console().print(
+            "[info]Automatically excluding {len(commented_prs)} PRs that are only commented out in changelog:"
+        )
+        excluded_prs.extend(commented_prs)
         all_prs: set[int] = set()
+        all_retrieved_prs: set[int] = set()
         provider_prs: dict[str, list[int]] = {}
-        if only_available_in_dist:
-            files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH))
+        files_in_dist = os.listdir(str(AIRFLOW_DIST_PATH)) if only_available_in_dist else []
         prepared_package_ids = []
         for provider_id in provider_distributions:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
@@ -2450,15 +2550,35 @@ def generate_issue_content_providers(
                     "The changelog file doesn't contain any PRs for the release.\n"
                 )
                 continue
+            all_prs.update(prs)
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
-            all_prs.update(provider_prs[provider_id])
+            all_retrieved_prs.update(provider_prs[provider_id])
+        if not github_token:
+            # Get GitHub token from gh CLI and set it in environment copy
+            gh_token_result = run_command(
+                ["gh", "auth", "token"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if gh_token_result.returncode == 0:
+                github_token = gh_token_result.stdout.strip()
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         linked_issues: dict[int, list[Issue.Issue]] = {}
+        all_prs_len = len(all_prs)
+        all_retrieved_prs_len = len(all_retrieved_prs)
+        get_console().print(
+            f"[info] Found {all_prs_len} PRs in the providers. "
+            f"Retrieving {all_retrieved_prs_len} (excluded {all_prs_len - all_retrieved_prs_len})"
+        )
+        get_console().print(f"Retrieved PRs: {all_retrieved_prs}")
+        excluded_prs = sorted(set(all_prs) - set(all_retrieved_prs))
+        get_console().print(f"Excluded PRs: {excluded_prs}")
         with Progress(console=get_console(), disable=disable_progress) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            for pr_number in all_prs:
+            task = progress.add_task(f"Retrieving {all_retrieved_prs_len} PRs ", total=all_retrieved_prs_len)
+            for pr_number in all_retrieved_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
@@ -2514,7 +2634,10 @@ def generate_issue_content_providers(
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
             if pull_request_list:
-                package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+                if only_available_in_dist:
+                    package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
+                else:
+                    package_suffix = ""
                 providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
                     provider_id=provider_id,
@@ -2547,18 +2670,29 @@ def generate_issue_content_providers(
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
         get_console().print(syntax)
-        url_to_create_the_issue = create_github_issue_url(
-            title=f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
-            body=issue_content,
-            labels=["testing status", "kind:meta"],
-        )
-        if include_browser_link:
-            get_console().print()
-            get_console().print(
-                "[info]You can prefill the issue by copy&pasting this link to browser "
-                "(or Cmd+Click if your terminal supports it):\n"
+        create_issue = user_confirm("Should I create the issue?")
+        if create_issue == Answer.YES:
+            res = run_command(
+                [
+                    "gh",
+                    "issue",
+                    "create",
+                    "-t",
+                    f"Status of testing Providers that were prepared on {datetime.now():%B %d, %Y}",
+                    "-b",
+                    issue_content,
+                    "-l",
+                    "testing status,kind:meta",
+                    "-w",
+                ],
+                check=False,
             )
-            print(url_to_create_the_issue)
+            if res.returncode != 0:
+                get_console().print(
+                    "Failed to create issue. If the error is about 'too long URL' you have "
+                    "to create the issue manually by copy&pasting the above output"
+                )
+                sys.exit(1)
 
 
 def get_git_log_command(
@@ -2873,6 +3007,39 @@ def generate_providers_metadata(
             metadata_dict[package_id] = result
 
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
+
+
+@release_management.command(
+    name="update-providers-next-version",
+    help="Update provider versions marked with '# use next version' comment.",
+)
+@option_verbose
+def update_providers_next_version():
+    """
+    Scan all provider pyproject.toml files for dependencies with "# use next version" comment
+    and update them to use the current version from the referenced provider's pyproject.toml.
+    """
+    from airflow_breeze.utils.packages import update_providers_with_next_version_comment
+
+    get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
+
+    updates_made = update_providers_with_next_version_comment()
+
+    if updates_made:
+        get_console().print("\n[success]Summary of updates:[/]")
+        for provider_id, dependencies in updates_made.items():
+            get_console().print(f"\n[info]Provider: {provider_id}[/]")
+            for dep_name, dep_info in dependencies.items():
+                get_console().print(f"  • {dep_name}: {dep_info['old_version']} → {dep_info['new_version']}")
+        get_console().print(
+            f"\n[success]Updated {len(updates_made)} provider(s) with "
+            f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
+        )
+    else:
+        get_console().print(
+            "\n[info]No updates needed. All providers with '# use next version' "
+            "comments are already using the latest versions.[/]"
+        )
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:

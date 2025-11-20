@@ -50,6 +50,9 @@ class CallbackState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
 
+    def __str__(self) -> str:
+        return self.value
+
 
 ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
@@ -153,7 +156,7 @@ class Callback(Base):
     def queue(self):
         self.state = CallbackState.QUEUED
 
-    def get_metric_info(self, status: str, result: Any) -> dict:
+    def get_metric_info(self, status: CallbackState, result: Any) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
 

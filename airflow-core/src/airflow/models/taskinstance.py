@@ -958,14 +958,15 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
         delay = self.task.retry_delay
-        if self.task.retry_exponential_backoff:
+        multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
+        if multiplier != 1.0 and multiplier > 0:
             try:
                 # If the min_backoff calculation is below 1, it will be converted to 0 via int. Thus,
                 # we must round up prior to converting to an int, otherwise a divide by zero error
                 # will occur in the modded_hash calculation.
                 # this probably gives unexpected results if a task instance has previously been cleared,
                 # because try_number can increase without bound
-                min_backoff = math.ceil(delay.total_seconds() * (2 ** (self.try_number - 1)))
+                min_backoff = math.ceil(delay.total_seconds() * (multiplier ** (self.try_number - 1)))
             except OverflowError:
                 min_backoff = MAX_RETRY_DELAY
                 self.log.warning(
@@ -987,7 +988,7 @@ class TaskInstance(Base, LoggingMixin):
                 ).hexdigest(),
                 16,
             )
-            # between 1 and 1.0 * delay * (2^retry_number)
+            # between 1 and 1.0 * delay * (multiplier^retry_number)
             modded_hash = min_backoff + ti_hash % min_backoff
             # timedelta has a maximum representable value. The exponentiation
             # here means this value can be exceeded after a certain number

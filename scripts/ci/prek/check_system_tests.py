@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -55,9 +55,38 @@ PYTEST_FUNCTION_PATTERN = re.compile(
     r"test_run = get_test_run"
 )
 
+DAG_WITH_ARGS = re.compile(
+    r"with\s+DAG\s*\(\s*(?P<args>.*?)\)\s*as\s+\w+\s*:",
+    re.DOTALL,
+)
+REQUIRES_SCHEDULE_ERROR = (
+    "[red]System test DAG must set the 'schedule' parameter (e.g. schedule='@once').[/]\n\n"
+    "[yellow]Example:[/]\n\n"
+    "with DAG(\n"
+    "    DAG_ID,\n"
+    "    schedule='@once',\n"
+    "    start_date=datetime(2021, 1, 1),\n"
+    "    catchup=False,\n"
+    "    tags=[...],\n"
+    ") as dag:\n"
+)
+
 
 def _check_file(file: Path):
     content = file.read_text()
+    console.print("----------file path: ", file)
+    for m in DAG_WITH_ARGS.finditer(content):
+        args = m.group("args")
+        if "schedule" not in args:
+            errors.append(
+                f"In {file}: System test DAG must include the 'schedule' parameter "
+                f"(e.g. schedule='@once') inside DAG(...).\n"
+            )
+        elif "providers/google/" in str(file).replace("\\", "/") and "schedule=None" in args:
+            errors.append(
+                f"In {file}: System test DAG should not include the 'schedule' parameter "
+                f"with value 'None' inside DAG(...): this configuration will make the automated run not possible for the test.\n"
+            )
     if "from tests_common.test_utils.watcher import watcher" in content:
         index = content.find(WATCHER_APPEND_INSTRUCTION_SHORT)
         if index == -1:

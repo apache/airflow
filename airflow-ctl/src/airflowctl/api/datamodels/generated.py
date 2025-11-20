@@ -255,6 +255,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
@@ -873,6 +874,7 @@ class TriggerDAGRunPostBody(BaseModel):
     run_after: Annotated[datetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -1045,6 +1047,7 @@ class AssetEventResponse(BaseModel):
     source_map_index: Annotated[int, Field(title="Source Map Index")]
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetResponse(BaseModel):
@@ -1309,6 +1312,7 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1396,6 +1400,7 @@ class DAGRunResponse(BaseModel):
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
@@ -1730,7 +1735,7 @@ class TaskResponse(BaseModel):
     pool_slots: Annotated[float | None, Field(title="Pool Slots")] = None
     execution_timeout: TimeDelta | None = None
     retry_delay: TimeDelta | None = None
-    retry_exponential_backoff: Annotated[bool, Field(title="Retry Exponential Backoff")]
+    retry_exponential_backoff: Annotated[float, Field(title="Retry Exponential Backoff")]
     priority_weight: Annotated[float | None, Field(title="Priority Weight")] = None
     weight_rule: Annotated[str | None, Field(title="Weight Rule")] = None
     ui_color: Annotated[str | None, Field(title="Ui Color")] = None

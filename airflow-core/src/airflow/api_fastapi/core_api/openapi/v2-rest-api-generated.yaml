@@ -8811,6 +8811,11 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - id
@@ -9804,6 +9809,11 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
         extra:
           additionalProperties: true
           type: object
@@ -10026,6 +10036,10 @@ components:
           type: boolean
           title: Is Favorite
           default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token
@@ -10408,6 +10422,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - dag_run_id
@@ -10430,6 +10449,7 @@ components:
       - dag_versions
       - bundle_version
       - dag_display_name
+      - partition_key
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -11838,7 +11858,6 @@ components:
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots
@@ -12765,7 +12784,7 @@ components:
           - $ref: '#/components/schemas/TimeDelta'
           - type: 'null'
         retry_exponential_backoff:
-          type: boolean
+          type: number
           title: Retry Exponential Backoff
         priority_weight:
           anyOf:
@@ -12930,6 +12949,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:

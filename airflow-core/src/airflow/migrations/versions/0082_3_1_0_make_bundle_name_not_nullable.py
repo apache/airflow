@@ -31,6 +31,7 @@ from alembic import op
 from sqlalchemy.sql import text
 
 from airflow.migrations.db_types import StringID
+from airflow.migrations.utils import ignore_sqlite_value_error
 
 # revision identifiers, used by Alembic.
 revision = "7582ea3f3dd5"
@@ -56,21 +57,22 @@ def upgrade():
         op.execute(
             text("""
                     INSERT IGNORE INTO dag_bundle (name) VALUES
-                      ('example_dags'),
-                      ('dags-folder');
+                    ('example_dags'),
+                    ('dags-folder');
                     """)
         )
     if dialect_name == "sqlite":
+        op.execute(text("PRAGMA foreign_keys=OFF"))
         op.execute(
             text("""
                     INSERT OR IGNORE INTO dag_bundle (name) VALUES
-                      ('example_dags'),
-                      ('dags-folder');
+                    ('example_dags'),
+                    ('dags-folder');
                     """)
         )
 
     conn = op.get_bind()
-    with op.batch_alter_table("dag", schema=None) as batch_op:
+    with ignore_sqlite_value_error(), op.batch_alter_table("dag", schema=None) as batch_op:
         conn.execute(
             text(
                 """
@@ -95,6 +97,9 @@ def upgrade():
         batch_op.create_foreign_key(
             batch_op.f("dag_bundle_name_fkey"), "dag_bundle", ["bundle_name"], ["name"]
         )
+
+    if dialect_name == "sqlite":
+        op.execute(text("PRAGMA foreign_keys=ON"))
 
 
 def downgrade():

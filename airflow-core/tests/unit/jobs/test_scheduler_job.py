@@ -69,7 +69,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -3795,7 +3795,7 @@ class TestSchedulerJob:
         SerializedDagModel.write_dag(
             LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session
         )
-
+        session.commit()
         dag_version_2 = DagVersion.get_latest_version(dr.dag_id, session=session)
         assert dag_version_2 != dag_version_1
 
@@ -7164,6 +7164,29 @@ class TestSchedulerJob:
 
         # The handler should not be called, but no exceptions should be raised either.`
         mock_handle_miss.assert_not_called()
+
+    def test_emit_running_dags_metric(self, dag_maker, monkeypatch):
+        """Test that the running_dags metric is emitted correctly."""
+        with dag_maker("metric_dag") as dag:
+            _ = dag
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.RUNNING, logical_date=timezone.utcnow())
+        dag_maker.create_dagrun(
+            run_id="run_2", state=DagRunState.RUNNING, logical_date=timezone.utcnow() + timedelta(hours=1)
+        )
+
+        recorded: list[tuple[str, int]] = []
+
+        def _fake_gauge(metric: str, value: int, *_, **__):
+            recorded.append((metric, value))
+
+        monkeypatch.setattr("airflow.jobs.scheduler_job_runner.Stats.gauge", _fake_gauge, raising=True)
+
+        with conf_vars({("metrics", "statsd_on"): "True"}):
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(scheduler_job)
+            self.job_runner._emit_running_dags_metric()
+
+        assert recorded == [("scheduler.dagruns.running", 2)]
 
 
 @pytest.mark.need_serialized_dag

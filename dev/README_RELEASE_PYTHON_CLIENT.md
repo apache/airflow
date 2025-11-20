@@ -94,7 +94,7 @@ cd ..
 
 ```bash
 cd ${AIRFLOW_REPO_ROOT}
-export VERSION="2.8.0"
+export VERSION="3.1.3"
 export VERSION_SUFFIX="rc1"
 echo "${VERSION}" > clients/python/version.txt
 ```
@@ -107,10 +107,17 @@ cd ${AIRFLOW_REPO_ROOT}
 git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml
 ```
 
-- Update CHANGELOG.md with the details.
+- Update CHANGELOG.md with the details. Commit the changes.
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+git add .
+git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
+
+```
 
 - Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
-  as in case of Airflow changelog.
+  as in case of Airflow changelog. This PR should also contain the change to `clients/python/version.txt`.
 
 - Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
   of Airflow repository - same branch that is used to release Airflow:
@@ -132,7 +139,9 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/cor
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 rm dist/*
-breeze release-management prepare-python-client --distribution-format both --python-client-repo "${CLIENT_REPO_ROOT}"
+breeze release-management prepare-python-client --distribution-format both --python-client-repo "${CLIENT_REPO_ROOT}" --version-suffix ""
+breeze release-management prepare-tarball --tarball-type apache_airflow_python_client --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
+
 ```
 
 - This should generate both sdist and .whl package in `dist` folder of the Airflow repository. It should
@@ -183,10 +192,12 @@ popd
 
 ```shell script
 # First clone the repo somewhere if you have not done it yet
-svn checkout https://dist.apache.org/repos/dist/dev/airflow airflow-dev
+[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
+svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
 # Create new folder for the release
-cd airflow-dev/clients/python
+cd asf-dist/dev/airflow/clients/python
+
 svn mkdir ${VERSION}${VERSION_SUFFIX}
 
 # Move the artifacts to svn folder & commit
@@ -337,15 +348,34 @@ Airflow Python client supports reproducible builds, which means that the package
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version + rc candidate)
-you are checking):
+1) Set versions of the packages to be checked:
 
 ```shell script
-VERSION=X.Y.Zrc1
-git checkout python-client/${VERSION}
-export AIRFLOW_REPO_ROOT=$(pwd)
+cd <directory where airflow is checked out>
+VERSION=X.Y.Z
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+```
+
+2) Change directory where your airflow sources are checked out
+
+```shell
+cd "${AIRFLOW_REPO_ROOT}"
+```
+
+3) Check out the ``python-client`` tag (assume apache is the remote name of the repository):
+
+```shell
+git fetch apache --tags
+git checkout python-client/${VERSION_RC}
+```
+
+4) Build the distribution and source tarball:
+
+```shell script
 rm -rf dist/*
-breeze release-management prepare-python-client --distribution-format both
+breeze release-management prepare-python-client --distribution-format both --version-suffix ""
+breeze release-management prepare-tarball --tarball-type apache_airflow_python_client --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
 The last - build step - by default will use Dockerized build and building of Python client packages
@@ -353,14 +383,17 @@ will be done in a docker container.  However, if you have  `hatch` installed loc
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
-breeze release-management prepare-python-client --distribution-format both --use-local-hatch
+breeze release-management prepare-python-client --distribution-format both --use-local-hatch --version-suffix ""
+breeze release-management prepare-tarball --tarball-type apache_airflow_python_client --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
 This is generally faster and requires less resources/network bandwidth.
 
-Both commands should produce reproducible `.whl`, `.tar.gz` packages in dist folder.
+Both commands should produce reproducible `.whl`, `.tar.gz` packages in dist folder and "-source.tar.gz"
+file containing airflow sources in dist folder.
 
-Change to the directory where you have the packages from svn:
+4) Change to the directory where you have the packages from svn and check if they are identical to the ones
+you just built:
 
 ```shell script
 # First clone the repo if you do not have it
@@ -368,8 +401,10 @@ cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
+export PATH_TO_SVN="${PWD}/asf-dist/dev/airflow/clients/python/${VERSION_RC}"
+
 # Then compare the packages
-cd asf-dist/dev/airflow/clients/python/${VERSION}
+cd ${PATH_TO_SVN}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -382,6 +417,63 @@ In case the files are different, you should see:
 
 ```
 Binary files apache_airflow-client-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
+```
+
+### Licence check
+
+This can be done with the Apache RAT tool.
+
+Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you:
+
+```shell script
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
+```
+
+Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+
+```shell script
+rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+```
+
+Run the check:
+
+```shell script
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-python-client-src/.rat-excludes /tmp/apache-airflow-python-client-src/ | grep -E "! |INFO: "
+```
+
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
+
+```
+INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
 ```
 
 ## Signature check
@@ -416,6 +508,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell script
+cd ${PATH_TO_SVN}
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -455,6 +548,7 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
+cd ${PATH_TO_SVN}
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
