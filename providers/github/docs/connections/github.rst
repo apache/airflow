@@ -20,7 +20,12 @@
 
 GitHub Connection
 ====================
-The GitHub connection type provides connection to a GitHub or GitHub Enterprise.
+The GitHub connection provides two authentication mechanisms:
+  - Token-based authentication
+  - GitHub App authentication
+
+For Token-based authentication, you must provide an access token.
+For GitHub App authentication, you must configure the connection’s Extras field with the required GitHub App parameters.
 
 Configuring the Connection
 --------------------------
@@ -41,7 +46,7 @@ Host (optional)
 
         https://{hostname}/api/v3
 
-Extra Parameters
+GitHub App authentication
 ----------------
 
 You can authenticate using a GitHub App installation by setting the extra field of your connection, instead of using a token.

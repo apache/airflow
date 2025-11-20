@@ -61,21 +61,23 @@ class GithubHook(BaseHook):
         elif extras:
             if key_path := extras.get("key_path"):
                 if not key_path.endswith(".pem"):
-                    raise RuntimeError("Unrecognised key file")
+                    raise ValueError("Unrecognised key file: expected a .pem private key")
                 with open(key_path) as key_file:
                     private_key = key_file.read()
+            else:
+                raise ValueError("No key_path provided for GitHub App authentication.")
 
             app_id = extras.get("app_id")
             installation_id = extras.get("installation_id")
             if not isinstance(installation_id, int):
-                raise RuntimeError("The provided installation_id should be integer.")
+                raise ValueError("The provided installation_id should be integer.")
             if not isinstance(app_id, (str | int)):
-                raise RuntimeError("The provided app_id should be integer or string.")
+                raise ValueError("The provided app_id should be integer or string.")
             token_permissions = extras.get("token_permissions", None)
 
             auth = Auth.AppAuth(app_id, private_key).get_installation_auth(installation_id, token_permissions)
         else:
-            raise RuntimeError("No access token or authentication method provided.")
+            raise ValueError("No access token or authentication method provided.")
 
         if not host:
             self.client = GithubClient(auth=auth)
