@@ -551,9 +551,8 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original Dag, and honor all the Dag settings and pool configurations.
 
-.. note::
-   For a complete list of parameters available for ``TaskGroup`` and the ``@task_group`` decorator,
-   see the `TaskGroup API Reference <https://airflow.apache.org/docs/task-sdk/stable/api.html#airflow.sdk.TaskGroup>`_.
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
 
 .. image:: /img/ui-light/task_group.gif
 

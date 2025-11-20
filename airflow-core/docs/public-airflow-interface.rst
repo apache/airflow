@@ -126,10 +126,8 @@ API Server, etc.), providing a version-agnostic, stable interface for writing an
 * ``get_current_context``
 * ``get_parsing_context``
 
-.. note::
-   For detailed parameter documentation for all airflow.sdk classes, decorators, and functions
-   (including ``TaskGroup``, ``DAG``, ``@task_group``, etc.), see the
-   `Task SDK API Reference <https://airflow.apache.org/docs/task-sdk/stable/api.html>`_.
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup`, :class:`~airflow.sdk.DAG`, and :class:`~airflow.sdk.task_group`
 
 **Migration from Airflow 2.x:**
 
