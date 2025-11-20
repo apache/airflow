@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
-from kubernetes.client.rest import ApiException
+from kubernetes.client.rest import ApiException as SyncApiException
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -61,7 +62,7 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 
 def _should_retry_api(exc: BaseException) -> bool:
     """Retry on selected ApiException status codes, plus plain HTTP/timeout errors."""
-    if isinstance(exc, ApiException):
+    if isinstance(exc, (SyncApiException, AsyncApiException)):
         return exc.status in TRANSIENT_STATUS_CODES
     return isinstance(exc, (HTTPError, KubernetesApiException))
 
@@ -71,7 +72,7 @@ class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
 
     def __call__(self, retry_state):
         exc = retry_state.outcome.exception() if retry_state.outcome else None
-        if isinstance(exc, ApiException) and exc.status == 429:
+        if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
             retry_after = (exc.headers or {}).get("Retry-After")
             if retry_after:
                 try:
@@ -207,18 +208,3 @@ def annotations_for_logging_task_metadata(annotation_set):
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
-
-
-def should_retry_creation(exception: BaseException) -> bool:
-    """
-    Check if an Exception indicates a transient error and warrants retrying.
-
-    This function is needed for preventing 'No agent available' error. The error appears time to time
-    when users try to create a Resource or Job. This issue is inside kubernetes and in the current moment
-    has no solution. Like a temporary solution we decided to retry Job or Resource creation request each
-    time when this error appears.
-    More about this issue here: https://github.com/cert-manager/cert-manager/issues/6457
-    """
-    if isinstance(exception, ApiException):
-        return str(exception.status) == "500"
-    return False
