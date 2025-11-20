@@ -42,6 +42,7 @@ import { SearchParamsKeys } from "./searchParams";
 
 export enum FilterTypes {
   DATE = "date",
+  DATERANGE = "daterange",
   NUMBER = "number",
   SELECT = "select",
   TEXT = "text",
@@ -51,15 +52,12 @@ export const useFilterConfigs = () => {
   const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
 
   const filterConfigMap = {
-    [SearchParamsKeys.AFTER]: {
+    [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
+      endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
-      label: translate("common:table.from"),
-      type: FilterTypes.DATE,
-    },
-    [SearchParamsKeys.BEFORE]: {
-      icon: <MdDateRange />,
-      label: translate("common:table.to"),
-      type: FilterTypes.DATE,
+      label: translate("common:logicalDate"),
+      startKey: SearchParamsKeys.START_DATE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.BODY_SEARCH]: {
       hotkeyDisabled: true,
@@ -73,15 +71,12 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.conf"),
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.CREATED_AT_GTE]: {
+    [SearchParamsKeys.CREATED_AT_RANGE]: {
+      endKey: SearchParamsKeys.CREATED_AT_LTE,
       icon: <MdDateRange />,
-      label: translate("hitl:filters.createdAtFrom"),
-      type: FilterTypes.DATE,
-    },
-    [SearchParamsKeys.CREATED_AT_LTE]: {
-      icon: <MdDateRange />,
-      label: translate("hitl:filters.createdAtTo"),
-      type: FilterTypes.DATE,
+      label: translate("hitl:filters.createdAt"),
+      startKey: SearchParamsKeys.CREATED_AT_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN]: {
       hotkeyDisabled: true,
@@ -120,10 +115,12 @@ export const useFilterConfigs = () => {
       min: 0,
       type: FilterTypes.NUMBER,
     },
-    [SearchParamsKeys.END_DATE]: {
+    [SearchParamsKeys.EVENT_DATE_RANGE]: {
+      endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
-      label: translate("common:table.to"),
-      type: FilterTypes.DATE,
+      label: translate("common:logicalDate"),
+      startKey: SearchParamsKeys.AFTER,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.EVENT_TYPE]: {
       label: translate("browse:auditLog.filters.eventType"),
@@ -134,15 +131,12 @@ export const useFilterConfigs = () => {
       label: translate("admin:columns.key"),
       type: FilterTypes.TEXT,
     },
-    [SearchParamsKeys.LOGICAL_DATE_GTE]: {
+    [SearchParamsKeys.LOGICAL_DATE_RANGE]: {
+      endKey: SearchParamsKeys.LOGICAL_DATE_LTE,
       icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateFrom"),
-      type: FilterTypes.DATE,
-    },
-    [SearchParamsKeys.LOGICAL_DATE_LTE]: {
-      icon: <MdDateRange />,
-      label: translate("common:filters.logicalDateTo"),
-      type: FilterTypes.DATE,
+      label: translate("common:logicalDate"),
+      startKey: SearchParamsKeys.LOGICAL_DATE_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.MAP_INDEX]: {
       icon: <LuBrackets />,
@@ -172,15 +166,12 @@ export const useFilterConfigs = () => {
       ],
       type: FilterTypes.SELECT,
     },
-    [SearchParamsKeys.RUN_AFTER_GTE]: {
+    [SearchParamsKeys.RUN_AFTER_RANGE]: {
+      endKey: SearchParamsKeys.RUN_AFTER_LTE,
       icon: <MdDateRange />,
-      label: translate("common:filters.runAfterFrom"),
-      type: FilterTypes.DATE,
-    },
-    [SearchParamsKeys.RUN_AFTER_LTE]: {
-      icon: <MdDateRange />,
-      label: translate("common:filters.runAfterTo"),
-      type: FilterTypes.DATE,
+      label: translate("common:dagRun.runAfter"),
+      startKey: SearchParamsKeys.RUN_AFTER_GTE,
+      type: FilterTypes.DATERANGE,
     },
     [SearchParamsKeys.RUN_ID]: {
       hotkeyDisabled: true,
@@ -210,11 +201,6 @@ export const useFilterConfigs = () => {
         value: option.value,
       })),
       type: FilterTypes.SELECT,
-    },
-    [SearchParamsKeys.START_DATE]: {
-      icon: <MdDateRange />,
-      label: translate("common:table.from"),
-      type: FilterTypes.DATE,
     },
     [SearchParamsKeys.STATE]: {
       icon: <MdCheckCircle />,

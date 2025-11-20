@@ -1072,7 +1072,7 @@ class TestAsyncKubernetesHook:
         lib_method.assert_called_with(
             name=POD_NAME,
             namespace=NAMESPACE,
-            container_name=CONTAINER_NAME,
+            container=CONTAINER_NAME,
             follow=False,
             timestamps=True,
             since_seconds=10,
