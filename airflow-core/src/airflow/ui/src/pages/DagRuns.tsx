@@ -21,7 +21,7 @@
 import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -287,6 +287,7 @@ export const DagRuns = () => {
     },
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
+  const columns = useMemo(() => runColumns(translate, dagId), [translate, dagId]);
 
   return (
     <>
@@ -378,7 +379,7 @@ export const DagRuns = () => {
         </Select.Root>
       </HStack>
       <DataTable
-        columns={runColumns(translate, dagId)}
+        columns={columns}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
