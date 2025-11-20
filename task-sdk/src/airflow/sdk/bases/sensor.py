@@ -25,7 +25,6 @@ from collections.abc import Callable, Iterable
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -38,6 +37,7 @@ from airflow.exceptions import (
 )
 from airflow.sdk import timezone
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

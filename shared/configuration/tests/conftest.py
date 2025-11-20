@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,24 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.configuration import conf
+import os
 
-
-def resolve_xcom_backend():
-    """
-    Resolve custom XCom class.
-
-    :returns: returns the custom XCom class if configured.
-    """
-    clazz = conf.getimport("core", "xcom_backend", fallback="airflow.sdk.bases.xcom.BaseXCom")
-    if not clazz:
-        return BaseXCom
-    if not issubclass(clazz, BaseXCom):
-        raise TypeError(
-            f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
-        )
-    return clazz
-
-
-XCom = resolve_xcom_backend()
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"

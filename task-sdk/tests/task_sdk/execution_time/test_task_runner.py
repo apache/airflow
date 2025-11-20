@@ -3199,7 +3199,7 @@ class TestTaskRunnerCallsCallbacks:
         task = BaseOperator(task_id="test_task")
         runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
 
-        with patch("airflow.configuration.conf.get", return_value=base_url):
+        with conf_vars({("api", "base_url"): base_url}):
             log_url = runtime_ti.log_url
             assert log_url == expected_url
 

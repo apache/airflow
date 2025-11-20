@@ -39,7 +39,6 @@ from tenacity import (
 )
 from uuid6 import uuid7
 
-from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -74,6 +73,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
