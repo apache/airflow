@@ -1961,7 +1961,7 @@ def clean_old_provider_artifacts(
     directory: str,
 ):
     """Cleans up the old airflow providers artifacts in order to maintain
-    only one provider version in the release SVN folder"""
+    only one provider version in the release SVN folder and one -source artifact."""
     cleanup_suffixes = [
         ".tar.gz",
         ".tar.gz.sha512",
@@ -1977,9 +1977,10 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
-            if "-source" in file:
-                continue
-            versioned_file = split_version_and_suffix(file, suffix)
+            if "-source.tar.gz" in file:
+                versioned_file = split_date_version_and_suffix(file, "-source" + suffix)
+            else:
+                versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
         for package_types in package_types_dicts.values():
@@ -3109,6 +3110,43 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         suffix=suffix,
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
+        file_name=file_name,
+    )
+
+
+def split_date_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    """Split file name with date-based version (YYYY-MM-DD format) and suffix.
+
+    Example: apache_airflow_providers-2025-11-18-source.tar.gz
+    """
+    from packaging.version import Version
+
+    no_suffix_file = file_name[: -len(suffix)]
+    # Date format is YYYY-MM-DD, so we need to extract last 3 parts
+    parts = no_suffix_file.rsplit("-", 3)
+    if len(parts) != 4:
+        raise ValueError(f"Invalid date-versioned file name format: {file_name}")
+
+    no_version_file = parts[0]
+    date_version = f"{parts[1]}-{parts[2]}-{parts[3]}"
+
+    # Validate date format
+    try:
+        datetime.strptime(date_version, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date format in file name {file_name}: {e}")
+
+    no_version_file = no_version_file.replace("_", "-")
+
+    # Convert date to a comparable version format (YYYYMMDD as integer-like version)
+    comparable_date_str = date_version.replace("-", ".")
+
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=date_version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(comparable_date_str),
         file_name=file_name,
     )
 
