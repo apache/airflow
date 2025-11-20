@@ -1,6 +1,6 @@
 click>=8.0
 jinja2>=2.11.3
-keyring==25.6.0
+keyring==25.7.0
 PyGithub
 jsonpath_ng
 jsonschema
