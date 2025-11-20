@@ -1414,7 +1414,7 @@ migrateDatabaseJob:
   env: []
 
 apiServer:
-
+  enabled: true
   # Number of Airflow API servers in the deployment
   replicas: 1
   # Max number of old replicasets to retain
