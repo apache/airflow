@@ -227,18 +227,20 @@ class PartitionMapper:
     Maps keys from asset events to target dag run partitions.
     """
 
-    def map(self, key: str) -> str: ...
+    def to_downstream(self, key: str) -> str:
+        """Return the target key that the given source partition key maps to."""
 
-    def inverse_map(self, key: str) -> Iterable[str]: ...
+    def to_upstream(self, key: str) -> Iterable[str]:
+        """Yield the source keys that map to the given target partition key."""
 
 
 class IdentityMapper(PartitionMapper):
     """Partition mapper that does not change the key."""
 
-    def map(self, key: str) -> str:
+    def to_downstream(self, key: str) -> str:
         return key
 
-    def inverse_map(self, key: str) -> Iterable[str]:
+    def to_upstream(self, key: str) -> Iterable[str]:
         yield key
 
 
