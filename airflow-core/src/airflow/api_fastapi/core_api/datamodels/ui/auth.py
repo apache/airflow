@@ -39,8 +39,8 @@ class FabAuthenticatedMeResponse(BaseModel):
     """Current User (me) response serializer for FAB auth."""
 
     id: int | str | None
-    first_name: str | str | None
-    last_name: str | str | None
+    first_name: str | None
+    last_name: str | None
     username: str | None
     email: str | None
     roles: list[str] | None = None
