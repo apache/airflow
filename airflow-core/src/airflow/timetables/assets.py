@@ -21,6 +21,7 @@ import typing
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
+from airflow.timetables.base import Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
@@ -30,7 +31,7 @@ if typing.TYPE_CHECKING:
     import pendulum
 
     from airflow.sdk.definitions.asset import Asset
-    from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+    from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 
 
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
@@ -95,3 +96,75 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         if run_type != DagRunType.ASSET_TRIGGERED:
             return self.timetable.generate_run_id(run_type=run_type, **kwargs)
         return super().generate_run_id(run_type=run_type, **kwargs)
+
+
+class AssetAndTimeSchedule(Timetable):
+    """
+    Time-based schedule that waits for required assets before starting.
+
+    This timetable composes a time-based timetable with an asset condition. It
+    schedules runs according to the provided ``timetable`` (e.g. cron), but a
+    queued run will only start when all required assets are present. Unlike
+    :class:`AssetOrTimeSchedule`, this does not create asset-triggered runs.
+    """
+
+    def __init__(
+        self,
+        *,
+        timetable: Timetable,
+        assets: Collection[Asset] | BaseAsset,
+    ) -> None:
+        self.timetable = timetable
+
+        if isinstance(assets, BaseAsset):
+            self.asset_condition = assets
+        else:
+            self.asset_condition = AssetAll(*assets)
+
+        self.description = f"Triggered by assets and {timetable.description}"
+        self.periodic = timetable.periodic
+        self.can_be_scheduled = timetable.can_be_scheduled
+        self.active_runs_limit = timetable.active_runs_limit
+
+    @classmethod
+    def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_asset_condition, decode_timetable
+
+        return cls(
+            assets=decode_asset_condition(data["asset_condition"]),
+            timetable=decode_timetable(data["timetable"]),
+        )
+
+    def serialize(self) -> dict[str, typing.Any]:
+        from airflow.serialization.serialized_objects import encode_asset_condition, encode_timetable
+
+        return {
+            "asset_condition": encode_asset_condition(self.asset_condition),
+            "timetable": encode_timetable(self.timetable),
+        }
+
+    def validate(self) -> None:
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            raise AirflowTimetableInvalid("cannot nest asset timetables")
+        if not isinstance(self.asset_condition, BaseAsset):
+            raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
+
+    @property
+    def summary(self) -> str:
+        return f"Asset and {self.timetable.summary}"
+
+    def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
+        return self.timetable.infer_manual_data_interval(run_after=run_after)
+
+    def next_dagrun_info(
+        self, *, last_automated_data_interval: DataInterval | None, restriction: TimeRestriction
+    ) -> DagRunInfo | None:
+        return self.timetable.next_dagrun_info(
+            last_automated_data_interval=last_automated_data_interval,
+            restriction=restriction,
+        )
+
+    def generate_run_id(self, *, run_type: DagRunType, **kwargs: typing.Any) -> str:
+        # All run IDs are delegated to the wrapped timetable; this class
+        # intentionally does not create ASSET_TRIGGERED runs.
+        return self.timetable.generate_run_id(run_type=run_type, **kwargs)
