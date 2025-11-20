@@ -421,7 +421,7 @@ class ExecutorSafeguard:
 
 if "airflow.configuration" in sys.modules:
     # Don't try and import it if it's not already loaded
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 

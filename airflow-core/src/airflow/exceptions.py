@@ -31,6 +31,9 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.utils.state import DagRunState
 
+# Re exporting AirflowConfigException from shared configuration
+from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
+
 
 class AirflowException(Exception):
     """
@@ -56,10 +59,6 @@ class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
     status_code = HTTPStatus.NOT_FOUND
-
-
-class AirflowConfigException(AirflowException):
-    """Raise when there is configuration problem."""
 
 
 class AirflowSensorTimeout(AirflowException):

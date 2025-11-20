@@ -332,7 +332,7 @@ def process_params(
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     dagrun_conf = dagrun_conf or {}
 
