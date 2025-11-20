@@ -174,7 +174,9 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
-    from airflow.sdk.configuration import conf
+
+    # S3RemoteLogIO uses airflow.configuration, so we need to use it here too
+    from airflow.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
         return conn_id
