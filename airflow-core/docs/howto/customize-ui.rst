@@ -1,19 +1,19 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+.. Licensed to the Apache Software Foundation (ASF) under one
+   or more contributor license agreements.  See the NOTICE file
+   distributed with this work for additional information
+   regarding copyright ownership.  The ASF licenses this file
+   to you under the Apache License, Version 2.0 (the
+   "License"); you may not use this file except in compliance
+   with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+..   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+.. Unless required by applicable law or agreed to in writing,
+   software distributed under the License is distributed on an
+   "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+   KIND, either express or implied.  See the License for the
+   specific language governing permissions and limitations
+   under the License.
 
 Customizing the UI
 ==================
@@ -84,13 +84,17 @@ To add static alert messages that remain constant until the webserver is restart
 
   .. code-block:: python
 
-      from airflow.www.utils import UIAlert
+      from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow"),
+          UIAlert(text="Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
+
+.. note::
+   The ``UIAlert`` class moved from ``airflow.www.utils`` to ``airflow.api_fastapi.common.types`` and now uses keyword
+   arguments such as ``text`` and ``category``. Update examples accordingly.
 
 Alert Categories
 ----------------
@@ -121,7 +125,7 @@ message of heading 2 with a link included:
 
 .. code-block:: python
 
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
     DASHBOARD_UIALERTS = [
         UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
@@ -163,7 +167,7 @@ cases might include alerts yielded from APIs, database queries or files.
 .. code-block:: python
 
     import random
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
 
     class DynamicAlerts(list):
@@ -171,9 +175,9 @@ cases might include alerts yielded from APIs, database queries or files.
             # This method is called each time Airflow iterates over DASHBOARD_UIALERTS
             # Example: Flip a coin
             if random.choice([True, False]):
-                yield UIAlert("Heads!", category="info")
+                yield UIAlert(text="Heads!", category="info")
             else:
-                yield UIAlert("Tails!", category="warning")
+                yield UIAlert(text="Tails!", category="warning")
 
 
     # Create an instance of the class
