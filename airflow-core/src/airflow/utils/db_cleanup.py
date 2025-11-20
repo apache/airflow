@@ -166,13 +166,14 @@ config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(conf
 def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
     num_entities = query.count()
     print(f"Found {num_entities} rows meeting deletion criteria.")
-    if print_rows:
-        max_rows_to_print = 100
-        if num_entities > 0:
-            print(f"Printing first {max_rows_to_print} rows.")
-        logger.debug("print entities query: %s", query)
-        for entry in query.limit(max_rows_to_print):
-            print(entry.__dict__)
+    if not print_rows or num_entities == 0:
+        return num_entities
+
+    max_rows_to_print = 100
+    print(f"Printing first {max_rows_to_print} rows.")
+    logger.debug("print entities query: %s", query)
+    for entry in query.limit(max_rows_to_print):
+        print(entry.__dict__)
     return num_entities
 
 
@@ -422,11 +423,7 @@ def _print_config(*, configs: dict[str, _TableConfig]) -> None:
 
 @contextmanager
 def _suppress_with_logging(table: str, session: Session):
-    """
-    Suppresses errors but logs them.
-
-    Also stores the exception instance so it can be referred to after exiting context.
-    """
+    """Suppresses errors but logs them."""
     try:
         yield
     except (OperationalError, ProgrammingError):
@@ -519,7 +516,7 @@ def run_cleanup(
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
-    :param skip_archive: Set to True if you don't want the purged rows preservied in an archive table.
+    :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
     :param session: Session representing connection to the metadata database.
     :param batch_size: Maximum number of rows to delete or archive in a single transaction.
     """
