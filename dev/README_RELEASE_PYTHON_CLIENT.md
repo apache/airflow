@@ -108,6 +108,7 @@ cd ..
 cd ${AIRFLOW_REPO_ROOT}
 export VERSION="3.1.3"
 export VERSION_SUFFIX="rc1"
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
 echo "${VERSION}" > clients/python/version.txt
 ```
 
@@ -124,7 +125,7 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/cor
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git add .
-git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
+git commit -m "Prepare release ${VERSION_RC}"
 
 ```
 
@@ -167,7 +168,7 @@ cd ${CLIENT_REPO_ROOT}
 git diff HEAD
 git checkout -b release-${VERSION}
 git add .
-git commit -m "Update Python Client to ${VERSION}${VERSION_SUFFIX}"
+git commit -m "Update Python Client to ${VERSION_RC}"
 git push origin release-${VERSION}
 ```
 
@@ -181,11 +182,11 @@ Then open a PR and merge it into main.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git tag -s python-client/${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push origin python-client/${VERSION}${VERSION_SUFFIX}
+git tag -s python-client/${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
+git push origin python-client/${VERSION_RC}
 cd ${CLIENT_REPO_ROOT}
-git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push origin tag ${VERSION}${VERSION_SUFFIX}
+git tag -s ${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
+git push origin tag ${VERSION_RC}
 ```
 
 - Build the source package after the above tags have been pushed:
@@ -218,11 +219,11 @@ cd asf-dist/dev/airflow/clients/python
 svn mkdir ${VERSION}${VERSION_SUFFIX}
 
 # Move the artifacts to svn folder & commit
-mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}/
-mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_python_client-* ${VERSION}${VERSION_SUFFIX}/
-cd ${VERSION}${VERSION_SUFFIX}
+mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION_RC}/
+mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_python_client-* ${VERSION_RC}/
+cd ${VERSION_RC}
 svn add *
-svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION_RC}"
 
 # Remove old version
 cd ..
@@ -268,7 +269,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Release Apache Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}
+[VOTE] Release Apache Airflow Python Client ${VERSION} from ${VERSION_RC}
 EOF
 ```
 
@@ -283,7 +284,7 @@ This email is calling for a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
-https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION}${VERSION_SUFFIX}/
+https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION_RC}/
 
 The apache_airflow_client-${VERSION}.tar.gz is an sdist release that contains INSTALL instructions, and also
 is the official source release.
@@ -293,7 +294,7 @@ The apache_airflow_client-${VERSION}-py3-none-any.whl is a binary wheel release 
 Those packages do not contain .rc* version as, when approved, they will be released as the final version.
 
 The rc packages are also available at PyPI (with rc suffix) and you can install it with pip as usual:
-https://pypi.org/project/apache-airflow-client/${VERSION}${VERSION_SUFFIX}/
+https://pypi.org/project/apache-airflow-client/${VERSION_RC}/
 
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
