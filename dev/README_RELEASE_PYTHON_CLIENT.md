@@ -169,7 +169,7 @@ git diff HEAD
 git checkout -b release-${VERSION}
 git add .
 git commit -m "Update Python Client to ${VERSION_RC}"
-git push origin release-${VERSION}
+git push apache release-${VERSION}
 ```
 
 Then open a PR and merge it into main.
@@ -183,10 +183,10 @@ Then open a PR and merge it into main.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git tag -s python-client/${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
-git push origin python-client/${VERSION_RC}
+git push apache python-client/${VERSION_RC}
 cd ${CLIENT_REPO_ROOT}
 git tag -s ${VERSION_RC} -m "Airflow Python Client ${VERSION_RC}"
-git push origin tag ${VERSION_RC}
+git push apache tag ${VERSION_RC}
 ```
 
 - Build the source package after the above tags have been pushed:
