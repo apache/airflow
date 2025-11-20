@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
@@ -254,6 +254,41 @@ class ParamsDict(MutableMapping[str, Any]):
         return ParamsDict(data)
 
 
+class MergedParamsDict(ParamsDict):
+    """Task, Dag."""
+
+    __slots__ = ["__sources"]
+
+    def __init__(
+        self,
+        dict_obj: Mapping[str, Any] | None = None,
+        *,
+        source: Literal["Dag", "task", "DagRun"],
+        suppress_exception: bool = False,
+    ):
+        super().__init__(dict_obj=dict_obj, suppress_exception=suppress_exception)
+        self.__sources: dict[str, Literal["Dag", "task", "DagRun"]] = {}
+        if dict_obj is not None:
+            for k in dict_obj:
+                self.__sources[k] = source
+
+    def get_source(self, key: str) -> Literal["Dag", "task", "DagRun"]:
+        return self.__sources[key]
+
+    def update(self, *args, **kwargs) -> None:
+        if len(args) == 1 and not kwargs and isinstance(args[0], MergedParamsDict):
+            other = args[0]
+            for key, param in other.items():
+                self.__dict[key] = param
+                self.__sources[key] = other.get_source(key)
+            return
+
+        raise ValueError()
+
+    def dump_with_sources(self) -> dict[str, tuple[Any, Literal["Dag", "task", "DagRun"]]]:
+        return {k: (v.resolve(suppress_exception=True), self.__sources[k]) for k, v in self.items()}
+
+
 class DagParam(ResolveMixin):
     """
     Dag run parameter reference.
@@ -336,12 +371,15 @@ def process_params(
 
     dagrun_conf = dagrun_conf or {}
 
-    params = ParamsDict(suppress_exception=suppress_exception)
+    params = MergedParamsDict({}, source="Dag", suppress_exception=suppress_exception)
     with contextlib.suppress(AttributeError):
-        params.update(dag.params)
+        params.update(MergedParamsDict(dag.params, source="Dag"))
+
     if task.params:
-        params.update(task.params)
+        params.update(MergedParamsDict(task.params, source="task"))
+
     if conf.getboolean("core", "dag_run_conf_overrides_params") and dagrun_conf:
         logger.debug("Updating task params (%s) with DagRun.conf (%s)", params, dagrun_conf)
-        params.update(dagrun_conf)
+        params.update(MergedParamsDict(dagrun_conf, source="DagRun"))
+
     return params.validate()

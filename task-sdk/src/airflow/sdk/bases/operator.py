@@ -61,7 +61,7 @@ from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContex
 from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_args
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
-from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.definitions.param import MergedParamsDict, ParamsDict
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -153,19 +153,21 @@ def get_merged_defaults(
     task_group: TaskGroup | None,
     task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
-) -> tuple[dict, ParamsDict]:
+) -> tuple[dict, MergedParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
+    merged_params = MergedParamsDict(params, source="Dag")
+
     if task_params:
         if not isinstance(task_params, collections.abc.Mapping):
             raise TypeError(f"params must be a mapping, got {type(task_params)}")
-        params.update(task_params)
+        merged_params.update(MergedParamsDict(task_params, source="task"))
     if task_default_args:
         if not isinstance(task_default_args, collections.abc.Mapping):
             raise TypeError(f"default_args must be a mapping, got {type(task_params)}")
         args.update(task_default_args)
         with contextlib.suppress(KeyError):
-            params.update(task_default_args["params"] or {})
-    return args, params
+            merged_params.update(MergedParamsDict(task_params, source="task"))
+    return args, merged_params
 
 
 def parse_retries(retries: Any) -> int | None:
