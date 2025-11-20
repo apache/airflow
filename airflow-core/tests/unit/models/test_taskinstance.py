@@ -162,14 +162,9 @@ def clean_db():
 
 class TestTaskInstance:
     def setup_method(self):
-        self.clean_db()
-
         # We don't want to store any code for (test) dags created in this file
         with patch.object(settings, "STORE_DAG_CODE", False):
             yield
-
-    def teardown_method(self):
-        self.clean_db()
 
     @pytest.mark.need_serialized_dag(False)
     def test_set_task_dates(self, dag_maker):
@@ -2852,28 +2847,6 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(task)
     assert ti.max_tries == expected_max_tries
-
-
-class TestRunRawTaskQueriesCount:
-    """
-    These tests are designed to detect changes in the number of queries executed
-    when calling _run_raw_task
-    """
-
-    @staticmethod
-    def _clean():
-        db.clear_db_runs()
-        db.clear_db_pools()
-        db.clear_db_dags()
-        db.clear_db_sla_miss()
-        db.clear_db_import_errors()
-        db.clear_db_assets()
-
-    def setup_method(self) -> None:
-        self._clean()
-
-    def teardown_method(self) -> None:
-        self._clean()
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
