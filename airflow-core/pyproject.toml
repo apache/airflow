@@ -222,6 +222,7 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/_shared/configuration"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
