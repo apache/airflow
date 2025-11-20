@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-20T02:23:53.840195
+# This constraints file was automatically generated on 2025-11-20T19:49:18.566455
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -273,7 +273,7 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
 darabonba-core==1.0.4
-databricks-sql-connector==4.1.4
+databricks-sql-connector==4.2.1
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -297,7 +297,7 @@ entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.40.3
 executing==2.2.1
-facebook_business==24.0.0
+facebook_business==24.0.1
 fastapi-cli==0.0.16
 fastapi==0.117.1
 fastavro==1.12.1
@@ -393,7 +393,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.4
+huggingface_hub==1.1.5
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -620,7 +620,7 @@ shapely==2.1.2
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
-slack_sdk==3.38.0
+slack_sdk==3.39.0
 smart_open==7.5.0
 smbprotocol==1.15.0
 smmap==5.0.2
