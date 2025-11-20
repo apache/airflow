@@ -75,6 +75,18 @@ export STABLE_BRANCH=v2-8-stable
 cd ..
 ```
 
+- Since we don't sync to the test branch because we want to allow people to continue backporting PRs to the
+  test branch. We should create a sync branch out of where we cut off from the test branch
+
+```bash
+git checkout ${TEST_BRANCH}
+# Find the commit from where to cut off and check it out
+git checkout COMMIT_NUM
+# Create the sync branch
+git checkout -b changes313rc1
+export SYNC_BRANCH="changes313rc1"
+```
+
 - Checkout the right branch (usually main) of the Airflow Python client where you
   generate the source code to
 
@@ -107,7 +119,7 @@ cd ${AIRFLOW_REPO_ROOT}
 git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml
 ```
 
-- Update CHANGELOG.md with the details. Commit the changes.
+- Update clients/python/CHANGELOG.md with the details including the changes to clients/python/version.txt above. Commit the changes.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
@@ -116,8 +128,9 @@ git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
 
 ```
 
-- Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
-  as in case of Airflow changelog. This PR should also contain the change to `clients/python/version.txt`.
+- Create a PR where you add the commit above in `main` branch and cherry-pick it to the `v2-test` branch.
+  This PR should also contain the change to `clients/python/version.txt`. Due to that, you might want to do this PR from
+  the cloned airflow repo for the release and not your dev airflow clone.
 
 - Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
   of Airflow repository - same branch that is used to release Airflow:
@@ -127,8 +140,8 @@ git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
   # make sure you are up to date
   git fetch origin ${STABLE_BRANCH}
   git reset --hard origin/${STABLE_BRANCH}
-  # merge the changes from the test branch
-  git merge --ff-only ${TEST_BRANCH}
+  # merge the changes from the sync branch
+  git merge --ff-only ${SYNC_BRANCH}
   # push the changes to the stable branch
   git push origin ${STABLE_BRANCH}
   ```
@@ -140,8 +153,6 @@ git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
 cd ${AIRFLOW_REPO_ROOT}
 rm dist/*
 breeze release-management prepare-python-client --distribution-format both --python-client-repo "${CLIENT_REPO_ROOT}" --version-suffix ""
-breeze release-management prepare-tarball --tarball-type apache_airflow_python_client --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
-
 ```
 
 - This should generate both sdist and .whl package in `dist` folder of the Airflow repository. It should
@@ -157,7 +168,7 @@ git diff HEAD
 git checkout -b release-${VERSION}
 git add .
 git commit -m "Update Python Client to ${VERSION}${VERSION_SUFFIX}"
-git push apache release-${VERSION}
+git push origin release-${VERSION}
 ```
 
 Then open a PR and merge it into main.
@@ -171,12 +182,18 @@ Then open a PR and merge it into main.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
 git tag -s python-client/${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache python-client/${VERSION}${VERSION_SUFFIX}
+git push origin python-client/${VERSION}${VERSION_SUFFIX}
 cd ${CLIENT_REPO_ROOT}
 git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache tag ${VERSION}${VERSION_SUFFIX}
+git push origin tag ${VERSION}${VERSION_SUFFIX}
 ```
 
+- Build the source package after the above tags have been pushed:
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+breeze release-management prepare-tarball --tarball-type apache_airflow_python_client --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
+```
 
 - Generate signatures and checksum files for the packages (if you have not generated a key yet, generate
   it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
@@ -193,7 +210,7 @@ popd
 ```shell script
 # First clone the repo somewhere if you have not done it yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
-svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
+svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Create new folder for the release
 cd asf-dist/dev/airflow/clients/python
@@ -202,6 +219,7 @@ svn mkdir ${VERSION}${VERSION_SUFFIX}
 
 # Move the artifacts to svn folder & commit
 mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}/
+mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_python_client-* ${VERSION}${VERSION_SUFFIX}/
 cd ${VERSION}${VERSION_SUFFIX}
 svn add *
 svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
@@ -225,6 +243,7 @@ To do this we need to:
   build the package from the sources in the Airflow repository and generate packages from those sources.
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 rm dist/*
 breeze release-management prepare-python-client --distribution-format both --version-suffix "${VERSION_SUFFIX}"
 ```
