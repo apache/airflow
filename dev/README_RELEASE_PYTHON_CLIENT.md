@@ -94,7 +94,7 @@ cd ..
 
 ```bash
 cd ${AIRFLOW_REPO_ROOT}
-export VERSION="2.8.0"
+export VERSION="3.1.3"
 export VERSION_SUFFIX="rc1"
 echo "${VERSION}" > clients/python/version.txt
 ```
@@ -107,10 +107,17 @@ cd ${AIRFLOW_REPO_ROOT}
 git log 2.8.0..HEAD --pretty=oneline -- airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml
 ```
 
-- Update CHANGELOG.md with the details.
+- Update CHANGELOG.md with the details. Commit the changes.
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+git add .
+git commit -m "Prepare release ${VERSION}${VERSION_SUFFIX}"
+
+```
 
 - Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
-  as in case of Airflow changelog.
+  as in case of Airflow changelog. This PR should also contain the change to `clients/python/version.txt`.
 
 - Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
   of Airflow repository - same branch that is used to release Airflow:
@@ -394,8 +401,10 @@ cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
+export PATH_TO_SVN="${PWD}/asf-dist/dev/airflow/clients/python/${VERSION_RC}"
+
 # Then compare the packages
-cd asf-dist/dev/airflow/clients/python/${VERSION_RC}
+cd ${PATH_TO_SVN}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -425,7 +434,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/providers/${RELEASE_DATE}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
 ```
 
 Run the check:
@@ -499,6 +508,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell script
+cd ${PATH_TO_SVN}
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -538,6 +548,7 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
+cd ${PATH_TO_SVN}
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
