@@ -216,7 +216,7 @@ class TptHook(TtuHook):
                 self.log.info("Executing tbuild command: %s", " ".join(tbuild_cmd))
                 self.log.info("=" * 80)
                 sp = subprocess.Popen(
-                    tbuild_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, preexec_fn=os.setsid
+                    tbuild_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
                 )
                 error_lines = []
                 if sp.stdout is not None:
