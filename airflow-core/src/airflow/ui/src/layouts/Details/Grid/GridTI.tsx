@@ -114,7 +114,10 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
           <>
             {translate("taskId")}: {taskId}
             <br />
-            {translate("state")}: {instance.state}
+            {translate("state")}:{" "}
+            {instance.state
+              ? translate(`common:states.${instance.state}`)
+              : translate("common:states.no_status")}
             {instance.min_start_date !== null && (
               <>
                 <br />

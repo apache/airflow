@@ -43,7 +43,10 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
       content={
         <Box>
           <Text>
-            {translate("state")}: {taskInstance.state}
+            {translate("state")}:{" "}
+            {taskInstance.state
+              ? translate(`common:states.${taskInstance.state}`)
+              : translate("common:states.no_status")}
           </Text>
           {"dag_run_id" in taskInstance ? (
             <Text>

@@ -42,7 +42,7 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
         <VStack align="left" gap={0}>
           {state === undefined ? undefined : (
             <Text>
-              {translate("state")}: {state}
+              {translate("state")}: {translate(`common:states.${state}`)}
             </Text>
           )}
           {Boolean(logicalDate) ? (

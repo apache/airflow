@@ -50,7 +50,8 @@ export const GridButton = ({
     <>
       {label}
       <br />
-      {translate("state")}: {state}
+      {translate("state")}:{" "}
+      {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
     </>
   );
 
