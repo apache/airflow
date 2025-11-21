@@ -7659,55 +7659,24 @@ export const $FabAuthenticatedMeResponse = {
                 },
                 {
                     type: 'string'
-                },
-                {
-                    type: 'null'
                 }
             ],
             title: 'Id'
         },
         first_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'First Name'
         },
         last_name: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Last Name'
         },
         username: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Username'
         },
         email: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Email'
         },
         roles: {
@@ -8090,14 +8059,7 @@ export const $NodeResponse = {
 export const $SimpleAuthenticatedMeResponse = {
     properties: {
         username: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'string',
             title: 'Username'
         },
         role: {

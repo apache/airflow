@@ -31,16 +31,16 @@ class MenuItemCollectionResponse(BaseModel):
 class SimpleAuthenticatedMeResponse(BaseModel):
     """Current User (me) response serializer for SimpleAuth."""
 
-    username: str | None
+    username: str
     role: str | None
 
 
 class FabAuthenticatedMeResponse(BaseModel):
     """Current User (me) response serializer for FAB auth."""
 
-    id: int | str | None
-    first_name: str | None
-    last_name: str | None
-    username: str | None
-    email: str | None
+    id: int | str
+    first_name: str
+    last_name: str
+    username: str
+    email: str
     roles: list[str] | None = None

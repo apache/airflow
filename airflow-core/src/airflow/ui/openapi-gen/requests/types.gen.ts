@@ -1906,11 +1906,11 @@ export type ExtraMenuItem = {
  * Current User (me) response serializer for FAB auth.
  */
 export type FabAuthenticatedMeResponse = {
-    id: number | string | null;
-    first_name: string | null;
-    last_name: string | null;
-    username: string | null;
-    email: string | null;
+    id: number | string;
+    first_name: string;
+    last_name: string;
+    username: string;
+    email: string;
     roles?: Array<(string)> | null;
 };
 
@@ -2003,7 +2003,7 @@ export type NodeResponse = {
  * Current User (me) response serializer for SimpleAuth.
  */
 export type SimpleAuthenticatedMeResponse = {
-    username: string | null;
+    username: string;
     role: string | null;
 };
 

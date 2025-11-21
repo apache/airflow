@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
     FabAuthenticatedMeResponse,
@@ -49,7 +48,7 @@ def get_current_user(
 ) -> SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse:
     """Get current authenticated user information."""
     auth_manager = get_auth_manager()
-    if isinstance(auth_manager, SimpleAuthManager):
+    if auth_manager.get_auth_manager_type() == "SimpleAuthManager":
         return SimpleAuthenticatedMeResponse(
             username=user.username,
             role=user.role,
@@ -57,11 +56,11 @@ def get_current_user(
 
     if auth_manager.get_auth_manager_type() == "FabAuthManager":
         return FabAuthenticatedMeResponse(
-            id=user.id,
-            first_name=user.first_name,
-            last_name=user.last_name,
+            id=user.id if user.id is not None else "",
+            first_name=user.first_name or "",
+            last_name=user.last_name or "",
             username=user.username,
-            email=user.email,
-            roles=[role.name for role in user.roles] if user.roles else None,
+            email=user.email or "",
+            roles=[str(r) for r in user.roles] if user.roles is not None else None,
         )
-    raise NotImplementedError("Unsupported auth manager type")
+    raise NotImplementedError("Unsupported auth manager type for /ui/auth/me endpoint")
