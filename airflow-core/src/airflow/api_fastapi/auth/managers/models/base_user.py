@@ -25,12 +25,12 @@ if TYPE_CHECKING:
 
 
 class BaseUser:
-    """User model interface."""
+    """User model interface. These attributes/methods should be implemented in the pluggable auth manager."""
 
     id: int | str | None
     first_name: str | None
     last_name: str | None
-    username: str
+    username: str | None
     role: str | None
     email: str | None
     active: bool | None
@@ -44,4 +44,9 @@ class BaseUser:
     @abstractmethod
     def get_name(self) -> str:
         """Get user name."""
+        ...
+
+    @abstractmethod
+    def get_groups(self) -> list[str] | None:
+        """Get user groups."""
         ...
