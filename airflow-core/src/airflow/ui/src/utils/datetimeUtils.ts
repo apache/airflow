@@ -26,13 +26,16 @@ dayjs.extend(tz);
 export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-export const renderDuration = (durationSeconds: number | null | undefined): string | undefined => {
+export const renderDuration = (
+  durationSeconds: number | null | undefined,
+  withMilliseconds: boolean = true,
+): string | undefined => {
   if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
     return undefined;
   }
 
   // If under 60 seconds, render milliseconds
-  if (durationSeconds < 60) {
+  if (durationSeconds < 60 && withMilliseconds) {
     return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
   }
 
