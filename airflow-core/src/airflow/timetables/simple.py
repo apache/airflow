@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -226,9 +227,11 @@ class PartitionMapper:
     Maps keys from asset events to target dag run partitions.
     """
 
+    @abstractmethod
     def to_downstream(self, key: str) -> str:
         """Return the target key that the given source partition key maps to."""
 
+    @abstractmethod
     def to_upstream(self, key: str) -> Iterable[str]:
         """Yield the source keys that map to the given target partition key."""
 
@@ -236,7 +239,7 @@ class PartitionMapper:
         return {}
 
     @classmethod
-    def deserialize(cls, data: dict[str, Any]) -> IdentityMapper:
+    def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
         return cls()
 
 
