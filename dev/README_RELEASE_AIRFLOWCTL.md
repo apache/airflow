@@ -460,8 +460,6 @@ cd asf-dist/dev/airflow
 export PATH_TO_SVN=$(pwd -P)
 ```
 
-TODO: implement check in ``check_files.py``
-
 ### Reproducible package builds checks
 
 For Airflow-ctl distributions we introduced a reproducible build mechanism - which means that whoever wants
@@ -523,6 +521,15 @@ You should see output similar to:
 ```
 apache_airflow_airflow_ctl-1.0.0.tar.gz:No diff found
 ```
+
+You can use `check_files.py` script to verify that all expected files are
+present in SVN. This script may help also with verifying installation of the packages.
+
+```shell script
+cd $AIRFLOW_REPO_ROOT/dev
+uv run check_files.py airflow-ctl -v ${VERSION_RC} -p ${PATH_TO_SVN}
+```
+
 
 ### Licence check
 
@@ -768,8 +775,8 @@ SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/airflow-ctl"
 # Create airflow-ctl folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
 cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
-mkdir -pv airflow-ctl
-cd airflow-ctl
+mkdir -pv airflow-ctl/${VERSION}
+cd airflow-ctl/${VERSION}
 
 # Copy your airflow-ctl with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*

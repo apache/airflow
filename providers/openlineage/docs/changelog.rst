@@ -149,8 +149,6 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``Remove SDK BaseOperator in TaskInstance (#53223)``
    * ``chore: Adjust OL system tests to latest changes (#54352)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Move email notifications from scheduler to DAG processor (#55238)``
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
@@ -807,7 +805,8 @@ Features
 
 * ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 1.4.0
@@ -881,10 +880,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 1.1.1

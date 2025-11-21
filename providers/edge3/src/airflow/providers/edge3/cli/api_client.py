@@ -27,7 +27,7 @@ from urllib.parse import quote, urljoin
 
 import requests
 from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import before_sleep_log, wait_random_exponential
 
 from airflow.configuration import conf
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerVersionException
@@ -78,7 +78,7 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
     wait_network_errors=_default_wait,
     wait_timeouts=_default_wait,
     wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
-    before_sleep=before_log(logger, logging.WARNING),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     if AIRFLOW_V_3_0_PLUS:

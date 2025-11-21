@@ -95,8 +95,6 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 6.2.3
@@ -272,8 +270,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
 
@@ -644,7 +640,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Rename schema to database in 'PostgresHook' (#26436)``
    * ``Revert "Rename schema to database in 'PostgresHook' (#26436)" (#26734)``
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``

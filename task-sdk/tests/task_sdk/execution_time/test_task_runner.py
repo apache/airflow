@@ -28,7 +28,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
@@ -50,6 +50,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
     BaseOperator,
+    BaseOperatorLink,
     Connection,
     dag as dag_decorator,
     get_current_context,
@@ -66,7 +67,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.exceptions import ErrorType
@@ -1570,9 +1571,7 @@ class TestRuntimeTaskInstance:
 
         for task_id_raw in task_ids:
             # Without task_ids (or None) expected behavior is to pull with calling task_id
-            task_id = (
-                test_task_id if task_id_raw is None or isinstance(task_id_raw, ArgNotSet) else task_id_raw
-            )
+            task_id = task_id_raw if is_arg_set(task_id_raw) and task_id_raw is not None else test_task_id
 
             for map_index in map_indexes:
                 if map_index == NOTSET:
@@ -1817,6 +1816,93 @@ class TestRuntimeTaskInstance:
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
             )
+
+    def test_task_failed_with_operator_extra_links(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
+    ):
+        """Test that operator extra links are pushed to xcoms even when task fails."""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (AirflowLink(),)
+
+            def execute(self, context):
+                raise ValueError("Task failed intentionally")
+
+        task = DummyTestOperator(task_id="task_with_operator_extra_links")
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        runtime_ti.start_date = instant
+        runtime_ti.end_date = instant
+
+        state, _, error = run(runtime_ti, context=context, log=mock.MagicMock())
+        assert state == TaskInstanceState.FAILED
+        assert error is not None
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.FAILED,
+                context=context,
+                error=error,
+            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
+
+    def test_operator_extra_links_exception_handling(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
+    ):
+        """Test that exceptions in get_link() don't prevent other links from being pushed."""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class FailingLink(BaseOperatorLink):
+            """A link that raises an exception when get_link is called."""
+
+            name = "failing_link"
+
+            def get_link(self, operator, *, ti_key):
+                raise ValueError("Link generation failed")
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (FailingLink(), AirflowLink())
+
+            def execute(self, context):
+                pass
+
+        task = DummyTestOperator(task_id="task_with_multiple_links")
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        runtime_ti.start_date = instant
+        runtime_ti.end_date = instant
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.SUCCESS,
+                context=context,
+            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
 
     @pytest.mark.parametrize(
         ("cmd", "rendered_cmd"),
@@ -3113,7 +3199,7 @@ class TestTaskRunnerCallsCallbacks:
         task = BaseOperator(task_id="test_task")
         runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
 
-        with patch("airflow.configuration.conf.get", return_value=base_url):
+        with conf_vars({("api", "base_url"): base_url}):
             log_url = runtime_ti.log_url
             assert log_url == expected_url
 
@@ -3578,3 +3664,56 @@ class TestTriggerDagRunOperator:
             state, msg, _ = run(ti, ti.get_template_context(), log)
 
         assert state == intermediate_state
+
+    @time_machine.travel("2025-01-01 00:00:00", tick=False)
+    def test_handle_trigger_dag_run_deferred_with_reset_uses_run_id_only(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """
+        Test that TriggerDagRunOperator with deferrable=True and reset_dag_run=True
+        creates a DagStateTrigger with execution_dates=None.
+
+        This prevents the bug where reset_dag_run preserves the original logical_date
+        in the database but the trigger queries with a newly calculated logical_date,
+        causing a mismatch that makes the trigger never find the dag run.
+        """
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id="test_dag",
+            trigger_run_id="fixed_run_id",
+            wait_for_completion=True,
+            deferrable=True,
+            reset_dag_run=True,
+            poke_interval=5,
+        )
+        ti = create_runtime_ti(
+            dag_id="test_handle_trigger_dag_run_deferred_reset", run_id="test_run", task=task
+        )
+
+        log = mock.MagicMock()
+        state, msg, _ = run(ti, ti.get_template_context(), log)
+
+        # Task should be deferred
+        assert state == TaskInstanceState.DEFERRED
+        assert isinstance(msg, DeferTask)
+
+        # Verify the DeferTask message structure
+        assert msg.classpath == "airflow.providers.standard.triggers.external_task.DagStateTrigger"
+        assert msg.next_method == "execute_complete"
+
+        # Critical assertion: execution_dates should be None to avoid logical_date mismatch
+        # when reset_dag_run=True. The run_id alone is sufficient and unique.
+        trigger_kwargs = msg.trigger_kwargs
+        assert trigger_kwargs["execution_dates"] is None, (
+            "execution_dates should be None when using run_ids. "
+            "When reset_dag_run=True, the logical_date in the database may differ from "
+            "the newly calculated logical_date, causing the trigger to never find the run."
+        )
+        assert trigger_kwargs["run_ids"] == ["fixed_run_id"]
+        assert trigger_kwargs["dag_id"] == "test_dag"
+        assert trigger_kwargs["poll_interval"] == 5
+
+        # Also verify it was sent to supervisor
+        mock_supervisor_comms.send.assert_any_call(msg)
