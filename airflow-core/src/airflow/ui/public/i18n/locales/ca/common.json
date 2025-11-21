@@ -90,8 +90,7 @@
     "defaultMessage": "S'ha produït un error inesperat",
     "home": "Inici",
     "notFound": "Pàgina no trobada",
-    "title": "Error",
-    "authenticating": "S'està autenticant…"
+    "title": "Error"
   },
   "expand": {
     "collapse": "Col·lapsar",

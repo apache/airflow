@@ -91,8 +91,7 @@
     "defaultMessage": "예기치 않은 오류가 발생했습니다.",
     "home": "홈",
     "notFound": "페이지를 찾을 수 없습니다.",
-    "title": "오류",
-    "authenticating": "인증 중…"
+    "title": "오류"
   },
   "expand": {
     "collapse": "접기",

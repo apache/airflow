@@ -91,8 +91,7 @@
     "defaultMessage": "Een onverwachte fout is opgetreden",
     "home": "Home",
     "notFound": "Pagina niet gevonden",
-    "title": "Fout",
-    "authenticating": "Aan het authenticeren…"
+    "title": "Fout"
   },
   "expand": {
     "collapse": "Uitklappen",

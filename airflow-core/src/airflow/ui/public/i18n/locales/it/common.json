@@ -102,8 +102,7 @@
     "defaultMessage": "Si è verificato un errore imprevisto",
     "home": "Home",
     "notFound": "Pagina non trovata",
-    "title": "Errore",
-    "authenticating": "Autenticazione in corso…"
+    "title": "Errore"
   },
   "expand": {
     "collapse": "Collassa",

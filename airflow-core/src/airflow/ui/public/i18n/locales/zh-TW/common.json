@@ -91,8 +91,7 @@
     "defaultMessage": "發生未預期的錯誤",
     "home": "首頁",
     "notFound": "找不到頁面",
-    "title": "錯誤",
-    "authenticating": "正在驗證身分…"
+    "title": "錯誤"
   },
   "expand": {
     "collapse": "收合",

@@ -90,8 +90,7 @@
     "defaultMessage": "Váratlan hiba történt",
     "home": "Kezdőlap",
     "notFound": "Az oldal nem található",
-    "title": "Hiba",
-    "authenticating": "Hitelesítés folyamatban…"
+    "title": "Hiba"
   },
   "expand": {
     "collapse": "Összecsukás",

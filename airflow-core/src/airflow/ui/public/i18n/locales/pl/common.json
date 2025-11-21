@@ -103,8 +103,7 @@
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
     "notFound": "Nie znaleziono strony",
-    "title": "Błąd",
-    "authenticating": "Trwa uwierzytelnianie…"
+    "title": "Błąd"
   },
   "expand": {
     "collapse": "Zwiń",
