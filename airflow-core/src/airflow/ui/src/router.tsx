@@ -227,6 +227,10 @@ export const routerConfig = [
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
       },
+      {
+        element: <ErrorPage />,
+        path: "*",
+      },
     ],
     element: <BaseLayout />,
     errorElement: (
