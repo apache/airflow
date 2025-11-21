@@ -423,6 +423,7 @@ export type ClearTaskInstancesBody = {
      * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;
+    prevent_running_task?: boolean;
 };
 
 /**
@@ -5441,6 +5442,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
