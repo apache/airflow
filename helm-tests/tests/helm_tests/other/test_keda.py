@@ -101,6 +101,10 @@ class TestKeda:
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
+
+        # Always add the default queue filter because these tests don't change workers.queue
+        query += " AND queue = 'default'"
+
         if "CeleryKubernetesExecutor" in executor:
             queue_value = queue or "kubernetes"
             query += f" AND queue != '{queue_value}'"

@@ -637,6 +637,36 @@ kerberos:
 
 # Airflow Worker Config
 workers:
+  # List of worker sets. Each item can override values from the parent 'workers' section.
+  sets: []
+  # sets:
+  #   - name: highcpu
+  #     replicas: 2
+  #     queue: "highcpu"
+  #     resources:
+  #       requests:
+  #         memory: "2Gi"
+  #         cpu: "4000m"
+  #       limits:
+  #         memory: "4Gi"
+  #         cpu: "8000m"
+  #   - name: highmem
+  #     replicas: 2
+  #     queue: "highmem"
+  #     resources:
+  #       requests:
+  #         memory: "4Gi"
+  #         cpu: "2000m"
+  #       limits:
+  #         memory: "8Gi"
+  #         cpu: "4000m"
+
+  # Enable the default worker defined by the root 'workers' configuration.
+  # If false, only workers defined in 'sets' will be created.
+  enableDefault: true
+
+  # Queue name for the worker
+  queue: "default"
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -657,7 +687,7 @@ workers:
     # The format below is necessary to get `helm lint` happy
     - |-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }} {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }} -q {{ .Values.workers.queue }} {{- end }}
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
@@ -765,6 +795,7 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
+      AND queue = '{{ .Values.workers.queue }}'
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}

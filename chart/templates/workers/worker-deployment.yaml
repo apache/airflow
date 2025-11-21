@@ -20,10 +20,20 @@
 ################################
 ## Airflow Worker Deployment
 #################################
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $currentWorkers := mustMerge $workerSet (deepCopy $.Values.workers) -}}
+  {{- $newValues := mustMerge (dict "workers" $currentWorkers) (deepCopy $.Values) -}}
+  {{- $ctx := merge (dict "Values" $newValues) $ -}}
+  {{- with $ctx -}}
 {{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+---
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
@@ -45,7 +55,7 @@
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -60,7 +70,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ include "airflow.fullname" . }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
   replicas: {{ .Values.workers.celery.replicas | default .Values.workers.replicas }}
@@ -76,6 +86,9 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- if and $persistence (or .Values.workers.celery.podManagementPolicy .Values.workers.podManagementPolicy) }}
   podManagementPolicy: {{ .Values.workers.celery.podManagementPolicy | default .Values.workers.podManagementPolicy }}
   {{- end }}
@@ -91,6 +104,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
+        {{- if ne .Values.workers.name "default" }}
+        worker-set: {{ .Values.workers.name }}
+        {{- end }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -490,4 +506,6 @@ spec:
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
