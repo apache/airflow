@@ -18,8 +18,8 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import tz from "dayjs/plugin/timezone";
 import relativeTime from "dayjs/plugin/relativeTime";
+import tz from "dayjs/plugin/timezone";
 
 dayjs.extend(dayjsDuration);
 dayjs.extend(relativeTime);
