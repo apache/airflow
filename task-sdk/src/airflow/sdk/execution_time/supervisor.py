@@ -1079,7 +1079,7 @@ class ActivitySubprocess(WatchedSubprocess):
                         "Process exited with open sockets; cleaning up after timeout",
                         pid=self.pid,
                         exit_code=self._exit_code,
-                        socket_types=[socket_type for socket_type in self._open_sockets.values()],
+                        socket_types=list(self._open_sockets.values()),
                         timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
                     )
                     self._cleanup_open_sockets()
