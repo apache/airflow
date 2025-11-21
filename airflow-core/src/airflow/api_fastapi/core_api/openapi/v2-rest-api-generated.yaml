@@ -10036,6 +10036,10 @@ components:
           type: boolean
           title: Is Favorite
           default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token
@@ -12780,7 +12784,7 @@ components:
           - $ref: '#/components/schemas/TimeDelta'
           - type: 'null'
         retry_exponential_backoff:
-          type: boolean
+          type: number
           title: Retry Exponential Backoff
         priority_weight:
           anyOf:

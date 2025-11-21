@@ -37,6 +37,8 @@ from airflow_e2e_tests.constants import (
     TEST_REPORT_FILE,
 )
 
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
 console = Console(width=400, color_system="standard")
 compose_instance = None
 airflow_logs_path = None
@@ -93,6 +95,12 @@ def spin_up_airflow_environment(tmp_path_factory):
     if E2E_TEST_MODE == "remote_log":
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
+
+    #
+    # Please Do not use this Fernet key in any deployments! Please generate your own key.
+    # This is specifically generated for integration tests and not as default.
+    #
+    os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # If we are using the image from ghcr.io/apache/airflow/main we do not pull
     # as it is already available and loaded using prepare_breeze_and_image step in workflow

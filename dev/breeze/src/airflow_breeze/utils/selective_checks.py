@@ -87,6 +87,7 @@ NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
+ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -1527,3 +1528,161 @@ class SelectiveChecks:
             )
             sys.exit(1)
         return _translation_changed
+
+    @cached_property
+    def provider_dependency_bump(self) -> bool:
+        """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        pyproject_files = self._matching_files(
+            FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
+            CI_FILE_GROUP_MATCHES,
+        )
+        if not pyproject_files or not self._commit_ref:
+            return False
+
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
+
+        violations = []
+        for pyproject_file in pyproject_files:
+            # Get the new version of the file
+            new_result = run_command(
+                ["git", "show", f"{self._commit_ref}:{pyproject_file}"],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if new_result.returncode != 0:
+                continue
+
+            # Get the old version of the file
+            old_result = run_command(
+                ["git", "show", f"{self._commit_ref}^:{pyproject_file}"],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if old_result.returncode != 0:
+                continue
+
+            try:
+                new_toml = tomllib.loads(new_result.stdout)
+                old_toml = tomllib.loads(old_result.stdout)
+            except Exception:
+                continue
+
+            # Check dependencies and optional-dependencies sections
+            for section in ["dependencies", "optional-dependencies"]:
+                if section not in new_toml.get("project", {}):
+                    continue
+
+                new_deps = new_toml["project"][section]
+                old_deps = old_toml.get("project", {}).get(section, {})
+
+                if isinstance(new_deps, dict):
+                    # Handle optional-dependencies which is a dict
+                    for group_name, deps_list in new_deps.items():
+                        old_deps_list = old_deps.get(group_name, []) if isinstance(old_deps, dict) else []
+                        violations.extend(
+                            SelectiveChecks._check_provider_deps_in_list(
+                                deps_list, old_deps_list, pyproject_file, f"{section}.{group_name}"
+                            )
+                        )
+                elif isinstance(new_deps, list):
+                    # Handle dependencies which is a list
+                    old_deps_list = old_deps if isinstance(old_deps, list) else []
+                    violations.extend(
+                        SelectiveChecks._check_provider_deps_in_list(
+                            new_deps, old_deps_list, pyproject_file, section
+                        )
+                    )
+
+        if violations:
+            if ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL in self._pr_labels:
+                get_console().print(
+                    "[warning]The 'allow provider dependency bump' label is set. "
+                    "Bypassing provider dependency check."
+                )
+                return True
+
+            get_console().print(
+                "[error]Provider dependency version bumps detected that should only be "
+                "performed by Release Managers![/]"
+            )
+            get_console().print()
+            for violation in violations:
+                get_console().print(f"[error]  - {violation}[/]")
+            get_console().print()
+            get_console().print(
+                "[warning]Only Release Managers should change >= conditions for apache-airflow-providers "
+                "dependencies.[/]\n\nIf you want to refer to a future version of the dependency, please add a "
+                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n"
+            )
+            get_console().print()
+            get_console().print(
+                f"[warning]If this change is intentional and approved, please set the label on the PR:[/]\n\n"
+                f"'[info]{ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL}[/]\n"
+            )
+            get_console().print()
+            get_console().print(
+                "See https://github.com/apache/airflow/blob/main/contributing-docs/"
+                "13_airflow_dependencies_and_extras.rst for more comprehensive documentation "
+                "about airflow dependency management."
+            )
+            get_console().print()
+            sys.exit(1)
+        return False
+
+    @staticmethod
+    def _check_provider_deps_in_list(
+        new_deps: list, old_deps: list, file_path: str, section: str
+    ) -> list[str]:
+        """Check a list of dependencies for apache-airflow-providers version changes."""
+        violations = []
+
+        # Parse dependencies into a dict for easier comparison
+        def parse_dep(dep_str: str) -> tuple[str, str | None]:
+            """Parse a dependency string and return (package_name, version_constraint)."""
+            if not isinstance(dep_str, str):
+                return "", None
+            # Remove inline comments
+            dep_str = dep_str.split("#")[0].strip()
+            # Match patterns like: apache-airflow-providers-xxx>=1.0.0 or apache-airflow-providers-xxx>=1.0.0,<2.0
+            match = re.match(r"^(apache-airflow-providers-[a-z0-9-]+)\s*(.*)", dep_str, re.IGNORECASE)
+            if match:
+                return match.group(1).lower(), match.group(2).strip()
+            return "", None
+
+        old_deps_dict = {}
+        for dep in old_deps:
+            pkg_name, version = parse_dep(dep)
+            if pkg_name:
+                old_deps_dict[pkg_name] = (dep, version)
+
+        for new_dep in new_deps:
+            pkg_name, new_version = parse_dep(new_dep)
+            if not pkg_name:
+                continue
+
+            # Check if this dependency existed before
+            if pkg_name in old_deps_dict:
+                old_dep_str, old_version = old_deps_dict[pkg_name]
+                # Check if the >= condition changed
+                if new_version and old_version and new_version != old_version:
+                    # Check if >= version number changed
+                    new_ge_match = re.search(r">=\s*([0-9.]+)", new_version)
+                    old_ge_match = re.search(r">=\s*([0-9.]+)", old_version)
+
+                    if new_ge_match and old_ge_match:
+                        new_ge_version = new_ge_match.group(1)
+                        old_ge_version = old_ge_match.group(1)
+                        if new_ge_version != old_ge_version:
+                            violations.append(
+                                f"{file_path} [{section}]: {pkg_name} >= version changed from "
+                                f"{old_ge_version} to {new_ge_version}"
+                            )
+
+        return violations

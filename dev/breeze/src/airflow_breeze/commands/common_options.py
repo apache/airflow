@@ -413,12 +413,12 @@ option_use_uv = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
-option_use_uv_default_disabled = click.option(
+option_use_uv_default_depends_on_installation_method = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
-    default=False,
-    show_default=True,
-    help="Use uv instead of pip as packaging tool to build the image.",
+    default=None,
+    help="Use uv instead of pip as packaging tool to build the image (default is True for installing "
+    "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
 option_uv_http_timeout = click.option(
