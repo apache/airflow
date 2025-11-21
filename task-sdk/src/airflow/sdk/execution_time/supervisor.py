@@ -1075,7 +1075,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     self._process_exit_monotonic
                     and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
                 ):
-                    log.info(
+                    log.warning(
                         "Process exited with open sockets; cleaning up after timeout",
                         pid=self.pid,
                         exit_code=self._exit_code,
