@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-20T19:45:51.763067
+# This constraints file was automatically generated on 2025-11-21T07:47:09.434863
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -270,7 +270,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.51.0
+google-genai==1.52.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -394,9 +394,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.41.0
-mypy-boto3-rds==1.41.0
-mypy-boto3-redshift-data==1.41.0
-mypy-boto3-s3==1.41.0
+mypy-boto3-rds==1.41.1
+mypy-boto3-redshift-data==1.41.1
+mypy-boto3-s3==1.41.1
 mypy==1.18.2
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
