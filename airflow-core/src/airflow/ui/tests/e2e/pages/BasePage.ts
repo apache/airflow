@@ -16,44 +16,46 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Page, Locator } from '@playwright/test';
+import type { Page, Locator } from "@playwright/test";
 
 /**
  * Base Page Object
  */
 export class BasePage {
-  readonly page: Page;
-  readonly welcomeHeading: Locator;
+  public readonly page: Page;
+  public readonly welcomeHeading: Locator;
 
-  constructor(page: Page) {
+  public constructor(page: Page) {
     this.page = page;
     this.welcomeHeading = page.locator('h2.chakra-heading:has-text("Welcome")');
   }
 
-  async maximizeBrowser(): Promise<void> {
+  public async isLoggedIn(): Promise<boolean> {
     try {
-      await this.page.setViewportSize({ width: 1920, height: 1080 });
-    } catch (error) {
+      await this.welcomeHeading.waitFor({ timeout: 30_000 });
+
+      return true;
+    } catch {
+      const currentUrl = this.page.url();
+
+      return !currentUrl.includes("/login");
+    }
+  }
+
+  public async maximizeBrowser(): Promise<void> {
+    try {
+      await this.page.setViewportSize({ height: 1080, width: 1920 });
+    } catch {
       // Viewport size could not be set
     }
   }
 
-  async waitForPageLoad(): Promise<void> {
-    await this.page.waitForLoadState('networkidle');
-  }
-
-  async navigateTo(path: string): Promise<void> {
+  public async navigateTo(path: string): Promise<void> {
     await this.page.goto(path);
     await this.waitForPageLoad();
   }
 
-  async isLoggedIn(): Promise<boolean> {
-    try {
-      await this.welcomeHeading.waitFor({ timeout: 30000 });
-      return true;
-    } catch {
-      const currentUrl = this.page.url();
-      return !currentUrl.includes('/login');
-    }
+  public async waitForPageLoad(): Promise<void> {
+    await this.page.waitForLoadState("networkidle");
   }
 }

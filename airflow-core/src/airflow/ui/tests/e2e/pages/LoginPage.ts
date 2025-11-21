@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { expect } from '@playwright/test';
-import type { Locator } from '@playwright/test';
+import { expect } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
-import { BasePage } from './BasePage';
+import { BasePage } from "./BasePage";
 
 /**
  * Login Page Object
  */
 export class LoginPage extends BasePage {
-  readonly usernameInput: Locator;
-  readonly passwordInput: Locator;
-  readonly loginButton: Locator;
-  readonly errorMessage: Locator;
-
   // Page URLs
-  readonly loginUrl = '/auth/login';
+  public static get loginUrl(): string {
+    return "/auth/login";
+  }
 
-  constructor(page: any) {
+  public readonly errorMessage: Locator;
+  public readonly loginButton: Locator;
+  public readonly passwordInput: Locator;
+  public readonly usernameInput: Locator;
+
+  public constructor(page: Page) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super(page);
 
     this.usernameInput = page.locator('input[name="username"]');
@@ -42,38 +45,54 @@ export class LoginPage extends BasePage {
     this.errorMessage = page.locator('span:has-text("Invalid credentials")');
   }
 
-  async navigate(): Promise<void> {
-    await this.maximizeBrowser();
-    await this.navigateTo(this.loginUrl);
-  }
-  async navigateAndLogin(username: string, password: string): Promise<void> {
-    await this.navigate();
-    await this.login(username, password);
-  }
+  public async expectLoginSuccess(): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const currentUrl: string = this.page.url();
 
-  async login(username: string, password: string): Promise<void> {
+    if (currentUrl.includes("/login")) {
+      throw new Error(`Expected to be redirected after login, but still on: ${currentUrl}`);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const isLoggedIn: boolean = await this.isLoggedIn();
+
+    expect(isLoggedIn).toBe(true);
+  }
+  public async login(username: string, password: string): Promise<void> {
     await this.usernameInput.fill(username);
     await this.passwordInput.fill(password);
     await this.loginButton.click();
 
     try {
-      await this.page.waitForURL(url => !url.toString().includes('/login'), { timeout: 15000 });
-    } catch (error) {
-      const hasError = await this.errorMessage.isVisible().catch(() => false);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await this.page.waitForURL(
+        (url: URL) => {
+          const urlString: string = url.toString();
+
+          return !urlString.includes("/login");
+        },
+        { timeout: 15_000 },
+      );
+    } catch (error: unknown) {
+      const hasError: boolean = await this.errorMessage.isVisible().catch(() => false);
+
       if (hasError) {
-        throw new Error('Login failed with error message visible');
+        throw new Error("Login failed with error message visible");
       }
+
       throw error;
     }
   }
 
-
-  async expectLoginSuccess(): Promise<void> {
-    const currentUrl = this.page.url();
-    if (currentUrl.includes('/login')) {
-      throw new Error(`Expected to be redirected after login, but still on: ${currentUrl}`);
-    }
-    await expect(this.isLoggedIn()).resolves.toBe(true);
+  public async navigate(): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await this.maximizeBrowser();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await this.navigateTo(LoginPage.loginUrl);
   }
 
+  public async navigateAndLogin(username: string, password: string): Promise<void> {
+    await this.navigate();
+    await this.login(username, password);
+  }
 }

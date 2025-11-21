@@ -16,24 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from "@playwright/test";
 
-import { BasePage } from './BasePage';
+import { BasePage } from "./BasePage";
 
 /**
  * DAGs Page Object
  */
 export class DagsPage extends BasePage {
-  // Core page elements
-  readonly dagsTable: Locator;
-  readonly triggerButton: Locator;
-  readonly confirmButton: Locator;
-  readonly stateElement: Locator;
-
   // Page URLs
-  readonly dagsListUrl = '/dags';
+  public static get dagsListUrl(): string {
+    return "/dags";
+  }
 
-  constructor(page: any) {
+  // Core page elements
+  public readonly confirmButton: Locator;
+  public readonly dagsTable: Locator;
+  public readonly stateElement: Locator;
+  public readonly triggerButton: Locator;
+
+  public constructor(page: Page) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super(page);
     this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
@@ -42,99 +45,74 @@ export class DagsPage extends BasePage {
   }
 
   // URL builders for dynamic paths
-  getDagDetailUrl(dagName: string): string {
+  public static getDagDetailUrl(dagName: string): string {
     return `/dags/${dagName}`;
   }
 
-  getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
+  public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
     return `/dags/${dagName}/runs/${dagRunId}/details`;
   }
-
-
 
   /**
    * Navigate to DAGs list page
    */
-  async navigate(): Promise<void> {
-    await this.navigateTo(this.dagsListUrl);
+  public async navigate(): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await this.navigateTo(DagsPage.dagsListUrl);
   }
 
   /**
    * Navigate to DAG detail page
    */
-  async navigateToDagDetail(dagName: string): Promise<void> {
-    await this.navigateTo(this.getDagDetailUrl(dagName));
+  public async navigateToDagDetail(dagName: string): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
   /**
    * Trigger a DAG run
    */
-  async triggerDag(dagName: string): Promise<string | null> {
+  public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: 'visible', timeout: 10000 });
+    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
+
     return dagRunId;
   }
 
-  private async handleTriggerDialog(): Promise<string | null> {
-    await this.page.waitForTimeout(1000);
-
-    const responsePromise = this.page.waitForResponse(
-      response => {
-        const url = response.url();
-        const method = response.request().method();
-        return method === 'POST' && url.includes('dagRuns') && !url.includes('hitlDetails');
-      },
-      { timeout: 10000 }
-    ).catch(() => null);
-
-    await this.confirmButton.waitFor({ state: 'visible', timeout: 8000 });
-    await this.page.waitForTimeout(2000);
-    await this.confirmButton.click({ force: true });
-
-    const apiResponse = await responsePromise;
-    if (apiResponse) {
-      try {
-        const responseBody = await apiResponse.text();
-        const responseJson = JSON.parse(responseBody);
-        if (responseJson.dag_run_id) {
-          return responseJson.dag_run_id;
-        }
-      } catch (error) {
-        // Response parsing failed
-      }
-    }
-
-    return null;
-  }
-
-  async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
-    if (!dagRunId) {
+  public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    if (dagRunId === null || dagRunId === undefined || dagRunId === "") {
       return;
     }
 
-    await this.page.goto(this.getDagRunDetailsUrl(dagName, dagRunId), {
-      waitUntil: 'domcontentloaded',
-      timeout: 15000
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    await this.page.goto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
+      timeout: 15_000,
+      waitUntil: "domcontentloaded",
     });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await this.page.waitForTimeout(2000);
 
     const maxWaitTime = 5 * 60 * 1000;
-    const checkInterval = 10000;
+    const checkInterval = 10_000;
     const startTime = Date.now();
 
     while (Date.now() - startTime < maxWaitTime) {
       const currentStatus = await this.getCurrentDagRunStatus();
 
-      if (currentStatus === 'success') {
+      if (currentStatus === "success") {
         return;
-      } else if (currentStatus === 'failed') {
+      } else if (currentStatus === "failed") {
         throw new Error(`DAG run failed: ${dagRunId}`);
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await this.page.waitForTimeout(checkInterval);
-      await this.page.reload({ waitUntil: 'domcontentloaded' });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+      await this.page.reload({ waitUntil: "domcontentloaded" });
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await this.page.waitForTimeout(2000);
     }
 
@@ -143,23 +121,77 @@ export class DagsPage extends BasePage {
 
   private async getCurrentDagRunStatus(): Promise<string> {
     try {
-      const statusText = await this.stateElement.textContent().catch(() => '');
-      const status = statusText?.trim() || '';
+      const statusText = await this.stateElement.textContent().catch(() => "");
+      const status = statusText?.trim() ?? "";
 
       switch (status) {
-        case 'Success':
-          return 'success';
-        case 'Failed':
-          return 'failed';
-        case 'Running':
-          return 'running';
-        case 'Queued':
-          return 'queued';
+        case "Failed":
+          return "failed";
+        case "Queued":
+          return "queued";
+        case "Running":
+          return "running";
+        case "Success":
+          return "success";
         default:
-          return 'unknown';
+          return "unknown";
       }
-    } catch (error) {
-      return 'unknown';
+    } catch {
+      return "unknown";
     }
+  }
+
+  private async handleTriggerDialog(): Promise<string | null> {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    await this.page.waitForTimeout(1000);
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const responsePromise = this.page
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .waitForResponse(
+        (response) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+          const url = response.url();
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+          const method = response.request().method();
+
+          return (
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/strict-boolean-expressions
+            method === "POST" && Boolean(url.includes("dagRuns")) && Boolean(!url.includes("hitlDetails"))
+          );
+        },
+        { timeout: 10_000 },
+      )
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .catch(() => undefined);
+
+    await this.confirmButton.waitFor({ state: "visible", timeout: 8000 });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    await this.page.waitForTimeout(2000);
+    await this.confirmButton.click({ force: true });
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const apiResponse = await responsePromise;
+
+    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+    if (apiResponse) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+        const responseBody = await apiResponse.text();
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
+        const responseJson = JSON.parse(responseBody);
+
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+        if (Boolean(responseJson.dag_run_id)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+          return responseJson.dag_run_id;
+        }
+      } catch {
+        // Response parsing failed
+      }
+    }
+
+    // eslint-disable-next-line unicorn/no-null
+    return null;
   }
 }
