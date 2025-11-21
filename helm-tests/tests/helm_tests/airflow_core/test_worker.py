@@ -1677,14 +1677,14 @@ class TestWorkerKedaAutoScaler:
                 None,
                 "CeleryExecutor",
                 "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued') AND queue = 'default'",
+                " WHERE (state='running' OR state='queued') AND queue IN ('default')",
             ),
             # default query with CeleryKubernetesExecutor
             (
                 None,
                 "CeleryKubernetesExecutor",
                 "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued') AND queue = 'default' AND queue != 'kubernetes'",
+                " WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
             ),
             # test custom static query
             (

@@ -795,7 +795,7 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      AND queue = '{{ .Values.workers.queue }}'
+      AND queue IN ({{- range $i, $q := splitList "," .Values.workers.queue -}}{{ if $i }},{{ end }}'{{ $q | trim }}'{{- end -}})
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
