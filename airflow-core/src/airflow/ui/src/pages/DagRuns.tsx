@@ -104,7 +104,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
   {
