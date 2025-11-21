@@ -59,6 +59,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",

@@ -30,13 +30,15 @@ from airflowctl_tests.constants import (
     DOCKER_IMAGE,
 )
 
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
 docker_client = None
 
 
 # Pytest hook to run at the start of the session
 def pytest_sessionstart(session):
     """Install airflowctl at the very start of the pytest session."""
-    airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
+    airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "0.1.0")
     console.print(f"[yellow]Installing apache-airflow-ctl=={airflow_ctl_version} via pytest_sessionstart...")
 
     airflow_ctl_path = AIRFLOW_ROOT_PATH / "airflow-ctl"
@@ -165,6 +167,11 @@ def docker_compose_up(tmp_path_factory):
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
     os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
     os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
+    #
+    # Please Do not use this Fernet key in any deployments! Please generate your own key.
+    # This is specifically generated for integration tests and not as default.
+    #
+    os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Initialize Docker client
     docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])

@@ -24,7 +24,7 @@ PyPI <https://pypi.org/project/apache-airflow/>`__.
 Installation tools
 ''''''''''''''''''
 
-Only ``pip`` installation is currently officially supported.
+Only ``pip`` and ``uv`` installation is currently officially supported.
 
 .. note::
 
@@ -33,7 +33,8 @@ Only ``pip`` installation is currently officially supported.
   ``pip`` - especially when it comes to constraint vs. requirements management.
   Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install Airflow
   using those tools you should use the constraints and convert them to appropriate
-  format and workflow that your tool requires.
+  format and workflow that your tool requires. Uv follows ``pip`` approach
+  with ``uv pip`` so it should work similarly.
 
 
 Typical command to install Airflow from scratch in a reproducible way from PyPI looks like below:

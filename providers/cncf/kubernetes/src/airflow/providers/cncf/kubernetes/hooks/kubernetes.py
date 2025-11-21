@@ -939,7 +939,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 logs = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
-                    container_name=container_name,
+                    container=container_name,
                     follow=False,
                     timestamps=True,
                     since_seconds=since_seconds,

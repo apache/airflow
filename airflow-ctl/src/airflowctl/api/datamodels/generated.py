@@ -172,6 +172,7 @@ class ClearTaskInstancesBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = False
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
 class Value(RootModel[list]):
@@ -1312,6 +1313,7 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1734,7 +1736,7 @@ class TaskResponse(BaseModel):
     pool_slots: Annotated[float | None, Field(title="Pool Slots")] = None
     execution_timeout: TimeDelta | None = None
     retry_delay: TimeDelta | None = None
-    retry_exponential_backoff: Annotated[bool, Field(title="Retry Exponential Backoff")]
+    retry_exponential_backoff: Annotated[float, Field(title="Retry Exponential Backoff")]
     priority_weight: Annotated[float | None, Field(title="Priority Weight")] = None
     weight_rule: Annotated[str | None, Field(title="Weight Rule")] = None
     ui_color: Annotated[str | None, Field(title="Ui Color")] = None
