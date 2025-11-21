@@ -19,201 +19,73 @@
 
 # Airflow UI End-to-End Tests
 
-This directory contains end-to-end (E2E) tests for the Airflow UI using Playwright.
+UI automation tests using Playwright for critical Airflow workflows.
 
-## Overview
+## Prerequisites
 
-These tests focus on **critical user workflows** to catch regressions while maintaining a manageable test suite:
+**Requires running Airflow with example DAGs:**
 
-- ✅ **Authentication flow** - Login/logout functionality
-- ✅ **DAG management** - Triggering DAGs and basic operations
-- ✅ **Navigation** - Core UI navigation and page loading
+- Airflow running on `http://localhost:28080` (default)
+- Admin user: `admin/admin`
+- Example DAGs loaded (uses `example_bash_operator`)
 
-Following the **test pyramid approach**, we maintain a small set of high-value E2E tests while expanding unit test coverage.
+## Running Tests
 
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+ and pnpm installed
-- Running Airflow instance with test data
-- Test user credentials (default: admin/admin)
-
-### Installation
+### Using Breeze
 
 ```bash
-# Install dependencies
-pnpm install
+# Basic run
+breeze testing ui-e2e-tests
 
-# Install Playwright browsers
-pnpm test:e2e:install
+# Specific test with browser visible
+breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts" --headed
+
+# Different browsers
+breeze testing ui-e2e-tests --browser firefox --headed
+breeze testing ui-e2e-tests --browser webkit --headed
 ```
 
-### Running Tests
+### Using pnpm directly
 
 ```bash
-# Run all E2E tests (headless)
-pnpm test:e2e
+cd airflow-core/src/airflow/ui
 
-# Run with visible browser (development)
-pnpm test:e2e:headed
+# Install dependencies
+pnpm install
+pnpm exec playwright install
 
-# Run in interactive UI mode (debugging)
-pnpm test:e2e:ui
-
-# Run specific test file
-pnpm test:e2e tests/e2e/specs/dag-trigger.spec.ts
+# Run tests
+pnpm test:e2e:headed                    # Show browser
+pnpm test:e2e:ui                       # Interactive debugging
 ```
 
 ## Test Structure
 
 ```
 tests/e2e/
-├── pages/              # Page Object Models
-│   ├── BasePage.ts     # Common page functionality
-│   ├── LoginPage.ts    # Authentication
-│   └── DagsPage.ts     # DAG operations
-└── specs/              # Test specifications
-    ├── dag-trigger.spec.ts   # DAG triggering workflow
-    └── dag-list.spec.ts      # DAG navigation workflow
+├── pages/           # Page Object Models
+└── specs/           # Test files
 ```
 
 ## Configuration
 
-### Environment Variables
-
-Set these for your test environment:
+Set environment variables if needed:
 
 ```bash
-# Test credentials
+export AIRFLOW_UI_BASE_URL=http://localhost:28080
 export TEST_USERNAME=admin
 export TEST_PASSWORD=admin
-
-# Test DAG (should exist in your instance)
 export TEST_DAG_ID=example_bash_operator
-
-# Airflow URL
-export AIRFLOW_UI_BASE_URL=http://localhost:8080
 ```
 
-### Browser Selection
-
-Tests run on Chromium by default. To test other browsers:
+## Debugging
 
 ```bash
-# Firefox
-pnpm test:e2e --project=firefox
+# Step through tests
+breeze testing ui-e2e-tests --debug-e2e
 
-# WebKit (Safari)
-pnpm test:e2e --project=webkit
+# View test report
+pnpm exec playwright show-report
 ```
 
-## Test Development Guidelines
-
-### Writing Tests
-
-1. **Follow Page Object Model** - Keep selectors and actions in page objects
-2. **Robust Selectors** - Use multiple fallback selectors for UI flexibility
-3. **Explicit Waits** - Always wait for elements/states, never use fixed delays
-4. **Clear Test Names** - Describe the user workflow being tested
-
-### Example Test Structure
-
-```typescript
-test('should complete user workflow', async ({ page }) => {
-  // Step 1: Setup/Authentication
-  const loginPage = new LoginPage(page);
-  await loginPage.login('admin', 'admin');
-
-  // Step 2: Navigate
-  const dagsPage = new DagsPage(page);
-  await dagsPage.navigate();
-
-  // Step 3: Perform action
-  await dagsPage.triggerDag('test_dag');
-
-  // Step 4: Verify result
-  await dagsPage.verifyDagTriggered('test_dag');
-});
-```
-
-### Debugging Failed Tests
-
-```bash
-# Run in debug mode (step through test)
-pnpm test:e2e:debug
-
-# Generate test code interactively
-pnpm exec playwright codegen http://localhost:8080
-
-# View last test report
-pnpm test:e2e:report
-```
-
-## CI/CD Integration
-
-Tests run automatically on:
-
-- Pull requests affecting UI or API code
-- Pushes to main branch
-- Manual workflow dispatch
-
-### Artifacts
-
-On failure, CI uploads:
-
-- Screenshots of failed tests
-- Videos of test execution
-- Playwright trace files
-- HTML test report
-
-## Maintenance Notes
-
-### Selector Strategy
-
-Page objects use multiple selector strategies for robustness:
-
-```typescript
-// Multiple fallbacks for different UI implementations
-this.loginButton = page.locator([
-  '[data-testid="login-button"]',  // Preferred: test IDs
-  'button[type="submit"]',         // Semantic: form buttons
-  'button:has-text("Login")',      // Content: button text
-  '.login-form button'             // Fallback: CSS classes
-].join(', ')).first();
-```
-
-### Adding New Tests
-
-1. **Check existing coverage** - Avoid duplicating test scenarios
-2. **Focus on user workflows** - Test complete user journeys, not individual components
-3. **Consider maintenance cost** - E2E tests are expensive to maintain
-4. **Add to CI selectively** - Not every test needs to run on every PR
-
-## Community Guidelines
-
-This implementation follows the Airflow community's feedback:
-
-- **Limited scope** - Critical workflows only (~10-15 scenarios max)
-- **TypeScript** - Familiar to UI developers
-- **Robust tooling** - Good debugging and failure analysis
-- **CI integration** - Smart triggering to avoid slowing development
-
-## Getting Help
-
-- **Local development issues** - Check Playwright documentation
-- **CI failures** - Review artifacts and trace files
-- **Test maintenance** - Refer to Page Object Model patterns
-- **Community discussion** - Join #dev channel on Airflow Slack
-
-## Contributing
-
-When adding new E2E tests:
-
-1. Discuss scope on the dev mailing list first
-2. Follow existing patterns and conventions
-3. Include comprehensive error handling
-4. Update documentation for new workflows
-5. Test locally across different browsers
-
-Remember: E2E tests should focus on **critical user journeys** that would be difficult to catch with unit tests alone.
+Find test artifacts in `test-results/` and reports in `playwright-report/`.
