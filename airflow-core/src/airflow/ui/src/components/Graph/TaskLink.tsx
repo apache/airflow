@@ -17,9 +17,10 @@
  * under the License.
  */
 import { forwardRef } from "react";
-import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
+import { useParams, useSearchParams, useLocation, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
+import { buildTaskUrl } from "src/utils/links";
 
 type Props = {
   readonly id: string;
@@ -28,18 +29,26 @@ type Props = {
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
   const { dagId = "", groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+  const { pathname } = useLocation();
 
-  const basePath = `/dags/${dagId}${runId === undefined ? "" : `/runs/${runId}`}`;
-  const taskPath = isGroup
-    ? groupId === id
-      ? ""
-      : `/tasks/group/${id}`
-    : taskId === id
-      ? ""
-      : `/tasks/${id}${isMapped && taskId !== id && runId !== undefined ? "/mapped" : ""}`;
+  // If clicking on the same task/group, don't navigate
+  const isSameTask = isGroup ? groupId === id : taskId === id;
+
+  if (isSameTask) {
+    return <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />;
+  }
+
+  const taskPath = buildTaskUrl({
+    currentPathname: pathname,
+    dagId,
+    isGroup,
+    isMapped,
+    runId,
+    taskId: id,
+  });
 
   return (
-    <RouterLink ref={ref} to={{ pathname: basePath + taskPath, search: searchParams.toString() }}>
+    <RouterLink ref={ref} to={{ pathname: taskPath, search: searchParams.toString() }}>
       <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />
     </RouterLink>
   );

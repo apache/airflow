@@ -47,6 +47,43 @@ export const getRedirectPath = (targetPath: string): string => {
   return new URL(targetPath, baseUrl).pathname;
 };
 
+const runSubRoutes = ["required_actions", "asset_events", "events", "code", "details"];
+const taskSubRoutes = ["task_instances", "required_actions", "events"];
+
+export const getDagRunAdditionalPath = (pathname: string): string => {
+  const runRegex = /\/runs\/[^/]+\/(?<subRoute>.+)$/u;
+  const runMatch = runRegex.exec(pathname);
+
+  if (runMatch?.groups?.subRoute !== undefined) {
+    const { subRoute } = runMatch.groups;
+
+    // Only preserve if it's a known dag run route or plugin route
+    if (runSubRoutes.includes(subRoute) || subRoute.startsWith("plugin/")) {
+      return `/${subRoute}`;
+    }
+  }
+
+  return "";
+};
+
+export const getTaskAdditionalPath = (pathname: string): string => {
+  // Look for patterns like /dags/{dagId}/tasks/{taskId}/{sub-route}
+  // or /dags/{dagId}/runs/{runId}/tasks/... (should skip this one)
+  const taskRegex = /\/dags\/[^/]+\/tasks\/(?:group\/)?[^/]+\/(?<subRoute>.+)$/u;
+  const taskMatch = taskRegex.exec(pathname);
+
+  if (taskMatch?.groups?.subRoute !== undefined) {
+    const { subRoute } = taskMatch.groups;
+
+    // Only preserve if it's a known task route or plugin route
+    if (taskSubRoutes.includes(subRoute) || subRoute.startsWith("plugin/")) {
+      return `/${subRoute}`;
+    }
+  }
+
+  return "";
+};
+
 export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
   // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
@@ -71,6 +108,43 @@ export const getTaskInstanceAdditionalPath = (pathname: string): string => {
   }
 
   return "";
+};
+
+export const buildTaskUrl = (params: {
+  currentPathname: string;
+  dagId: string;
+  isGroup?: boolean;
+  isMapped?: boolean;
+  runId?: string;
+  taskId: string;
+}): string => {
+  const { currentPathname, dagId, isGroup = false, isMapped = false, runId, taskId } = params;
+
+  // If it's a mapped task with runId, return the mapped path without preserving tabs
+  // (mapped tasks navigate to a list view, not a detail view with tabs)
+  if (isMapped && runId !== undefined) {
+    return `/dags/${dagId}/runs/${runId}/tasks/${taskId}/mapped`;
+  }
+
+  const groupPath = isGroup ? "group/" : "";
+  // Task groups only have default view, so never preserve tabs for groups
+  const additionalPath = isGroup ? "" : getTaskAdditionalPath(currentPathname);
+
+  const basePath =
+    runId === undefined
+      ? `/dags/${dagId}/tasks/${groupPath}${taskId}`
+      : `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}`;
+
+  return `${basePath}${additionalPath}`;
+};
+
+export const buildDagRunUrl = (params: { currentPathname: string; dagId: string; runId: string }): string => {
+  const { currentPathname, dagId, runId } = params;
+  const additionalPath = getDagRunAdditionalPath(currentPathname);
+
+  const basePath = `/dags/${dagId}/runs/${runId}`;
+
+  return `${basePath}${additionalPath}`;
 };
 
 export const buildTaskInstanceUrl = (params: {

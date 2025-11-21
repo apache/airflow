@@ -22,7 +22,7 @@ import dayjsDuration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams, useLocation } from "react-router-dom";
 
 import { useStructureServiceStructureData } from "openapi/queries";
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
@@ -57,6 +57,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
   const [searchParams] = useSearchParams();
+  const { pathname } = useLocation();
 
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
@@ -167,7 +168,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
       width={showGantt ? "1/2" : "full"}
     >
       <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
-        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
+        <TaskNames currentPathname={pathname} nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">
         <Flex position="relative">
@@ -186,6 +187,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           <Flex flexDirection="row-reverse">
             {gridRuns?.map((dr: GridRunsResponse) => (
               <Bar
+                currentPathname={pathname}
                 key={dr.run_id}
                 max={max}
                 nodes={flatNodes}
