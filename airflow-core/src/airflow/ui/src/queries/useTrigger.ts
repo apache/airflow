@@ -63,31 +63,19 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     }
   };
 
-  const onError = (_error: unknown) => {
+  const onError = (_error: Error) => {
     // Check if error is a 403 (Forbidden) status
     if (isHttpError(_error, 403)) {
       toaster.create({
-        description: translate(
-          "triggerDag.toaster.error.forbidden.description",
-          "You don't have permission to trigger this DAG",
-        ),
-        title: translate("triggerDag.toaster.error.forbidden.title", "Permission Denied"),
-        type: "error",
-      });
-    } else if (isHttpError(_error, 401)) {
-      toaster.create({
-        description: translate(
-          "triggerDag.toaster.error.unauthorized.description",
-          "Please log in to trigger DAGs",
-        ),
-        title: translate("triggerDag.toaster.error.unauthorized.title", "Authentication Required"),
+        description: _error.message,
+        title: translate("triggerDag.toaster.error.forbidden.title", "Trigger DAG Permission Denied"),
         type: "error",
       });
     } else {
       // Generic error handling for other status codes
       toaster.create({
-        description: translate("triggerDag.toaster.error.generic.description", "Failed to trigger DAG"),
-        title: translate("triggerDag.toaster.error.generic.title", "Error"),
+        description: _error.message,
+        title: translate("triggerDag.toaster.error.generic.title", "Failed to Trigger DAG"),
         type: "error",
       });
     }
@@ -124,9 +112,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
   return {
     error,
-    isForbidden: isHttpError(error, 403),
     isPending,
-    isUnauthorized: isHttpError(error, 401),
     triggerDagRun,
   };
 };
