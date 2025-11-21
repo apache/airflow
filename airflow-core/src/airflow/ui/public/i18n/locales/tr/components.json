@@ -88,6 +88,14 @@
     "taskGroup": "Görev Grubu"
   },
   "limitedList": "+{{count}} daha",
+  "limitedList.allItems": "Tüm {{count}} öğeler:",
+  "limitedList.allTags_one": "Tüm Etiketler (1)",
+  "limitedList.allTags_other": "Tüm Etiketler ({{count}})",
+  "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
+  "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
+  "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
+  "limitedList.showingItems_one": "1 öğe gösteriliyor",
+  "limitedList.showingItems_other": "{{count}} öğeler gösteriliyor",
   "logs": {
     "file": "Dosya",
     "location": "{{name}} içinde satır {{line}}"

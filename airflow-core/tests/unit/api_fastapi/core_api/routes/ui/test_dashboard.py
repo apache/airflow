@@ -28,6 +28,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -237,7 +238,7 @@ def make_multiple_dags(dag_maker, session):
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"},
@@ -309,7 +310,8 @@ class TestHistoricalMetricsDataEndpoint:
     )
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200(self, test_client, params, expected):
-        response = test_client.get("/dashboard/historical_metrics_data", params=params)
+        with assert_queries_count(4):
+            response = test_client.get("/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -329,7 +331,8 @@ class TestHistoricalMetricsDataEndpoint:
 class TestDagStatsEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_multiple_dags")
     def test_should_response_200_multiple_dags(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 4,
@@ -340,7 +343,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_should_response_200_single_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -351,7 +355,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_failed_dag_runs")
     def test_should_response_200_failed_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -362,7 +367,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_queued_dag_runs")
     def test_should_response_200_queued_dag(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 1,
@@ -373,7 +379,8 @@ class TestDagStatsEndpoint:
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns")
     def test_should_response_200_no_dag_runs(self, test_client):
-        response = test_client.get("/dashboard/dag_stats")
+        with assert_queries_count(3):
+            response = test_client.get("/dashboard/dag_stats")
         assert response.status_code == 200
         assert response.json() == {
             "active_dag_count": 0,

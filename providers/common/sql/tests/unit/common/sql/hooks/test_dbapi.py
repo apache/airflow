@@ -19,17 +19,16 @@ from __future__ import annotations
 
 import json
 import logging
-import logging.config
 from unittest import mock
 
 import pytest
 from pyodbc import Cursor
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -577,9 +576,8 @@ class TestDbApiHook:
         assert result == [obj, obj]
 
     def test_run_no_queries(self):
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_run_and_log_db_messages(self):
         statement = "SQL"

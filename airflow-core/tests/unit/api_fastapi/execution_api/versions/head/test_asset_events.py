@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from airflow._shared.timezones import timezone
@@ -29,6 +31,9 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture
 def test_asset_events(session):
+    def make_timestamp(day):
+        return datetime(2021, 1, day, tzinfo=timezone.utc)
+
     common = {
         "asset_id": 1,
         "extra": {"foo": "bar"},
@@ -36,9 +41,10 @@ def test_asset_events(session):
         "source_task_id": "bar",
         "source_run_id": "custom",
         "source_map_index": -1,
+        "partition_key": None,
     }
 
-    events = [AssetEvent(id=i, timestamp=DEFAULT_DATE, **common) for i in (1, 2)]
+    events = [AssetEvent(id=i, timestamp=make_timestamp(i), **common) for i in (1, 2, 3)]
     session.add_all(events)
     session.commit()
     yield events
@@ -86,7 +92,7 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
 class TestGetAssetEventByAsset:
     @pytest.mark.parametrize(
-        "uri, name",
+        ("uri", "name"),
         [
             (None, "test_get_asset_by_name"),
             ("s3://bucket/key", None),
@@ -117,6 +123,7 @@ class TestGetAssetEventByAsset:
                         "uri": "s3://bucket/key",
                     },
                     "timestamp": "2021-01-01T00:00:00Z",
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -132,7 +139,320 @@ class TestGetAssetEventByAsset:
                         "uri": "s3://bucket/key",
                     },
                     "created_dagruns": [],
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 3,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-03T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_with_after_filter(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "after": "2021-01-02T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 2,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 3,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-03T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_with_before_filter(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "before": "2021-01-02T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 1,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 2,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_with_before_and_after_filters(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={
+                "name": name,
+                "uri": uri,
+                "before": "2021-01-02T12:00:00Z",
+                "after": "2021-01-01T12:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 2,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_with_descending_order(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "ascending": False},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 3,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-03T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 2,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 1,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-01T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_get_first(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "limit": 1},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 1,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-01T00:00:00Z",
+                    "partition_key": None,
+                },
+            ]
+        }
+
+    @pytest.mark.parametrize(
+        ("uri", "name"),
+        [
+            (None, "test_get_asset_by_name"),
+            ("s3://bucket/key", None),
+            ("s3://bucket/key", "test_get_asset_by_name"),
+        ],
+    )
+    @pytest.mark.usefixtures("test_asset", "test_asset_events")
+    def test_get_by_asset_get_last(self, uri, name, client):
+        response = client.get(
+            "/execution/asset-events/by-asset",
+            params={"name": name, "uri": uri, "limit": 1, "ascending": False},
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "asset_events": [
+                {
+                    "id": 3,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-03T00:00:00Z",
+                    "partition_key": None,
                 },
             ]
         }
@@ -163,6 +483,7 @@ class TestGetAssetEventByAssetAlias:
                     },
                     "created_dagruns": [],
                     "timestamp": "2021-01-01T00:00:00Z",
+                    "partition_key": None,
                 },
                 {
                     "id": 2,
@@ -178,7 +499,25 @@ class TestGetAssetEventByAssetAlias:
                         "uri": "s3://bucket/key",
                     },
                     "created_dagruns": [],
-                    "timestamp": "2021-01-01T00:00:00Z",
+                    "timestamp": "2021-01-02T00:00:00Z",
+                    "partition_key": None,
+                },
+                {
+                    "id": 3,
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "bar",
+                    "source_dag_id": "foo",
+                    "source_run_id": "custom",
+                    "source_map_index": -1,
+                    "asset": {
+                        "extra": {"foo": "bar"},
+                        "group": "asset",
+                        "name": "test_get_asset_by_name",
+                        "uri": "s3://bucket/key",
+                    },
+                    "created_dagruns": [],
+                    "timestamp": "2021-01-03T00:00:00Z",
+                    "partition_key": None,
                 },
             ]
         }

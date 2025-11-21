@@ -275,18 +275,26 @@ class TestProviderManager:
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_connection_form_widgets(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
-        assert len(connections_form_widgets) > 29
+        # Connection form widgets use flask_appbuilder widgets, so they're only available when it's installed
+        try:
+            import flask_appbuilder  # noqa: F401
+
+            assert len(connections_form_widgets) > 29
+        except ImportError:
+            assert len(connections_form_widgets) == 0
 
     def test_field_behaviours(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        assert len(connections_with_field_behaviours) > 16
+        # Field behaviours are often related to connection forms, only available when flask_appbuilder is installed
+        try:
+            import flask_appbuilder  # noqa: F401
+
+            assert len(connections_with_field_behaviours) > 16
+        except ImportError:
+            assert len(connections_with_field_behaviours) == 0
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
@@ -354,7 +362,7 @@ class TestProviderManager:
 
 
 @pytest.mark.parametrize(
-    "value, expected_outputs,",
+    ("value", "expected_outputs"),
     [
         ("a", "a"),
         (1, 1),

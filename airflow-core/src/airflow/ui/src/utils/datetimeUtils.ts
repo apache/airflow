@@ -18,22 +18,27 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
 import tz from "dayjs/plugin/timezone";
 
 dayjs.extend(dayjsDuration);
+dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
 export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-export const renderDuration = (durationSeconds: number | null | undefined): string | undefined => {
+export const renderDuration = (
+  durationSeconds: number | null | undefined,
+  withMilliseconds: boolean = true,
+): string | undefined => {
   if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
     return undefined;
   }
 
-  // If under 10 seconds, render as 9s
-  if (durationSeconds < 10) {
-    return `${durationSeconds.toFixed(2)}s`;
+  // If under 60 seconds, render milliseconds
+  if (durationSeconds < 60 && withMilliseconds) {
+    return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
   }
 
   // If under 1 day, render as HH:mm:ss otherwise include the number of days
@@ -58,4 +63,12 @@ export const formatDate = (
   }
 
   return dayjs(date).tz(timezone).format(format);
+};
+
+export const getRelativeTime = (date: string | null | undefined): string => {
+  if (date === null || date === "" || date === undefined) {
+    return "";
+  }
+
+  return dayjs(date).fromNow();
 };

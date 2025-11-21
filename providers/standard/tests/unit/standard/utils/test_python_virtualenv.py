@@ -77,7 +77,7 @@ class TestPrepareVirtualenv:
         for term in unexpected_pip_conf_content:
             assert term not in generated_conf
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -86,7 +86,7 @@ class TestPrepareVirtualenv:
         assert python_bin == "/VENV/bin/python"
         mock_execute_in_subprocess.assert_called_once_with(["pythonVER", "-m", "venv", "/VENV"])
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_uv(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -97,7 +97,7 @@ class TestPrepareVirtualenv:
             ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", "/VENV"]
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_with_system_packages_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -108,7 +108,7 @@ class TestPrepareVirtualenv:
             ["pythonVER", "-m", "venv", "/VENV", "--system-site-packages"]
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_with_system_packages_uv(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -128,7 +128,7 @@ class TestPrepareVirtualenv:
             ]
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_pip_install_options_pip(self, mock_execute_in_subprocess):
         pip_install_options = ["--no-deps"]
@@ -146,7 +146,7 @@ class TestPrepareVirtualenv:
             env=mock.ANY,
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_pip_install_options_uv(self, mock_execute_in_subprocess):
         pip_install_options = ["--no-deps"]
@@ -172,7 +172,7 @@ class TestPrepareVirtualenv:
             env=mock.ANY,
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_with_extra_packages_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -189,7 +189,7 @@ class TestPrepareVirtualenv:
             ["/VENV/bin/pip", "install", "apache-beam[gcp]"], env=mock.ANY
         )
 
-    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_with_extra_packages_uv(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
@@ -206,7 +206,7 @@ class TestPrepareVirtualenv:
         )
 
     @pytest.mark.parametrize(
-        "decorators, expected_decorators",
+        ("decorators", "expected_decorators"),
         [
             (["@task.virtualenv"], []),
             (["@task.virtualenv()"], []),

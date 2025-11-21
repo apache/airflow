@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -90,7 +90,7 @@ class Param:
         if value is not NOTSET:
             self._check_json(value)
         final_val = self.value if value is NOTSET else value
-        if isinstance(final_val, ArgNotSet):
+        if not is_arg_set(final_val):
             if suppress_exception:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
@@ -137,7 +137,6 @@ class ParamsDict(MutableMapping[str, Any]):
     if they are not already. This class is to replace param's dictionary implicitly
     and ideally not needed to be used directly.
 
-
     :param dict_obj: A dict or dict like object to init ParamsDict
     :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
     """
@@ -158,6 +157,9 @@ class ParamsDict(MutableMapping[str, Any]):
         if isinstance(other, dict):
             return self.dump() == other
         return NotImplemented
+
+    def __hash__(self):
+        return hash(self.dump())
 
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
@@ -330,7 +332,7 @@ def process_params(
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     dagrun_conf = dagrun_conf or {}
 

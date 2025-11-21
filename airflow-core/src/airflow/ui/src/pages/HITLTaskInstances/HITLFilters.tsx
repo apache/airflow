@@ -18,18 +18,25 @@
  */
 import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
-  const [urlSearchParams] = useSearchParams();
-  const responseReceived = urlSearchParams.get(SearchParamsKeys.RESPONSE_RECEIVED);
 
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+    const fixedKeys: Array<FilterableSearchParamsKeys> = [
+      SearchParamsKeys.RESPONSE_RECEIVED,
+      SearchParamsKeys.RESPONDED_BY_USER_NAME,
+      SearchParamsKeys.MAP_INDEX,
+      SearchParamsKeys.SUBJECT_SEARCH,
+      SearchParamsKeys.BODY_SEARCH,
+      SearchParamsKeys.CREATED_AT_RANGE,
+    ];
+
     const keys: Array<FilterableSearchParamsKeys> = [];
 
     if (dagId === "~") {
@@ -40,34 +47,10 @@ export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: (
       keys.push(SearchParamsKeys.TASK_ID_PATTERN);
     }
 
-    keys.push(SearchParamsKeys.RESPONSE_RECEIVED);
-
-    return keys;
+    return [...keys, ...fixedKeys];
   }, [dagId, taskId]);
 
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
-
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
-
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
-      }
-    });
-
-    values[SearchParamsKeys.RESPONSE_RECEIVED] = responseReceived;
-
-    return values;
-  }, [filterConfigs, responseReceived, searchParams]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <VStack align="start" pt={2}>

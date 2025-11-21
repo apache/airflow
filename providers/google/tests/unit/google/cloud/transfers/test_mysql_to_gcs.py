@@ -99,7 +99,7 @@ class TestMySqlToGoogleCloudStorageOperator:
         assert op.field_delimiter == "|"
 
     @pytest.mark.parametrize(
-        "value, schema_type, expected",
+        ("value", "schema_type", "expected"),
         [
             ("string", None, "string"),
             (datetime.date(1970, 1, 2), None, "1970-01-02 00:00:00"),
@@ -369,7 +369,7 @@ class TestMySqlToGoogleCloudStorageOperator:
             op.execute(None)
 
     @pytest.mark.parametrize(
-        "connection_port, default_port, expected_port",
+        ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
     )
     def test_execute_openlineage_events(self, connection_port, default_port, expected_port):

@@ -40,10 +40,12 @@ def tigger_workflow(workflow_name: str, repo: str, branch: str = "main", **kwarg
     command = ["gh", "workflow", "run", workflow_name, "--ref", branch, "--repo", repo]
 
     # These are the input parameters to workflow
-    for key, value in kwargs.items():
+    for key, value_raw in kwargs.items():
         # GH cli requires bool inputs to be converted to string format
-        if isinstance(value, bool):
-            value = "true" if value else "false"
+        if isinstance(value_raw, bool):
+            value = "true" if value_raw else "false"
+        else:
+            value = value_raw
 
         command.extend(["-f", f"{key}={value}"])
 

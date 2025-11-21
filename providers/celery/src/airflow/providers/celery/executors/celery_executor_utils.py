@@ -29,7 +29,6 @@ import os
 import subprocess
 import sys
 import traceback
-import warnings
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any
@@ -42,9 +41,10 @@ from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS, timeout
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import timeout
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -100,16 +100,6 @@ def _get_celery_app() -> Celery:
         celery_configuration = DEFAULT_CELERY_CONFIG
 
     celery_app_name = conf.get("celery", "CELERY_APP_NAME")
-    if celery_app_name == "airflow.executors.celery_executor":
-        warnings.warn(
-            "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
-            "'airflow.executors.celery_executor'. "
-            "Change it to `airflow.providers.celery.executors.celery_executor`, and "
-            "update the `-app` flag in your Celery Health Checks "
-            "to use `airflow.providers.celery.executors.celery_executor.app`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     return Celery(celery_app_name, config_source=celery_configuration)
 
@@ -122,7 +112,7 @@ def on_celery_import_modules(*args, **kwargs):
     """
     Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
-    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
+    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long-running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
@@ -247,7 +237,14 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
+        subprocess.run(
+            command_to_exec,
+            check=False,
+            stderr=sys.__stderr__,
+            stdout=sys.__stdout__,
+            close_fds=True,
+            env=env,
+        )
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)

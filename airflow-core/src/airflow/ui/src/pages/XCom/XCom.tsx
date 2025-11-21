@@ -18,6 +18,7 @@
  */
 import { Box, Heading, Link, Flex, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -27,6 +28,7 @@ import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
+import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -71,7 +73,7 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
     header: translate("common:runId"),
   },
   {
-    accessorKey: "task_id",
+    accessorKey: "task_display_name",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
@@ -82,17 +84,23 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
             taskId: original.task_id,
           })}
         >
-          <TruncatedText text={original.task_id} />
+          <TruncatedText text={original.task_display_name} />
         </RouterLink>
       </Link>
     ),
     enableSorting: false,
-    header: translate("common:taskId"),
+    header: translate("common:task_one"),
   },
   {
     accessorKey: "map_index",
     enableSorting: false,
     header: translate("common:mapIndex"),
+  },
+  {
+    accessorKey: "timestamp",
+    cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
+    enableSorting: false,
+    header: translate("dashboard:timestamp"),
   },
   {
     cell: ({ row: { original } }) => (
@@ -154,6 +162,8 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
+  const memoizedColumns = useMemo(() => columns(translate, open), [translate, open]);
+
   return (
     <Box>
       {dagId === "~" && runId === "~" && taskId === "~" ? (
@@ -172,7 +182,7 @@ export const XCom = () => {
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={columns(translate, open)}
+        columns={memoizedColumns}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}
