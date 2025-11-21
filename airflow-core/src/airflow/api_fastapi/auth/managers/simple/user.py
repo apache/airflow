@@ -32,10 +32,13 @@ class SimpleAuthManagerUser(BaseUser):
         self.role = role
 
     def get_id(self) -> str:
-        return self.username
+        return self.username or ""
 
     def get_name(self) -> str:
-        return self.username
+        return self.username or ""
 
     def get_role(self) -> str | None:
         return self.role
+
+    def get_groups(self):
+        return []

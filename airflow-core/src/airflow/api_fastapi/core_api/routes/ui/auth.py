@@ -50,16 +50,16 @@ def get_current_user(
     auth_manager = get_auth_manager()
     if auth_manager.get_auth_manager_type() == "SimpleAuthManager":
         return SimpleAuthenticatedMeResponse(
-            username=user.username,
-            role=user.role,
+            username=user.username or "",
+            role=user.role or "",
         )
 
     if auth_manager.get_auth_manager_type() == "FabAuthManager":
         return FabAuthenticatedMeResponse(
-            id=user.id if user.id is not None else "",
+            id=user.id or "",
             first_name=user.first_name or "",
             last_name=user.last_name or "",
-            username=user.username,
+            username=user.username or "",
             email=user.email or "",
             roles=[str(r) for r in user.roles] if user.roles is not None else None,
         )
