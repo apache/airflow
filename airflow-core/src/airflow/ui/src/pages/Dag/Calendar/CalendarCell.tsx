@@ -97,7 +97,7 @@ export const CalendarCell = ({
   }
 
   return (
-    <BasicTooltip content={<CalendarTooltip cellData={cellData} viewMode={viewMode} />} placement="bottom">
+    <BasicTooltip content={<CalendarTooltip cellData={cellData} viewMode={viewMode} />}>
       {cellBox}
     </BasicTooltip>
   );
