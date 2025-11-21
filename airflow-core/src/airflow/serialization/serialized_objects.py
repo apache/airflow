@@ -137,6 +137,7 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.timetables.simple import PartitionMapper
     from airflow.triggers.base import BaseEventTrigger
 
     try:
@@ -241,6 +242,18 @@ class _TimetableNotRegistered(ValueError):
     def __str__(self) -> str:
         return (
             f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+class _PartitionMapperNotFound(ValueError):
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"PartitionMapper class {self.type_string!r} could not be imported or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
@@ -457,6 +470,45 @@ def decode_timetable(var: dict[str, Any]) -> Timetable:
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
     return timetable_class.deserialize(var[Encoding.VAR])
+
+
+def _load_partition_mapper(importable_string) -> PartitionMapper | None:
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    else:
+        return None
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+    """
+    Encode a PartitionMapper instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+
+    :meta private:
+    """
+    partition_mapper_class = type(var)
+    importable_string = qualname(partition_mapper_class)
+    if _load_partition_mapper(importable_string) is None:
+        raise _PartitionMapperNotFound(importable_string)
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
+
+
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
+    """
+    Decode a previously serialized PartitionMapper.
+
+    Most of the deserialization logic is delegated to the actual type, which
+    we import from string.
+
+    :meta private:
+    """
+    importable_string = var[Encoding.TYPE]
+    partition_mapper_class = _load_partition_mapper(importable_string)
+    if partition_mapper_class is None:
+        raise _PartitionMapperNotFound(importable_string)
+    return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
 def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:

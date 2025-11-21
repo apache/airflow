@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -257,28 +256,18 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition
+        from airflow.serialization.serialized_objects import encode_asset_condition, encode_partition_mapper
 
         return {
             "asset_condition": encode_asset_condition(self.asset_condition),
-            "partition_mapper_cls": self.partition_mapper.__class__.__name__,
+            "partition_mapper": encode_partition_mapper(self.partition_mapper),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition
+        from airflow.serialization.serialized_objects import decode_asset_condition, decode_partition_mapper
 
-        ser_asset_condition = data["asset_condition"]
-        mapper_class_name = data.get("partition_mapper_cls", None)
-        if not mapper_class_name:
-            mapper_class = IdentityMapper
-        else:
-            # TODO: AIP-76 what is the right way to do this?
-            if mapper_class_name in globals():
-                mapper_class = globals()[mapper_class_name]
-            else:
-                mapper_class = import_string(mapper_class_name)
         return cls(
-            assets=decode_asset_condition(ser_asset_condition),
-            partition_mapper=mapper_class(),
+            assets=decode_asset_condition(data["asset_condition"]),
+            partition_mapper=decode_partition_mapper(data["partition_mapper"]),
         )
