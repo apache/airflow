@@ -539,7 +539,7 @@ class TestGKEKubernetesAsyncHook:
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
-            container_name=None,
+            container=None,
             since_seconds=None,
         )
         assert "Test string #1" in logs
