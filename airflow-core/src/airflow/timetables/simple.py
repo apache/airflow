@@ -232,6 +232,13 @@ class PartitionMapper:
     def to_upstream(self, key: str) -> Iterable[str]:
         """Yield the source keys that map to the given target partition key."""
 
+    def serialize(self) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> IdentityMapper:
+        return cls()
+
 
 class IdentityMapper(PartitionMapper):
     """Partition mapper that does not change the key."""
