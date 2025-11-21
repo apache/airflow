@@ -3238,52 +3238,6 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
     )
     assert result == expected
 
-@pytest.fixture
-def test_asset(session):
-    asset = AssetModel(
-        id=1,
-        name="test_get_asset_by_name",
-        uri="s3://bucket/key",
-        group="asset",
-        extra={"foo": "bar"},
-        created_at=DEFAULT_DATE,
-        updated_at=DEFAULT_DATE,
-    )
-    asset_active = AssetActive.for_asset(asset)
-    session.add_all([asset, asset_active])
-    session.commit()
-
-    yield asset
-
-    session.delete(asset)
-    session.delete(asset_active)
-    session.commit()
-
-
-@pytest.fixture
-def test_asset_events(session):
-    def make_timestamp(day):
-        return datetime(2021, 1, day, tzinfo=timezone.utc)
-
-    common = {
-        "asset_id": 1,
-        "extra": {"foo": "bar"},
-        "source_dag_id": "foo",
-        "source_task_id": "bar",
-        "source_run_id": "custom",
-        "source_map_index": -1,
-        "partition_key": None,
-    }
-
-    events = [AssetEvent(id=i, timestamp=make_timestamp(i), **common) for i in (1, 2, 3)]
-    session.add_all(events)
-    session.commit()
-    yield events
-
-    for event in events:
-        session.delete(event)
-    session.commit()
-
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
