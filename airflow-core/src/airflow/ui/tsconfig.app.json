@@ -27,5 +27,5 @@
       "openapi/*": ["./openapi-gen/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "tests/**/*.ts", "playwright.config.ts"]
 }

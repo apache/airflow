@@ -19,7 +19,7 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { BasePage } from "./BasePage";
+import { BasePage } from "./BasePage.ts";
 
 /**
  * Login Page Object
@@ -36,7 +36,6 @@ export class LoginPage extends BasePage {
   public readonly usernameInput: Locator;
 
   public constructor(page: Page) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super(page);
 
     this.usernameInput = page.locator('input[name="username"]');
@@ -46,14 +45,12 @@ export class LoginPage extends BasePage {
   }
 
   public async expectLoginSuccess(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     const currentUrl: string = this.page.url();
 
     if (currentUrl.includes("/login")) {
       throw new Error(`Expected to be redirected after login, but still on: ${currentUrl}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const isLoggedIn: boolean = await this.isLoggedIn();
 
     expect(isLoggedIn).toBe(true);
@@ -64,7 +61,6 @@ export class LoginPage extends BasePage {
     await this.loginButton.click();
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await this.page.waitForURL(
         (url: URL) => {
           const urlString: string = url.toString();
@@ -85,9 +81,8 @@ export class LoginPage extends BasePage {
   }
 
   public async navigate(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.maximizeBrowser();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
     await this.navigateTo(LoginPage.loginUrl);
   }
 

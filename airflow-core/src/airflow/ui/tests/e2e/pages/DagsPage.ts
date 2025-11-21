@@ -18,7 +18,7 @@
  */
 import type { Locator, Page } from "@playwright/test";
 
-import { BasePage } from "./BasePage";
+import { BasePage } from "./BasePage.ts";
 
 /**
  * DAGs Page Object
@@ -36,7 +36,6 @@ export class DagsPage extends BasePage {
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super(page);
     this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
@@ -57,7 +56,6 @@ export class DagsPage extends BasePage {
    * Navigate to DAGs list page
    */
   public async navigate(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.navigateTo(DagsPage.dagsListUrl);
   }
 
@@ -65,7 +63,6 @@ export class DagsPage extends BasePage {
    * Navigate to DAG detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
@@ -87,12 +84,11 @@ export class DagsPage extends BasePage {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await this.page.goto(DagsPage.getDagRunDetailsUrl(dagName, dagRunId), {
       timeout: 15_000,
       waitUntil: "domcontentloaded",
     });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     await this.page.waitForTimeout(2000);
 
     const maxWaitTime = 5 * 60 * 1000;
@@ -108,11 +104,10 @@ export class DagsPage extends BasePage {
         throw new Error(`DAG run failed: ${dagRunId}`);
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       await this.page.waitForTimeout(checkInterval);
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
       await this.page.reload({ waitUntil: "domcontentloaded" });
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
       await this.page.waitForTimeout(2000);
     }
 
@@ -142,43 +137,36 @@ export class DagsPage extends BasePage {
   }
 
   private async handleTriggerDialog(): Promise<string | null> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await this.page.waitForTimeout(1000);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
     const responsePromise = this.page
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       .waitForResponse(
         (response) => {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
           const url = response.url();
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
           const method = response.request().method();
 
           return (
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/strict-boolean-expressions
             method === "POST" && Boolean(url.includes("dagRuns")) && Boolean(!url.includes("hitlDetails"))
           );
         },
         { timeout: 10_000 },
       )
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       .catch(() => undefined);
 
     await this.confirmButton.waitFor({ state: "visible", timeout: 8000 });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+
     await this.page.waitForTimeout(2000);
     await this.confirmButton.click({ force: true });
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const apiResponse = await responsePromise;
 
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
     if (apiResponse) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
         const responseBody = await apiResponse.text();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const responseJson = JSON.parse(responseBody);
 
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
