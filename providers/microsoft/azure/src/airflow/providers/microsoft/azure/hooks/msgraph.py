@@ -252,7 +252,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return url
 
     @classmethod
-    def to_httpx_proxies(cls, proxies: dict) -> dict:
+    def to_httpx_proxies(cls, proxies: dict) -> dict | None:
         if proxies:
             proxies = proxies.copy()
             if proxies.get("http"):
@@ -262,7 +262,8 @@ class KiotaRequestAdapterHook(BaseHook):
             if proxies.get("no"):
                 for url in proxies.pop("no", "").split(","):
                     proxies[cls.format_no_proxy_url(url.strip())] = None
-        return proxies
+            return proxies
+        return None
 
     def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
         self.log.debug("authority: %s", authority)
@@ -397,8 +398,8 @@ class KiotaRequestAdapterHook(BaseHook):
         self.api_version = api_version
         return request_adapter
 
-    def get_proxies(self, config: dict) -> dict:
-        proxies = self.proxies or config.get("proxies", {})
+    def get_proxies(self, config: dict) -> dict | None:
+        proxies = self.proxies if self.proxies is not None else config.get("proxies", {})
         if isinstance(proxies, str):
             # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
             #       we could then use the get_extra_dejson method on the connection which deserializes

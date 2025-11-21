@@ -297,6 +297,30 @@ class TestKiotaRequestAdapterHook:
 
             self.assert_tenant_id(actual, "azure-tenant-id")
 
+    def test_proxies(self):
+        with patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                proxies={"http": "http://proxy:80", "https": "https://proxy:80"},
+            )
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual =  hook.get_conn()
+
+            assert actual._http_client._mounts
+
+    def test_proxies_override_with_empty_dict(self):
+        with patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                proxies={"http": "http://proxy:80", "https": "https://proxy:80"},
+            )
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", proxies={})
+            actual =  hook.get_conn()
+
+            assert not actual._http_client._mounts
+
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(
             query_parameters={"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000},
