@@ -3285,21 +3285,26 @@ def test_asset_events(session):
     session.commit()
 
 
-def test_when_dag_run_has_partition_then_asset_does(dag_maker, test_asset, session):
+def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
+    asset = Asset(name="hello")
     with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
-        EmptyOperator(task_id="hi", outlets=[test_asset.to_public()])
+        EmptyOperator(task_id="hi", outlets=[asset])
     dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
     assert dr.partition_key == "abc123"
     [ti] = dr.get_task_instances(session=session)
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[test_asset.to_public().asprofile()],
+        task_outlets=[asset.asprofile()],
         outlet_events=[],
         session=session,
     )
     session.commit()
-    actual_event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    actual_event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+        )
+    )
     assert actual_event.partition_key == "abc123"
     assert not session.scalar(select(PartitionedAssetKeyLog))
     assert not session.scalar(select(AssetPartitionDagRun))

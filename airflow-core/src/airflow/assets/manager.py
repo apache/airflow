@@ -306,7 +306,7 @@ class AssetManager(LoggingMixin):
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
-            target_key = timetable.partition_mapper.map(partition_key)
+            target_key = timetable.partition_mapper.to_downstream(partition_key)
 
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,
