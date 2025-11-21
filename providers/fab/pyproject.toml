@@ -87,7 +87,7 @@ dependencies = [
 
     # https://github.com/dpgaspar/Flask-AppBuilder/blob/release/4.6.3/setup.py#L54C8-L54C26
     # with an exclusion to account for https://github.com/alisaifee/flask-limiter/issues/479
-    "flask_limiter>3,<4,!=3.13",
+    "flask_limiter[redis]>3,<4,!=3.13",
 ]
 
 # The optional dependencies should be modified in place in the generated file

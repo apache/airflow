@@ -57,7 +57,12 @@ class AirflowSecurityManagerV2(LoggingMixin):
             g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
-        limiter = Limiter(key_func=current_app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
+        storage_uri, storage_options = self._get_auth_storage_uri(), self._get_auth_storage_options()
+        limiter = Limiter(
+            key_func=current_app.config.get("RATELIMIT_KEY_FUNC", get_remote_address),
+            storage_uri=storage_uri,
+            storage_options=storage_options,
+        )
         limiter.init_app(current_app)
         return limiter
 
@@ -110,3 +115,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
             resource_name=fab_resource_name,
             user=user,
         )
+
+    def _get_auth_storage_uri(self) -> str:
+        return current_app.config.get("AUTH_RATE_LIMIT_STORAGE_URI", "memory://")
+
+    def _get_auth_storage_options(self) -> dict:
+        return current_app.config.get("AUTH_RATE_LIMIT_STORAGE_OPTIONS", {})

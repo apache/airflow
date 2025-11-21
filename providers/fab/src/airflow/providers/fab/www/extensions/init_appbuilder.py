@@ -18,6 +18,7 @@
 # mypy: disable-error-code=var-annotated
 from __future__ import annotations
 
+import json
 import logging
 from functools import reduce
 from typing import TYPE_CHECKING
@@ -151,6 +152,18 @@ class AirflowAppBuilder:
         self.update_perms = conf.getboolean("fab", "UPDATE_FAB_PERMS")
         self.auth_rate_limited = conf.getboolean("fab", "AUTH_RATE_LIMITED")
         self.auth_rate_limit = conf.get("fab", "AUTH_RATE_LIMIT")
+        self.auth_rate_limit_storage_uri = conf.get(
+            "fab", "AUTH_RATE_LIMIT_STORAGE_URI", fallback="memory://"
+        )
+        self.auth_rate_limit_storage_options = conf.get("fab", "AUTH_RATE_LIMIT_STORAGE_OPTIONS", fallback={})
+        if isinstance(self.auth_rate_limit_storage_options, str):
+            try:
+                self.auth_rate_limit_storage_options = json.loads(self.auth_rate_limit_storage_options)
+            except (json.JSONDecodeError, TypeError):
+                log.error(
+                    "Could not parse AUTH_RATE_LIMIT_STORAGE_OPTIONS json string, defaulting to empty dict"
+                )
+                self.auth_rate_limit_storage_options = {}
         if app is not None:
             self.init_app(app, session)
 
@@ -173,6 +186,8 @@ class AirflowAppBuilder:
         app.config.setdefault("FAB_STATIC_URL_PATH", self.static_url_path)
         app.config.setdefault("AUTH_RATE_LIMITED", self.auth_rate_limited)
         app.config.setdefault("AUTH_RATE_LIMIT", self.auth_rate_limit)
+        app.config.setdefault("AUTH_RATE_LIMIT_STORAGE_URI", self.auth_rate_limit_storage_uri)
+        app.config.setdefault("AUTH_RATE_LIMIT_STORAGE_OPTIONS", self.auth_rate_limit_storage_options)
 
         self.base_template = app.config.get("FAB_BASE_TEMPLATE", self.base_template)
         self.static_folder = app.config.get("FAB_STATIC_FOLDER", self.static_folder)
