@@ -64,7 +64,7 @@ class ConfiguredSentry(NoopSentry):
 
     def __init__(self):
         """Initialize the Sentry SDK."""
-        from airflow.configuration import conf
+        from airflow.sdk.configuration import conf
 
         sentry_sdk.integrations.logging.ignore_logger("airflow.task")
 

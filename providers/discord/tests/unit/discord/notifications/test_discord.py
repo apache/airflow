@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import pytest
 
@@ -55,3 +55,20 @@ def test_discord_notifier_notify(mock_execute):
     assert notifier.hook.message == "This is a test message"
     assert notifier.hook.avatar_url == "https://example.com/avatar.png"
     assert notifier.hook.tts is False
+
+
+@pytest.mark.asyncio
+@patch(
+    "airflow.providers.discord.notifications.discord.DiscordWebhookAsyncHook.execute",
+    new_callable=AsyncMock,
+)
+async def test_async_notifier(mock_async_hook):
+    notifier = DiscordNotifier(
+        discord_conn_id="my_discord_conn_id",
+        text="This is a test message",
+        username="test_user",
+        avatar_url="https://example.com/avatar.png",
+        tts=False,
+    )
+    await notifier.async_notify({})
+    assert mock_async_hook.mock_calls == [call()]
