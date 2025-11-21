@@ -60,7 +60,7 @@ class TestGetAuthLinks:
         assert response.json() == {"authorized_menu_items": [], "extra_menu_items": []}
 
 
-class TestGetCurrentSimpleAuthenticatedMeResponseSimpleAuthManager:
+class TestGetMeResponseSimpleAuthManager:
     def test_should_response_200_with_authenticated_user(self, test_client):
         """Test /auth/me endpoint with SimpleAuthManager authenticated user."""
         response = test_client.get("/auth/me")
@@ -73,7 +73,7 @@ class TestGetCurrentSimpleAuthenticatedMeResponseSimpleAuthManager:
         response = unauthorized_test_client.get("/auth/me")
 
         assert response.status_code == 200
-        assert response.json() == {"username": "dummy", "role": None}
+        assert response.json() == {"username": "dummy", "role": ""}
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
         """Test /auth/me endpoint with no authentication."""
