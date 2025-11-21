@@ -112,7 +112,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     cell: ({ row: { original } }) => (
       <HStack>
         <RunTypeIcon runType={original.run_type} />
-        <Text>{original.run_type}</Text>
+        <Text>{translate(`common:runTypes.${original.run_type}`)}</Text>
       </HStack>
     ),
     enableSorting: false,
