@@ -305,7 +305,7 @@ class TestKiotaRequestAdapterHook:
             )
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-            actual =  hook.get_conn()
+            actual = hook.get_conn()
 
             assert actual._http_client._mounts
 
@@ -317,7 +317,7 @@ class TestKiotaRequestAdapterHook:
             )
         ):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api", proxies={})
-            actual =  hook.get_conn()
+            actual = hook.get_conn()
 
             assert not actual._http_client._mounts
 
