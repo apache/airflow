@@ -34,20 +34,14 @@ log = structlog.getLogger(__name__)
 
 def gen_context(trace_id, span_id):
     """Generate span context from trace_id and span_id."""
-    try:
-        from airflow_shared.observability.traces.otel_tracer import gen_context as otel_gen_context
-    except ModuleNotFoundError:
-        from airflow._shared.observability.traces.otel_tracer import gen_context as otel_gen_context
+    from airflow._shared.observability.traces.otel_tracer import gen_context as otel_gen_context
 
     return otel_gen_context(trace_id, span_id)
 
 
 def gen_links_from_kv_list(list):
     """Generate links from kv list of {trace_id:int, span_id:int}."""
-    try:
-        from airflow_shared.observability.traces.otel_tracer import gen_links_from_kv_list
-    except ModuleNotFoundError:
-        from airflow._shared.observability.traces.otel_tracer import gen_links_from_kv_list
+    from airflow._shared.observability.traces.otel_tracer import gen_links_from_kv_list
 
     return gen_links_from_kv_list(list)
 
@@ -304,10 +298,7 @@ class _TraceMeta(type):
             debug_traces_on = True
 
         if otel_on and debug_traces_on:
-            try:
-                from airflow_shared.observability.traces import otel_tracer
-            except ModuleNotFoundError:
-                from airflow._shared.observability.traces import otel_tracer
+            from airflow._shared.observability.traces import otel_tracer
 
             cls.factory = staticmethod(
                 lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)

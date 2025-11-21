@@ -29,12 +29,8 @@ from functools import partial, wraps
 from re import Pattern
 from typing import cast
 
+from airflow._shared.observability.exceptions import InvalidStatsNameException
 from airflow.configuration import conf
-
-try:
-    from airflow_shared.observability.exceptions import InvalidStatsNameException
-except ModuleNotFoundError:
-    from airflow._shared.observability.exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)
 

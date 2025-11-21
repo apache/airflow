@@ -49,6 +49,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-devel-common",
     "apache-airflow-shared-observability[all]",
+    "apache-airflow-shared-configuration",
 ]
 
 [build-system]

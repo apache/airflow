@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 from opentelemetry.metrics import MeterProvider
 
-from airflow_shared.observability.exceptions import InvalidStatsNameException
-from airflow_shared.observability.metrics.otel_logger import (
+from airflow._shared.observability.exceptions import InvalidStatsNameException
+from airflow._shared.observability.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
@@ -33,7 +33,7 @@ from airflow_shared.observability.metrics.otel_logger import (
     _is_up_down_counter,
     full_name,
 )
-from airflow_shared.observability.metrics.validators import (
+from airflow._shared.observability.metrics.validators import (
     BACK_COMPAT_METRIC_NAMES,
     MetricNameLengthExemptionWarning,
 )

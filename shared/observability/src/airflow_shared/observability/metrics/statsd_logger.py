@@ -22,38 +22,23 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
-try:
-    from airflow_shared.observability.metrics.protocols import Timer
-    from airflow_shared.observability.metrics.validators import (
-        PatternAllowListValidator,
-        PatternBlockListValidator,
-        get_validator,
-        validate_stat,
-    )
-except ModuleNotFoundError:
-    from airflow._shared.observability.metrics.protocols import Timer
-    from airflow._shared.observability.metrics.validators import (
-        PatternAllowListValidator,
-        PatternBlockListValidator,
-        get_validator,
-        validate_stat,
-    )
+from airflow._shared.configuration.exceptions import AirflowConfigException
+from airflow._shared.observability.metrics.protocols import Timer
+from airflow._shared.observability.metrics.validators import (
+    PatternAllowListValidator,
+    PatternBlockListValidator,
+    get_validator,
+    validate_stat,
+)
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from statsd import StatsClient
 
-    try:
-        from airflow_shared.observability.metrics.protocols import DeltaType
-        from airflow_shared.observability.metrics.validators import (
-            ListValidator,
-        )
-    except ModuleNotFoundError:
-        from airflow._shared.observability.metrics.protocols import DeltaType
-        from airflow._shared.observability.metrics.validators import (
-            ListValidator,
-        )
+    from airflow._shared.observability.metrics.protocols import DeltaType
+    from airflow._shared.observability.metrics.validators import (
+        ListValidator,
+    )
 
 T = TypeVar("T", bound=Callable)
 
