@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.gc_utils import with_gc_freeze
 from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -217,10 +216,25 @@ class LocalExecutor(BaseExecutor):
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
 
-    @with_gc_freeze
     def _spawn_workers_with_gc_freeze(self, spawn_number):
-        for _ in range(spawn_number):
-            self._spawn_worker()
+        """
+        Freeze the GC before forking worker process and unfreeze it after forking.
+
+        This is done to prevent memory increase due to COW (Copy-on-Write) by moving all
+        existing objects to the permanent generation before forking the process. After forking,
+        unfreeze is called to ensure there is no impact on gc operations
+        in the original running process.
+
+        Ref: https://docs.python.org/3/library/gc.html#gc.freeze
+        """
+        import gc
+
+        gc.freeze()
+        try:
+            for _ in range(spawn_number):
+                self._spawn_worker()
+        finally:
+            gc.unfreeze()
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""
