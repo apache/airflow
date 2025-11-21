@@ -21,7 +21,7 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -261,6 +261,17 @@ export const TaskInstances = () => {
     },
   );
 
+  const columns = useMemo(
+    () =>
+      taskInstanceColumns({
+        dagId,
+        runId,
+        taskId: Boolean(groupId) ? undefined : taskId,
+        translate,
+      }),
+    [dagId, runId, groupId, taskId, translate],
+  );
+
   return (
     <>
       <TaskInstancesFilter
@@ -268,12 +279,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

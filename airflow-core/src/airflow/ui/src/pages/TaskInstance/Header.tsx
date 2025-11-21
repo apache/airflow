@@ -23,6 +23,7 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
@@ -93,6 +94,9 @@ export const Header = ({
     setNote(taskInstance.note ?? "");
   };
 
+  // Stable dialog state at header/page level
+  const [clearOpen, setClearOpen] = useState(false);
+
   return (
     <Box ref={containerRef}>
       <HeaderCard
@@ -111,6 +115,7 @@ export const Header = ({
             />
             <ClearTaskInstanceButton
               isHotkeyEnabled
+              onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
               withText={containerWidth > 700}
             />
@@ -127,6 +132,13 @@ export const Header = ({
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      {clearOpen ? (
+        <ClearTaskInstanceDialog
+          onClose={() => setClearOpen(false)}
+          open={clearOpen}
+          taskInstance={taskInstance}
+        />
+      ) : undefined}
     </Box>
   );
 };
