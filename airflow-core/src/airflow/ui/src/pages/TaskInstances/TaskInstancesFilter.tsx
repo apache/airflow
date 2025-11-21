@@ -25,20 +25,18 @@ import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searc
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const {
+  ASSET_EVENT_DATE_RANGE: ASSET_EVENT_DATE_RANGE_PARAM,
   DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
   DAG_VERSION: DAG_VERSION_PARAM,
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
-  END_DATE: END_DATE_PARAM,
-  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
-  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
+  LOGICAL_DATE_RANGE: LOGICAL_DATE_RANGE_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
-  START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -48,10 +46,8 @@ export const TaskInstancesFilter = () => {
   const paramKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
-      LOGICAL_DATE_GTE_PARAM as FilterableSearchParamsKeys,
-      LOGICAL_DATE_LTE_PARAM as FilterableSearchParamsKeys,
-      START_DATE_PARAM as FilterableSearchParamsKeys,
-      END_DATE_PARAM as FilterableSearchParamsKeys,
+      LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
+      ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
       DURATION_GTE_PARAM as FilterableSearchParamsKeys,
       DURATION_LTE_PARAM as FilterableSearchParamsKeys,
       TRY_NUMBER_PARAM as FilterableSearchParamsKeys,

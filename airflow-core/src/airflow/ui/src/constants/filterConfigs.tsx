@@ -54,13 +54,13 @@ export enum FilterTypes {
 }
 
 export const useFilterConfigs = () => {
-  const { t: translate } = useTranslation(["browse", "common", "admin", "hitl"]);
+  const { t: translate } = useTranslation(["browse", "common", "components", "admin", "hitl"]);
 
   const filterConfigMap = {
     [SearchParamsKeys.ASSET_EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.END_DATE,
       icon: <MdDateRange />,
-      label: translate("common:logicalDate"),
+      label: translate("components:backfill.dateRange"),
       startKey: SearchParamsKeys.START_DATE,
       type: FilterTypes.DATERANGE,
     },
