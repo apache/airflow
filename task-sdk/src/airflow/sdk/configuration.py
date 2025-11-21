@@ -27,8 +27,8 @@ from io import StringIO
 from typing import Any
 
 from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow.sdk import yaml
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
-from airflow.utils import yaml
 
 log = logging.getLogger(__name__)
 
