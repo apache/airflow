@@ -31,7 +31,11 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils.types import NOTSET, ArgNotSet
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
 
 # Paramiko should be imported after airflow.providers.ssh. Then the import will fail with
 # cannot import "airflow.providers.ssh" and will be correctly discovered as optional feature

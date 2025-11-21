@@ -67,7 +67,8 @@ from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task as task_decora
 from airflow.sdk.definitions._internal.contextmanager import TaskGroupContext
 from airflow.sdk.definitions._internal.templater import NativeEnvironment, SandboxedEnvironment
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
-from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
@@ -1188,7 +1189,7 @@ class TestDag:
         )
         assert dr.creating_job_id == job_id
 
-    @pytest.mark.parametrize(["partition_key"], [[None], ["my-key"], [123]])
+    @pytest.mark.parametrize("partition_key", [None, "my-key", 123])
     def test_create_dagrun_partition_key(self, partition_key, dag_maker):
         with dag_maker("test_create_dagrun_partition_key"):
             ...

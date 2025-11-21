@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAtFrom": "Aangemaakt vanaf",
+    "createdAtTo": "Aangemaakt tot",
     "response": {
       "all": "Alle",
       "pending": "In afwachting",
@@ -12,11 +15,13 @@
   "requiredActionCount_other": "Vereiste acties ({{count}})",
   "requiredActionState": "Vereiste actie status",
   "response": {
+    "created": "Reactie aangemaakt op",
     "error": "Reactie mislukt",
     "optionsDescription": "Kies je opties voor deze Task Instance",
     "optionsLabel": "Opties",
     "received": "Reactie ontvangen op ",
     "respond": "Reageer",
+    "responded_by_user_name": "Gereageerd door (gebruikersnaam)",
     "success": "{{taskId}} reactie succesvol",
     "title": "Human Task Instance - {{taskId}}"
   },

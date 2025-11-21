@@ -221,7 +221,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.8"
+UV_VERSION = "0.9.10"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -243,6 +243,7 @@ class TarBallType(Enum):
     PROVIDERS = "apache_airflow_providers"
     TASK_SDK = "apache_airflow_task_sdk"
     AIRFLOW_CTL = "apache_airflow_ctl"
+    PYTHON_CLIENT = "apache_airflow_python_client"
     HELM_CHART = "helm-chart"
 
 
@@ -844,8 +845,8 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.0",
-        "remove-providers": "edge3",  # Need to remove edge3 from tests until we have 3.1.1 used here.
+        "airflow-version": "3.1.2",
+        "remove-providers": "",
         "run-unit-tests": "true",
     },
 ]
