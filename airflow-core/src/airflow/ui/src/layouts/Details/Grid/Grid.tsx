@@ -95,9 +95,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => {
-    return flattenNodes(dagStructure, openGroupIds);
-  }, [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
