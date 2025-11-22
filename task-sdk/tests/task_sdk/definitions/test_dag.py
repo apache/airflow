@@ -390,6 +390,19 @@ class TestDag:
         partial = dag.partial_subset("t1", include_downstream=True, include_upstream=False, depth=2)
         assert set(partial.task_dict.keys()) == {"t1", "t2", "t3", "t4"}
 
+    def test_partial_subset_with_negative_depth(self):
+        """Test that partial_subset rejects negative depth values."""
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            t1 = BaseOperator(task_id="t1")
+            t2 = BaseOperator(task_id="t2")
+            t1 >> t2
+
+        with pytest.raises(ValueError, match="depth must be non-negative, got -1"):
+            dag.partial_subset("t1", include_downstream=True, depth=-1)
+
+        with pytest.raises(ValueError, match="depth must be non-negative, got -5"):
+            dag.partial_subset("t1", include_upstream=True, depth=-5)
+
     def test_dag_owner_links(self):
         dag = DAG(
             "dag",

@@ -877,9 +877,12 @@ class DAG:
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         :param depth: Maximum number of levels to traverse in the upstream/downstream
-            direction. If None, traverses all levels.
+            direction. If None, traverses all levels. Must be non-negative.
         """
         from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+        if depth is not None and depth < 0:
+            raise ValueError(f"depth must be non-negative, got {depth}")
 
         def is_task(obj) -> TypeGuard[Operator]:
             return isinstance(obj, BaseOperator | MappedOperator)
@@ -913,25 +916,21 @@ class DAG:
 
         for t in matched_tasks:
             if include_downstream:
-                if depth:
+                if depth is not None:
                     downstream_ids = _collect_relatives(t, upstream=False, max_depth=depth)
-                    also_include_ids.update(downstream_ids)
-                    for rel_id in downstream_ids:
-                        rel = self.task_dict[rel_id]
-                        if rel not in matched_tasks and not rel.is_setup and not rel.is_teardown:
-                            also_include_ids.update(
-                                x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
-                            )
                 else:
-                    for rel in t.get_flat_relatives(upstream=False):
-                        also_include_ids.add(rel.task_id)
-                        if rel not in matched_tasks and not rel.is_setup and not rel.is_teardown:
-                            also_include_ids.update(
-                                x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
-                            )
+                    downstream_ids = {rel.task_id for rel in t.get_flat_relatives(upstream=False)}
+                
+                also_include_ids.update(downstream_ids)
+                for rel_id in downstream_ids:
+                    rel = self.task_dict[rel_id]
+                    if rel not in matched_tasks and not rel.is_setup and not rel.is_teardown:
+                        also_include_ids.update(
+                            x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
+                        )
 
             if include_upstream:
-                if depth:
+                if depth is not None:
                     upstream_ids = _collect_relatives(t, upstream=True, max_depth=depth)
                     also_include_ids.update(upstream_ids)
                 else:
