@@ -3171,6 +3171,38 @@ class TestSchedulerJob:
 
         assert callback == expected_callback
 
+    def test_dagrun_timeout_sets_task_end_date_and_duration(self, dag_maker, session):
+        """
+        Test that TaskInstance.set_state(SKIPPED) sets end_date and duration.
+
+        This is a regression test for issue #58536 where dagrun timeout code
+        directly assigned task_instance.state = SKIPPED without using set_state(),
+        causing end_date and duration to remain null.
+        """
+        with dag_maker(dag_id="test_set_state_skipped", session=session):
+            EmptyOperator(task_id="test_task")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("test_task", session)
+
+        # Set up task instance as running
+        ti.state = TaskInstanceState.RUNNING
+        ti.start_date = timezone.utcnow()
+        session.flush()
+
+        # Verify no end_date or duration initially
+        assert ti.end_date is None
+        assert ti.duration is None
+
+        # Use set_state() to mark as SKIPPED (this is what our fix does)
+        ti.set_state(TaskInstanceState.SKIPPED, session)
+
+        # Verify end_date and duration are now set (the fix)
+        assert ti.end_date is not None, "set_state(SKIPPED) should set end_date"
+        assert ti.duration is not None, "set_state(SKIPPED) should calculate duration"
+        assert ti.duration >= 0, "Duration should be non-negative"
+        assert ti.start_date < ti.end_date, "end_date should be after start_date"
+
     def test_dagrun_callbacks_commited_before_sent(self, dag_maker):
         """
         Tests that before any callbacks are sent to the processor, the session is committed. This ensures
