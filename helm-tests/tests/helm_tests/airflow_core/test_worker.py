@@ -1561,9 +1561,7 @@ class TestWorkerSets:
         )
 
         worker_set = next(
-            doc
-            for doc in docs
-            if jmespath.search("metadata.name", doc) == "release-name-worker-default-set"
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-default-set"
         )
 
         assert jmespath.search("spec.replicas", worker_set) == 2
@@ -1584,9 +1582,7 @@ class TestWorkerSets:
         )
 
         worker_set = next(
-            doc
-            for doc in docs
-            if jmespath.search("metadata.name", doc) == "release-name-worker-stateful-set"
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-stateful-set"
         )
         assert jmespath.search("kind", worker_set) == "StatefulSet"
 
