@@ -344,9 +344,9 @@ class TestDatabaseCleanupPods:
             show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
 
-        assert resources == jmespath.search(
+        assert jmespath.search(
             "spec.jobTemplate.spec.template.spec.containers[0].resources", docs[0]
-        )
+        ) == resources
 
     def test_should_set_job_history_limits(self):
         docs = render_chart(
