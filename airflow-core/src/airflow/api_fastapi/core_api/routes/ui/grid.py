@@ -31,6 +31,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryDagRunTriggeringUserSearch,
+    QueryIncludeDownstream,
+    QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -133,10 +135,19 @@ def get_dag_structure(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    include_upstream: QueryIncludeUpstream = False,
+    include_downstream: QueryIncludeDownstream = False,
+    root: str | None = None,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
+
+    # Apply filtering if root task is specified
+    if root:
+        latest_dag = latest_dag.partial_subset(
+            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+        )
 
     # Retrieve, sort the previous DAG Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
