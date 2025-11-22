@@ -920,7 +920,7 @@ class DAG:
                     downstream_ids = _collect_relatives(t, upstream=False, max_depth=depth)
                 else:
                     downstream_ids = {rel.task_id for rel in t.get_flat_relatives(upstream=False)}
-                
+
                 also_include_ids.update(downstream_ids)
                 for rel_id in downstream_ids:
                     rel = self.task_dict[rel_id]
