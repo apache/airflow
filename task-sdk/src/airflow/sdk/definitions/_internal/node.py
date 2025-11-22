@@ -279,7 +279,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         levels_remaining = depth
         while task_ids_to_trace:
-            if levels_remaining is not None and levels_remaining <= 0:
+            if depth is not None and levels_remaining <= 0:
                 break
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
