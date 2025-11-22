@@ -274,7 +274,7 @@ class TestDatabaseCleanupPods:
 
         assert jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0]) == {
             "tier": "airflow",
-            "component": "airflow-database-cleanup-pods",
+            "component": "database-cleanup",
             "release": "release-name",
             "project": "airflow",
         }
