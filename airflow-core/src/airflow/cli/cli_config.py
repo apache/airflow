@@ -607,6 +607,14 @@ ARG_DB_SQL_ONLY = Arg(
     action="store_true",
     default=False,
 )
+ARG_DB_QUIET = Arg(
+    ("-q", "--quiet"),
+    help="Don't run migrations, and don't print the anticipated sql scripts. "
+    "Return a non-zero exit code when a migration is expected, return a 0 exit code otherwise."
+    "Only usable with the `would-migrate` command.",
+    action="store_true",
+    default=False,
+)
 ARG_DB_SKIP_INIT = Arg(
     ("-s", "--skip-init"),
     help="Only remove tables; do not perform db init.",
@@ -1447,6 +1455,19 @@ DB_COMMANDS = (
             ARG_DB_FROM_VERSION,
             ARG_VERBOSE,
         ),
+    ),
+    ActionCommand(
+        name="would-migrate",
+        help="Checks if a run of `airflow db migrate` would trigger a migration or not. Does not run a migration.",
+        description=(
+            "Check if a migration would take place in the given environment and configuration."
+            "Returns an exit code of `0` if no migration is expected, and a non-zero exit code otherwise."
+            "Does not print any of the potential sql statements if a migration were to occur."
+            "Simply useful for checking if a migration is needed."
+            "To reduce output from this command, may provide ``-q`` or ``--quiet``."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_command.would_migrate"),
+        args=(ARG_DB_QUIET,),
     ),
     ActionCommand(
         name="downgrade",

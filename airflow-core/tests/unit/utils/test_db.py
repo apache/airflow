@@ -45,6 +45,7 @@ from airflow.utils.db import (
     create_default_connections,
     downgrade,
     initdb,
+    migration_expected,
     resetdb,
     upgradedb,
 )
@@ -305,6 +306,29 @@ class TestDb:
         mocker.patch("airflow.utils.db.settings.engine.dialect").name = "sqlite"
         with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+
+    @pytest.mark.parametrize(
+        ("from_revision", "to_revision", "quiet", "expected_exit_code"),
+        [
+            ("abcd1234", "abcd1234", False, 0),
+            ("abcd1234", "efg56789", False, 123),
+            ("abcd1234", "efg56789", True, 123),
+        ],
+    )
+    def test_migration_expected(self, mocker, from_revision, to_revision, quiet, expected_exit_code):
+        mocker.patch("airflow.utils.db._get_current_revision", return_value=from_revision)
+        mock_get_script_obj = mocker.patch("airflow.utils.db._get_script_object")
+        mock_get_script_obj.get_current_head.return_value = to_revision
+        with redirect_stdout(StringIO()) as temp_stdout, pytest.raises(SystemExit) as excinfo:  # noqa: PT012, checking the exit code requires more than 1 line.
+            migration_expected(quiet=quiet)
+            assert excinfo.value.code == expected_exit_code
+
+        expected_print_snippet = f"from={from_revision} to={to_revision}"
+        stdout = temp_stdout.getvalue()
+        if quiet:
+            assert expected_print_snippet not in stdout
+        else:
+            assert expected_print_snippet in stdout
 
     @pytest.mark.usefixtures("initialized_db")
     def test_downgrade_sql_no_from(self, mocker):

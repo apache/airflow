@@ -208,6 +208,13 @@ def migratedb(args):
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
+def would_migrate(args):
+    """Check if migration is expected or not, but do not run the migration."""
+    db.migration_expected(quiet=args.quiet)
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def downgrade(args):
     """Downgrades the metadata database."""
     run_db_downgrade_command(args, db.downgrade, _REVISION_HEADS_MAP)

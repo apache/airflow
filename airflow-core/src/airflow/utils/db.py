@@ -1155,6 +1155,37 @@ def upgradedb(
 
 
 @provide_session
+def migration_expected(*, quiet: bool = False, session: Session = NEW_SESSION):
+    """
+    Check if migration is expected or not, but do not run the migration.
+
+    An exit code of `0` indicates that no migration is expected/needed.
+    An exit code of `123` indicates a migration is expected/needed. Any other non-zero exit code is an unexpected error.
+
+    :param quiet: if `True`, do not print anything. Defaults to `False`.
+    :param session: sqlalchemy session with connection to Airflow metadata database
+    :return: None
+    """
+    # alembic adds significant import time, so we import it lazily
+    if not settings.SQL_ALCHEMY_CONN:
+        raise RuntimeError("The settings.SQL_ALCHEMY_CONN not set. This is a critical assertion.")
+
+    import_all_models()
+    from_revision = _get_current_revision(session)
+    to_revision = _get_script_object().get_current_head()
+
+    is_expected = to_revision != from_revision
+    exit_code = 123 if is_expected else 0
+    msg = (
+        "Migration" if is_expected else "No migration"
+    ) + f" expected: from={from_revision} to={to_revision}"
+    if not quiet:
+        print(msg)
+
+    sys.exit(exit_code)
+
+
+@provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:

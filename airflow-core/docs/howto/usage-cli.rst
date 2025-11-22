@@ -271,6 +271,14 @@ Running migrations manually
 
 If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db migrate``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref` for a mapping between revision and version.
 
+Scripted checks for anticipated migrations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you have a automated script which checks whether a DB migration would take place under the current environment /
+configuration, you may use ``airflow db would-migrate``, which gives an exit code of ``0`` when a migration is not
+needed, an exit code of ``123`` if a migration is needed, and any other non-zero exit code for an unexpected error.
+
+Run ``airflow db would-migrate`` for usage details.
 
 .. _cli-db-downgrade:
 

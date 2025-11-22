@@ -159,6 +159,16 @@ class TestCliDb:
         with pytest.raises(SystemExit, match=match):
             db_command.run_db_migrate_command(Args(), fake_command, heads)
 
+    @pytest.mark.parametrize("mock_quiet", [False, True])
+    @mock.patch("airflow.cli.commands.db_command.db.migration_expected")
+    def test_cli_would_migrate(self, mock_db_migration_expected, mock_quiet: bool):
+        args = ["db", "would-migrate"]
+        if mock_quiet:
+            args.append("--quiet")
+
+        db_command.would_migrate(self.parser.parse_args(args))
+        mock_db_migration_expected.assert_called_once_with(quiet=mock_quiet)
+
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):
         db_command.check_migrations(self.parser.parse_args(["db", "check-migrations"]))
