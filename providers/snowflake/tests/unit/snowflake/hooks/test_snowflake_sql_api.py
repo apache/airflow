@@ -1443,7 +1443,9 @@ class TestSnowflakeSqlApiHook:
             {"requestId": "uuid"},
             f"{API_URL}/{query_id}/cancel",
         )
-        mock_requests.request.return_value = create_successful_response_mock({"status": "success"})
+        mock_requests.request.return_value = create_successful_response_mock(
+            {"status": "success", "message": "Statement cancelled."}
+        )
 
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         hook._cancel_sql_api_query_execution(query_id)
