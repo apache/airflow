@@ -82,7 +82,7 @@ class TestDatabaseCleanupPods:
 
         assert (
             jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].name", docs[0])
-            == "airflow-database-cleanup"
+            == "database-cleanup"
         )
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
             "apache/airflow"
