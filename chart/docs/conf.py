@@ -225,7 +225,7 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
             "section": section_name,
             "name": prefixed_name,
         }
-        if section_name and schema["description"] and "default" in schema:
+        if section_name and "description" in schema and schema["description"] and "default" in schema:
             out.append(
                 {
                     **common_out,
