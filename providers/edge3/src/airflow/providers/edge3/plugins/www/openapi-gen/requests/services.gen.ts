@@ -266,6 +266,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerNamePattern
      * @param data.queueNamePattern
+     * @param data.state
      * @returns WorkerCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -275,7 +276,8 @@ export class UiService {
             url: '/edge_worker/ui/worker',
             query: {
                 worker_name_pattern: data.workerNamePattern,
-                queue_name_pattern: data.queueNamePattern
+                queue_name_pattern: data.queueNamePattern,
+                state: data.state
             },
             errors: {
                 422: 'Validation Error'

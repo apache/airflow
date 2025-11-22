@@ -17,9 +17,27 @@
  * under the License.
  */
 
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./createToaster";
-export * from "./InputGroup";
-export * from "./ScrollToAnchor";
-export * from "./Select";
+import { createListCollection } from "@chakra-ui/react";
+import type { EdgeWorkerState } from "../openapi-gen/requests/types.gen";
+import { $EdgeWorkerState } from "../openapi-gen/requests/schemas.gen";
+
+// Helper function to convert snake_case or space-separated strings to Title Case
+const toTitleCase = (str: string): string => {
+  return str
+    .split(/[\s_]+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+export const workerStateOptions = createListCollection<{
+  label: string;
+  value: EdgeWorkerState | "all";
+}>({
+  items: [
+    { label: "All States", value: "all" },
+    ...$EdgeWorkerState.enum.map((state) => ({
+      label: toTitleCase(state),
+      value: state as EdgeWorkerState,
+    })),
+  ],
+});

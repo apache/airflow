@@ -16,10 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Select as ChakraSelect } from "@chakra-ui/react";
 
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./createToaster";
-export * from "./InputGroup";
-export * from "./ScrollToAnchor";
-export * from "./Select";
+import { Content } from "./Content";
+import { Item } from "./Item";
+import { Root } from "./Root";
+import { Trigger } from "./Trigger";
+import { ValueText } from "./ValueText";
+
+export const Select = {
+  ...ChakraSelect,
+  Content,
+  Item,
+  Root,
+  Trigger,
+  ValueText,
+};

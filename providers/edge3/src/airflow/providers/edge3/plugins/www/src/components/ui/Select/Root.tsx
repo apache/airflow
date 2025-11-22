@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Select as ChakraSelect } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./createToaster";
-export * from "./InputGroup";
-export * from "./ScrollToAnchor";
-export * from "./Select";
+export const Root = forwardRef<HTMLDivElement, ChakraSelect.RootProps>((props, ref) => (
+  <ChakraSelect.Root {...props} positioning={{ sameWidth: true, ...props.positioning }} ref={ref} />
+));
