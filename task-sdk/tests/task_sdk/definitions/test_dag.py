@@ -319,6 +319,77 @@ class TestDag:
         # Make sure we don't affect the original!
         assert task.task_group.upstream_group_ids is not copied_task.task_group.upstream_group_ids
 
+    def test_partial_subset_with_depth(self):
+        """Test that partial_subset respects the depth parameter for filtering."""
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            # Create a linear chain: t1 -> t2 -> t3 -> t4 -> t5
+            t1 = BaseOperator(task_id="t1")
+            t2 = BaseOperator(task_id="t2")
+            t3 = BaseOperator(task_id="t3")
+            t4 = BaseOperator(task_id="t4")
+            t5 = BaseOperator(task_id="t5")
+            t1 >> t2 >> t3 >> t4 >> t5
+
+        # Test downstream with depth=1 (only direct downstream)
+        partial = dag.partial_subset("t3", include_downstream=True, include_upstream=False, depth=1)
+        assert set(partial.task_dict.keys()) == {"t3", "t4"}
+
+        # Test downstream with depth=2
+        partial = dag.partial_subset("t3", include_downstream=True, include_upstream=False, depth=2)
+        assert set(partial.task_dict.keys()) == {"t3", "t4", "t5"}
+
+        # Test upstream with depth=1 (only direct upstream)
+        partial = dag.partial_subset("t3", include_downstream=False, include_upstream=True, depth=1)
+        assert set(partial.task_dict.keys()) == {"t2", "t3"}
+
+        # Test upstream with depth=2
+        partial = dag.partial_subset("t3", include_downstream=False, include_upstream=True, depth=2)
+        assert set(partial.task_dict.keys()) == {"t1", "t2", "t3"}
+
+        # Test both directions with depth=1
+        partial = dag.partial_subset("t3", include_downstream=True, include_upstream=True, depth=1)
+        assert set(partial.task_dict.keys()) == {"t2", "t3", "t4"}
+
+        # Test with depth=None (unlimited, original behavior - should get all upstream/downstream)
+        partial = dag.partial_subset("t3", include_downstream=True, include_upstream=True, depth=None)
+        assert set(partial.task_dict.keys()) == {"t1", "t2", "t3", "t4", "t5"}
+
+    def test_partial_subset_with_depth_branching(self):
+        """Test partial_subset with depth on a branching DAG structure."""
+        with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+            # Create a diamond pattern:
+            #     t1
+            #    /  \
+            #   t2  t3
+            #    \  /
+            #     t4
+            #     |
+            #     t5
+            t1 = BaseOperator(task_id="t1")
+            t2 = BaseOperator(task_id="t2")
+            t3 = BaseOperator(task_id="t3")
+            t4 = BaseOperator(task_id="t4")
+            t5 = BaseOperator(task_id="t5")
+            t1 >> [t2, t3]
+            [t2, t3] >> t4
+            t4 >> t5
+
+        # From t4, depth=1 upstream should get both t2 and t3
+        partial = dag.partial_subset("t4", include_downstream=False, include_upstream=True, depth=1)
+        assert set(partial.task_dict.keys()) == {"t2", "t3", "t4"}
+
+        # From t4, depth=2 upstream should get t1, t2, t3
+        partial = dag.partial_subset("t4", include_downstream=False, include_upstream=True, depth=2)
+        assert set(partial.task_dict.keys()) == {"t1", "t2", "t3", "t4"}
+
+        # From t1, depth=1 downstream should get t2 and t3
+        partial = dag.partial_subset("t1", include_downstream=True, include_upstream=False, depth=1)
+        assert set(partial.task_dict.keys()) == {"t1", "t2", "t3"}
+
+        # From t1, depth=2 downstream should get t2, t3, and t4
+        partial = dag.partial_subset("t1", include_downstream=True, include_upstream=False, depth=2)
+        assert set(partial.task_dict.keys()) == {"t1", "t2", "t3", "t4"}
+
     def test_dag_owner_links(self):
         dag = DAG(
             "dag",

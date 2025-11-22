@@ -860,6 +860,7 @@ class DAG:
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
+        depth: int | None = None,
     ):
         """
         Return a subset of the current dag based on regex matching one or more tasks.
@@ -875,6 +876,8 @@ class DAG:
             in addition to matched tasks.
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
+        :param depth: Maximum number of levels to traverse in the upstream/downstream
+            direction. If None, traverses all levels.
         """
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -892,19 +895,47 @@ class DAG:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids]
 
         also_include_ids: set[str] = set()
+
+        def _collect_relatives(task: Operator, upstream: bool, max_depth: int) -> set[str]:
+            """Collect task relatives up to max_levels."""
+            result = set()
+            current_level = [task]
+            for _ in range(max_depth):
+                next_level = []
+                for t in current_level:
+                    relatives = t.upstream_list if upstream else t.downstream_list
+                    for rel in relatives:
+                        if rel.task_id not in result:
+                            result.add(rel.task_id)
+                            next_level.append(rel)
+                current_level = next_level
+            return result
+
         for t in matched_tasks:
             if include_downstream:
-                for rel in t.get_flat_relatives(upstream=False):
-                    also_include_ids.add(rel.task_id)
-                    if rel not in matched_tasks:  # if it's in there, we're already processing it
-                        # need to include setups and teardowns for tasks that are in multiple
-                        # non-collinear setup/teardown paths
-                        if not rel.is_setup and not rel.is_teardown:
+                if depth:
+                    downstream_ids = _collect_relatives(t, upstream=False, max_depth=depth)
+                    also_include_ids.update(downstream_ids)
+                    for rel_id in downstream_ids:
+                        rel = self.task_dict[rel_id]
+                        if rel not in matched_tasks and not rel.is_setup and not rel.is_teardown:
                             also_include_ids.update(
                                 x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
                             )
+                else:
+                    for rel in t.get_flat_relatives(upstream=False):
+                        also_include_ids.add(rel.task_id)
+                        if rel not in matched_tasks and not rel.is_setup and not rel.is_teardown:
+                            also_include_ids.update(
+                                x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
+                            )
+
             if include_upstream:
-                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
+                if depth:
+                    upstream_ids = _collect_relatives(t, upstream=True, max_depth=depth)
+                    also_include_ids.update(upstream_ids)
+                else:
+                    also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
             else:
                 if not t.is_setup and not t.is_teardown:
                     also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
