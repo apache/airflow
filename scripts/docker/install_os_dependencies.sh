@@ -311,9 +311,13 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    local lto_option=""
+    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
+        lto_option="--with-lto"
+    fi
     ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
         --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared --with-lto
+            --enable-shared ${lto_option}
     make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
         "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
