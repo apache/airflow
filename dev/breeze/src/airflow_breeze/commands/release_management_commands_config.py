@@ -76,6 +76,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "generate-constraints",
         "update-constraints",
         "publish-docs-to-s3",
+        "validate-rc-by-pmc",
     ],
 }
 
@@ -520,6 +521,18 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Build options.",
             "options": [
                 "--builder",
+            ],
+        },
+    ],
+    "breeze release-management validate-rc-by-pmc": [
+        {
+            "name": "Validation options",
+            "options": [
+                "--distribution",
+                "--version",
+                "--task-sdk-version",
+                "--svn-path",
+                "--checks",
             ],
         },
     ],
