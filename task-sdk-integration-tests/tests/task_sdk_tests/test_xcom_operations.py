@@ -232,3 +232,40 @@ def test_xcom_get_sequence_slice_not_found(sdk_client, dag_info):
     """
     console.print("[yellow]TODO: Implement test_xcom_get_sequence_slice_not_found")
     raise NotImplementedError("test_xcom_get_sequence_slice_not_found not implemented")
+
+
+@pytest.mark.parametrize(
+    "xcom_key",
+    [
+        "simple_key",
+        "folder/sub/value",
+    ],
+)
+def test_xcom_push_pull_with_various_keys(sdk_client, xcom_key, dag_info):
+    """
+    Test XCom push/pull with various key formats including keys with slashes.
+
+    This validates that URL encoding/decoding works correctly for special characters.
+    """
+    set_response = sdk_client.xcoms.set(
+        dag_id=dag_info["dag_id"],
+        run_id=dag_info["dag_run_id"],
+        task_id="long_running_task",
+        key=xcom_key,
+        value={"foo": "bar"},
+    )
+
+    assert isinstance(set_response, OKResponse)
+    assert set_response.ok is True
+
+    response = sdk_client.xcoms.get(
+        dag_id=dag_info["dag_id"],
+        run_id=dag_info["dag_run_id"],
+        task_id="long_running_task",
+        key=xcom_key,
+    )
+
+    assert isinstance(response, XComResponse)
+    assert response.key == xcom_key
+    assert response.value == {"foo": "bar"}
+    console.print(f"[green]✅ XCom push/pull with key '{xcom_key}' passed!")
