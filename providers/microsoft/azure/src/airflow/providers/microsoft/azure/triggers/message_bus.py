@@ -24,13 +24,13 @@ from typing import TYPE_CHECKING, Any
 from asgiref.sync import sync_to_async
 
 from airflow.providers.microsoft.azure.hooks.asb import MessageHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseEventTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from azure.servicebus import ServiceBusReceivedMessage
 
 
-class BaseAzureServiceBusTrigger(BaseTrigger):
+class BaseAzureServiceBusTrigger(BaseEventTrigger):
     """
     Base trigger for Azure Service Bus message processing.
 
