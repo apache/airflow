@@ -311,6 +311,8 @@ class AssetManager(LoggingMixin):
             return partition_dags
 
         for target_dag in partition_dags:
+            if TYPE_CHECKING:
+                assert partition_key is not None
             from airflow.models.serialized_dag import SerializedDagModel
 
             serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
