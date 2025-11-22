@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-21T13:50:13.218579
+# This constraints file was automatically generated on 2025-11-22T07:44:49.567859
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -93,7 +93,7 @@ asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.102.0
+aws-sam-translator==1.103.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -177,7 +177,7 @@ decorator==5.2.1
 defusedxml==0.7.1
 deltalake==1.2.1
 deprecation==2.1.0
-diagrams==0.24.4
+diagrams==0.25.1
 dill==0.4.0
 distlib==0.4.0
 distro==1.9.0
@@ -396,7 +396,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.41.0
-mypy-boto3-rds==1.41.1
+mypy-boto3-rds==1.41.2
 mypy-boto3-redshift-data==1.41.1
 mypy-boto3-s3==1.41.1
 mypy==1.18.2
@@ -478,9 +478,9 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.3
-psycopg-binary==3.2.12
+psycopg-binary==3.2.13
 psycopg2-binary==2.9.11
-psycopg==3.2.12
+psycopg==3.2.13
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -559,7 +559,7 @@ requests-toolbelt==1.0.0
 requests==2.32.5
 requests_ntlm==1.3.0
 responses==0.25.8
-restructuredtext_lint==1.4.0
+restructuredtext_lint==2.0.0
 retryhttp==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
@@ -572,7 +572,7 @@ rpds-py==0.29.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
-ruff==0.14.5
+ruff==0.14.6
 s3fs==2025.10.0
 s3transfer==0.14.0
 sagemaker_studio==1.0.23
@@ -689,7 +689,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.10
+uv==0.9.11
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0

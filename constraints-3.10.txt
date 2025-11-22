@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-21T13:53:40.848547
+# This constraints file was automatically generated on 2025-11-22T07:48:09.598611
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -299,7 +299,7 @@ email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.40.3
-exceptiongroup==1.3.0
+exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
