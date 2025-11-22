@@ -39,7 +39,7 @@ class TestNeo4jSensor:
         mock_neo4j_hook_conn = mock_neo4j_hook.return_value
         mock_neo4j_hook_conn.run.return_value = [{"person_count": 50}]
 
-        cypher = "MATCH (n:Person) RETURN COUNT(n) AS person_count"
+        cypher = "MATCH (p:Person) RETURN COUNT(p) AS person_count"
 
         sensor = Neo4jSensor(task_id="neo4j_sensor_check", neo4j_conn_id="neo4j_default", cypher=cypher)
 
