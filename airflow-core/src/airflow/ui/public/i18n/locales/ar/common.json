@@ -102,6 +102,11 @@
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
   },
+  "download": {
+    "download": "تنزيل",
+    "hotkey": "d",
+    "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
+  },
   "duration": "المدة",
   "endDate": "تاريخ الانتهاء",
   "error": {
@@ -125,6 +130,8 @@
   },
   "filter": "فلتر",
   "filters": {
+    "durationFrom": "المدة من",
+    "durationTo": "المدة إلى",
     "logicalDateFrom": "من التاريخ المنطقي",
     "logicalDateTo": "إلى التاريخ المنطقي",
     "runAfterFrom": "من تشغيل بعد",
@@ -189,7 +196,6 @@
     },
     "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
   },
-  "seconds": "ثواني",
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",

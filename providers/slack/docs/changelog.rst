@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: use get async conn from common compact (#57894)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate slack provider to ''common.compat'' (#57110)``
+* ``Add 'use-next-version' comment in providers that will need rc2 (#58390)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to slack Provider test (#57963)``
+   * ``Updates to release process of providers (#58316)``
+   * ``Update documentation for providers 14 Nov 2025 (#58284)``
+
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: async slack notifier (#56685)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+
 9.3.0
 .....
 
@@ -235,8 +276,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 8.9.2
@@ -645,8 +684,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Enable string normalization in python formatting - providers (#27205)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Replace urlparse with urlsplit (#27389)``
 
 6.0.0

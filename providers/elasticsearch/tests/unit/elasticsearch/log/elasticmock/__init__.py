@@ -62,9 +62,8 @@ def _normalize_hosts(hosts):
 
     out = []
 
-    for host in hosts:
-        if "://" not in host:
-            host = f"//{host}"
+    for host_raw in hosts:
+        host = f"//{host_raw}" if "://" not in host_raw else host_raw
 
         parsed_url = urlparse(host)
         h = {"host": parsed_url.hostname}
@@ -83,8 +82,7 @@ def _normalize_hosts(hosts):
             h["url_prefix"] = parsed_url.path
 
         out.append(h)
-    else:
-        out.append(host)
+    out.append(host)
     return out
 
 

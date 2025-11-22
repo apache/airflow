@@ -370,7 +370,7 @@ class TestSecretsMasker:
         assert caplog.messages == ["redacted: ***"]
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
             (MyEnum.testname, "testvalue"),
         ],
@@ -1110,3 +1110,44 @@ class TestSecretsMaskerMerge:
         assert final_dict["api"]["api_key"] == "new_api_key_67890"  # User modification kept
         assert final_dict["api"]["timeout"] == 60  # User modification kept
         assert final_dict["app_name"] == "my_application"  # Unchanged
+
+
+class TestKubernetesImportAvoidance:
+    """Test that secrets masker doesn't import kubernetes unnecessarily."""
+
+    def test_no_k8s_import_when_not_needed(self):
+        """Ensure kubernetes is not imported when masking non-k8s secrets."""
+        # Ensure kubernetes is not already imported
+        k8s_modules = [m for m in sys.modules if m.startswith("kubernetes")]
+        if k8s_modules:
+            pytest.skip("Kubernetes already imported, cannot test import avoidance")
+
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+
+        masker.add_mask("test_secret", "password")
+        redacted = masker.redact({"password": "test_secret", "user": "admin"})
+
+        assert redacted["password"] == "***"
+        assert redacted["user"] == "admin"
+
+        assert "kubernetes.client" not in sys.modules
+
+    def test_k8s_objects_still_detected_when_imported(self):
+        """Ensure V1EnvVar objects are still properly detected when k8s is imported."""
+        pytest.importorskip("kubernetes")
+
+        from kubernetes.client import V1EnvVar
+
+        # Create a V1EnvVar object with a sensitive name
+        env_var = V1EnvVar(name="password", value="secret123")
+
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+
+        # Redact the V1EnvVar object - the name field is sensitive
+        redacted = masker.redact(env_var)
+
+        # Should be redacted since "password" is a sensitive field name
+        assert redacted["value"] == "***"
+        assert redacted["name"] == "password"

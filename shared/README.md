@@ -107,7 +107,7 @@ would be to files outside the distribution otherwise). This is specific to sdist
 resolves the symlinks.
 
 We have a convention that when you include a shared code in your distribution, you should such shared
-distributions (full name of the form `apache-airlow-shared-<name>` it to the `tool.airflow` section of
+distributions (full name of the form `apache-airflow-shared-<name>` it to the `tool.airflow` section of
 your pyproject.toml:
 
 ```toml

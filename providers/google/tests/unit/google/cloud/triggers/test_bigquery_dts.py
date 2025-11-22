@@ -68,7 +68,7 @@ class TestBigQueryDataTransferRunTrigger:
         }
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("location", LOCATION),
@@ -153,5 +153,8 @@ class TestBigQueryDataTransferRunTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current job status is: {TransferState.RUNNING}"
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert (
+            f"Current state is {TransferState.RUNNING}" in caplog.text
+            or "Current state is TransferState.RUNNING" in caplog.text
+        )
+        assert f"Waiting for {POLL_INTERVAL} seconds" in caplog.text

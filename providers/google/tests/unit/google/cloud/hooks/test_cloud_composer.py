@@ -283,6 +283,21 @@ class TestCloudComposerHook:
             timeout=TEST_TIMEOUT,
         )
 
+    @mock.patch(COMPOSER_STRING.format("CloudComposerHook.make_composer_airflow_api_request"))
+    def test_get_dag_runs(self, mock_composer_airflow_api_request) -> None:
+        self.hook.get_credentials = mock.MagicMock()
+        self.hook.get_dag_runs(
+            composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            timeout=TEST_TIMEOUT,
+        )
+        mock_composer_airflow_api_request.assert_called_once_with(
+            method="GET",
+            airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            path=f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns",
+            timeout=TEST_TIMEOUT,
+        )
+
 
 class TestCloudComposerAsyncHook:
     def setup_method(self, method):
@@ -367,6 +382,31 @@ class TestCloudComposerAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_get_environment(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
+        await self.hook.get_environment(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.get_environment.assert_called_once_with(
+            request={
+                "name": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_execute_airflow_command(self, mock_client) -> None:
         mock_env_client = AsyncMock(EnvironmentsAsyncClient)
         mock_client.return_value = mock_env_client
@@ -427,4 +467,20 @@ class TestCloudComposerAsyncHook:
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,
             metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.make_composer_airflow_api_request"))
+    async def test_get_dag_runs(self, mock_composer_airflow_api_request) -> None:
+        mock_composer_airflow_api_request.return_value = ({}, 200)
+        await self.hook.get_dag_runs(
+            composer_airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            composer_dag_id=TEST_COMPOSER_DAG_ID,
+            timeout=TEST_TIMEOUT,
+        )
+        mock_composer_airflow_api_request.assert_called_once_with(
+            method="GET",
+            airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            path=f"/api/v1/dags/{TEST_COMPOSER_DAG_ID}/dagRuns",
+            timeout=TEST_TIMEOUT,
         )

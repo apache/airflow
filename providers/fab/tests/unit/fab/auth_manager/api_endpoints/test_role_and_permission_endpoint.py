@@ -98,7 +98,7 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -134,7 +134,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -145,7 +145,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
 
 class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_roles",
+        ("url", "expected_roles"),
         [
             ("/fab/v1/roles?limit=1", ["Admin"]),
             ("/fab/v1/roles?limit=2", ["Admin", "Op"]),
@@ -196,7 +196,7 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -217,7 +217,7 @@ class TestPostRole(TestRoleEndpoint):
         assert role is not None
 
     @pytest.mark.parametrize(
-        "payload, error_message",
+        ("payload", "error_message"),
         [
             (
                 {
@@ -328,7 +328,7 @@ class TestPostRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )
@@ -373,7 +373,7 @@ class TestDeleteRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 204)),
         indirect=["set_auth_role_public"],
     )
@@ -385,7 +385,7 @@ class TestDeleteRole(TestRoleEndpoint):
 
 class TestPatchRole(TestRoleEndpoint):
     @pytest.mark.parametrize(
-        "payload, expected_name, expected_actions",
+        ("payload", "expected_name", "expected_actions"),
         [
             ({"name": "mytest"}, "mytest", []),
             (
@@ -429,7 +429,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert len(self.app.appbuilder.sm.find_role("already_exists").permissions) == 0
 
     @pytest.mark.parametrize(
-        "update_mask, payload, expected_name, expected_actions",
+        ("update_mask", "payload", "expected_name", "expected_actions"),
         [
             (
                 "?update_mask=name",
@@ -477,7 +477,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.json["detail"] == "'invalid_name' in update_mask is unknown"
 
     @pytest.mark.parametrize(
-        "payload, expected_error",
+        ("payload", "expected_error"),
         [
             (
                 {
@@ -559,7 +559,7 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auth_role_public, expected_status_code",
+        ("set_auth_role_public", "expected_status_code"),
         (("Public", 403), ("Admin", 200)),
         indirect=["set_auth_role_public"],
     )

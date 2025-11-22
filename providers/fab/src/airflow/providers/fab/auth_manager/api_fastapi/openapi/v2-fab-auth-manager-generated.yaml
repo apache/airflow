@@ -82,8 +82,342 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/logout:
+    get:
+      tags:
+      - FabAuthManager
+      summary: Logout
+      description: Generate a new API token.
+      operationId: logout
+      responses:
+        '307':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /auth/fab/v1/roles:
+    post:
+      tags:
+      - FabAuthManager
+      summary: Create Role
+      description: Create a new role (actions can be empty).
+      operationId: create_role
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Roles
+      description: List roles with pagination and ordering.
+      operationId: get_roles
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          description: Field to order by. Prefix with '-' for descending.
+          default: name
+          title: Order By
+        description: Field to order by. Prefix with '-' for descending.
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Number of items to skip before starting to collect results.
+          default: 0
+          title: Offset
+        description: Number of items to skip before starting to collect results.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Internal Server Error
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/roles/{name}:
+    delete:
+      tags:
+      - FabAuthManager
+      summary: Delete Role
+      description: Delete an existing role.
+      operationId: delete_role
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - FabAuthManager
+      summary: Get Role
+      description: Get an existing role.
+      operationId: get_role
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - FabAuthManager
+      summary: Patch Role
+      description: Update an existing role.
+      operationId: patch_role
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          title: Name
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Comma-separated list of fields to update
+          title: Update Mask
+        description: Comma-separated list of fields to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ActionResourceResponse:
+      properties:
+        action:
+          $ref: '#/components/schemas/ActionResponse'
+        resource:
+          $ref: '#/components/schemas/ResourceResponse'
+      type: object
+      required:
+      - action
+      - resource
+      title: ActionResourceResponse
+      description: Pairing of an action with a resource.
+    ActionResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: ActionResponse
+      description: Outgoing representation of an action (permission name).
     HTTPExceptionResponse:
       properties:
         detail:
@@ -130,6 +464,64 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
+    ResourceResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: ResourceResponse
+      description: Outgoing representation of a resource.
+    RoleBody:
+      properties:
+        name:
+          type: string
+          minLength: 1
+          title: Name
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResourceResponse'
+          type: array
+          title: Actions
+      additionalProperties: false
+      type: object
+      required:
+      - name
+      title: RoleBody
+      description: Incoming payload for creating/updating a role.
+    RoleCollectionResponse:
+      properties:
+        roles:
+          items:
+            $ref: '#/components/schemas/RoleResponse'
+          type: array
+          title: Roles
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - roles
+      - total_entries
+      title: RoleCollectionResponse
+      description: Outgoing representation of a paginated collection of roles.
+    RoleResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+        actions:
+          items:
+            $ref: '#/components/schemas/ActionResourceResponse'
+          type: array
+          title: Actions
+      type: object
+      required:
+      - name
+      title: RoleResponse
+      description: Outgoing representation of a role and its permissions.
     ValidationError:
       properties:
         loc:
@@ -151,3 +543,21 @@ components:
       - msg
       - type
       title: ValidationError
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      description: To authenticate Airflow API requests, clients must include a JWT
+        (JSON Web Token) in the Authorization header of each request. This token is
+        used to verify the identity of the client and ensure that they have the appropriate
+        permissions to access the requested resources. You can use the endpoint ``POST
+        /auth/token`` in order to generate a JWT token. Upon successful authentication,
+        the server will issue a JWT token that contains the necessary information
+        (such as user identity and scope) to authenticate subsequent requests. To
+        learn more about Airflow public API authentication, please read https://airflow.apache.org/docs/apache-airflow/stable/security/api.html.
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

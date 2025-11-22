@@ -21,24 +21,18 @@ import warnings
 from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
-
+from airflow.providers.common.compat.sdk import (
+    DecoratedOperator,
+    TaskDecorator,
+    context_merge,
+    task_decorator_factory,
+)
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.providers.standard.version_compat import context_merge
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class _BashDecoratedOperator(DecoratedOperator, BashOperator):

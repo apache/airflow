@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "requests>=2.31.0",
 #   "rich>=13.6.0",
@@ -27,6 +27,8 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console, initialize_breeze_prek
@@ -40,7 +42,7 @@ console.print(f"[bright_blue]Determining providers to regenerate from: {file_lis
 
 
 def _find_all_providers(examined_file: Path) -> None:
-    console.print(f"[bright_blue]Looking at {examined_file} for new structure provider.yaml")
+    console.print(f"[bright_blue]Looking at {examined_file} for structure provider.yaml")
     # find the folder where provider.yaml is
     for parent in Path(examined_file).parents:
         console.print(f"[bright_blue]Checking {parent} for provider.yaml")
@@ -58,7 +60,7 @@ def _find_all_providers(examined_file: Path) -> None:
             console.print(f"[bright_blue]Found base folder {base_folder}")
             break
     else:
-        console.print(f"[red]\nCould not find new structure base folder for {provider_folder}")
+        console.print(f"[red]\nCould not find structure base folder for {provider_folder}")
         sys.exit(1)
     provider_name = ".".join(provider_folder.relative_to(base_folder).as_posix().split("/"))
     providers.add(provider_name)
@@ -66,13 +68,16 @@ def _find_all_providers(examined_file: Path) -> None:
 
 # get all folders from arguments
 for examined_file in file_list:
-    _find_all_providers(Path(examined_file))
+    _find_all_providers(Path(examined_file).absolute())
 
 console.print(f"[bright_blue]Regenerating build files for providers: {providers}[/]")
 
 if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")
     sys.exit(1)
+
+LAST_PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_ROOT_PATH / "providers" / ".last_release_date.txt"
+LAST_PROVIDERS_RELEASE_DATE = LAST_PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
 
 cmd = [
     "breeze",
@@ -83,6 +88,8 @@ cmd = [
     "--only-min-version-update",
     "--skip-changelog",
     "--skip-readme",
+    "--release-date",
+    LAST_PROVIDERS_RELEASE_DATE,
 ]
 
 cmd.extend(providers)

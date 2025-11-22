@@ -22,8 +22,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
-import sqlalchemy
 import teradatasql
+from sqlalchemy.engine import URL
 from teradatasql import TeradataConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     except ImportError:
         from airflow.models.connection import Connection  # type: ignore[assignment]
 
+DEFAULT_DB_PORT = 1025
 PARAM_TYPES = {bool, float, int, str}
 
 
@@ -166,7 +167,7 @@ class TeradataHook(DbApiHook):
         conn: Connection = self.get_connection(self.get_conn_id())
         conn_config = {
             "host": conn.host or "localhost",
-            "dbs_port": conn.port or "1025",
+            "dbs_port": conn.port or DEFAULT_DB_PORT,
             "database": conn.schema or "",
             "user": conn.login or "dbc",
             "password": conn.password or "dbc",
@@ -195,12 +196,28 @@ class TeradataHook(DbApiHook):
 
         return conn_config
 
-    def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """Return a connection object using sqlalchemy."""
-        conn: Connection = self.get_connection(self.get_conn_id())
-        link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}"
-        connection = sqlalchemy.create_engine(link)
-        return connection
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+         Override to return a Sqlalchemy.engine.URL object from the Teradata connection.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        connection = self.get_connection(self.get_conn_id())
+        # Adding only teradatasqlalchemy supported connection parameters.
+        # https://pypi.org/project/teradatasqlalchemy/#ConnectionParameters
+        return URL.create(
+            drivername="teradatasql",
+            username=connection.login,
+            password=connection.password,
+            host=connection.host,
+            port=connection.port,
+            database=connection.schema if connection.schema else None,
+        )
+
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
+        return self.sqlalchemy_url.render_as_string()
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:

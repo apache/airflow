@@ -25,8 +25,8 @@ from jinja2.nativetypes import NativeEnvironment
 from pypsrp.powershell import Command, PowerShell
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.psrp.operators.psrp import PsrpOperator
-from airflow.providers.microsoft.psrp.version_compat import BaseOperator
 from airflow.settings import json
 
 CONNECTION_ID = "conn_id"
@@ -51,7 +51,7 @@ class TestPsrpOperator:
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize(
-        "had_errors, rc", [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
+        ("had_errors", "rc"), [(False, 0), (False, None), (True, None), (False, 1), (True, 1)]
     )
     @pytest.mark.parametrize(
         "parameter",

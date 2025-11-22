@@ -20,11 +20,11 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
-    Column,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -37,7 +37,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
@@ -45,7 +45,7 @@ from airflow.utils.db import LazySelectSequence
 from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 log = logging.getLogger(__name__)
 
@@ -63,17 +63,19 @@ class XComModel(TaskInstanceDependencies):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id: Mapped[int] = mapped_column(Integer(), nullable=False, primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
+    key: Mapped[str] = mapped_column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(JSON().with_variant(postgresql.JSONB, "postgresql"))
-    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    value: Mapped[Any] = mapped_column(JSON().with_variant(postgresql.JSONB, "postgresql"), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
         # Ideally we should create a unique index over (key, dag_id, task_id, run_id),
@@ -107,7 +109,7 @@ class XComModel(TaskInstanceDependencies):
     task = relationship(
         "TaskInstance",
         viewonly=True,
-        lazy="selectin",
+        lazy="noload",
     )
 
     @classmethod
@@ -165,6 +167,7 @@ class XComModel(TaskInstanceDependencies):
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        serialize: bool = True,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -176,7 +179,8 @@ class XComModel(TaskInstanceDependencies):
         :param task_id: Task ID.
         :param run_id: DAG run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
-            The default is ``-1`` (set for a non-mapped task).
+        :param serialize: Optional parameter to specify if value should be serialized or not.
+            The default is ``True``.
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
@@ -213,14 +217,15 @@ class XComModel(TaskInstanceDependencies):
             )
             value = list(value)
 
-        value = cls.serialize_value(
-            value=value,
-            key=key,
-            task_id=task_id,
-            dag_id=dag_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
+        if serialize:
+            value = cls.serialize_value(
+                value=value,
+                key=key,
+                task_id=task_id,
+                dag_id=dag_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
 
         # Remove duplicate XComs and insert a new one.
         session.execute(
@@ -233,7 +238,7 @@ class XComModel(TaskInstanceDependencies):
             )
         )
 
-        new = cast("Any", cls)(  # Work around Mypy complaining model not defining '__init__'.
+        new = cls(
             dag_run_id=dag_run_id,
             key=key,
             value=value,
@@ -256,7 +261,7 @@ class XComModel(TaskInstanceDependencies):
         map_indexes: int | Iterable[int] | None = None,
         include_prior_dates: bool = False,
         limit: int | None = None,
-    ) -> Select:
+    ) -> Select[tuple[XComModel]]:
         """
         Composes a query to get one or more XCom entries.
 
@@ -346,7 +351,7 @@ class XComModel(TaskInstanceDependencies):
             raise ValueError("XCom value must be JSON serializable")
 
     @staticmethod
-    def deserialize_value(result) -> Any:
+    def deserialize_value(result: Any) -> Any:
         """
         Deserialize XCom value from a database result.
 
@@ -395,8 +400,8 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     """
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
-        return select(XComModel.value).from_statement(stmt)
+    def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
+        return cast("Select[tuple[Any]]", select(XComModel.value).from_statement(stmt))
 
     @staticmethod
     def _process_row(row: Row) -> Any:

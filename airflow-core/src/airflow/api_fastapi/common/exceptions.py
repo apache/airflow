@@ -118,4 +118,4 @@ class DagErrorHandler(BaseErrorHandler[DeserializationError]):
         )
 
 
-ERROR_HANDLERS = [_UniqueConstraintErrorHandler(), DagErrorHandler()]
+ERROR_HANDLERS: list[BaseErrorHandler] = [_UniqueConstraintErrorHandler(), DagErrorHandler()]

@@ -25,7 +25,7 @@ from airflow.providers.trino.assets.trino import sanitize_uri
 
 
 @pytest.mark.parametrize(
-    "original, normalized",
+    ("original", "normalized"),
     [
         pytest.param(
             "trino://example.com:1234/catalog/schema/table",

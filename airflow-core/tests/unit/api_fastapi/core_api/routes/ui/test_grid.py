@@ -35,6 +35,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.mock_operators import MockOperator
 
@@ -84,7 +85,7 @@ GRID_NODES = [
         "is_mapped": True,
         "label": "mapped_task_group",
     },
-    {"id": "task", "label": "task"},
+    {"id": "task", "label": "A Beautiful Task Name 🚀"},
     {
         "children": [
             {
@@ -92,11 +93,11 @@ GRID_NODES = [
                     {
                         "id": "task_group.inner_task_group.inner_task_group_sub_task",
                         "is_mapped": True,
-                        "label": "inner_task_group_sub_task",
+                        "label": "Inner Task Group Sub Task Label",
                     }
                 ],
                 "id": "task_group.inner_task_group",
-                "label": "inner_task_group",
+                "label": "My Inner Task Group",
             },
             {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
         ],
@@ -121,7 +122,7 @@ def setup(dag_maker, session=None):
 
     # DAG 1
     with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
-        task = EmptyOperator(task_id=TASK_ID)
+        task = EmptyOperator(task_id=TASK_ID, task_display_name="A Beautiful Task Name 🚀")
 
         @task_group
         def mapped_task_group(arg1):
@@ -131,8 +132,10 @@ def setup(dag_maker, session=None):
 
         with TaskGroup(group_id=TASK_GROUP_ID):
             MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
-            with TaskGroup(group_id=INNER_TASK_GROUP):
-                MockOperator.partial(task_id=INNER_TASK_GROUP_SUB_TASK).expand(arg1=["a", "b"])
+            with TaskGroup(group_id=INNER_TASK_GROUP, group_display_name="My Inner Task Group"):
+                MockOperator.partial(
+                    task_id=INNER_TASK_GROUP_SUB_TASK, task_display_name="Inner Task Group Sub Task Label"
+                ).expand(arg1=["a", "b"])
 
         # Mapped but never expanded. API should not crash, but count this as one no-status ti.
         MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
@@ -271,7 +274,8 @@ def _freeze_time_for_dagruns(time_machine):
 @pytest.mark.usefixtures("_freeze_time_for_dagruns")
 class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
-        response = test_client.get(f"/grid/runs/{DAG_ID}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
         assert response.json() == [
             GRID_RUN_1,
@@ -279,7 +283,7 @@ class TestGetGridDataEndpoint:
         ]
 
     @pytest.mark.parametrize(
-        "order_by,expected",
+        ("order_by", "expected"),
         [
             (
                 "logical_date",
@@ -312,12 +316,13 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_order_by(self, test_client, order_by, expected):
-        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "limit, expected",
+        ("limit", "expected"),
         [
             (
                 1,
@@ -330,12 +335,13 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_limit(self, test_client, limit, expected):
-        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {
@@ -354,15 +360,16 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_runs_should_response_200_date_filters(self, test_client, params, expected):
-        response = test_client.get(
-            f"/grid/runs/{DAG_ID}",
-            params=params,
-        )
+        with assert_queries_count(5):
+            response = test_client.get(
+                f"/grid/runs/{DAG_ID}",
+                params=params,
+            )
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {
@@ -370,6 +377,7 @@ class TestGetGridDataEndpoint:
                     "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
                 GRID_NODES,
+                7,
             ),
             (
                 {
@@ -377,14 +385,18 @@ class TestGetGridDataEndpoint:
                     "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
                 GRID_NODES,
+                5,
             ),
         ],
     )
-    def test_structure_should_response_200_date_filters(self, test_client, params, expected):
-        response = test_client.get(
-            f"/grid/structure/{DAG_ID}",
-            params=params,
-        )
+    def test_structure_should_response_200_date_filters(
+        self, test_client, params, expected, expected_queries_count
+    ):
+        with assert_queries_count(expected_queries_count):
+            response = test_client.get(
+                f"/grid/structure/{DAG_ID}",
+                params=params,
+            )
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -405,12 +417,14 @@ class TestGetGridDataEndpoint:
         assert response.json() == {"detail": "Dag with id invalid_dag was not found"}
 
     def test_structure_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/grid/structure/{DAG_ID_2}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/structure/{DAG_ID_2}")
         assert response.status_code == 200
         assert response.json() == [{"id": "task2", "label": "task2"}]
 
     def test_runs_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/grid/runs/{DAG_ID_2}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID_2}")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -424,7 +438,8 @@ class TestGetGridDataEndpoint:
         ti.dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_3)).dag_versions[-1]
         session.commit()
 
-        response = test_client.get(f"/grid/structure/{DAG_ID_3}")
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID_3}")
         assert response.status_code == 200
         assert response.json() == [
             {"id": "task3", "label": "task3"},
@@ -437,7 +452,8 @@ class TestGetGridDataEndpoint:
         ]
 
         # Also verify that TI summaries include a leaf entry for the removed task
-        ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
+        with assert_queries_count(4):
+            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
         assert ti_resp.status_code == 200
         ti_payload = ti_resp.json()
         assert ti_payload["dag_id"] == DAG_ID_3
@@ -471,7 +487,9 @@ class TestGetGridDataEndpoint:
 
     def test_get_dag_structure(self, session, test_client):
         session.commit()
-        response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
+
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
         assert response.status_code == 200
         assert response.json() == [
             {
@@ -480,7 +498,7 @@ class TestGetGridDataEndpoint:
                 "is_mapped": True,
                 "label": "mapped_task_group",
             },
-            {"id": "task", "label": "task"},
+            {"id": "task", "label": "A Beautiful Task Name 🚀"},
             {
                 "children": [
                     {
@@ -488,11 +506,11 @@ class TestGetGridDataEndpoint:
                             {
                                 "id": "task_group.inner_task_group.inner_task_group_sub_task",
                                 "is_mapped": True,
-                                "label": "inner_task_group_sub_task",
+                                "label": "Inner Task Group Sub Task Label",
                             }
                         ],
                         "id": "task_group.inner_task_group",
-                        "label": "inner_task_group",
+                        "label": "My Inner Task Group",
                     },
                     {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
                 ],
@@ -504,7 +522,8 @@ class TestGetGridDataEndpoint:
 
     def test_get_grid_runs(self, session, test_client):
         session.commit()
-        response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
         assert response.json() == [
             {
@@ -530,7 +549,7 @@ class TestGetGridDataEndpoint:
         ]
 
     @pytest.mark.parametrize(
-        "endpoint,run_type,expected",
+        ("endpoint", "run_type", "expected"),
         [
             ("runs", "scheduled", [GRID_RUN_1]),
             ("runs", "manual", [GRID_RUN_2]),
@@ -545,7 +564,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "endpoint,triggering_user,expected",
+        ("endpoint", "triggering_user", "expected"),
         [
             ("runs", "user2", [GRID_RUN_2]),
             ("runs", "nonexistent", []),
@@ -560,12 +579,13 @@ class TestGetGridDataEndpoint:
 
     def test_get_grid_runs_filter_by_run_type_and_triggering_user(self, session, test_client):
         session.commit()
-        response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=manual&triggering_user=user2")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=manual&triggering_user=user2")
         assert response.status_code == 200
         assert response.json() == [GRID_RUN_2]
 
     @pytest.mark.parametrize(
-        "endpoint,state,expected",
+        ("endpoint", "state", "expected"),
         [
             ("runs", "success", [GRID_RUN_1]),
             ("runs", "failed", [GRID_RUN_2]),
@@ -583,7 +603,9 @@ class TestGetGridDataEndpoint:
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
         session.commit()
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
+
+        with assert_queries_count(4):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
         assert response.status_code == 200
         actual = response.json()
         expected = {
@@ -612,7 +634,7 @@ class TestGetGridDataEndpoint:
                     "min_start_date": None,
                 },
                 {
-                    "child_states": {"success": 2},
+                    "child_states": {"success": 4},
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
@@ -663,7 +685,9 @@ class TestGetGridDataEndpoint:
     def test_grid_ti_summaries_mapped(self, session, test_client):
         run_id = "run_2"
         session.commit()
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+
+        with assert_queries_count(4):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
         assert response.status_code == 200
         data = response.json()
         actual = data["task_instances"]
@@ -685,7 +709,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"running": 1},
+                "child_states": {"success": 1, "running": 1, "None": 1},
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
@@ -706,14 +730,14 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"None": 6},
                 "task_id": "task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {"None": 1},
+                "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group",
                 "max_end_date": None,
                 "min_start_date": None,
@@ -740,7 +764,9 @@ class TestGetGridDataEndpoint:
 
     def test_structure_includes_historical_removed_task_with_proper_shape(self, session, test_client):
         # Ensure the structure endpoint returns synthetic node for historical/removed task
-        response = test_client.get(f"/grid/structure/{DAG_ID_3}")
+
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID_3}")
         assert response.status_code == 200
         nodes = response.json()
         # Find the historical removed task id
