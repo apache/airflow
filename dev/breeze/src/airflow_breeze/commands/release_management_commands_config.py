@@ -42,6 +42,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
         "prepare-provider-documentation",
+        "update-providers-next-version",
         "prepare-provider-distributions",
         "install-provider-distributions",
         "verify-provider-distributions",
@@ -279,6 +280,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze release-management update-providers-next-version": [],
     "breeze release-management prepare-python-client": [
         {
             "name": "Python client preparation flags",

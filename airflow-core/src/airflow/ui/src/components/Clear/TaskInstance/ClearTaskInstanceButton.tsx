@@ -31,6 +31,8 @@ import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 type Props = {
   readonly groupTaskInstance?: LightGridTaskInstanceSummary;
   readonly isHotkeyEnabled?: boolean;
+  // Optional: allow parent to handle opening a stable, page-level dialog
+  readonly onOpen?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
   readonly taskInstance?: TaskInstanceResponse;
   readonly withText?: boolean;
 };
@@ -38,17 +40,25 @@ type Props = {
 const ClearTaskInstanceButton = ({
   groupTaskInstance,
   isHotkeyEnabled = false,
+  onOpen,
   taskInstance,
   withText = true,
 }: Props) => {
-  const { onClose, onOpen, open } = useDisclosure();
+  const { onClose, onOpen: onOpenInternal, open } = useDisclosure();
   const { t: translate } = useTranslation();
   const isGroup = groupTaskInstance && !taskInstance;
+  const useInternalDialog = !Boolean(onOpen);
+
+  const selectedInstance = taskInstance ?? groupTaskInstance;
 
   useHotkeys(
     "shift+c",
     () => {
-      onOpen();
+      if (onOpen && selectedInstance) {
+        onOpen(selectedInstance);
+      } else {
+        onOpenInternal();
+      }
     },
     { enabled: isHotkeyEnabled },
   );
@@ -66,18 +76,18 @@ const ClearTaskInstanceButton = ({
             type: translate("taskInstance_one"),
           })}
           icon={<CgRedo />}
-          onClick={onOpen}
+          onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
           text={translate("dags:runAndTaskActions.clear.button", {
             type: translate(isGroup ? "taskGroup" : "taskInstance_one"),
           })}
           withText={withText}
         />
 
-        {open && isGroup ? (
+        {useInternalDialog && open && isGroup ? (
           <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />
         ) : undefined}
 
-        {open && !isGroup && taskInstance ? (
+        {useInternalDialog && open && !isGroup && taskInstance ? (
           <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
         ) : undefined}
       </Box>

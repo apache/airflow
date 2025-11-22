@@ -86,7 +86,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -711,7 +711,7 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -805,12 +805,16 @@ def post_clear_task_instances(
         )
 
     if not dry_run:
-        clear_task_instances(
-            task_instances,
-            session,
-            DagRunState.QUEUED if reset_dag_runs else False,
-            run_on_latest_version=body.run_on_latest_version,
-        )
+        try:
+            clear_task_instances(
+                task_instances,
+                session,
+                DagRunState.QUEUED if reset_dag_runs else False,
+                run_on_latest_version=body.run_on_latest_version,
+                prevent_running_task=body.prevent_running_task,
+            )
+        except AirflowClearRunningTaskException as e:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
     return TaskInstanceCollectionResponse(
         task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
