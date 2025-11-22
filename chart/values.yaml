@@ -2875,6 +2875,83 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
+# This runs as a CronJob to cleanup the Airflow metadata DB
+dbCleanup:
+  enabled: false
+  schedule: "0 0 * * *"
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: ~
+  successfulJobsHistoryLimit: ~
+
+  # Command to use when running the cleanup cronjob (templated).
+  command: ~
+  # Args to use when running the db cleanup cronjob (templated).
+  args:
+    - "bash"
+    - "-c"
+    - |-
+      exec \
+      {{ include "airflow.db_clean_command" . | fromYamlArray | join " " }}
+
+  # Don't preserve purged records in an archive table
+  skipArchive: false
+  # Table names to perform maintenance on. Supported values in:
+  # https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#clean
+  tables: []
+  # Maximum number of rows to delete or archive in a single transaction
+  batchSize: ~
+  # The duration in seconds before which data should be purged with respect to the current time
+  # Default is 30 days
+  cleanBeforeSeconds: 2592000
+  # Make logging output more verbose
+  verbose: false
+
+  jobAnnotations: {}
+  podAnnotations: {}
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+
+  labels: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Create ServiceAccount
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to cleanup cronjob kubernetes service account.
+    annotations: {}
+
+  #  runAsUser: 50000
+  #  runAsGroup: 0
+  env: []
+
+  securityContexts:
+    pod: {}
+    container: {}
+
+  containerLifecycleHooks: {}
+
+  extraVolumes: []
+  extraVolumeMounts: []
+
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
 # Not recommended for production - use external database instead

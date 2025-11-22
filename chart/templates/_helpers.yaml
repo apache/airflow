@@ -760,6 +760,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
 {{- end }}
 
+{{/* Create the name of the DB cleanup service account to use */}}
+{{- define "dbCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "dbCleanup") .) -}}
+{{- end }}
+
 {{- define "wait-for-migrations-command" -}}
   {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
   - airflow
@@ -1140,5 +1145,28 @@ capabilities:
   {{- end }}
           matchLabels:
             app: keda-operator
+  {{- end }}
+{{- end }}
+
+{{- define "airflow.db_clean_command" }}
+  - airflow
+  - db
+  - clean
+  - --yes
+  - --clean-before-timestamp
+  - $( date --utc --date='now - {{ int .Values.dbCleanup.cleanBeforeSeconds }} seconds' +'%Y-%m-%d %H:%M:%S%:z' )
+  {{- if .Values.dbCleanup.skipArchive }}
+  - --skip-archive
+  {{- end }}
+  {{- if .Values.dbCleanup.verbose }}
+  - --verbose
+  {{- end }}
+  {{- with .Values.dbCleanup.batchSize }}
+  - --batch-size
+  - "{{ . }}"
+  {{- end }}
+  {{- with .Values.dbCleanup.tables }}
+  - --tables
+  - "{{ . | join "," }}"
   {{- end }}
 {{- end }}
