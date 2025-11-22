@@ -178,6 +178,8 @@ Another way to achieve the same is by accessing ``outlet_events`` in a task's ex
 
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
 
+.. note:: Asset event extra information can only contain JSON-serializable values (list and dict nesting is possible). This is due to the value being stored in the database.
+
 .. _fetching_information_from_previously_emitted_asset_events:
 
 Fetching information from previously emitted asset events

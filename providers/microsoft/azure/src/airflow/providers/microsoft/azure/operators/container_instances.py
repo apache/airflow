@@ -27,6 +27,7 @@ from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
     ContainerGroupDiagnostics,
+    ContainerGroupIdentity,
     ContainerGroupSubnetId,
     ContainerPort,
     DnsConfiguration,
@@ -40,10 +41,10 @@ from azure.mgmt.containerinstance.models import (
 from msrestazure.azure_exceptions import CloudError
 
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -102,6 +103,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param dns_config: The DNS configuration for a container group.
     :param diagnostics: Container group diagnostic information (Log Analytics).
     :param priority: Container group priority, Possible values include: 'Regular', 'Spot'
+    :param identity: List of User/System assigned identities for the container group.
 
     **Example**::
 
@@ -144,6 +146,12 @@ class AzureContainerInstancesOperator(BaseOperator):
                 }
             },
             priority="Regular",
+            identity = {
+                {
+                    "type": "UserAssigned",
+                    "resource_ids": ["/subscriptions/00000000-0000-0000-0000-00000000000/resourceGroups/my_rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/my_identity"],
+                },
+            }
             command=["/bin/echo", "world"],
             task_id="start_container",
         )
@@ -180,6 +188,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         dns_config: DnsConfiguration | None = None,
         diagnostics: ContainerGroupDiagnostics | None = None,
         priority: str | None = "Regular",
+        identity: ContainerGroupIdentity | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -222,6 +231,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.dns_config = dns_config
         self.diagnostics = diagnostics
         self.priority = priority
+        self.identity = identity
         if self.priority not in ["Regular", "Spot"]:
             raise AirflowException(
                 "Invalid value for the priority argument. "
@@ -304,6 +314,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 dns_config=self.dns_config,
                 diagnostics=self.diagnostics,
                 priority=self.priority,
+                identity=self.identity,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)

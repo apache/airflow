@@ -23,6 +23,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import and_, select
 
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.asset import AssetResponse
 from airflow.api_fastapi.execution_api.datamodels.asset_event import (
     AssetEventResponse,
@@ -40,11 +41,13 @@ router = APIRouter(
 
 
 def _get_asset_events_through_sql_clauses(
-    *, join_clause, where_clause, session: SessionDep
+    *, join_clause, where_clause, session: SessionDep, ascending: bool = True, limit: int | None = None
 ) -> AssetEventsResponse:
-    asset_events = session.scalars(
-        select(AssetEvent).join(join_clause).where(where_clause).order_by(AssetEvent.timestamp)
-    )
+    order_by_clause = AssetEvent.timestamp.asc() if ascending else AssetEvent.timestamp.desc()
+    asset_events_query = select(AssetEvent).join(join_clause).where(where_clause).order_by(order_by_clause)
+    if limit:
+        asset_events_query = asset_events_query.limit(limit)
+    asset_events = session.scalars(asset_events_query)
     return AssetEventsResponse.model_validate(
         {
             "asset_events": [
@@ -63,6 +66,7 @@ def _get_asset_events_through_sql_clauses(
                     source_dag_id=event.source_dag_id,
                     source_run_id=event.source_run_id,
                     source_map_index=event.source_map_index,
+                    partition_key=event.partition_key,
                 )
                 for event in asset_events
             ]
@@ -75,6 +79,10 @@ def get_asset_event_by_asset_name_uri(
     name: Annotated[str | None, Query(description="The name of the Asset")],
     uri: Annotated[str | None, Query(description="The URI of the Asset")],
     session: SessionDep,
+    after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
+    before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
+    ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
+    limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
 ) -> AssetEventsResponse:
     if name and uri:
         where_clause = and_(AssetModel.name == name, AssetModel.uri == uri)
@@ -91,10 +99,17 @@ def get_asset_event_by_asset_name_uri(
             },
         )
 
+    if after:
+        where_clause = and_(where_clause, AssetEvent.timestamp >= after)
+    if before:
+        where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.asset,
         where_clause=where_clause,
         session=session,
+        ascending=ascending,
+        limit=limit,
     )
 
 
@@ -102,9 +117,21 @@ def get_asset_event_by_asset_name_uri(
 def get_asset_event_by_asset_alias(
     name: Annotated[str, Query(description="The name of the Asset Alias")],
     session: SessionDep,
+    after: Annotated[UtcDateTime | None, Query(description="The start of the time range")] = None,
+    before: Annotated[UtcDateTime | None, Query(description="The end of the time range")] = None,
+    ascending: Annotated[bool, Query(description="Whether to sort results in ascending order")] = True,
+    limit: Annotated[int | None, Query(description="The maximum number of results to return")] = None,
 ) -> AssetEventsResponse:
+    where_clause = AssetAliasModel.name == name
+    if after:
+        where_clause = and_(where_clause, AssetEvent.timestamp >= after)
+    if before:
+        where_clause = and_(where_clause, AssetEvent.timestamp <= before)
+
     return _get_asset_events_through_sql_clauses(
         join_clause=AssetEvent.source_aliases,
-        where_clause=(AssetAliasModel.name == name),
+        where_clause=where_clause,
         session=session,
+        ascending=ascending,
+        limit=limit,
     )

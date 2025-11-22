@@ -41,7 +41,7 @@ class TestKafkaMessageQueueProvider:
         assert isinstance(self.provider, BaseMessageQueueProvider)
 
     @pytest.mark.parametrize(
-        "queue_uri, expected_result",
+        ("queue_uri", "expected_result"),
         [
             pytest.param("kafka://localhost:9092/topic1", True, id="single_broker_single_topic"),
             pytest.param(
@@ -56,7 +56,7 @@ class TestKafkaMessageQueueProvider:
         assert self.provider.queue_matches(queue_uri) == expected_result
 
     @pytest.mark.parametrize(
-        "scheme, expected_result",
+        ("scheme", "expected_result"),
         [
             pytest.param("kafka", True, id="kafka_scheme"),
             pytest.param("redis+pubsub", False, id="redis_scheme"),
@@ -73,7 +73,7 @@ class TestKafkaMessageQueueProvider:
         assert self.provider.trigger_class() == AwaitMessageTrigger
 
     @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_result",
+        ("queue_uri", "extra_kwargs", "expected_result"),
         [
             pytest.param(
                 "kafka://broker:9092/topic1,topic2",
@@ -95,7 +95,7 @@ class TestKafkaMessageQueueProvider:
         assert kwargs == expected_result
 
     @pytest.mark.parametrize(
-        "queue_uri, extra_kwargs, expected_error, error_match",
+        ("queue_uri", "extra_kwargs", "expected_error", "error_match"),
         [
             pytest.param(
                 "kafka://broker:9092/topic1",

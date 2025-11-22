@@ -24,6 +24,10 @@ permissions:
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
       runners:
         description: "The array of labels (in json form) determining runners."
         type: string
@@ -44,9 +48,17 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag of the Docker image to test"
         type: string
         required: true
+      e2e_test_mode:
+        description: "Test mode - basic or remote_log"
+        type: string
+        default: "basic"
 
   workflow_call:
     inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -67,11 +79,15 @@ on:  # yamllint disable-line rule:truthy
         description: "Tag of the Docker image to test"
         type: string
         default: ""
+      e2e_test_mode:
+        description: "Test mode - quick or full"
+        type: string
+        default: "basic"
 
 jobs:
   test-e2e-integration-tests:
     timeout-minutes: 60
-    name: "Test e2e integration tests with PROD image"
+    name: ${{ inputs.workflow-name }}
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -101,14 +117,7 @@ jobs:
         run: breeze testing airflow-e2e-tests
         env:
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
-      - name: "Upload e2e test report"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: e2e-test-report
-          path: './airflow-e2e-tests/_e2e_test_report.json'
-          retention-days: '7'
-          if-no-files-found: 'error'
-        if: always()
+          E2E_TEST_MODE: "${{ inputs.e2e_test_mode }}"
       - name: Zip logs
         run: |
           cd ./airflow-e2e-tests && zip -r logs.zip logs
@@ -116,7 +125,7 @@ jobs:
       - name: "Upload logs"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: e2e-test-logs
+          name: "e2e-test-logs-${{ inputs.e2e_test_mode }}"
           path: './airflow-e2e-tests/logs.zip'
           retention-days: '7'
           if-no-files-found: 'error'

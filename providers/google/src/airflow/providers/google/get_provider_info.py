@@ -44,13 +44,6 @@ def get_provider_info():
                 "tags": ["gmp"],
             },
             {
-                "integration-name": "Google AutoML",
-                "external-doc-url": "https://cloud.google.com/automl/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/automl.rst"],
-                "logo": "/docs/integration-logos/Cloud-AutoML.png",
-                "tags": ["gcp"],
-            },
-            {
                 "integration-name": "Google BigQuery Data Transfer Service",
                 "external-doc-url": "https://cloud.google.com/bigquery/transfer/",
                 "logo": "/docs/integration-logos/BigQuery.png",
@@ -219,7 +212,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Tasks",
                 "external-doc-url": "https://cloud.google.com/tasks/",
-                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/tasks.rst"],
+                "how-to-guide": [
+                    "/docs/apache-airflow-providers-google/operators/cloud/tasks.rst",
+                    "/docs/apache-airflow-providers-google/sensors/google-cloud-tasks.rst",
+                ],
                 "logo": "/docs/integration-logos/Cloud-Tasks.png",
                 "tags": ["gcp"],
             },
@@ -472,6 +468,12 @@ def get_provider_info():
                 ],
                 "tags": ["gcp"],
             },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "external-doc-url": "https://cloud.google.com/generative-ai-studio",
+                "how-to-guide": ["/docs/apache-airflow-providers-google/operators/cloud/gen_ai.rst"],
+                "tags": ["gcp"],
+            },
         ],
         "operators": [
             {
@@ -485,10 +487,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud AlloyDB",
                 "python-modules": ["airflow.providers.google.cloud.operators.alloy_db"],
-            },
-            {
-                "integration-name": "Google AutoML",
-                "python-modules": ["airflow.providers.google.cloud.operators.automl"],
             },
             {
                 "integration-name": "Google BigQuery",
@@ -573,10 +571,6 @@ def get_provider_info():
             {
                 "integration-name": "Google Kubernetes Engine",
                 "python-modules": ["airflow.providers.google.cloud.operators.kubernetes_engine"],
-            },
-            {
-                "integration-name": "Google Machine Learning Engine",
-                "python-modules": ["airflow.providers.google.cloud.operators.mlengine"],
             },
             {
                 "integration-name": "Google Cloud Natural Language",
@@ -692,6 +686,10 @@ def get_provider_info():
             {
                 "integration-name": "Google Cloud Logging Sink",
                 "python-modules": ["airflow.providers.google.cloud.operators.cloud_logging_sink"],
+            },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.operators.gen_ai"],
             },
         ],
         "sensors": [
@@ -813,10 +811,6 @@ def get_provider_info():
         ],
         "hooks": [
             {"integration-name": "Google Ads", "python-modules": ["airflow.providers.google.ads.hooks.ads"]},
-            {
-                "integration-name": "Google AutoML",
-                "python-modules": ["airflow.providers.google.cloud.hooks.automl"],
-            },
             {
                 "integration-name": "Google BigQuery",
                 "python-modules": ["airflow.providers.google.cloud.hooks.bigquery"],
@@ -1054,8 +1048,12 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.google.cloud.hooks.managed_kafka"],
             },
             {
-                "integration-name": "Google Cloud Logging",
+                "integration-name": "Google Cloud Logging Sink",
                 "python-modules": ["airflow.providers.google.cloud.hooks.cloud_logging"],
+            },
+            {
+                "integration-name": "Google Cloud Generative AI",
+                "python-modules": ["airflow.providers.google.cloud.hooks.gen_ai"],
             },
         ],
         "triggers": [

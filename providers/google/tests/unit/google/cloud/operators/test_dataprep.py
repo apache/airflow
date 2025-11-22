@@ -90,7 +90,7 @@ class TestDataprepGetJobGroupOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepJobGroupLink")
     @pytest.mark.parametrize(
-        "provide_project_id, expected_call_count",
+        ("provide_project_id", "expected_call_count"),
         [
             (True, 1),
             (False, 0),
@@ -195,7 +195,7 @@ class TestDataprepCopyFlowOperatorTest:
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepFlowLink")
     @pytest.mark.parametrize(
-        "provide_project_id, expected_call_count",
+        ("provide_project_id", "expected_call_count"),
         [
             (True, 1),
             (False, 0),

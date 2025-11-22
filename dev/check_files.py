@@ -46,6 +46,31 @@ RUN pip install "apache-airflow=={}"
 
 """
 
+TASK_SDK_DOCKER = """\
+FROM python:3.10
+
+# Upgrade
+RUN pip install "apache-airflow-task-sdk=={}"
+
+"""
+
+AIRFLOW_CTL_DOCKER = """\
+FROM python:3.10
+
+# Install airflow-ctl
+RUN pip install "apache-airflow-ctl=={}"
+
+"""
+
+PYTHON_CLIENT_DOCKER = """\
+FROM python:3.10
+
+# Install python-client
+RUN pip install "apache-airflow-python-client=={}"
+
+"""
+
+
 DOCKER_UPGRADE = """\
 FROM apache/airflow:1.10.15
 
@@ -94,12 +119,18 @@ def create_docker(txt: str):
     )
 
 
-def check_providers(files: list[str]):
+def check_providers(files: list[str], release_date: str):
     print("Checking providers from packages.txt:\n")
     missing_list = []
-    for name, version in get_packages():
-        print(f"Checking {name} {version}")
-        version = strip_rc_suffix(version)
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_providers-{release_date}-source.tar.gz",
+        ]
+    )
+    missing_list.extend(check_all_files(expected_files=expected_files, actual_files=files))
+    for name, version_raw in get_packages():
+        print(f"Checking {name} {version_raw}")
+        version = strip_rc_suffix(version_raw)
         expected_files = expand_name_variations(
             [
                 f"{name.replace('-', '_')}-{version}.tar.gz",
@@ -131,17 +162,30 @@ def check_all_files(actual_files, expected_files):
     return missing_list
 
 
-def check_release(files: list[str], version: str):
+def check_airflow_release(files: list[str], version: str):
     print(f"Checking airflow release for version {version}:\n")
     version = strip_rc_suffix(version)
 
     expected_files = expand_name_variations(
         [
             f"apache_airflow-{version}.tar.gz",
-            f"apache-airflow-{version}-source.tar.gz",
+            f"apache_airflow-{version}-source.tar.gz",
             f"apache_airflow-{version}-py3-none-any.whl",
             f"apache_airflow_core-{version}.tar.gz",
             f"apache_airflow_core-{version}-py3-none-any.whl",
+        ]
+    )
+    return check_all_files(expected_files=expected_files, actual_files=files)
+
+
+def check_task_sdk_release(files: list[str], version: str):
+    print(f"Checking task-sdk release for version {version}:\n")
+    version = strip_rc_suffix(version)
+
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_task_sdk-{version}.tar.gz",
+            f"apache_airflow_task_sdk-{version}-py3-none-any.whl",
         ]
     )
     return check_all_files(expected_files=expected_files, actual_files=files)
@@ -151,22 +195,50 @@ def expand_name_variations(files):
     return sorted(base + suffix for base, suffix in itertools.product(files, ["", ".asc", ".sha512"]))
 
 
+def check_airflow_ctl_release(files: list[str], version: str):
+    print(f"Checking airflow-ctl release for version {version}:\n")
+    version = strip_rc_suffix(version)
+
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_ctl-{version}-source.tar.gz",
+            f"apache_airflow_ctl-{version}.tar.gz",
+            f"apache_airflow_ctl-{version}-py3-none-any.whl",
+        ]
+    )
+    return check_all_files(expected_files=expected_files, actual_files=files)
+
+
+def check_python_client_release(files: list[str], version: str):
+    print(f"Checking python-client release for version {version}:\n")
+    version = strip_rc_suffix(version)
+
+    expected_files = expand_name_variations(
+        [
+            f"apache_airflow_python_client-{version}-source.tar.gz",
+            f"apache_airflow_client-{version}.tar.gz",
+            f"apache_airflow_client-{version}-py3-none-any.whl",
+        ]
+    )
+    return check_all_files(expected_files=expected_files, actual_files=files)
+
+
 def check_upgrade_check(files: list[str], version: str):
     print(f"Checking upgrade_check for version {version}:\n")
     version = strip_rc_suffix(version)
 
     expected_files = expand_name_variations(
         [
-            f"apache-airflow-upgrade-check-{version}-bin.tar.gz",
             f"apache-airflow-upgrade-check-{version}-source.tar.gz",
+            f"apache-airflow-upgrade-check-{version}-bin.tar.gz",
             f"apache_airflow_upgrade_check-{version}-py2.py3-none-any.whl",
         ]
     )
     return check_all_files(expected_files=expected_files, actual_files=files)
 
 
-def warn_of_missing_files(files):
-    print("[red]Check failed. Here are the files we expected but did not find:[/red]\n")
+def warn_of_missing_files(files: list[str], directory: str):
+    print(f"[red]Check failed. Here are the files we expected but did not find in {directory}:[/red]\n")
 
     for file in files:
         print(f"    - [red]{file}[/red]")
@@ -200,23 +272,34 @@ def cli():
 
     Example usages:
     python check_files.py airflow -p ~/code/airflow_svn -v 1.10.15rc1
+    python check_files.py task-sdk -p ~/code/airflow_svn -v 1.0.0rc1
+    python check_files.py airflow-ctl -p ~/code/airflow_svn -v 0.1.0rc1
+    python check_files.py python-client -p ~/code/airflow_svn -v 2.10.0rc1
     python check_files.py upgrade_check -p ~/code/airflow_svn -v 1.3.0rc2
-    python check_files.py providers -p ~/code/airflow_svn
+    python check_files.py providers -p ~/code/airflow_svn --release-date 2024-01-01
     """
 
 
 @click.command()
 @path_option
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format.",
+    required=True,
+    envvar="RELEASE_DATE",
+)
 @click.pass_context
-def providers(ctx, path: str):
-    files = os.listdir(os.path.join(path, "providers"))
+def providers(ctx, path: str, release_date: str):
+    directory = os.path.join(path, "providers", release_date)
+    files = os.listdir(directory)
     pips = [f"{name}=={version}" for name, version in get_packages()]
-    missing_files = check_providers(files)
+    missing_files = check_providers(files, release_date)
     create_docker(
         PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips))
     )
     if missing_files:
-        warn_of_missing_files(missing_files)
+        warn_of_missing_files(missing_files, directory)
 
 
 @click.command()
@@ -224,11 +307,26 @@ def providers(ctx, path: str):
 @version_option
 @click.pass_context
 def airflow(ctx, path: str, version: str):
-    files = os.listdir(os.path.join(path, version))
-    missing_files = check_release(files, version)
+    directory = os.path.join(path, version)
+    files = os.listdir(directory)
+    missing_files = check_airflow_release(files, version)
     create_docker(AIRFLOW_DOCKER.format(version))
     if missing_files:
-        warn_of_missing_files(missing_files)
+        warn_of_missing_files(missing_files, directory)
+    return
+
+
+@click.command(name="task-sdk")
+@path_option
+@version_option
+@click.pass_context
+def task_sdk(ctx, path: str, version: str):
+    directory = os.path.join(path, version)
+    files = os.listdir(directory)
+    missing_files = check_task_sdk_release(files, version)
+    create_docker(TASK_SDK_DOCKER.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files, directory)
     return
 
 
@@ -237,17 +335,49 @@ def airflow(ctx, path: str, version: str):
 @version_option
 @click.pass_context
 def upgrade_check(ctx, path: str, version: str):
-    files = os.listdir(os.path.join(path, "upgrade-check", version))
+    directory = os.path.join(path, "upgrade-check", version)
+    files = os.listdir(directory)
     missing_files = check_upgrade_check(files, version)
 
     create_docker(DOCKER_UPGRADE.format(version))
     if missing_files:
-        warn_of_missing_files(missing_files)
+        warn_of_missing_files(missing_files, directory)
+    return
+
+
+@click.command(name="airflow-ctl")
+@path_option
+@version_option
+@click.pass_context
+def airflow_ctl(ctx, path: str, version: str):
+    directory = os.path.join(path, "airflow-ctl", version)
+    files = os.listdir(directory)
+    missing_files = check_airflow_ctl_release(files, version)
+    create_docker(AIRFLOW_CTL_DOCKER.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files, directory)
+    return
+
+
+@click.command(name="python-client")
+@path_option
+@version_option
+@click.pass_context
+def python_client(ctx, path: str, version: str):
+    directory = os.path.join(path, "clients", "python", version)
+    files = os.listdir(directory)
+    missing_files = check_python_client_release(files, version)
+    create_docker(PYTHON_CLIENT_DOCKER.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files, directory)
     return
 
 
 cli.add_command(providers)
 cli.add_command(airflow)
+cli.add_command(task_sdk)
+cli.add_command(airflow_ctl)
+cli.add_command(python_client)
 cli.add_command(upgrade_check)
 
 if __name__ == "__main__":
@@ -260,9 +390,9 @@ def test_check_release_pass():
         "apache_airflow-2.8.1-py3-none-any.whl",
         "apache_airflow-2.8.1-py3-none-any.whl.asc",
         "apache_airflow-2.8.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.8.1-source.tar.gz",
-        "apache-airflow-2.8.1-source.tar.gz.asc",
-        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1-source.tar.gz",
+        "apache_airflow-2.8.1-source.tar.gz.asc",
+        "apache_airflow-2.8.1-source.tar.gz.sha512",
         "apache_airflow-2.8.1.tar.gz",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
@@ -273,7 +403,7 @@ def test_check_release_pass():
         "apache_airflow_core-2.8.1.tar.gz.asc",
         "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
-    assert check_release(files, version="2.8.1rc2") == []
+    assert check_airflow_release(files, version="2.8.1rc2") == []
 
 
 def test_check_release_fail():
@@ -282,9 +412,9 @@ def test_check_release_fail():
         "apache_airflow-2.8.1-py3-none-any.whl",
         "apache_airflow-2.8.1-py3-none-any.whl.asc",
         "apache_airflow-2.8.1-py3-none-any.whl.sha512",
-        "apache-airflow-2.8.1-source.tar.gz",
-        "apache-airflow-2.8.1-source.tar.gz.asc",
-        "apache-airflow-2.8.1-source.tar.gz.sha512",
+        "apache_airflow-2.8.1-source.tar.gz",
+        "apache_airflow-2.8.1-source.tar.gz.asc",
+        "apache_airflow-2.8.1-source.tar.gz.sha512",
         "apache_airflow-2.8.1.tar.gz.asc",
         "apache_airflow-2.8.1.tar.gz.sha512",
         "apache_airflow_core-2.8.1-py3-none-any.whl",
@@ -294,7 +424,7 @@ def test_check_release_fail():
         "apache_airflow_core-2.8.1.tar.gz.sha512",
     ]
 
-    missing_files = check_release(files, version="2.8.1rc2")
+    missing_files = check_airflow_release(files, version="2.8.1rc2")
     assert missing_files == ["apache_airflow-2.8.1.tar.gz", "apache_airflow_core-2.8.1.tar.gz"]
 
 
@@ -307,6 +437,9 @@ def test_check_providers_pass(monkeypatch, tmp_path):
     )
 
     files = [
+        "apache_airflow_providers-2024-01-01-source.tar.gz",
+        "apache_airflow_providers-2024-01-01-source.tar.gz.asc",
+        "apache_airflow_providers-2024-01-01-source.tar.gz.sha512",
         "apache_airflow_providers_airbyte-3.1.0.tar.gz",
         "apache_airflow_providers_airbyte-3.1.0.tar.gz.asc",
         "apache_airflow_providers_airbyte-3.1.0.tar.gz.sha512",
@@ -320,7 +453,7 @@ def test_check_providers_pass(monkeypatch, tmp_path):
         "apache_airflow_providers_foo_bar-9.6.42-py3-none-any.whl.asc",
         "apache_airflow_providers_foo_bar-9.6.42-py3-none-any.whl.sha512",
     ]
-    assert check_providers(files) == []
+    assert check_providers(files, release_date="2024-01-01") == []
 
 
 def test_check_providers_failure(monkeypatch, tmp_path):
@@ -331,12 +464,15 @@ def test_check_providers_failure(monkeypatch, tmp_path):
     )
 
     files = [
+        "apache_airflow_providers-2024-02-01-source.tar.gz",
+        "apache_airflow_providers-2024-02-01-source.tar.gz.asc",
+        "apache_airflow_providers-2024-02-01-source.tar.gz.sha512",
         "apache_airflow_providers_spam_egg-1.2.3.tar.gz",
         "apache_airflow_providers_spam_egg-1.2.3.tar.gz.sha512",
         "apache_airflow_providers_spam_egg-1.2.3-py3-none-any.whl",
         "apache_airflow_providers_spam_egg-1.2.3-py3-none-any.whl.asc",
     ]
-    assert sorted(check_providers(files)) == [
+    assert sorted(check_providers(files, release_date="2024-02-01")) == [
         "apache_airflow_providers_spam_egg-1.2.3-py3-none-any.whl.sha512",
         "apache_airflow_providers_spam_egg-1.2.3.tar.gz.asc",
     ]

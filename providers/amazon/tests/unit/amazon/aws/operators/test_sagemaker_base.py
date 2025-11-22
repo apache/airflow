@@ -188,7 +188,7 @@ class TestSageMakerBaseOperator:
     def test_check_if_resource_exists_raises_when_it_is_not_validation_exception(self):
         describe_func = MagicMock(side_effect=ValueError("different exception"))
 
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="different exception") as context:
             self.sagemaker._check_if_resource_exists("job_123", "job", describe_func)
 
         assert str(context.value) == "different exception"

@@ -26,7 +26,7 @@ from airbyte_api.models import JobCreateRequest, JobStatusEnum, JobTypeEnum, Sch
 from requests import Session
 
 from airflow.exceptions import AirflowException
-from airflow.providers.airbyte.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 T = TypeVar("T", bound=Any)
 
@@ -103,7 +103,12 @@ class AirbyteHook(BaseHook):
                 "extra",
                 "port",
             ],
-            "relabeling": {"login": "Client ID", "password": "Client Secret", "schema": "Token URL"},
+            "relabeling": {
+                "host": "Server URL",
+                "login": "Client ID",
+                "password": "Client Secret",
+                "schema": "Token URL",
+            },
             "placeholders": {},
         }
 

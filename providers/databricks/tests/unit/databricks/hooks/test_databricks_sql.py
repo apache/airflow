@@ -155,8 +155,17 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, execution_timeout, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "execution_timeout",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -378,7 +387,7 @@ def test_no_query(databricks_hook, empty_statement):
 
 
 @pytest.mark.parametrize(
-    "row_objects, fields_names",
+    ("row_objects", "fields_names"),
     [
         pytest.param(Row("count(1)")(9714), ("_0",)),
         pytest.param(Row("1//@:()")("data"), ("_0",)),
@@ -397,7 +406,7 @@ def test_incorrect_column_names(row_objects, fields_names):
 
 
 @pytest.mark.parametrize(
-    "sql, execution_timeout, cursor_descriptions, cursor_results",
+    ("sql", "execution_timeout", "cursor_descriptions", "cursor_results"),
     [
         (
             "select * from test.test",
@@ -568,7 +577,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
 
 
 @pytest.mark.parametrize(
-    "df_type, df_class, description",
+    ("df_type", "df_class", "description"),
     [
         pytest.param("pandas", pd.DataFrame, [(("col",))], id="pandas-dataframe"),
         pytest.param(

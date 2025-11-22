@@ -78,6 +78,11 @@
     "githubRepo": "GitHub Deposu",
     "restApiReference": "REST API Referansı"
   },
+  "download": {
+    "download": "İndir",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} tuşuna basarak indir"
+  },
   "duration": "Süre",
   "endDate": "Bitiş Tarihi",
   "error": {
@@ -101,6 +106,8 @@
   },
   "filter": "Filtre",
   "filters": {
+    "durationFrom": "Süre Başlangıcı",
+    "durationTo": "Süre Bitişi",
     "logicalDateFrom": "Mantıksal tarih başlangıcı",
     "logicalDateTo": "Mantıksal tarih bitişi",
     "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
@@ -161,7 +168,6 @@
     },
     "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
   },
-  "seconds": "{{count}}sn",
   "security": {
     "actions": "Eylemler",
     "permissions": "İzinler",

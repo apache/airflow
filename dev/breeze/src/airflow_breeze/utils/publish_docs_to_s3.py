@@ -79,7 +79,7 @@ class S3DocsPublish:
     def get_all_excluded_docs(self):
         if not self.exclude_docs:
             return []
-        excluded_docs = self.exclude_docs.split(",")
+        excluded_docs = self.exclude_docs.split(" ")
 
         # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
         if "no-docs-excluded" in excluded_docs:
@@ -123,7 +123,10 @@ class S3DocsPublish:
             return (0, "")
         get_console().print(f"[info]Syncing {source} to {destination}\n")
         result = subprocess.run(
-            ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
+            ["aws", "s3", "sync", "--delete", source, destination],
+            check=False,
+            capture_output=True,
+            text=True,
         )
         return (result.returncode, result.stderr)
 
@@ -292,7 +295,7 @@ class S3DocsPublish:
                     "Quantity": 1,
                     "Items": ["/*"],
                 },
-                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", 0))),
+                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", str(0)))),
             },
         )
         get_console().print(
@@ -303,7 +306,7 @@ class S3DocsPublish:
         all_packages_infos = [
             {
                 "package-name": package_name,
-                "all-versions": (all_versions := self.get_all_versions(package_name, versions)),
+                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
                 "stable-version": all_versions[-1],
             }
             for package_name, versions in package_versions.items()
@@ -312,22 +315,35 @@ class S3DocsPublish:
         return all_packages_infos
 
     @staticmethod
-    def get_all_versions(package_name: str, versions: list[str]) -> list[str]:
+    def get_latest_minor_versions(package_name: str, versions: list[str]) -> list[str]:
         from packaging.version import Version
 
-        good_versions = []
-        for version in versions:
+        get_console().print(f"[info]Getting package versions for {package_name} from:\n")
+        get_console().print(versions)
+        all_versions: list[Version] = []
+        for v in versions:
             try:
-                Version(version)
-                good_versions.append(version)
+                all_versions.append(Version(v))
             except ValueError as e:
-                get_console().print(f"[error]Invalid version {version}: {e}\n")
+                get_console().print(f"[error]Invalid version {v}: {e}\n")
                 global version_error
                 version_error = True
-        return sorted(
-            good_versions,
-            key=lambda d: Version(d),
-        )
+        all_versions.sort(reverse=True)
+        minor_versions: list[str] = []
+        good_versions = []
+        for version in all_versions:
+            minor_version = str(version.major) + "." + str(version.minor)
+            if minor_version not in minor_versions:
+                get_console().print(f"[info]Latest minor version added: {version}\n")
+                minor_versions.append(minor_version)
+                good_versions.append(str(version))
+            else:
+                get_console().print(f"[info]Not latest minor version skipped: {version}\n")
+        MAX_VERSIONS = 20
+        selected_versions = good_versions[:MAX_VERSIONS][::-1]
+        get_console().print(f"[info]Selected {MAX_VERSIONS} versions for {package_name}:\n")
+        get_console().print(selected_versions)
+        return selected_versions
 
     @staticmethod
     def get_bucket_key(bucket_path: str) -> tuple[str, str]:

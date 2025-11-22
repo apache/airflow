@@ -47,6 +47,21 @@ you get all sources in one place. This is the most convenient way to develop Air
 Otherwise, you have to install Airflow and Providers separately from sources in the same environment, which
 is not as convenient.
 
+
+Content of the source archive
+-----------------------------
+
+The archive contains a complete snapshot of the whole "apache-airflow" repository, including all
+distributions that can be built from the sources: `apache-airflow` meta-distribution (that you can use to install
+all other distributions, `apache-airflow-core`, `apache-airflow-task-sdk`, `apache-airflow-ctl`,
+`apache-airflow-go-sdk`, more than 90 `apache-airflow-providers-<provider>` distributions, and
+all the other distributions that are part of the monorepo and are needed to build other packages,
+their documentation and also allows to run tests for all those distributions.
+
+We are using `uv` and workspace tooling to build and manage the packages together, see below for more details.
+Whatever distribution you choose to install, you need to localise the right `pyproject.toml` file in the
+repository and this is the one that you should use to build the distribution you need.`
+
 Using ``uv`` to manage your Python, virtualenvs, and install airflow for development (recommended)
 ==================================================================================================
 
@@ -61,6 +76,7 @@ Installing ``uv``
 -----------------
 
 You can install uv following the instructions: https://docs.astral.sh/uv/getting-started/installation/
+
 
 Using ``uv`` to manage your project dependencies
 ------------------------------------------------
@@ -107,8 +123,8 @@ You can run any command in the virtual environment created by `uv` by prefixing 
 This will automatically synchronize your dependencies to latest dependencies needed.
 
 
-Compiling front-end assets
---------------------------
+Compiling front-end assets for Airflow Core
+-------------------------------------------
 
 In order to see UI in Airflow, you need to compile front-end assets first.
 
@@ -142,12 +158,25 @@ it in the UI) that should contain the git commit hash of the build and it will g
 The result of this command is airflow sdist package built in the `dist` folder of `airflow-core`
 package as well. It requires ``prek`` to be installed in your system.
 
+There are also similar ``prek`` commands for other packages in the repository - for example:
+
+```
+compile-edge-assets    -- Compile Edge provider assets
+compile-fab-assets     -- Compile FAB provider assets
+```
+
+However, the compiled, generated assets for those are checked in the repository and you do not need to
+compile them manually before building the packages - you only need to do it when you modify the original
+UI files for those packages.
+
 Using pip and manually managing your virtualenv
 ===============================================
 
-While `uv` manages dependencies and venv automatically you might want to manage both manually with
-pip and virtualenv. You need to have Python installed in your preferred way for that to work. It is also
-way slower than with `uv` and you need to manage your environment manually.
+While `uv` manages dependencies and venv automatically and manage workspace automatically, you might want
+to manage both manually with pip and virtualenv. You need to have Python installed in your preferred
+way for that to work. It is also way slower than with `uv` and you need to manage your environment manually
+and sometimes install several distributions together to make tests and documentation work - emulating what
+workspace tooling does automatically.
 
 Creating virtualenv
 -------------------
@@ -193,16 +222,19 @@ It's important to keep your hatch up to date. You can do this by running:
     uv tool upgrade hatch
 
 
-Using Hatch to build your packages
-----------------------------------
+Using Hatch to build packages
+-----------------------------
 
 You can use Hatch to build installable packages from the Airflow sources. Such package will
 include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and and any other
 PEP-compliant packaging front-end. You can run those commands in:
 
-* root folder of the repository to build "meta" airflow package that install other packages
-* `airflow-core` folder to build the core airflow package
-* any of the `providers` folders that has a pyproject.toml file to build the provider package
+* root folder of the repository to build "meta" airflow distribution that install other distribution
+* `airflow-core` folder to build the core airflow distribution
+* any of the `providers` folders that has a pyproject.toml file to build the provider distribution
+* task-sdk to build the task-sdk distribution
+* airflow-ctl to build the airflow-ctl distribution
+* task-go-sdk to build the task-go-sdk distribution
 
 The packages will have pre-installed dependencies for providers that are available when Airflow is i
 onstalled from PyPI. Both `wheel` and `sdist` packages are built by default.
@@ -214,10 +246,12 @@ You can also build only `wheel` or `sdist` packages:
     hatch build -t wheel
     hatch build -t sdist
 
-In the `airflow-core` folder, you can also build the package with the `custom` target that will clean
-the build directory, update the `git_version` file, and build the assets:
+In the `airflow-core` folder, you should also build the package with the `custom` target that will clean
+the build directory, update the `git_version` file, and build the assets (in case you have not built
+them already manually with `prek`):
 
     hatch build -t custom -t wheel -t sdist
+
 
 Installing recommended version of dependencies
 ==============================================
@@ -231,15 +265,15 @@ that are used in main CI tests and by other contributors.
 There are different constraint files for different Python versions. For example, this command will install
 all basic devel requirements and requirements of Google provider as last successfully tested for Python 3.10:
 
-   uv pip install -e ".[devel,google]"" \
+   pip install -e ".[devel,google]"" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.10.txt"
 
 Using the 'constraints-no-providers' constraint files, you can upgrade Airflow without paying attention to the provider's dependencies. This allows you to keep installed provider dependencies and install the latest supported ones using pure Airflow core.
 
-  uv pip install -e ".[devel]" \
+  pip install -e ".[devel]" \
      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.10.txt"
 
-Note that you can also use `pip install` if you do not use `uv`.
+Note that you can also use `uv pip install` if you use `uv`.
 
 Airflow extras
 ==============

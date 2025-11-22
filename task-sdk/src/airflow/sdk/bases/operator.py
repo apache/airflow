@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -87,6 +88,7 @@ if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
@@ -97,7 +99,6 @@ if TYPE_CHECKING:
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -233,7 +234,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "queue": DEFAULT_QUEUE,
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
-    "retry_exponential_backoff": False,
+    "retry_exponential_backoff": 0,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
@@ -269,7 +270,7 @@ if TYPE_CHECKING:
         execution_timeout: timedelta | None = ...,
         max_retry_delay: None | timedelta | float = ...,
         retry_delay: timedelta | float = ...,
-        retry_exponential_backoff: bool = ...,
+        retry_exponential_backoff: float = ...,
         priority_weight: int = ...,
         weight_rule: str | PriorityWeightStrategy = ...,
         sla: timedelta | None = ...,
@@ -420,7 +421,7 @@ class ExecutorSafeguard:
 
 if "airflow.configuration" in sys.modules:
     # Don't try and import it if it's not already loaded
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
@@ -569,7 +570,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "email_on_retry": bool,
     "email_on_failure": bool,
     "retries": int,
-    "retry_exponential_backoff": bool,
+    "retry_exponential_backoff": (int, float),
     "depends_on_past": bool,
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
@@ -648,9 +649,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
         ``float`` seconds, which will be converted into ``timedelta``,
         the default is ``timedelta(seconds=300)``.
-    :param retry_exponential_backoff: allow progressively longer waits between
-        retries by using exponential backoff algorithm on retry delay (delay
-        will be converted into seconds)
+    :param retry_exponential_backoff: multiplier for exponential backoff between retries.
+        Set to 0 to disable (constant delay). Set to 2.0 for standard exponential backoff
+        (delay doubles with each retry). For example, with retry_delay=4min and
+        retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
@@ -827,7 +829,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     email_on_failure: bool = True
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
@@ -985,7 +987,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         email_on_failure: bool = True,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
-        retry_exponential_backoff: bool = False,
+        retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1050,7 +1052,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
             )
         validate_key(self.task_id)
 
@@ -1257,11 +1259,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
-        for k, v in self.__dict__.items():
+        for k, v_org in self.__dict__.items():
             if k not in shallow_copy:
-                v = copy.deepcopy(v, memo)
+                v = copy.deepcopy(v_org, memo)
             else:
-                v = copy.copy(v)
+                v = copy.copy(v_org)
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine

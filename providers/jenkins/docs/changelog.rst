@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+4.1.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to jenkins Provider test # (#57922)``
+
+4.1.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate jdbc and jenkins providers to ''common.compat'' (#57012)``
+* ``Handle get_queue_info in JenkinsJobTriggerOperator (#54207)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.1.3
 .....
 
@@ -185,8 +215,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 3.7.2

@@ -81,7 +81,10 @@ class Neo4jHook(BaseHook):
         kwargs: dict[str, Any] = {}
         if parsed_uri.scheme in ["bolt", "neo4j"]:
             kwargs["encrypted"] = encrypted
-        return GraphDatabase.driver(uri, auth=(conn.login, conn.password), **kwargs)
+        auth = None
+        if conn.login is not None and conn.password is not None:
+            auth = (conn.login, conn.password)
+        return GraphDatabase.driver(uri, auth=auth, **kwargs)
 
     def get_uri(self, conn: Connection) -> str:
         """

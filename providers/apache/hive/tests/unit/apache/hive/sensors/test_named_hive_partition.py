@@ -72,7 +72,7 @@ class TestNamedHivePartitionSensor:
 
     def test_parse_partition_name_incorrect(self):
         name = "incorrect.name"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Could not parse incorrect.nameinto table, partition"):
             NamedHivePartitionSensor.parse_partition_name(name)
 
     def test_parse_partition_name_default(self):

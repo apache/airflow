@@ -202,7 +202,7 @@ class TestCloudSpanner:
         assert result is None
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, exp_msg",
+        ("project_id", "instance_id", "exp_msg"),
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
@@ -264,7 +264,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, exp_msg",
+        ("project_id", "instance_id", "exp_msg"),
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
@@ -316,7 +316,7 @@ class TestCloudSpanner:
         assert result == [3]
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, query, exp_msg",
+        ("project_id", "instance_id", "database_id", "query", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
             (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
@@ -384,7 +384,7 @@ class TestCloudSpanner:
         )
 
     @pytest.mark.parametrize(
-        "sql, expected_inputs, expected_outputs, expected_lineage",
+        ("sql", "expected_inputs", "expected_outputs", "expected_lineage"),
         [
             ("SELECT id, amount FROM public.orders", ["db1.public.orders"], [], {}),
             (
@@ -571,7 +571,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
@@ -641,7 +641,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
@@ -731,7 +731,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
