@@ -3038,7 +3038,9 @@ class SerializedDAG(BaseSerialization):
                         # need to include setups and teardowns for tasks that are in multiple
                         # non-collinear setup/teardown paths
                         if not rel.is_setup and not rel.is_teardown:
-                            also_include_ids.update(x.task_id for x in rel.get_upstreams_only_setups_and_teardowns())
+                            also_include_ids.update(
+                                x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
+                            )
             if include_upstream:
                 also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups(depth=depth))
             else:
