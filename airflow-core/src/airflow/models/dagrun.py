@@ -1243,6 +1243,7 @@ class DagRun(Base, LoggingMixin):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
+            session.merge(self)
 
             if execute_callbacks and dag.has_on_success_callback:
                 self.handle_dag_callback(dag=cast("SDKDAG", dag), success=True, reason="success")
@@ -1267,7 +1268,7 @@ class DagRun(Base, LoggingMixin):
                     isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
                     for d in cast("list", dag.deadline)
                 ):
-                    Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
+                    Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
