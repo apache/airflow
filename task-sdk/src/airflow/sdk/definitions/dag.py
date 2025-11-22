@@ -913,6 +913,7 @@ class DAG:
                     also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
             if t.is_setup and not include_downstream:
                 also_include_ids.update(x.task_id for x in t.downstream_list if x.is_teardown)
+
         also_include: list[Operator] = [self.task_dict[x] for x in also_include_ids]
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
