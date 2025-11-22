@@ -281,7 +281,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         while task_ids_to_trace:
             # if depth is set we have bounded traversal and should break when
             # there are no more levels remaining
-            if levels_remaining is not None and levels_remaining <= 0:
+            if depth is not None and levels_remaining <= 0:
                 break
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
@@ -290,7 +290,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
                 relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
-            if levels_remaining is not None:
+            if depth is not None:
                 levels_remaining -= 1
 
         return relatives
