@@ -583,12 +583,82 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
+        if self._is_large_enough_pr():
+            return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
             return True
+        return False
+
+    def _is_large_enough_pr(self) -> bool:
+        """
+        Check if PR is large enough to run full tests.
+
+        The heuristics are based on number of files changed and total lines changed,
+        while excluding generated files which can be ignored.
+        """
+        FILE_THRESHOLD = 25
+        LINE_THRESHOLD = 500
+
+        if not self._files:
+            return False
+
+        exclude_patterns = [
+            r"/newsfragments/",
+            r"^uv\.lock$",
+            r"pnpm-lock\.yaml$",
+            r"package-lock\.json$",
+        ]
+
+        relevant_files = [
+            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
+        ]
+
+        files_changed = len(relevant_files)
+        if files_changed >= FILE_THRESHOLD:
+            get_console().print(
+                f"[warning]Running full set of tests because PR touches {files_changed} files "
+                f"(≥25 threshold)[/]"
+            )
+            return True
+
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
+            return False
+
+        try:
+            result = run_command(
+                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+
+            if result.returncode == 0:
+                total_lines = 0
+                for line in result.stdout.strip().split("\n"):
+                    if line:
+                        parts = line.split("\t")
+                        if len(parts) >= 2:
+                            try:
+                                additions = int(parts[0])
+                                deletions = int(parts[1])
+                                total_lines += additions + deletions
+                            except ValueError:
+                                pass
+                if total_lines >= LINE_THRESHOLD:
+                    get_console().print(
+                        f"[warning]Running full set of tests because PR changes {total_lines} lines "
+                        f"in {files_changed} files[/]"
+                    )
+                    return True
+        except Exception:
+            pass
+
         return False
 
     @cached_property
