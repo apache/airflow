@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -91,7 +92,7 @@ class ReleaseValidator(ABC):
         pass
 
     @property
-    def check_methods(self) -> dict[CheckType, callable]:
+    def check_methods(self) -> dict[CheckType, Callable]:
         return {
             CheckType.SVN: self.validate_svn_files,
             CheckType.REPRODUCIBLE_BUILD: self.validate_reproducible_build,
