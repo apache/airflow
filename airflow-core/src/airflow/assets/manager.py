@@ -314,6 +314,8 @@ class AssetManager(LoggingMixin):
             from airflow.models.serialized_dag import SerializedDagModel
 
             serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
+            if not serdag:
+                raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
             timetable = serdag.dag.timetable
             if TYPE_CHECKING:
                 assert isinstance(timetable, PartitionedAssetTimetable)
