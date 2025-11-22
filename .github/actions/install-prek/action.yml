@@ -24,10 +24,10 @@ inputs:
     default: "3.10"
   uv-version:
     description: 'uv version to use'
-    default: "0.9.10"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.9.11"  # Keep this comment to allow automatic replacement of uv version
   prek-version:
     description: 'prek version to use'
-    default: "0.2.17"  # Keep this comment to allow automatic replacement of prek version
+    default: "0.2.18"  # Keep this comment to allow automatic replacement of prek version
   save-cache:
     description: "Whether to save prek cache"
     required: true
