@@ -166,7 +166,7 @@ class TestCliDb:
         if mock_quiet:
             args.append("--quiet")
 
-        db_command.would_migrate(self.parser.parse_args(args))
+        db_command.would_migrate(self.parser.parse_args(args))  # type: ignore[attr-defined]
         mock_db_migration_expected.assert_called_once_with(quiet=mock_quiet)
 
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
