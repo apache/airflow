@@ -32,14 +32,14 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 dagruns_select_with_state_count = (
     select(
-        DagRun.dag_id,
-        DagRun.state,
-        cast("ColumnElement", DagModel.dag_display_name),
-        func.count(DagRun.state).label("count"),
+        DagRun.__table__.c.dag_id,
+        DagRun.__table__.c.state,
+        DagModel.__table__.c.dag_display_name,
+        func.count(DagRun.__table__.c.state).label("count"),
     )
-    .join(DagModel, DagRun.dag_id == DagModel.dag_id)
-    .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
-    .order_by(DagRun.dag_id)
+    .join(DagModel, DagRun.__table__.c.dag_id == DagModel.__table__.c.dag_id)
+    .group_by(DagRun.__table__.c.dag_id, DagRun.__table__.c.state, DagModel.__table__.c.dag_display_name)
+    .order_by(DagRun.__table__.c.dag_id)
 )
 
 
