@@ -435,8 +435,6 @@ class DagRun(Base, LoggingMixin):
 
         return case(when_condition, else_=None)
 
-
-
     @provide_session
     def check_version_id_exists_in_dr(self, dag_version_id: UUIDType, session: Session = NEW_SESSION):
         select_stmt = (
