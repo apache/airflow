@@ -17,12 +17,9 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.interfaces import LoaderOption
-from sqlalchemy.sql import ColumnElement
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
