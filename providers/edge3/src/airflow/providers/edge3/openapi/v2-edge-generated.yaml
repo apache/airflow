@@ -573,6 +573,16 @@ paths:
           - type: string
           - type: 'null'
           title: Queue Name Pattern
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/EdgeWorkerState'
+          - type: 'null'
+          title: State
       responses:
         '200':
           description: Successful Response

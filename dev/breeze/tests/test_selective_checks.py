@@ -2945,3 +2945,93 @@ def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_comman
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
         ).provider_dependency_bump
+
+
+@pytest.mark.parametrize(
+    ("files", "expected_outputs"),
+    [
+        pytest.param(
+            (
+                "airflow-core/src/airflow/models/dag.py",
+                "airflow-core/src/airflow/models/taskinstance.py",
+                "airflow-core/tests/unit/models/test_dag.py",
+                "task-sdk/src/airflow/sdk/definitions/dag.py",
+                "task-sdk/tests/task_sdk/definitions/test_dag.py",
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Small PR with 5 files changed",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(30)),
+            {
+                "full-tests-needed": "true",
+            },
+            id="Large PR with 30 files changed",
+        ),
+        pytest.param(
+            (
+                "uv.lock",
+                "package-lock.json",
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="PR with only lock files changed",
+        ),
+    ],
+)
+def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "git_diff_output", "expected_outputs"),
+    [
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
+            "\n".join([f"10\t10\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Small PR with 200 lines changed",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
+            "\n".join([f"30\t30\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "true",
+            },
+            id="PR with 600 lines changed",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/configuration.py",),
+            "500\t500\tairflow-core/src/airflow/configuration.py",
+            {
+                "full-tests-needed": "true",
+            },
+            id="Single large file with 1000 lines",
+        ),
+    ],
+)
+def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[str, str]):
+    with patch("airflow_breeze.utils.selective_checks.run_command") as mock_run:
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = git_diff_output
+        mock_run.return_value = mock_result
+
+        stderr = SelectiveChecks(
+            files=files,
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        )
+        assert_outputs_are_printed(expected_outputs, str(stderr))
