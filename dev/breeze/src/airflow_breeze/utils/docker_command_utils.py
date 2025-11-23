@@ -246,9 +246,11 @@ def check_container_engine(quiet: bool = False):
             "[warning]Please ensure that Docker is installed and running.[/]"
         )
         sys.exit(1)
-    run_command_output = response.stdout.strip().lower()
+    run_command_output = "\n".join(
+        " ".join(line.split()) for line in response.stdout.strip().lower().splitlines()
+    )
     podman_engine_enabled = any(
-        "client: podman engine" or "podman" in line for line in run_command_output.splitlines()
+        "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
     )
     if podman_engine_enabled:
         get_console().print(
