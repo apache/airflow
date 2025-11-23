@@ -210,6 +210,7 @@ class TestWorkerFailure:
             mock_popen().terminate.assert_called()
 
 
+@pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestWorkerDuplicateHostnameCheck:
     @classmethod
@@ -219,6 +220,7 @@ class TestWorkerDuplicateHostnameCheck:
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
     def test_worker_fails_when_hostname_already_exists(self, mock_inspect):
         """Test that worker command fails when trying to start a worker with a duplicate hostname."""
@@ -238,6 +240,7 @@ class TestWorkerDuplicateHostnameCheck:
         assert "existing_host" in str(exc_info.value)
         assert "already running" in str(exc_info.value)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
     @mock.patch("airflow.providers.celery.cli.celery_command.Process")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
