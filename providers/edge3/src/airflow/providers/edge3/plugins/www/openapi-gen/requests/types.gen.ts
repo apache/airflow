@@ -467,6 +467,8 @@ export type HealthResponse = {
 };
 
 export type WorkerData = {
+    queueNamePattern?: string | null;
+    state?: Array<EdgeWorkerState> | null;
     workerNamePattern?: string | null;
 };
 

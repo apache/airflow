@@ -423,6 +423,7 @@ export type ClearTaskInstancesBody = {
      * (Experimental) Run on the latest bundle version of the dag after clearing the task instances.
      */
     run_on_latest_version?: boolean;
+    prevent_running_task?: boolean;
 };
 
 /**
@@ -568,6 +569,7 @@ export type DAGDetailsResponse = {
     [key: string]: (string);
 } | null;
     is_favorite?: boolean;
+    active_runs_count?: number;
     /**
      * Return file token.
      */
@@ -5440,6 +5442,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

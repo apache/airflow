@@ -7083,6 +7083,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9610,6 +9616,10 @@ components:
           description: (Experimental) Run on the latest bundle version of the dag
             after clearing the task instances.
           default: false
+        prevent_running_task:
+          type: boolean
+          title: Prevent Running Task
+          default: false
       additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
@@ -10036,6 +10046,10 @@ components:
           type: boolean
           title: Is Favorite
           default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token

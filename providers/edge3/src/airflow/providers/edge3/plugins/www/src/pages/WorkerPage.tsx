@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, Link, List, Table, Text } from "@chakra-ui/react";
-import { useState } from "react";
+import { Box, Code, HStack, Link, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { useState, useCallback } from "react";
 import { useUiServiceWorker } from "openapi/queries";
 import { LuExternalLink } from "react-icons/lu";
 import TimeAgo from "react-timeago";
@@ -26,14 +26,24 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
-import { ScrollToAnchor } from "src/components/ui";
+import { ScrollToAnchor, Select } from "src/components/ui";
+import { workerStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
+import type { EdgeWorkerState } from "openapi/requests/types.gen";
 
 export const WorkerPage = () => {
   const [workerNamePattern, setWorkerNamePattern] = useState("");
+  const [queueNamePattern, setQueueNamePattern] = useState("");
+  const [filteredState, setFilteredState] = useState<string[]>([]);
+
+  const hasFilteredState = filteredState.length > 0;
 
   const { data, error, refetch } = useUiServiceWorker(
-    { workerNamePattern: workerNamePattern || undefined },
+    {
+      queueNamePattern: queueNamePattern || undefined,
+      state: hasFilteredState ? (filteredState as EdgeWorkerState[]) : undefined,
+      workerNamePattern: workerNamePattern || undefined,
+    },
     undefined,
     {
       enabled: true,
@@ -41,9 +51,23 @@ export const WorkerPage = () => {
     },
   );
 
-  const handleSearchChange = (value: string) => {
+  const handleWorkerSearchChange = (value: string) => {
     setWorkerNamePattern(value);
   };
+
+  const handleQueueSearchChange = (value: string) => {
+    setQueueNamePattern(value);
+  };
+
+  const handleStateChange = useCallback(({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
+
+    if ((val === undefined || val === "all") && rest.length === 0) {
+      setFilteredState([]);
+    } else {
+      setFilteredState(value.filter((state) => state !== "all"));
+    }
+  }, []);
 
   // TODO to make it proper
   // Use DataTable as component from Airflow-Core UI
@@ -55,16 +79,64 @@ export const WorkerPage = () => {
 
   return (
     <Box p={2}>
-      <Box mb={4}>
+      <HStack gap={4} mb={4}>
         <SearchBar
           buttonProps={{ disabled: true }}
           defaultValue={workerNamePattern}
           hideAdvanced
           hotkeyDisabled
-          onChange={handleSearchChange}
+          onChange={handleWorkerSearchChange}
           placeHolder="Search workers"
         />
-      </Box>
+        <SearchBar
+          buttonProps={{ disabled: true }}
+          defaultValue={queueNamePattern}
+          hideAdvanced
+          hotkeyDisabled
+          onChange={handleQueueSearchChange}
+          placeHolder="Search queues"
+        />
+        <Select.Root
+          collection={workerStateOptions}
+          maxW="450px"
+          multiple
+          onValueChange={handleStateChange}
+          value={hasFilteredState ? filteredState : ["all"]}
+        >
+          <Select.Trigger
+            {...(hasFilteredState ? { clearable: true } : {})}
+            colorPalette="brand"
+            isActive={Boolean(filteredState)}
+          >
+            <Select.ValueText>
+              {() =>
+                hasFilteredState ? (
+                  <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
+                    {filteredState.map((state) => (
+                      <WorkerStateBadge key={state} state={state as EdgeWorkerState}>
+                        {state}
+                      </WorkerStateBadge>
+                    ))}
+                  </HStack>
+                ) : (
+                  "All States"
+                )
+              }
+            </Select.ValueText>
+          </Select.Trigger>
+          <Select.Content>
+            {workerStateOptions.items.map((option) => (
+              <Select.Item item={option} key={option.label}>
+                {option.value === "all" ? (
+                  option.label
+                ) : (
+                  <WorkerStateBadge state={option.value as EdgeWorkerState}>{option.label}</WorkerStateBadge>
+                )}
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </HStack>
       {error ? (
         <ErrorAlert error={error} />
       ) : !data ? (

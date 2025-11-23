@@ -54,7 +54,6 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -66,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComSequenceIndexResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
@@ -292,6 +292,9 @@ def block_orm_access():
     conn = "airflow-db-not-allowed:///"
     if "airflow.settings" in sys.modules:
         from airflow import settings
+
+        # This one needs to be from core, because we are checking if settings is loaded to disallow ORM
+        # If settings is loaded, airflow.configuration will be too
         from airflow.configuration import conf
 
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
@@ -1870,7 +1873,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """
     import os
 
-    from airflow.configuration import ensure_secrets_loaded
+    from airflow.sdk.configuration import ensure_secrets_loaded
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
