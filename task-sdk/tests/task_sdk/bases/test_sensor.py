@@ -175,7 +175,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
 
         # second poke returns False and task is re-scheduled
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
         date2 = date1 + timedelta(seconds=sensor.poke_interval)
         state, msg, _ = run_task(task=sensor)
 
@@ -183,7 +183,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date2 + timedelta(seconds=sensor.poke_interval)
 
         # third poke returns True and task succeeds
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
         state, _, _ = run_task(task=sensor)
 
         assert state == TaskInstanceState.SUCCESS
@@ -201,7 +201,7 @@ class TestBaseSensor:
         assert msg.reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
 
         # second poke returns False, timeout occurs
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
         mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
@@ -223,7 +223,7 @@ class TestBaseSensor:
         assert state == TaskInstanceState.UP_FOR_RESCHEDULE
 
         # second poke returns False, timeout occurs
-        time_machine.coordinates.shift(sensor.poke_interval)
+        time_machine.shift(sensor.poke_interval)
 
         # Mocking values from DB/API-server
         mock_supervisor_comms.send.return_value = TaskRescheduleStartDate(start_date=date1)
@@ -258,7 +258,7 @@ class TestBaseSensor:
         # loop poke returns false
         for _poke_count in range(1, false_count + 1):
             curr_date = curr_date + timedelta(seconds=new_interval)
-            time_machine.coordinates.shift(new_interval)
+            time_machine.shift(new_interval)
             state, msg, _ = run_task(sensor, context_update={"task_reschedule_count": _poke_count})
             assert state == TaskInstanceState.UP_FOR_RESCHEDULE
             old_interval = new_interval
@@ -268,7 +268,7 @@ class TestBaseSensor:
 
         # last poke returns True and task succeeds
         curr_date = curr_date + timedelta(seconds=new_interval)
-        time_machine.coordinates.shift(new_interval)
+        time_machine.shift(new_interval)
 
         state, msg, _ = run_task(sensor, context_update={"task_reschedule_count": false_count + 1})
         assert state == TaskInstanceState.SUCCESS
