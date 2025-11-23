@@ -453,11 +453,11 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you have airflow-ctl
+Set an environment variable: PATH_TO_AIRFLOW_SVN to the root of folder where you have airflow-ctl
 
 ```shell script
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=$(pwd -P)
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
 TODO: implement check in ``check_files.py``
@@ -506,7 +506,7 @@ breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --ve
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}/airflow-ctl/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/airflow-ctl/${VERSION_RC}
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -524,6 +524,14 @@ You should see output similar to:
 apache_airflow_airflow_ctl-1.0.0.tar.gz:No diff found
 ```
 
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
+
+```shell script
+breeze release-management check-release-files airflow-ctl --version ${VERSION_RC}
+```
+
+
 ### Licence check
 
 This can be done with the Apache RAT tool.
@@ -539,7 +547,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
