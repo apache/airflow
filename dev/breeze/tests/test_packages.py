@@ -396,6 +396,23 @@ TASK_SDK_INIT_PY = AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / 
 AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
 
 
+@pytest.fixture
+def restore_version_files():
+    # save contents of all version files before test starts
+    version_files = [
+        AIRFLOW_CORE_INIT_PY,
+        TASK_SDK_INIT_PY,
+        AIRFLOWCTL_INIT_PY,
+    ]
+    original_contents = {f: f.read_text() for f in version_files if f.exists()}
+
+    yield
+
+    # restore original contents after test
+    for fp, content in original_contents.items():
+        fp.write_text(content)
+
+
 @pytest.mark.parametrize(
     ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
@@ -423,7 +440,11 @@ AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / 
     ],
 )
 def test_apply_version_suffix_to_non_provider_pyproject_tomls(
-    distributions: tuple[str, ...], init_file_path: Path, version_suffix: str, floored_version_suffix: str
+    restore_version_files,
+    distributions: tuple[str, ...],
+    init_file_path: Path,
+    version_suffix: str,
+    floored_version_suffix: str,
 ):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
