@@ -1344,6 +1344,11 @@ export const $ClearTaskInstancesBody = {
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
             default: false
+        },
+        prevent_running_task: {
+            type: 'boolean',
+            title: 'Prevent Running Task',
+            default: false
         }
     },
     additionalProperties: false,
@@ -2072,6 +2077,11 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Is Favorite',
             default: false
+        },
+        active_runs_count: {
+            type: 'integer',
+            title: 'Active Runs Count',
+            default: 0
         },
         file_token: {
             type: 'string',
@@ -6132,7 +6142,7 @@ export const $TaskResponse = {
             ]
         },
         retry_exponential_backoff: {
-            type: 'boolean',
+            type: 'number',
             title: 'Retry Exponential Backoff'
         },
         priority_weight: {

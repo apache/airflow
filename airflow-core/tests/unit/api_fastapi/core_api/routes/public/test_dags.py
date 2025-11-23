@@ -954,6 +954,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
+            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1043,6 +1044,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
+            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1077,6 +1079,63 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_includes_active_runs_count(self, session, test_client):
+        """Test that DAG details include the active_runs_count field."""
+        # Create running and queued DAG runs for DAG2
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="running_run_1",
+                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="queued_run_1",
+                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        # Add a successful DAG run (should not be counted)
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="success_run_1",
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.SUCCESS,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify active_runs_count field is present and correct
+        assert "active_runs_count" in body
+        assert isinstance(body["active_runs_count"], int)
+        assert body["active_runs_count"] == 2  # 1 running + 1 queued
+
+        # Test with DAG that has no active runs
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "active_runs_count" in body
+        assert isinstance(body["active_runs_count"], int)
+        assert body["active_runs_count"] == 0
 
 
 class TestGetDag(TestDagEndpoint):

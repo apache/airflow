@@ -118,6 +118,7 @@ from airflow_breeze.utils.add_back_references import (
     start_generating_back_references,
 )
 from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_validators import validate_release_date
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.constraints_version_check import constraints_version_check
@@ -156,6 +157,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
     AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_DIST_PATH,
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH,
     AIRFLOW_ROOT_PATH,
     OUT_PATH,
     PROVIDER_METADATA_JSON_PATH,
@@ -252,11 +254,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.9"
+AIRFLOW_UV_VERSION = "0.9.11"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.13"
+PREK_VERSION = "0.2.18"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -781,7 +783,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
-@argument_provider_distributions
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -816,6 +817,16 @@ def provider_action_summary(description: str, message_type: MessageType, package
     is_flag=True,
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
+@click.option(
+    "--release-date",
+    required=True,
+    type=str,
+    callback=validate_release_date,
+    envvar="RELEASE_DATE",
+    help="Planned release date for the providers release in format "
+    "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
+)
+@argument_provider_distributions
 @option_verbose
 @option_answer
 @option_dry_run
@@ -832,6 +843,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
+    release_date: str,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -952,6 +964,7 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
+    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
     if incremental_update:
         get_console().print(r"\[warning] Generated changes:")
         run_command(["git", "diff"])
@@ -999,11 +1012,21 @@ def _build_provider_distributions(
     distribution_format: str,
     skip_tag_check: bool,
     skip_deleting_generated_files: bool,
-):
+) -> bool:
+    """
+    Builds provider distribution.
+
+    :param provider_id: id of the provider package
+    :param package_version_suffix: suffix to append to the package version
+    :param distribution_format: format of the distribution to build (wheel or sdist)
+    :param skip_tag_check: whether to skip tag check
+    :param skip_deleting_generated_files: whether to skip deleting generated files
+    :return: True if package was built, False if it was skipped.
+    """
     if not skip_tag_check:
         should_skip, package_version_suffix = should_skip_the_package(provider_id, package_version_suffix)
         if should_skip:
-            return
+            return False
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
@@ -1026,6 +1049,7 @@ def _build_provider_distributions(
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
+    return True
 
 
 @release_management.command(
@@ -1124,7 +1148,7 @@ def prepare_provider_distributions(
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
-            _build_provider_distributions(
+            created = _build_provider_distributions(
                 provider_id,
                 version_suffix,
                 distribution_format,
@@ -1141,12 +1165,15 @@ def prepare_provider_distributions(
             suspended_packages.append(provider_id)
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
-            success_packages.append(provider_id)
+            if created:
+                success_packages.append(provider_id)
+            else:
+                skipped_as_already_released_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
     provider_action_summary(
-        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
+        "Skipped as already released", MessageType.INFO, skipped_as_already_released_packages
     )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
@@ -1974,7 +2001,7 @@ def clean_old_provider_artifacts(
     directory: str,
 ):
     """Cleans up the old airflow providers artifacts in order to maintain
-    only one provider version in the release SVN folder"""
+    only one provider version in the release SVN folder and one -source artifact."""
     cleanup_suffixes = [
         ".tar.gz",
         ".tar.gz.sha512",
@@ -1990,9 +2017,10 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
-            if "-source" in file:
-                continue
-            versioned_file = split_version_and_suffix(file, suffix)
+            if "-source.tar.gz" in file:
+                versioned_file = split_date_version_and_suffix(file, "-source" + suffix)
+            else:
+                versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
         for package_types in package_types_dicts.values():
@@ -2982,6 +3010,39 @@ def generate_providers_metadata(
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
+@release_management.command(
+    name="update-providers-next-version",
+    help="Update provider versions marked with '# use next version' comment.",
+)
+@option_verbose
+def update_providers_next_version():
+    """
+    Scan all provider pyproject.toml files for dependencies with "# use next version" comment
+    and update them to use the current version from the referenced provider's pyproject.toml.
+    """
+    from airflow_breeze.utils.packages import update_providers_with_next_version_comment
+
+    get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
+
+    updates_made = update_providers_with_next_version_comment()
+
+    if updates_made:
+        get_console().print("\n[success]Summary of updates:[/]")
+        for provider_id, dependencies in updates_made.items():
+            get_console().print(f"\n[info]Provider: {provider_id}[/]")
+            for dep_name, dep_info in dependencies.items():
+                get_console().print(f"  • {dep_name}: {dep_info['old_version']} → {dep_info['new_version']}")
+        get_console().print(
+            f"\n[success]Updated {len(updates_made)} provider(s) with "
+            f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
+        )
+    else:
+        get_console().print(
+            "\n[info]No updates needed. All providers with '# use next version' "
+            "comments are already using the latest versions.[/]"
+        )
+
+
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
     run_command(["git", "fetch", remote_name], cwd=constraints_repo)
 
@@ -3203,6 +3264,43 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         suffix=suffix,
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
+        file_name=file_name,
+    )
+
+
+def split_date_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    """Split file name with date-based version (YYYY-MM-DD format) and suffix.
+
+    Example: apache_airflow_providers-2025-11-18-source.tar.gz
+    """
+    from packaging.version import Version
+
+    no_suffix_file = file_name[: -len(suffix)]
+    # Date format is YYYY-MM-DD, so we need to extract last 3 parts
+    parts = no_suffix_file.rsplit("-", 3)
+    if len(parts) != 4:
+        raise ValueError(f"Invalid date-versioned file name format: {file_name}")
+
+    no_version_file = parts[0]
+    date_version = f"{parts[1]}-{parts[2]}-{parts[3]}"
+
+    # Validate date format
+    try:
+        datetime.strptime(date_version, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date format in file name {file_name}: {e}")
+
+    no_version_file = no_version_file.replace("_", "-")
+
+    # Convert date to a comparable version format (YYYYMMDD as integer-like version)
+    comparable_date_str = date_version.replace("-", ".")
+
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=date_version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(comparable_date_str),
         file_name=file_name,
     )
 
