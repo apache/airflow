@@ -807,25 +807,29 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you have providers
+Set environment variables: PATH_TO_AIRFLOW_SVN to the root of folder where you have providers and RELEASE_DATE to
+the release date you are verifying.
 
 ``` shell
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=$(pwd -P)
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
-script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+Optionally you can use the `breeze release-management check-release-files` command
+to verify that all expected files are present in SVN. This command will produce a `Dockerfile.pmc` which
 may help with verifying installation of the packages.
 
-Once you have cloned/updated the SVN repository, copy the pypi URLs shared in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
-directory and cd into it.
+Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
+in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
+directory.
 
 ```shell script
-uv run check_files.py providers -p ${PATH_TO_SVN}
+cd ${AIRFLOW_REPO_ROOT}/dev
+# Copy packages.txt extracted from the mail sent by the release manager here
+breeze release-management check-release-files providers --release-date ${RELEASE_DATE}
 ```
 
-After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+After the above command completes you can build `Dockerfile.pmc` to trigger an installation of each provider
 package and verify the correct versions are installed:
 
 ```shell script
@@ -874,8 +878,8 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}
-cd providers
+cd ${PATH_TO_AIRFLOW_SVN}
+cd providers/${RELEASE_DATE}
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -945,7 +949,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-providers-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}/apache_airflow_providers-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-providers-src
 ```
 
 Run the check:
@@ -1019,6 +1023,11 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 ```
 
 Once you have the keys, the signatures can be verified by running this:
+
+```shell
+cd ${PATH_TO_AIRFLOW_SVN}
+cd providers/${RELEASE_DATE}
+```
 
 ```shell script
 for i in *.asc

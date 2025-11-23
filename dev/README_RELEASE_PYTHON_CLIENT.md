@@ -408,10 +408,10 @@ cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
-export PATH_TO_SVN="${PWD}/asf-dist/dev/airflow/clients/python/${VERSION_RC}"
+export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
 
 # Then compare the packages
-cd ${PATH_TO_SVN}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -425,6 +425,14 @@ In case the files are different, you should see:
 ```
 Binary files apache_airflow-client-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
+
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
+
+```shell script
+breeze release-management check-release-files python-client --version ${VERSION_RC}
+```
+
 
 ### Licence check
 
@@ -441,7 +449,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
 ```
 
 Run the check:
@@ -515,7 +523,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell script
-cd ${PATH_TO_SVN}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -555,7 +563,7 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
-cd ${PATH_TO_SVN}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
