@@ -128,8 +128,6 @@
       "tooltip": "刪除所選變數"
     },
     "edit": "編輯變數",
-    "export": "匯出",
-    "exportTooltip": "匯出所選變數",
     "form": {
       "invalidJson": "無效的 JSON",
       "keyMaxLength": "鍵最多只能包含 250 個字元",
