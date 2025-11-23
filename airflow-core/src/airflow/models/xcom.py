@@ -208,14 +208,23 @@ class XComModel(TaskInstanceDependencies):
                 "this message. See Dynamic Task Mapping documentation for "
                 "more information about lazy proxy objects."
             )
-            log.warning(
-                warning_message,
-                "return value" if key == XCOM_RETURN_KEY else "value %s",
-                task_id,
-                dag_id,
-                run_id,
-                key,
-            )
+            if key == XCOM_RETURN_KEY:
+                log.warning(
+                    warning_message,
+                    "return value",
+                    task_id,
+                    dag_id,
+                    run_id,
+                )
+            else:
+                log.warning(
+                    warning_message,
+                    "value %s",
+                    task_id,
+                    dag_id,
+                    run_id,
+                    key,
+                )
             value = list(value)
 
         if serialize:
