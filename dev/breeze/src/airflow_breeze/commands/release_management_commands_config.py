@@ -531,7 +531,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--distribution",
                 "--version",
                 "--task-sdk-version",
-                "--svn-path",
+                "--path-to-airflow-svn",
                 "--checks",
             ],
         },

@@ -648,6 +648,10 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
+Note: PMCs can either choose to verify the release themselves or delegate the verification to breeze through
+the new command `breeze release-management validate-rc-by-pmc`. It has been explained in detail in:
+See [Breeze Command to validate RC](breeze/doc/09_release_management_tasks.rst).
+
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 

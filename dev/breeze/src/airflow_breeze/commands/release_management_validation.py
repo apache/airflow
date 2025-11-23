@@ -47,10 +47,12 @@ from airflow_breeze.utils.release_validator import CheckType
     help="Task SDK version",
 )
 @click.option(
-    "--svn-path",
+    "--path-to-airflow-svn",
+    "-p",
     required=True,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
-    help="Path to SVN checkout (e.g., ../asf-dist/dev/airflow)",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True, path_type=Path),
+    envvar="PATH_TO_AIRFLOW_SVN",
+    help="Path to directory where release files are checked out from SVN (e.g., ~/code/asf-dist/dev/airflow)",
 )
 @click.option(
     "--checks",
@@ -60,7 +62,7 @@ def validate_rc_by_pmc(
     distribution: str,
     version: str,
     task_sdk_version: str | None,
-    svn_path: Path,
+    path_to_airflow_svn: Path,
     checks: str | None,
 ):
     """
@@ -73,7 +75,7 @@ def validate_rc_by_pmc(
             --distribution airflow \
             --version 3.1.3rc1 \
             --task-sdk-version 1.1.3rc1 \
-            --svn-path ../asf-dist/dev/airflow \
+            --path-to-airflow-svn ../asf-dist/dev/airflow \
             --checks signatures,checksums
     """
     airflow_repo_root = Path.cwd()
@@ -94,7 +96,7 @@ def validate_rc_by_pmc(
     if distribution == "airflow":
         validator = AirflowReleaseValidator(
             version=version,
-            svn_path=svn_path,
+            path_to_airflow_svn=path_to_airflow_svn,
             airflow_repo_root=airflow_repo_root,
             task_sdk_version=task_sdk_version,
         )
