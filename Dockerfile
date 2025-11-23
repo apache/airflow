@@ -50,6 +50,11 @@ ARG AIRFLOW_VERSION="3.1.3"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
+
+# This is the build argument that allows to disable Python's Link Time Optimization (LTO)
+# LTO is enabled by default, but it can be disabled by setting this argument to "false"
+# This is useful for FIPS compliance, where LTO can interfere with MD5 verification
+# and binary layout.
 ARG PYTHON_LTO="true"
 
 # You can swap comments between those two args to test pip from the main version
@@ -391,9 +396,13 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    local lto_option=""
+    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
+        lto_option="--with-lto"
+    fi
     ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
         --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared --with-lto
+            --enable-shared ${lto_option}
     make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
         "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
@@ -1686,8 +1695,11 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
     AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
+ARG PYTHON_LTO
+
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
+RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -1932,6 +1944,8 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
+
+ARG PYTHON_LTO
 
 COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
