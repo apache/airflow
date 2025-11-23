@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Service
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 apiVersion: v1
 kind: Service
 metadata:

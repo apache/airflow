@@ -110,7 +110,7 @@ in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management
 This will only update the min version in  the `__init__.py` files and package documentation without bumping the provider versions.
 
 4. Remove `AIRFLOW_V_X_Y_PLUS` in all tests (review and update skipif and other conditional
-   behaviour and test_compat.py, where X is the TARGET version we change to. For example
+   behavior and test_compat.py, where X is the TARGET version we change to. For example
    when we update min Airflow version to 3.0.0, we should remove all references to AIRFLOW_V_3_0_PLUS
    simply because "everything" in our tests is already 3.0.0+ and there is no need to exclude or
    modify tests for earlier versions of Airflow.
@@ -145,7 +145,7 @@ when the time to update min airflow version has come.
 ## Move provider into remove state
 
 > [!NOTE]
-> This is oonly needed in case some providers have been removed since last release wave.
+> This is only needed in case some providers have been removed since last release wave.
 
 The removed state needs to be in a release wave before you actually plan to remove the source code for the provider.
 Set provider with ``removed state`` -> ``release provider`` -> ``remove source code of the provider``.
@@ -514,9 +514,9 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
-By default the command will attempt to retrieve the github token used to authenticate with GH and tackle
+By default the command will attempt to retrieve the GitHub token used to authenticate with GH and tackle
 rate limiting from locally run `gh auth token` command output - but if you do not have `gh` installed,
-you can generate such token in Github Interface and pass it to the command manually. When you use
+you can generate such token in GitHub Interface and pass it to the command manually. When you use
 `breeze release-management generate-issue-content-providers --help` - you will see the link that you
 will be able to click to generate such token.
 
@@ -527,7 +527,7 @@ breeze release-management generate-issue-content-providers --only-available-in-d
 ```
 
 Sometimes, when there are big PRs implemented across many providers, you want to filter them out
-from the issue contenr. When there are many of the same PRs/issues they create a noise in the issue
+from the issue content. When there are many of the same PRs/issues they create a noise in the issue
 and not add value, usually those PRs and issues are about package preparation mechanism so they
 are tested well outside regular package testing.
 
@@ -704,7 +704,7 @@ Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/
 script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
 may help with verifying installation of the packages.
 
-Once you have cloned/updated the SVN repository, copy the pypi URLs shared
+Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
 in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
 directory and cd into it.
 
@@ -1253,12 +1253,12 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 ## Add tags in git
 
 Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
+set tags for the providers in the repository.
 
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
+and lead to annoying errors. The default behavior would be to clean such local tags up.
 
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
 breeze release-management tag-providers
