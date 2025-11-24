@@ -65,6 +65,6 @@ use cases. Simply install them to make them available:
 
 Python Version Compatibility
 ----------------------------
-airflowctl is compatible with Python 3.10 and above.
+``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.
 Currently, Python 3.14 is not supported. Thanks for your understanding!
 We will work on adding support for Python 3.14.
