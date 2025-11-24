@@ -20,12 +20,11 @@ import type { RefObject } from "react";
 
 export const setRefStyle = <T extends HTMLElement | null>(
   ref: RefObject<T> | null | undefined,
-  property: keyof CSSStyleDeclaration,
+  property: string,
   value: string,
 ): void => {
-  if (ref?.current) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
-    (ref.current.style as any)[property] = value;
+  if (ref?.current && ref.current instanceof HTMLElement) {
+    ref.current.style.setProperty(property, value);
   }
 };
 
