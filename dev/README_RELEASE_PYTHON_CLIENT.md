@@ -266,9 +266,14 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-I have cut the first release candidate for the Apache Airflow Python Client ${VERSION}.
-This email is calling for a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+The release candidate for Apache Airflow Python Client ${VERSION_RC} is now available for testing!
+
+This email is calling for a vote on the release, which will last at least 72 hours, from Friday, October 8, 2025 at 4:00 pm UTC
+until Monday, October 11, 2025 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
+
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION_RC}/
