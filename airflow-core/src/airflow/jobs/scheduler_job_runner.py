@@ -592,7 +592,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             try:
                 locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine: list[TI] = list(session.scalars(locked_query).all())
+                task_instances_to_examine = session.scalars(locked_query).all()
 
                 self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
                 self.log.debug(

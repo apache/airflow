@@ -1425,9 +1425,14 @@ class TestSchedulerJob:
 
         # Tasks from all 6 dags should have been queued.
         assert len(dag_counts) == 6
-        assert all(count == 4 for count in dag_counts.values()), (
-            "Count for each dag_id should be 4 but it isn't"
-        )
+        assert dag_counts == {
+            "dag_1300_tasks": 4,
+            "dag_1200_tasks": 4,
+            "dag_1100_tasks": 4,
+            "dag_100_tasks": 4,
+            "dag_90_tasks": 4,
+            "dag_80_tasks": 4,
+        }, "Count for each dag_id should be 4 but it isn't"
 
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
