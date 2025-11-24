@@ -35,18 +35,6 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
 
 export const customConfig = defineConfig({
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
-  globalCss: {
-    // Navigation preview highlight for keyboard navigation
-    ".nav-preview-highlight": {
-      backgroundColor: "var(--chakra-colors-blue-100) !important",
-      outline: "2px solid var(--chakra-colors-blue-500) !important",
-      outlineOffset: "-2px",
-    },
-    // Disable hover effects during keyboard navigation
-    ".nav-preview-highlight:hover": {
-      backgroundColor: "var(--chakra-colors-blue-100) !important",
-    },
-  },
   theme: {
     tokens: {
       colors: {

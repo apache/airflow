@@ -32,6 +32,10 @@ import type {
 } from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 
+// Grid cell dimensions (must match Grid.tsx)
+const CELL_WIDTH = 18;
+const CELL_HEIGHT = 20;
+
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
     return "TI";
@@ -61,14 +65,6 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
 
 const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
   Math.max(0, Math.min(options.max - 1, current + direction));
-
-const HIGHLIGHT_CLASS = "nav-preview-highlight";
-
-// Type for tracking highlighted elements (O(1) clear)
-type HighlightedElements = {
-  runColumn: HTMLElement | undefined;
-  taskRow: HTMLElement | undefined;
-};
 
 const buildPath = (params: {
   dagId: string;
@@ -102,14 +98,13 @@ const buildPath = (params: {
 };
 
 export const useNavigation = ({
-  containerRef,
-  interactionLayerRef,
+  navCellRef,
+  navColRef,
+  navRowRef,
   onToggleGroup,
   runs,
   tasks,
 }: UseNavigationProps): UseNavigationReturn => {
-  // Use overlay-based highlighting when interactionLayerRef is provided
-  const useOverlay = Boolean(interactionLayerRef);
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
@@ -138,98 +133,64 @@ export const useNavigation = ({
   // Ref to track preview position during key hold (no re-render)
   const previewIndicesRef = useRef<NavigationIndices>(currentIndices);
 
-  // Track last highlighted elements for O(1) clear
-  const highlightedRef = useRef<HighlightedElements>({ runColumn: undefined, taskRow: undefined });
-
   // Sync ref with actual indices when URL changes
   useEffect(() => {
     previewIndicesRef.current = currentIndices;
   }, [currentIndices]);
 
-  // O(1) clear - only operates on tracked elements
+  // Clear navigation highlight overlays
   const clearHighlight = useCallback(() => {
-    // Use overlay-based clearing if available
-    if (useOverlay && interactionLayerRef) {
-      interactionLayerRef.current?.clearHighlight();
-
-      return;
+    if (navRowRef?.current) {
+      navRowRef.current.style.opacity = "0";
     }
-
-    // Fallback: DOM-based clearing
-    const { runColumn, taskRow } = highlightedRef.current;
-
-    if (taskRow) {
-      taskRow.classList.remove(HIGHLIGHT_CLASS);
+    if (navColRef?.current) {
+      navColRef.current.style.opacity = "0";
     }
-    if (runColumn) {
-      runColumn.classList.remove(HIGHLIGHT_CLASS);
+    if (navCellRef?.current) {
+      navCellRef.current.style.opacity = "0";
     }
-    highlightedRef.current = { runColumn: undefined, taskRow: undefined };
-  }, [interactionLayerRef, useOverlay]);
+  }, [navCellRef, navColRef, navRowRef]);
 
-  // Apply highlight - uses overlay when available, falls back to DOM queries
+  // Apply highlight using direct DOM manipulation (GPU composited)
   const applyHighlight = useCallback(
-    ({
-      indices,
-      navMode,
-      targetRunId,
-      targetTaskId,
-    }: {
-      indices: NavigationIndices;
-      navMode: NavigationMode;
-      targetRunId: string;
-      targetTaskId: string;
-    }) => {
-      clearHighlight();
+    (indices: NavigationIndices, navMode: NavigationMode) => {
+      const { runIndex, taskIndex } = indices;
 
-      // Use overlay-based highlighting if available (GPU compositing, O(1))
-      if (useOverlay && interactionLayerRef) {
-        const run = runs[indices.runIndex];
-        const task = tasks[indices.taskIndex];
+      // Calculate positions (same logic as hover)
+      const rowY = taskIndex * CELL_HEIGHT;
+      const colX = -(runIndex * CELL_WIDTH);
 
-        if (run && task) {
-          interactionLayerRef.current?.setHighlight(
-            {
-              colIndex: indices.runIndex,
-              rowIndex: indices.taskIndex,
-              runId: run.run_id,
-              taskId: task.id,
-            },
-            navMode,
-          );
+      const showRow = navMode === "task" || navMode === "TI";
+      const showCol = navMode === "run" || navMode === "TI";
+
+      // Update row highlight
+      if (navRowRef?.current) {
+        if (showRow) {
+          navRowRef.current.style.transform = `translateY(${rowY}px)`;
         }
-
-        return;
+        navRowRef.current.style.opacity = showRow ? "1" : "0";
       }
 
-      // Fallback: Scoped DOM queries - only searches within container
-      const container: ParentNode = containerRef?.current ?? document;
-      const highlightTask = navMode === "task" || navMode === "TI";
-      const highlightRun = navMode === "run" || navMode === "TI";
-
-      if (highlightTask) {
-        const taskRow = container.querySelector<HTMLElement>(`[data-task-id='${targetTaskId}']`);
-
-        if (taskRow !== null) {
-          taskRow.classList.add(HIGHLIGHT_CLASS);
-          taskRow.style.backgroundColor = "";
-          highlightedRef.current.taskRow = taskRow;
+      // Update column highlight
+      if (navColRef?.current) {
+        if (showCol) {
+          navColRef.current.style.transform = `translateX(${colX}px)`;
         }
+        navColRef.current.style.opacity = showCol ? "1" : "0";
       }
 
-      if (highlightRun) {
-        const runColumn = container.querySelector<HTMLElement>(`[data-run-id='${targetRunId}']`);
-
-        if (runColumn !== null) {
-          runColumn.classList.add(HIGHLIGHT_CLASS);
-          highlightedRef.current.runColumn = runColumn;
+      // Update cell highlight (TI mode only)
+      if (navCellRef?.current) {
+        if (navMode === "TI") {
+          navCellRef.current.style.transform = `translate(${colX}px, ${rowY}px)`;
         }
+        navCellRef.current.style.opacity = navMode === "TI" ? "1" : "0";
       }
     },
-    [clearHighlight, containerRef, interactionLayerRef, runs, tasks, useOverlay],
+    [navCellRef, navColRef, navRowRef],
   );
 
-  // Preview navigation: update ref + DOM highlight (keydown)
+  // Preview navigation: update ref + overlay highlight (keydown)
   const handleNavigation = useCallback(
     (direction: NavigationDirection) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
@@ -275,18 +236,8 @@ export const useNavigation = ({
       // Update ref (no re-render)
       previewIndicesRef.current = newIndices;
 
-      // Apply highlight instantly (overlay or DOM-based)
-      const run = runs[newIndices.runIndex];
-      const task = tasks[newIndices.taskIndex];
-
-      if (run && task) {
-        applyHighlight({
-          indices: newIndices,
-          navMode: mode,
-          targetRunId: run.run_id,
-          targetTaskId: task.id,
-        });
-      }
+      // Apply highlight instantly via direct DOM manipulation
+      applyHighlight(newIndices, mode);
     },
     [applyHighlight, dagId, enabled, mode, runs, tasks],
   );

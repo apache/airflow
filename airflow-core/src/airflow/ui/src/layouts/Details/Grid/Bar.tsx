@@ -24,7 +24,6 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
-import { useGridHover } from "./GridHoverContext";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import type { GridTask } from "./utils";
 
@@ -37,22 +36,13 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
-  readonly taskIndexMap: Map<string, number>;
 };
 
-export const Bar = ({ colIndex, max, nodes, onCellClick, onColumnClick, run, taskIndexMap }: Props) => {
+export const Bar = ({ colIndex: _colIndex, max, nodes, onCellClick, onColumnClick, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
-  const { setHover } = useGridHover();
 
   const isSelected = runId === run.run_id;
-
-  // Handle column hover (run hover) - highlight entire column
-  const handleColumnMouseEnter = () => {
-    // Use first row (0) as placeholder for column hover
-    setHover(0, colIndex, "run");
-  };
-
   const search = searchParams.toString();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
 
@@ -68,7 +58,6 @@ export const Bar = ({ colIndex, max, nodes, onCellClick, onColumnClick, run, tas
         height={BAR_HEIGHT}
         justifyContent="center"
         onClick={onColumnClick}
-        onMouseEnter={handleColumnMouseEnter}
         pb="2px"
         px="5px"
         width="18px"
@@ -92,11 +81,9 @@ export const Bar = ({ colIndex, max, nodes, onCellClick, onColumnClick, run, tas
         </GridButton>
       </Flex>
       <TaskInstancesColumn
-        colIndex={colIndex}
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
-        taskIndexMap={taskIndexMap}
         taskInstances={gridTISummaries?.task_instances ?? []}
       />
     </Box>

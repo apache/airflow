@@ -19,7 +19,6 @@
 import type { RefObject } from "react";
 
 import type { GridRunsResponse } from "openapi/requests";
-import type { GridInteractionLayerHandle } from "src/layouts/Details/Grid/GridInteractionLayer";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 export type NavigationMode = "run" | "task" | "TI";
@@ -29,14 +28,18 @@ export type ArrowKey = "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp";
 export type NavigationDirection = "down" | "left" | "right" | "up";
 
 export type NavigationIndices = {
+  colIndex?: number;
+  rowIndex?: number;
   runIndex: number;
   taskIndex: number;
 };
 
 export type UseNavigationProps = {
   containerRef?: RefObject<HTMLElement | null>;
-  /** Ref to GridInteractionLayer for overlay-based highlighting (preferred) */
-  interactionLayerRef?: RefObject<GridInteractionLayerHandle | null>;
+  /** Refs to navigation overlay elements for direct DOM manipulation */
+  navCellRef?: RefObject<HTMLDivElement | null>;
+  navColRef?: RefObject<HTMLDivElement | null>;
+  navRowRef?: RefObject<HTMLDivElement | null>;
   onToggleGroup?: (taskId: string) => void;
   runs: Array<GridRunsResponse>;
   tasks: Array<GridTask>;

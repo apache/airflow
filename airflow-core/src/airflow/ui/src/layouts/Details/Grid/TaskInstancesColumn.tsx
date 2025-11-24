@@ -25,29 +25,19 @@ import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
 
 type Props = {
-  readonly colIndex: number;
   readonly depth?: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
-  readonly taskIndexMap: Map<string, number>;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
-export const TaskInstancesColumn = ({
-  colIndex,
-  nodes,
-  onCellClick,
-  runId,
-  taskIndexMap,
-  taskInstances,
-}: Props) => {
+export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
   const { dagId = "" } = useParams();
 
   return nodes.map((node) => {
     // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
-    const rowIndex = taskIndexMap.get(node.id) ?? 0;
 
     if (!taskInstance) {
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
@@ -55,7 +45,6 @@ export const TaskInstancesColumn = ({
 
     return (
       <GridTI
-        colIndex={colIndex}
         dagId={dagId}
         instance={taskInstance}
         isGroup={node.isGroup}
@@ -63,7 +52,6 @@ export const TaskInstancesColumn = ({
         key={node.id}
         label={node.label}
         onClick={onCellClick}
-        rowIndex={rowIndex}
         runId={runId}
         taskId={node.id}
       />

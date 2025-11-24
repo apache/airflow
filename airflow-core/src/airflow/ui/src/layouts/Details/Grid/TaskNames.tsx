@@ -24,115 +24,102 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 import { useOpenGroups } from "src/context/openGroups";
 
-import { useGridHover } from "./GridHoverContext";
 import type { GridTask } from "./utils";
 
 type Props = {
   depth?: number;
   nodes: Array<GridTask>;
   onRowClick?: () => void;
-  taskIndexMap: Map<string, number>;
 };
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-export const TaskNames = ({ nodes, onRowClick, taskIndexMap }: Props) => {
+export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { setHover } = useGridHover();
 
-  return nodes.map((node, index) => {
-    const rowIndex = taskIndexMap.get(node.id) ?? index;
-
-    // Handle row hover - highlight entire row
-    const handleMouseEnter = () => {
-      setHover(rowIndex, 0, "task");
-    };
-
-    return (
-      <Box
-        bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
-        borderBottomWidth={1}
-        borderColor={node.isGroup ? "border.emphasized" : "border"}
-        borderTopWidth={index === 0 ? 1 : 0}
-        cursor="pointer"
-        data-task-id={node.id}
-        id={`task-${node.id.replaceAll(".", "-")}`}
-        key={node.id}
-        maxHeight="20px"
-        onMouseEnter={handleMouseEnter}
-        transition="background-color 0.2s"
-      >
-        {node.isGroup ? (
-          <Link asChild data-testid={node.id} display="block" width="100%">
-            <RouterLink
-              onClick={onRowClick}
-              replace
-              style={{ outline: "none" }}
-              to={{
-                pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                search: searchParams.toString(),
-              }}
-            >
-              <Flex alignItems="center" width="100%">
-                <TaskName
-                  fontSize="sm"
-                  fontWeight="normal"
-                  isGroup={true}
-                  isMapped={Boolean(node.is_mapped)}
-                  label={node.label}
-                  paddingLeft={indent(node.depth)}
-                  setupTeardownType={node.setup_teardown_type}
-                />
-                <chakra.span
-                  _focus={{ outline: "none" }}
-                  alignItems="center"
-                  aria-label={translate("grid.buttons.toggleGroup")}
-                  cursor="pointer"
-                  display="inline-flex"
-                  ml={1}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    toggleGroupId(node.id);
-                  }}
-                  px={1}
-                >
-                  <FiChevronUp
-                    size={16}
-                    style={{
-                      transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
-                      transition: "transform 0.5s",
-                    }}
-                  />
-                </chakra.span>
-              </Flex>
-            </RouterLink>
-          </Link>
-        ) : (
-          <Link asChild data-testid={node.id} display="inline">
-            <RouterLink
-              onClick={onRowClick}
-              replace
-              to={{
-                pathname: `/dags/${dagId}/tasks/${node.id}`,
-                search: searchParams.toString(),
-              }}
-            >
+  return nodes.map((node, index) => (
+    <Box
+      bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
+      borderBottomWidth={1}
+      borderColor={node.isGroup ? "border.emphasized" : "border"}
+      borderTopWidth={index === 0 ? 1 : 0}
+      cursor="pointer"
+      data-task-id={node.id}
+      id={`task-${node.id.replaceAll(".", "-")}`}
+      key={node.id}
+      maxHeight="20px"
+      transition="background-color 0.2s"
+    >
+      {node.isGroup ? (
+        <Link asChild data-testid={node.id} display="block" width="100%">
+          <RouterLink
+            onClick={onRowClick}
+            replace
+            style={{ outline: "none" }}
+            to={{
+              pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+              search: searchParams.toString(),
+            }}
+          >
+            <Flex alignItems="center" width="100%">
               <TaskName
                 fontSize="sm"
                 fontWeight="normal"
+                isGroup={true}
                 isMapped={Boolean(node.is_mapped)}
                 label={node.label}
                 paddingLeft={indent(node.depth)}
                 setupTeardownType={node.setup_teardown_type}
               />
-            </RouterLink>
-          </Link>
-        )}
-      </Box>
-    );
-  });
+              <chakra.span
+                _focus={{ outline: "none" }}
+                alignItems="center"
+                aria-label={translate("grid.buttons.toggleGroup")}
+                cursor="pointer"
+                display="inline-flex"
+                ml={1}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  toggleGroupId(node.id);
+                }}
+                px={1}
+              >
+                <FiChevronUp
+                  size={16}
+                  style={{
+                    transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
+                    transition: "transform 0.5s",
+                  }}
+                />
+              </chakra.span>
+            </Flex>
+          </RouterLink>
+        </Link>
+      ) : (
+        <Link asChild data-testid={node.id} display="inline">
+          <RouterLink
+            onClick={onRowClick}
+            replace
+            to={{
+              pathname: `/dags/${dagId}/tasks/${node.id}`,
+              search: searchParams.toString(),
+            }}
+          >
+            <TaskName
+              fontSize="sm"
+              fontWeight="normal"
+              isMapped={Boolean(node.is_mapped)}
+              label={node.label}
+              paddingLeft={indent(node.depth)}
+              setupTeardownType={node.setup_teardown_type}
+            />
+          </RouterLink>
+        </Link>
+      )}
+    </Box>
+  ));
 };

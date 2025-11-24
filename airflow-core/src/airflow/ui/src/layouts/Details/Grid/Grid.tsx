@@ -36,9 +36,7 @@ import { isStatePending } from "src/utils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
-import { GridHoverProvider } from "./GridHoverContext";
-import { CELL_HEIGHT, CELL_WIDTH, GridInteractionLayer } from "./GridInteractionLayer";
-import type { GridInteractionLayerHandle } from "./GridInteractionLayer";
+import { BAR_HEADER_HEIGHT, CELL_HEIGHT, CELL_WIDTH, GRID_PADDING_TOP, GridOverlays } from "./GridOverlays";
 import { TaskNames } from "./TaskNames";
 import { flattenNodes } from "./utils";
 
@@ -55,7 +53,15 @@ type Props = {
 export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
-  const interactionLayerRef = useRef<GridInteractionLayerHandle>(null);
+
+  // Overlay refs for hover highlighting (direct DOM manipulation for zero latency)
+  const hoverRowRef = useRef<HTMLDivElement>(null);
+  const hoverColRef = useRef<HTMLDivElement>(null);
+
+  // Overlay refs for keyboard navigation highlighting
+  const navRowRef = useRef<HTMLDivElement>(null);
+  const navColRef = useRef<HTMLDivElement>(null);
+  const navCellRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
@@ -156,97 +162,138 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   const { setMode } = useNavigation({
     containerRef: gridRef,
-    interactionLayerRef,
+    navCellRef,
+    navColRef,
+    navRowRef,
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
 
-  // Calculate grid dimensions for interaction layer
-  const gridHeight = flatNodes.length * CELL_HEIGHT;
-  const gridWidth = (gridRuns?.length ?? 0) * CELL_WIDTH;
+  // Event Delegation: Handle all mouse movement in one place
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridRef.current || !hoverRowRef.current || !hoverColRef.current) {
+      return;
+    }
 
-  // Build task index map for O(1) lookup
-  const taskIndexMap = useMemo(() => {
-    const map = new Map<string, number>();
+    // Get mouse position relative to grid container
+    const rect = gridRef.current.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
 
-    flatNodes.forEach((node, index) => {
-      map.set(node.id, index);
-    });
+    // Calculate indices
+    // Cells start after GRID_PADDING_TOP + BAR_HEADER_HEIGHT
+    const cellsTopPosition = GRID_PADDING_TOP + BAR_HEADER_HEIGHT;
+    const rowIndex = Math.floor((mouseY - cellsTopPosition) / CELL_HEIGHT);
 
-    return map;
-  }, [flatNodes]);
+    // Columns are in row-reverse order (rightmost = index 0)
+    // Need to calculate from the right edge of the grid
+    const totalGridWidth = (gridRuns?.length ?? 0) * CELL_WIDTH;
+    const colIndex = Math.floor((totalGridWidth - (mouseX - rect.width + totalGridWidth)) / CELL_WIDTH);
+
+    // Validate and update row highlight (for TaskNames + Cells)
+    const validRow = rowIndex >= 0 && rowIndex < flatNodes.length;
+
+    if (validRow) {
+      const rowY = rowIndex * CELL_HEIGHT;
+
+      hoverRowRef.current.style.transform = `translateY(${rowY}px)`;
+      hoverRowRef.current.style.opacity = "1";
+    } else {
+      hoverRowRef.current.style.opacity = "0";
+    }
+
+    // Validate and update column highlight (for Bar + Cells)
+    const validCol = colIndex >= 0 && colIndex < (gridRuns?.length ?? 0);
+
+    if (validCol) {
+      const colX = -colIndex * CELL_WIDTH;
+
+      hoverColRef.current.style.transform = `translateX(${colX}px)`;
+      hoverColRef.current.style.opacity = "1";
+    } else {
+      hoverColRef.current.style.opacity = "0";
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverRowRef.current) {
+      hoverRowRef.current.style.opacity = "0";
+    }
+    if (hoverColRef.current) {
+      hoverColRef.current.style.opacity = "0";
+    }
+  };
 
   return (
-    <GridHoverProvider interactionLayerRef={interactionLayerRef}>
-      <Flex
-        justifyContent="flex-start"
-        onMouseLeave={() => interactionLayerRef.current?.clearHover()}
-        outline="none"
-        position="relative"
-        pt={20}
-        ref={gridRef}
-        tabIndex={0}
-        width={showGantt ? "1/2" : "full"}
-      >
-        {/* Interaction Layer - at Grid level for full-width row highlights */}
-        <GridInteractionLayer
-          gridHeight={gridHeight}
-          gridWidth={gridWidth}
-          ref={interactionLayerRef}
-          totalCols={gridRuns?.length ?? 0}
-          totalRows={flatNodes.length}
-        />
-        <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
-          <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} taskIndexMap={taskIndexMap} />
-        </Box>
-        <Box position="relative">
-          <Flex position="relative">
-            <DurationAxis top="100px" />
-            <DurationAxis top="50px" />
-            <DurationAxis top="4px" />
-            <Flex flexDirection="column-reverse" height="100px" position="relative">
-              {Boolean(gridRuns?.length) && (
-                <>
-                  <DurationTick bottom="92px" duration={max} />
-                  <DurationTick bottom="46px" duration={max / 2} />
-                  <DurationTick bottom="-4px" duration={0} />
-                </>
-              )}
-            </Flex>
-            <Flex flexDirection="row-reverse" position="relative">
-              {gridRuns?.map((dr: GridRunsResponse, colIndex: number) => (
-                <Bar
-                  colIndex={colIndex}
-                  key={dr.run_id}
-                  max={max}
-                  nodes={flatNodes}
-                  onCellClick={() => setMode("TI")}
-                  onColumnClick={() => setMode("run")}
-                  run={dr}
-                  taskIndexMap={taskIndexMap}
-                />
-              ))}
-            </Flex>
-            {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
-              <Link to={`/dags/${dagId}`}>
-                <IconButton
-                  aria-label={translate("grid.buttons.resetToLatest")}
-                  height="98px"
-                  loading={isLoading}
-                  minW={0}
-                  ml={1}
-                  title={translate("grid.buttons.resetToLatest")}
-                  variant="surface"
-                  zIndex={1}
-                >
-                  <FiChevronsRight />
-                </IconButton>
-              </Link>
+    <Flex
+      justifyContent="flex-start"
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
+      outline="none"
+      position="relative"
+      pt={20}
+      ref={gridRef}
+      tabIndex={0}
+      width={showGantt ? "1/2" : "full"}
+    >
+      <GridOverlays
+        gridHeight={flatNodes.length * CELL_HEIGHT}
+        hoverColRef={hoverColRef}
+        hoverRowRef={hoverRowRef}
+        navCellRef={navCellRef}
+        navColRef={navColRef}
+        navRowRef={navRowRef}
+      />
+
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
+        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
+      </Box>
+      <Box position="relative">
+        <Flex position="relative">
+          <DurationAxis top="100px" />
+          <DurationAxis top="50px" />
+          <DurationAxis top="4px" />
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
+            {Boolean(gridRuns?.length) && (
+              <>
+                <DurationTick bottom="92px" duration={max} />
+                <DurationTick bottom="46px" duration={max / 2} />
+                <DurationTick bottom="-4px" duration={0} />
+              </>
             )}
           </Flex>
-        </Box>
-      </Flex>
-    </GridHoverProvider>
+          <Flex flexDirection="row-reverse" position="relative">
+            {gridRuns?.map((dr: GridRunsResponse, colIndex: number) => (
+              <Bar
+                colIndex={colIndex}
+                key={dr.run_id}
+                max={max}
+                nodes={flatNodes}
+                onCellClick={() => setMode("TI")}
+                onColumnClick={() => setMode("run")}
+                run={dr}
+              />
+            ))}
+          </Flex>
+          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+            <Link to={`/dags/${dagId}`}>
+              <IconButton
+                aria-label={translate("grid.buttons.resetToLatest")}
+                height="98px"
+                loading={isLoading}
+                minW={0}
+                ml={1}
+                title={translate("grid.buttons.resetToLatest")}
+                variant="surface"
+                zIndex={1}
+              >
+                <FiChevronsRight />
+              </IconButton>
+            </Link>
+          )}
+        </Flex>
+      </Box>
+    </Flex>
   );
 };

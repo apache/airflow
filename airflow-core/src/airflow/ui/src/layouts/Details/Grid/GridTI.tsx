@@ -27,43 +27,22 @@ import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-import { useGridHover } from "./GridHoverContext";
-
 type Props = {
-  readonly colIndex: number;
   readonly dagId: string;
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
   readonly onClick?: () => void;
-  readonly rowIndex: number;
   readonly runId: string;
   readonly taskId: string;
 };
 
-const Instance = ({
-  colIndex,
-  dagId,
-  instance,
-  isGroup,
-  isMapped,
-  onClick,
-  rowIndex,
-  runId,
-  taskId,
-}: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
-  const { setHover } = useGridHover();
-
   const [searchParams] = useSearchParams();
-
-  // Handle cell hover - highlight both row and column
-  const handleMouseEnter = () => {
-    setHover(rowIndex, colIndex, "TI");
-  };
 
   const getTaskUrl = useCallback(
     () =>
@@ -93,7 +72,6 @@ const Instance = ({
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
-      onMouseEnter={handleMouseEnter}
       position="relative"
       px="2px"
       py={0}
