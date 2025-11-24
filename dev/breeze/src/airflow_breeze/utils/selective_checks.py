@@ -95,7 +95,7 @@ ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
 )
 
 # Set to True to enter a translation freeze period. Set to False to exit a translation freeze period.
-FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = True
+FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
