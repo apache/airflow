@@ -328,9 +328,10 @@ class TestBaseChartTest:
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
     @pytest.mark.parametrize(
-        "airflow_version, executor",
+        ("airflow_version", "executor"),
         [
             ["2.10.0", "CeleryExecutor"],
+            ["2.10.0", "CeleryKubernetesExecutor"],
             ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
             ["3.0.0", "CeleryExecutor"],
             ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
@@ -377,7 +378,7 @@ class TestBaseChartTest:
             assert kind_name in kind_names_tuples
 
     @pytest.mark.parametrize(
-        "airflow_version, executor",
+        ("airflow_version", "executor"),
         [
             ["2.10.0", "CeleryExecutor"],
             ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
