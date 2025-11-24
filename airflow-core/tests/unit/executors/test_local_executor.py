@@ -45,6 +45,11 @@ skip_spawn_mp_start = pytest.mark.skipif(
 
 
 class TestLocalExecutor:
+    """
+    When the executor is started, end() must be called before the test finishes.
+    Otherwise, subprocesses will remain running, preventing the test from terminating and causing a timeout.
+    """
+
     TEST_SUCCESS_COMMANDS = 5
 
     def test_sentry_integration(self):
@@ -67,6 +72,8 @@ class TestLocalExecutor:
         mock_unfreeze.assert_called_once()
 
         assert len(executor.workers) == 5
+
+        executor.end()
 
     @skip_spawn_mp_start
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
@@ -178,12 +185,16 @@ class TestLocalExecutor:
         executor = LocalExecutor(parallelism=2)
         executor.start()
 
-        worker_pid = list(executor.workers.keys())
-        for killed_pid in worker_pid:
-            # killing the worker process
+        # Mock the process to make it appear dead.
+        # However, the processes that lost their references must be included in end() before termination.
+        # Otherwise, the test will not finish and a timeout will occur.
+        dead_process = {}
+
+        for killed_pid, killed_proc in executor.workers.items():
             proc = mock.MagicMock()
             proc.is_alive.return_value = False
 
+            dead_process[killed_pid] = killed_proc
             executor.workers[killed_pid] = proc
 
         success_tis = [
@@ -218,10 +229,16 @@ class TestLocalExecutor:
 
         with spy_on(executor._spawn_worker) as spawn_worker:
             executor._process_workloads(list(executor.queued_tasks.values()))
+
             if executor.is_mp_using_fork:
                 assert len(spawn_worker.calls) == 2
             else:
                 assert len(spawn_worker.calls) == 1
+
+        for killed_pid, killed_proc in dead_process.items():
+            executor.workers[killed_pid] = killed_proc
+
+        executor.end()
 
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
