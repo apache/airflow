@@ -92,7 +92,7 @@ your Dag file or operator's ``execute`` function using the ``mask_secret`` funct
 
     @task
     def my_func():
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
 
         mask_secret("custom_value")
 
@@ -105,7 +105,7 @@ or
 
     class MyOperator(BaseOperator):
         def execute(self, context):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            from airflow.sdk.log import mask_secret
 
             mask_secret("custom_value")
 
