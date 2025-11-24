@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DagModel
     from airflow.models.trigger import Trigger
     from airflow.sdk.definitions.asset import Asset, AssetAlias
 
@@ -714,8 +715,8 @@ class AssetDagRunQueue(Base):
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     target_dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    asset = relationship("AssetModel", viewonly=True)
-    dag_model = relationship("DagModel", viewonly=True)
+    asset: Mapped[AssetModel] = relationship("AssetModel", viewonly=True)
+    dag_model: Mapped[DagModel] = relationship("DagModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
