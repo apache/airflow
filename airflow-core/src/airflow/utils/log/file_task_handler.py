@@ -68,7 +68,7 @@ HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages before 3.0.2"""
+"""The legacy format of log messages before 3.0.4"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
@@ -196,8 +196,7 @@ _parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fall
 if not _parse_timestamp:
 
     def _parse_timestamp(line: str):
-        # Make this resilient to all input types, ensure it's always a string.
-        timestamp_str, _ = str(line).split(" ", 1)
+        timestamp_str, _ = line.split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
 
 
@@ -262,10 +261,7 @@ def _log_stream_to_parsed_log_stream(
     for line in log_stream:
         if line:
             try:
-                if isinstance(line, dict):
-                    log = StructuredLogMessage.model_validate(line)
-                else:
-                    log = StructuredLogMessage.model_validate_json(line)
+                log = StructuredLogMessage.model_validate_json(line)
             except ValidationError:
                 with suppress(Exception):
                     # If we can't parse the timestamp, don't attach one to the row
