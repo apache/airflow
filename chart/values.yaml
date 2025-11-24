@@ -2875,6 +2875,81 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
+# This runs as a CronJob to cleanup database for old entries.
+databaseCleanup:
+  enabled: false
+  # Run every week on Sunday at midnight (templated).
+  schedule: "0 0 * * 0"
+  # Command to use when running the database cleanup cronjob (templated).
+  command:
+    - "bash"
+  # Args to use when running the database cleanup cronjob (templated).
+  args:
+    - "-c"
+    - >-
+      CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
+      echo "Cleaning up metadata DB entries older than ${CLEAN_TS}";
+      exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose
+
+  # Number of days to retain entries in the metadata database.
+  retentionDays: 90
+
+  # jobAnnotations are annotations on the database cleanup CronJob
+  jobAnnotations: {}
+
+  # Select certain nodes for airflow database cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+
+  podAnnotations: {}
+
+  # Labels specific to database cleanup objects and pods
+  labels: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Create ServiceAccount
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to database cleanup cronjob kubernetes service account.
+    annotations: {}
+
+  # When not set, the values defined in the global securityContext will be used
+  securityContext: {}
+  #  runAsUser: 50000
+  #  runAsGroup: 0
+  env: []
+
+  # Detailed default security context for database cleanup for container level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions
 # Not recommended for production - use external database instead
