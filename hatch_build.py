@@ -43,7 +43,7 @@ PRE_INSTALLED_PROVIDERS = [
     "common.compat",
     "common.io",
     "common.sql",
-    "fab>=1.5.4",
+    "fab>=1.5.4,<3.0.0",
     "ftp",
     "http",
     "imap",
@@ -271,7 +271,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<8.3",
         "requests_mock>=1.11.0",
-        "time-machine>=2.13.0",
+        # Time machine is only used in tests and version 3 introduced breaking changes
+        "time-machine>=2.13.0,<3",
         "wheel>=0.42.0",
     ],
     "devel": [
@@ -574,6 +575,7 @@ def get_provider_requirement(provider_spec: str) -> str:
 
         current_airflow_version = Version(airflow_version_match.group(1))
         provider_id, min_version = provider_spec.split(">=")
+        min_version = min_version.split(",")[0]
         provider_version = Version(min_version)
         if provider_version.is_prerelease and not current_airflow_version.is_prerelease:
             # strip pre-release version from the pre-installed provider's version when we are preparing

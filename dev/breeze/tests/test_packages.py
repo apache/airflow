@@ -157,7 +157,7 @@ def test_find_matching_long_package_name_bad_filter():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=2.9.0",
-    "flask-appbuilder==4.6.",
+    "flask-appbuilder==4.5.3",
     "flask-login>=0.6.3",
     "flask-session>=0.8.0",
     "flask>=2.2,<3",

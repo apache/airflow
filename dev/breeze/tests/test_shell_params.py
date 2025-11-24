@@ -55,8 +55,8 @@ console = Console(width=400, color_system="standard")
             {"airflow_branch": "v2-7-test"},
             {
                 "DEFAULT_BRANCH": "v2-7-test",
-                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v2-7-test/ci/python3.9",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.9",
+                "AIRFLOW_CI_IMAGE": "ghcr.io/apache/airflow/v2-7-test/ci/python3.10",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.10",
             },
             id="With release branch",
         ),
@@ -65,8 +65,8 @@ console = Console(width=400, color_system="standard")
             {},
             {
                 "DEFAULT_BRANCH": AIRFLOW_BRANCH,  # DEFAULT_BRANCH is overridden from sources
-                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.9",
-                "PYTHON_MAJOR_MINOR_VERSION": "3.9",
+                "AIRFLOW_CI_IMAGE": f"ghcr.io/apache/airflow/{AIRFLOW_BRANCH}/ci/python3.10",
+                "PYTHON_MAJOR_MINOR_VERSION": "3.10",
             },
             id="Branch variable from sources not from original env",
         ),
