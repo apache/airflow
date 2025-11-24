@@ -77,6 +77,25 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
+    from airflow.sdk.exceptions import (
+        AirflowDagCycleException as AirflowDagCycleException,
+        AirflowFailException as AirflowFailException,
+        AirflowInactiveAssetInInletOrOutletException as AirflowInactiveAssetInInletOrOutletException,
+        AirflowSensorTimeout as AirflowSensorTimeout,
+        AirflowSkipException as AirflowSkipException,
+        AirflowTaskTerminated as AirflowTaskTerminated,
+        AirflowTaskTimeout as AirflowTaskTimeout,
+        DagRunTriggerException as DagRunTriggerException,
+        DownstreamTasksSkipped as DownstreamTasksSkipped,
+        DuplicateTaskIdFound as DuplicateTaskIdFound,
+        FailFastDagInvalidTriggerRule as FailFastDagInvalidTriggerRule,
+        ParamValidationError as ParamValidationError,
+        TaskAlreadyInTaskGroup as TaskAlreadyInTaskGroup,
+        TaskDeferralError as TaskDeferralError,
+        TaskDeferralTimeout as TaskDeferralTimeout,
+        TaskDeferred as TaskDeferred,
+        XComNotFound as XComNotFound,
+    )
     from airflow.sdk.execution_time.context import (
         AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         context_to_airflow_vars as context_to_airflow_vars,
@@ -199,6 +218,26 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # XCom & Task Communication
     # ============================================================================
     "XCOM_RETURN_KEY": "airflow.models.xcom",
+    # ============================================================================
+    # Exceptions (deprecated in airflow.exceptions, prefer SDK)
+    # ============================================================================
+    "AirflowTaskTerminated": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "DuplicateTaskIdFound": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "FailFastDagInvalidTriggerRule": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "TaskAlreadyInTaskGroup": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "TaskDeferralTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "XComNotFound": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "DownstreamTasksSkipped": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "DagRunTriggerException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "TaskDeferralError": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowDagCycleException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowInactiveAssetInInletOrOutletException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Module map: module_name -> module_path(s)
