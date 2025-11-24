@@ -192,13 +192,6 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
-      - id: check-translations-completeness
-        name: Check translation completeness (manual)
-        entry: ./dev/i18n/check_translations_completeness.py
-        stages: ['manual']
-        language: python
-        pass_filenames: false
-        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
     rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
