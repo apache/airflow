@@ -61,3 +61,10 @@ use cases. Simply install them to make them available:
     - Password Store (pass) backend for python's keyring
 - `keyring_jeepney <https://pypi.org/project/keyring_jeepney>`__
     - a pure Python backend using the secret service ``DBus`` API for desktop Linux (requires ``keyring<24``).
+
+
+Python Version Compatibility
+----------------------------
+airflowctl is compatible with Python 3.10 and above.
+Currently, Python 3.14 is not supported. Thanks for your understanding!
+We will work on adding support for Python 3.14.
