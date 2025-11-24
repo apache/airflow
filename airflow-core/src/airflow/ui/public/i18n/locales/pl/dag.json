@@ -129,7 +129,7 @@
       "clickTask": "Kliknij zadanie, aby wybrać je jako źródło filtra",
       "label": "Filtr",
       "options": {
-        "both": "Zarówno wcześniejsze jak i późniejsze",
+        "both": "Wcześniejsze i późniejsze",
         "downstream": "Późniejsze",
         "upstream": "Wcześniejsze"
       },
