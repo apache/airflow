@@ -1004,6 +1004,12 @@ def install_airflow_and_providers(
                 github_actions=github_actions,
                 check=False,
             )
+            console.print("[bright_blue]Upgrading typing-extensions for compatibility with pydantic_core")
+            run_command(
+                ["uv", "pip", "install", "--upgrade", "--no-deps", "typing-extensions>=4.15.0"],
+                github_actions=github_actions,
+                check=False,
+            )
             console.print("[yellow]Uninstalling Airflow-3 only providers")
             console.print(
                 "[yellow]Patching airflow 2 __init__.py -> replacing `from future`"
