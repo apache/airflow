@@ -25,11 +25,12 @@ import pytest
 from opentelemetry.sdk import util
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from airflow._shared.observability.traces import otel_tracer
-from airflow._shared.observability.traces.base_tracer import DebugTrace, EmptyTrace, Trace
+from airflow._shared.observability.traces.base_tracer import EmptyTrace
 from airflow._shared.observability.traces.otel_tracer import OtelTrace
 from airflow._shared.observability.traces.utils import datetime_to_nano
 from airflow.configuration import conf
+from airflow.observability.trace import DebugTrace, Trace
+from airflow.observability.traces import otel_tracer
 
 from tests_common.test_utils.config import env_vars
 
@@ -76,7 +77,7 @@ class TestOtelTrace:
         assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow._shared.observability.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_tracer(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
@@ -113,7 +114,7 @@ class TestOtelTrace:
             assert span2["resource"]["attributes"]["service.name"] == "abc"
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow._shared.observability.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_dag_tracer(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
@@ -146,7 +147,7 @@ class TestOtelTrace:
             assert span1["context"]["span_id"] == span2["parent_id"]
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow._shared.observability.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_context_propagation(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):

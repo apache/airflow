@@ -48,8 +48,8 @@ dependencies = [
 dev = [
     "apache-airflow",
     "apache-airflow-devel-common",
-    "apache-airflow-shared-observability[all]",
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-observability[all]",
 ]
 
 [build-system]
