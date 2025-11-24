@@ -35,7 +35,7 @@
       "title": "Wyczyść {{type}}"
     },
     "confirmationDialog": {
-      "description": "Zadanie jest obecnie w stanie {{state}} uruchomionym przez użytkownika {{user}} o {{time}}. \nUżytkownik nie może wyczyścić tego zadania, dopóki nie zakończy się jego działanie lub użytkownik nie odznáczy opcji 'Zapobiegaj ponownemu uruchomieniu uruchomionych zadań' w oknie dialogowym czyszczenia zadań.",
+      "description": "Zadanie jest obecnie w stanie {{state}} uruchomionym przez użytkownika {{user}} o {{time}}. \nUżytkownik nie może wyczyścić tego zadania, dopóki nie zakończy się jego działanie lub użytkownik nie odznaczy opcji 'Zapobiegaj ponownemu uruchomieniu uruchomionych zadań' w oknie dialogowym czyszczenia zadań.",
       "title": "Nie można wyczyścić instancji zadania"
     },
     "delete": {
