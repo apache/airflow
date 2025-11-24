@@ -94,7 +94,7 @@ spec:
           {{- end }}
           command: ["/bin/sh"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
-          args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]
+          args: ["-c", "exec redis-server --requirepass ${REDIS_PASSWORD}"]
           ports:
             - name: redis-db
               containerPort: {{ .Values.ports.redisDB }}

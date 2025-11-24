@@ -35,7 +35,7 @@ export const DependencyPopover = ({ dependencies, type }: Props) => {
   return (
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
-      <Popover.Trigger asChild>
+      <Popover.Trigger asChild disabled={dependencies.length === 0}>
         <Button size="sm" variant="outline">
           {dependencies.length} {translate(dependencyKey, { count: dependencies.length })}
         </Button>

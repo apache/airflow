@@ -381,6 +381,23 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Updating provider next version
+""""""""""""""""""""""""""""""
+
+You can use Breeze to update references to other providers automatically to the
+next version of dependent providers, when they are commented with ``# use next version``.
+
+The below example perform the upgrade.
+
+.. code-block:: bash
+
+     breeze release-management update-providers-next-version
+
+
+.. image:: ./images/output_release-management_update-providers-next-version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_update-providers-next-version.svg
+  :alt: Breeze update-providers-next-version
+
 Preparing providers
 """""""""""""""""""
 
@@ -428,7 +445,7 @@ Installing providers
 """"""""""""""""""""
 
 In some cases we want to just see if the providers generated can be installed with Airflow without
-verifying them. This happens automatically on CI for sdist packages but you can also run it manually if you
+verifying them. This happens automatically on CI for ``sdist`` packages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash
@@ -903,6 +920,69 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
   :width: 100%
   :alt: Breeze workflow-run publish-docs
+
+Checking release files
+""""""""""""""""""""""
+
+To verify that all expected packages and artifacts are present in the Apache Airflow SVN release directory,
+you can use the ``breeze release-management check-release-files`` command. This is useful for release
+managers and PMC members to validate that all required files (including .asc signatures and .sha512
+checksums) are present when voting for release.
+
+The command supports checking files for different release types:
+
+**Checking Airflow release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files airflow --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 2.8.1rc2
+
+**Checking Task SDK release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files task-sdk --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 1.0.0rc1
+
+**Checking Airflow CTL release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files airflow-ctl --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 0.1.0rc1
+
+**Checking Python client release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files python-client --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 2.10.0rc1
+
+**Checking Provider release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files providers --path-to-airflow-svn ~/code/asf-dist/dev/airflow --release-date 2024-01-01
+
+For providers, you can specify a custom packages file (default is ``packages.txt``):
+
+.. code-block:: bash
+
+     breeze release-management check-release-files providers --path-to-airflow-svn ~/code/asf-dist/dev/airflow --release-date 2024-01-01 --packages-file my-packages.txt
+
+The command checks for the presence of:
+
+* Source distributions (``.tar.gz``)
+* Wheel distributions (``.whl``)
+* ASF signatures (``.asc``)
+* SHA512 checksums (``.sha512``)
+
+If any expected files are missing, the command will report them and exit with a non-zero status code.
+If all files are present, it will also provide a Dockerfile snippet you can use to test the installation.
+
+These are all available flags of ``release-management check-release-files`` command:
+
+.. image:: ./images/output_release-management_check-release-files.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_check-release-files.svg
+  :width: 100%
+  :alt: Breeze check-release-files
 
 Constraints version check
 """""""""""""""""""""""""

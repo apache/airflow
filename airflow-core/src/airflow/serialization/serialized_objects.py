@@ -1305,7 +1305,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     run_as_user: str | None = None
 
     start_date: datetime.datetime | None = None
@@ -1639,6 +1639,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             elif k == "weight_rule":
                 k = "_weight_rule"
                 v = decode_priority_weight_strategy(v)
+            elif k == "retry_exponential_backoff":
+                if isinstance(v, bool):
+                    v = 2.0 if v else 0
+                else:
+                    v = float(v)
             else:
                 # Apply centralized deserialization for all other fields
                 v = cls._deserialize_field_value(k, v)

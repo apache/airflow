@@ -760,6 +760,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
 {{- end }}
 
+{{/* Create the name of the database cleanup service account to use */}}
+{{- define "databaseCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
+{{- end }}
+
 {{- define "wait-for-migrations-command" -}}
   {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
   - airflow

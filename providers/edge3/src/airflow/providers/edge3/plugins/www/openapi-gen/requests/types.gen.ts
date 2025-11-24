@@ -466,6 +466,12 @@ export type HealthResponse = {
     [key: string]: (string);
 };
 
+export type WorkerData = {
+    queueNamePattern?: string | null;
+    state?: Array<EdgeWorkerState> | null;
+    workerNamePattern?: string | null;
+};
+
 export type WorkerResponse = WorkerCollectionResponse;
 
 export type JobsResponse = JobCollectionResponse;
@@ -626,6 +632,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -646,6 +656,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -670,6 +684,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -690,11 +708,16 @@ export type $OpenApiTs = {
     };
     '/edge_worker/ui/worker': {
         get: {
+            req: WorkerData;
             res: {
                 /**
                  * Successful Response
                  */
                 200: WorkerCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
             };
         };
     };

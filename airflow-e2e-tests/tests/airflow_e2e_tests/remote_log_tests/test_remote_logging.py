@@ -74,10 +74,11 @@ class TestRemoteLogging:
             print(f"Expected at least {self.task_count} log files, found {len(contents)}. Retrying...")
             time.sleep(self.retry_interval_in_seconds)
 
-        if len(response["Contents"]) < self.task_count:
+        if len(contents) < self.task_count:
             pytest.fail(
                 f"Expected at least {self.task_count} log files in S3 bucket {bucket_name}, "
-                f"but found {len(response['Contents'])} objects: {[obj.get('Key') for obj in response.get('Contents', [])]}"
+                f"but found {len(contents)} objects: {[obj.get('Key') for obj in contents]}. \n"
+                f"List Objects Response: {response}"
             )
 
         task_logs = self.airflow_client.get_task_logs(

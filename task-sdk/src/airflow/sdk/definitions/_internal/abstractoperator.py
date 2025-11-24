@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import methodtools
 
-from airflow.configuration import conf
 from airflow.sdk import TriggerRule, WeightRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
@@ -68,6 +68,7 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
+DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
