@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
@@ -62,6 +62,14 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
 const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
   Math.max(0, Math.min(options.max - 1, current + direction));
 
+const HIGHLIGHT_CLASS = "nav-preview-highlight";
+
+// Type for tracking highlighted elements (O(1) clear)
+type HighlightedElements = {
+  runColumn: HTMLElement | undefined;
+  taskRow: HTMLElement | undefined;
+};
+
 const buildPath = (params: {
   dagId: string;
   mapIndex?: string;
@@ -93,7 +101,15 @@ const buildPath = (params: {
   }
 };
 
-export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
+export const useNavigation = ({
+  containerRef,
+  interactionLayerRef,
+  onToggleGroup,
+  runs,
+  tasks,
+}: UseNavigationProps): UseNavigationReturn => {
+  // Use overlay-based highlighting when interactionLayerRef is provided
+  const useOverlay = Boolean(interactionLayerRef);
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
@@ -119,22 +135,117 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
 
   const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
 
+  // Ref to track preview position during key hold (no re-render)
+  const previewIndicesRef = useRef<NavigationIndices>(currentIndices);
+
+  // Track last highlighted elements for O(1) clear
+  const highlightedRef = useRef<HighlightedElements>({ runColumn: undefined, taskRow: undefined });
+
+  // Sync ref with actual indices when URL changes
+  useEffect(() => {
+    previewIndicesRef.current = currentIndices;
+  }, [currentIndices]);
+
+  // O(1) clear - only operates on tracked elements
+  const clearHighlight = useCallback(() => {
+    // Use overlay-based clearing if available
+    if (useOverlay && interactionLayerRef) {
+      interactionLayerRef.current?.clearHighlight();
+
+      return;
+    }
+
+    // Fallback: DOM-based clearing
+    const { runColumn, taskRow } = highlightedRef.current;
+
+    if (taskRow) {
+      taskRow.classList.remove(HIGHLIGHT_CLASS);
+    }
+    if (runColumn) {
+      runColumn.classList.remove(HIGHLIGHT_CLASS);
+    }
+    highlightedRef.current = { runColumn: undefined, taskRow: undefined };
+  }, [interactionLayerRef, useOverlay]);
+
+  // Apply highlight - uses overlay when available, falls back to DOM queries
+  const applyHighlight = useCallback(
+    ({
+      indices,
+      navMode,
+      targetRunId,
+      targetTaskId,
+    }: {
+      indices: NavigationIndices;
+      navMode: NavigationMode;
+      targetRunId: string;
+      targetTaskId: string;
+    }) => {
+      clearHighlight();
+
+      // Use overlay-based highlighting if available (GPU compositing, O(1))
+      if (useOverlay && interactionLayerRef) {
+        const run = runs[indices.runIndex];
+        const task = tasks[indices.taskIndex];
+
+        if (run && task) {
+          interactionLayerRef.current?.setHighlight(
+            {
+              colIndex: indices.runIndex,
+              rowIndex: indices.taskIndex,
+              runId: run.run_id,
+              taskId: task.id,
+            },
+            navMode,
+          );
+        }
+
+        return;
+      }
+
+      // Fallback: Scoped DOM queries - only searches within container
+      const container: ParentNode = containerRef?.current ?? document;
+      const highlightTask = navMode === "task" || navMode === "TI";
+      const highlightRun = navMode === "run" || navMode === "TI";
+
+      if (highlightTask) {
+        const taskRow = container.querySelector<HTMLElement>(`[data-task-id='${targetTaskId}']`);
+
+        if (taskRow !== null) {
+          taskRow.classList.add(HIGHLIGHT_CLASS);
+          taskRow.style.backgroundColor = "";
+          highlightedRef.current.taskRow = taskRow;
+        }
+      }
+
+      if (highlightRun) {
+        const runColumn = container.querySelector<HTMLElement>(`[data-run-id='${targetRunId}']`);
+
+        if (runColumn !== null) {
+          runColumn.classList.add(HIGHLIGHT_CLASS);
+          highlightedRef.current.runColumn = runColumn;
+        }
+      }
+    },
+    [clearHighlight, containerRef, interactionLayerRef, runs, tasks, useOverlay],
+  );
+
+  // Preview navigation: update ref + DOM highlight (keydown)
   const handleNavigation = useCallback(
     (direction: NavigationDirection) => {
       if (!enabled || !dagId || !isValidDirection(direction, mode)) {
         return;
       }
 
+      const prevIndices = previewIndicesRef.current;
+
       const boundaries = {
-        down: currentIndices.taskIndex >= tasks.length - 1,
-        left: currentIndices.runIndex >= runs.length - 1,
-        right: currentIndices.runIndex <= 0,
-        up: currentIndices.taskIndex <= 0,
+        down: prevIndices.taskIndex >= tasks.length - 1,
+        left: prevIndices.runIndex >= runs.length - 1,
+        right: prevIndices.runIndex <= 0,
+        up: prevIndices.taskIndex <= 0,
       };
 
-      const isAtBoundary = boundaries[direction];
-
-      if (isAtBoundary) {
+      if (boundaries[direction]) {
         return;
       }
 
@@ -149,44 +260,62 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
       };
 
       const nav = navigationMap[direction];
-
-      const newIndices = { ...currentIndices };
+      const newIndices = { ...prevIndices };
 
       if (nav.index === "taskIndex") {
-        newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
-          max: nav.max,
-        });
+        newIndices.taskIndex = getNextIndex(prevIndices.taskIndex, nav.direction, { max: nav.max });
       } else {
-        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
+        newIndices.runIndex = getNextIndex(prevIndices.runIndex, nav.direction, { max: nav.max });
       }
 
-      const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
-
-      if (newRunIndex === currentIndices.runIndex && newTaskIndex === currentIndices.taskIndex) {
+      if (newIndices.runIndex === prevIndices.runIndex && newIndices.taskIndex === prevIndices.taskIndex) {
         return;
       }
 
-      const run = runs[newRunIndex];
-      const task = tasks[newTaskIndex];
+      // Update ref (no re-render)
+      previewIndicesRef.current = newIndices;
+
+      // Apply highlight instantly (overlay or DOM-based)
+      const run = runs[newIndices.runIndex];
+      const task = tasks[newIndices.taskIndex];
 
       if (run && task) {
-        const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
-
-        navigate(path, { replace: true });
-
-        const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
-
-        // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
-        if (grid) {
-          (grid as HTMLLinkElement).focus();
-        }
+        applyHighlight({
+          indices: newIndices,
+          navMode: mode,
+          targetRunId: run.run_id,
+          targetTaskId: task.id,
+        });
       }
     },
-    [currentIndices, dagId, enabled, location.pathname, mapIndex, mode, runs, tasks, navigate],
+    [applyHighlight, dagId, enabled, mode, runs, tasks],
   );
+
+  // Commit navigation: URL update (keyup)
+  const commitNavigation = useCallback(() => {
+    const indices = previewIndicesRef.current;
+    const run = runs[indices.runIndex];
+    const task = tasks[indices.taskIndex];
+
+    // Clear highlight
+    clearHighlight();
+
+    if (run && task) {
+      const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
+
+      navigate(path, { replace: true });
+
+      const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
+
+      if (grid) {
+        (grid as HTMLLinkElement).focus();
+      }
+    }
+  }, [clearHighlight, dagId, location.pathname, mapIndex, mode, navigate, runs, tasks]);
 
   useKeyboardNavigation({
     enabled,
+    onCommit: commitNavigation,
     onNavigate: handleNavigation,
     onToggleGroup: currentTask?.isGroup && onToggleGroup ? () => onToggleGroup(currentTask.id) : undefined,
   });

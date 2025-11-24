@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { RefObject } from "react";
+
 import type { GridRunsResponse } from "openapi/requests";
+import type { GridInteractionLayerHandle } from "src/layouts/Details/Grid/GridInteractionLayer";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
 export type NavigationMode = "run" | "task" | "TI";
@@ -31,6 +34,9 @@ export type NavigationIndices = {
 };
 
 export type UseNavigationProps = {
+  containerRef?: RefObject<HTMLElement | null>;
+  /** Ref to GridInteractionLayer for overlay-based highlighting (preferred) */
+  interactionLayerRef?: RefObject<GridInteractionLayerHandle | null>;
   onToggleGroup?: (taskId: string) => void;
   runs: Array<GridRunsResponse>;
   tasks: Array<GridTask>;

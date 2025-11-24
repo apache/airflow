@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import type { ArrowKey, NavigationDirection } from "./types";
@@ -25,6 +25,7 @@ const ARROW_KEYS = ["shift+ArrowDown", "shift+ArrowUp", "shift+ArrowLeft", "shif
 
 type Props = {
   enabled?: boolean;
+  onCommit?: () => void;
   onNavigate: (direction: NavigationDirection) => void;
   onToggleGroup?: () => void;
 };
@@ -44,9 +45,13 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
   }
 };
 
-export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGroup }: Props) => {
-  const createKeyHandler = useCallback(
-    () => (event: KeyboardEvent) => {
+const isArrowKey = (key: string): key is ArrowKey =>
+  key === "ArrowDown" || key === "ArrowUp" || key === "ArrowLeft" || key === "ArrowRight";
+
+export const useKeyboardNavigation = ({ enabled = true, onCommit, onNavigate, onToggleGroup }: Props) => {
+  // Handle keydown: preview navigation (instant highlight)
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
       const direction = mapKeyToDirection(event.key as ArrowKey);
 
       event.preventDefault();
@@ -57,11 +62,29 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGrou
     [onNavigate],
   );
 
-  const handleNormalKeyPress = createKeyHandler();
-
   const hotkeyOptions = { enabled, preventDefault: true };
 
-  useHotkeys(ARROW_KEYS.join(","), handleNormalKeyPress, hotkeyOptions, [onNavigate]);
+  useHotkeys(ARROW_KEYS.join(","), handleKeyDown, hotkeyOptions, [onNavigate]);
 
   useHotkeys("space", () => onToggleGroup?.(), hotkeyOptions, [onToggleGroup]);
+
+  // Handle keyup: commit navigation (URL update)
+  useEffect(() => {
+    if (!enabled || !onCommit) {
+      return undefined;
+    }
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      // Only commit when shift + arrow key is released
+      if (isArrowKey(event.key)) {
+        onCommit();
+      }
+    };
+
+    globalThis.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      globalThis.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [enabled, onCommit]);
 };

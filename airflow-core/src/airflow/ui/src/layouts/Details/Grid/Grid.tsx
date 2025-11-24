@@ -36,6 +36,9 @@ import { isStatePending } from "src/utils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { GridHoverProvider } from "./GridHoverContext";
+import { CELL_HEIGHT, CELL_WIDTH, GridInteractionLayer } from "./GridInteractionLayer";
+import type { GridInteractionLayerHandle } from "./GridInteractionLayer";
 import { TaskNames } from "./TaskNames";
 import { flattenNodes } from "./utils";
 
@@ -52,6 +55,7 @@ type Props = {
 export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
+  const interactionLayerRef = useRef<GridInteractionLayerHandle>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
@@ -151,68 +155,98 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   }, [dagStructure, openGroupIds, allowedTaskIds]);
 
   const { setMode } = useNavigation({
+    containerRef: gridRef,
+    interactionLayerRef,
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
 
+  // Calculate grid dimensions for interaction layer
+  const gridHeight = flatNodes.length * CELL_HEIGHT;
+  const gridWidth = (gridRuns?.length ?? 0) * CELL_WIDTH;
+
+  // Build task index map for O(1) lookup
+  const taskIndexMap = useMemo(() => {
+    const map = new Map<string, number>();
+
+    flatNodes.forEach((node, index) => {
+      map.set(node.id, index);
+    });
+
+    return map;
+  }, [flatNodes]);
+
   return (
-    <Flex
-      justifyContent="flex-start"
-      outline="none"
-      position="relative"
-      pt={20}
-      ref={gridRef}
-      tabIndex={0}
-      width={showGantt ? "1/2" : "full"}
-    >
-      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
-        <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
-      </Box>
-      <Box position="relative">
-        <Flex position="relative">
-          <DurationAxis top="100px" />
-          <DurationAxis top="50px" />
-          <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative">
-            {Boolean(gridRuns?.length) && (
-              <>
-                <DurationTick bottom="92px" duration={max} />
-                <DurationTick bottom="46px" duration={max / 2} />
-                <DurationTick bottom="-4px" duration={0} />
-              </>
+    <GridHoverProvider interactionLayerRef={interactionLayerRef}>
+      <Flex
+        justifyContent="flex-start"
+        onMouseLeave={() => interactionLayerRef.current?.clearHover()}
+        outline="none"
+        position="relative"
+        pt={20}
+        ref={gridRef}
+        tabIndex={0}
+        width={showGantt ? "1/2" : "full"}
+      >
+        {/* Interaction Layer - at Grid level for full-width row highlights */}
+        <GridInteractionLayer
+          gridHeight={gridHeight}
+          gridWidth={gridWidth}
+          ref={interactionLayerRef}
+          totalCols={gridRuns?.length ?? 0}
+          totalRows={flatNodes.length}
+        />
+        <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
+          <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} taskIndexMap={taskIndexMap} />
+        </Box>
+        <Box position="relative">
+          <Flex position="relative">
+            <DurationAxis top="100px" />
+            <DurationAxis top="50px" />
+            <DurationAxis top="4px" />
+            <Flex flexDirection="column-reverse" height="100px" position="relative">
+              {Boolean(gridRuns?.length) && (
+                <>
+                  <DurationTick bottom="92px" duration={max} />
+                  <DurationTick bottom="46px" duration={max / 2} />
+                  <DurationTick bottom="-4px" duration={0} />
+                </>
+              )}
+            </Flex>
+            <Flex flexDirection="row-reverse" position="relative">
+              {gridRuns?.map((dr: GridRunsResponse, colIndex: number) => (
+                <Bar
+                  colIndex={colIndex}
+                  key={dr.run_id}
+                  max={max}
+                  nodes={flatNodes}
+                  onCellClick={() => setMode("TI")}
+                  onColumnClick={() => setMode("run")}
+                  run={dr}
+                  taskIndexMap={taskIndexMap}
+                />
+              ))}
+            </Flex>
+            {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+              <Link to={`/dags/${dagId}`}>
+                <IconButton
+                  aria-label={translate("grid.buttons.resetToLatest")}
+                  height="98px"
+                  loading={isLoading}
+                  minW={0}
+                  ml={1}
+                  title={translate("grid.buttons.resetToLatest")}
+                  variant="surface"
+                  zIndex={1}
+                >
+                  <FiChevronsRight />
+                </IconButton>
+              </Link>
             )}
           </Flex>
-          <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
-              <Bar
-                key={dr.run_id}
-                max={max}
-                nodes={flatNodes}
-                onCellClick={() => setMode("TI")}
-                onColumnClick={() => setMode("run")}
-                run={dr}
-              />
-            ))}
-          </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
-            <Link to={`/dags/${dagId}`}>
-              <IconButton
-                aria-label={translate("grid.buttons.resetToLatest")}
-                height="98px"
-                loading={isLoading}
-                minW={0}
-                ml={1}
-                title={translate("grid.buttons.resetToLatest")}
-                variant="surface"
-                zIndex={1}
-              >
-                <FiChevronsRight />
-              </IconButton>
-            </Link>
-          )}
-        </Flex>
-      </Box>
-    </Flex>
+        </Box>
+      </Flex>
+    </GridHoverProvider>
   );
 };

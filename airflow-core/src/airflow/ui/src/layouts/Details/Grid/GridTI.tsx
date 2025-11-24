@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Badge, Flex } from "@chakra-ui/react";
-import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
@@ -26,51 +25,45 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
-import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-const handleMouseEnter =
-  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
-    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-    });
-
-    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
-  };
-
-const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${taskId.replaceAll(".", "-")}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-
-  setHoveredTaskId(undefined);
-};
+import { useGridHover } from "./GridHoverContext";
 
 type Props = {
+  readonly colIndex: number;
   readonly dagId: string;
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
   readonly onClick?: () => void;
+  readonly rowIndex: number;
   readonly runId: string;
   readonly taskId: string;
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
-  const { setHoveredTaskId } = useHover();
+const Instance = ({
+  colIndex,
+  dagId,
+  instance,
+  isGroup,
+  isMapped,
+  onClick,
+  rowIndex,
+  runId,
+  taskId,
+}: Props) => {
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
+  const { setHover } = useGridHover();
 
   const [searchParams] = useSearchParams();
 
-  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
-  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
+  // Handle cell hover - highlight both row and column
+  const handleMouseEnter = () => {
+    setHover(rowIndex, colIndex, "TI");
+  };
 
   const getTaskUrl = useCallback(
     () =>
@@ -95,12 +88,12 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     <Flex
       alignItems="center"
       bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
+      data-grid-cell
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={handleMouseEnter}
       position="relative"
       px="2px"
       py={0}
