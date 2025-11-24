@@ -80,7 +80,6 @@ if TYPE_CHECKING:
         AssetModel,
         DagScheduleAssetAliasReference,
         DagScheduleAssetReference,
-        TaskInletAssetReference,
         TaskOutletAssetReference,
     )
     from airflow.sdk.types import Operator
@@ -106,11 +105,6 @@ else:
             DatasetModel as AssetModel,
             TaskOutletDatasetReference as TaskOutletAssetReference,
         )
-
-    try:
-        from airflow.models.asset import TaskInletAssetReference
-    except ImportError:
-        TaskInletAssetReference = None  # type: ignore[assignment,misc]
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:

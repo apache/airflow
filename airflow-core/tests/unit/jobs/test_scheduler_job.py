@@ -6733,9 +6733,11 @@ class TestSchedulerJob:
 
         # Initially, all referenced assets should be active
         orphaned, active = self._find_assets_activation(session)
-        assert sorted(active, key=lambda a: a.uri) == sorted(
-            [asset_schedule, asset_outlet, asset_inlet_only], key=lambda a: a.uri
-        )
+        assert {a.uri for a in active} == {
+            asset_schedule.uri,
+            asset_outlet.uri,
+            asset_inlet_only.uri,
+        }
         assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
@@ -6743,9 +6745,11 @@ class TestSchedulerJob:
 
         # After orphanage check, inlet-only asset should still be active
         orphaned, active = self._find_assets_activation(session)
-        assert sorted(active, key=lambda a: a.uri) == sorted(
-            [asset_schedule, asset_outlet, asset_inlet_only], key=lambda a: a.uri
-        ), "Asset used only as inlet should NOT be orphaned"
+        assert {a.uri for a in active} == {
+            asset_schedule.uri,
+            asset_outlet.uri,
+            asset_inlet_only.uri,
+        }, "Asset used only as inlet should NOT be orphaned"
         assert orphaned == []
 
     @pytest.mark.parametrize(
