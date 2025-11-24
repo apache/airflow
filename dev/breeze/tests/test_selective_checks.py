@@ -1852,7 +1852,7 @@ def test_expected_output_push(
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
@@ -1864,7 +1864,7 @@ def test_expected_output_push(
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh trino",
+                "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -1874,12 +1874,13 @@ def test_expected_output_push(
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [
                         {
-                            "description": "amazon...google",
+                            "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
-                            "Providers[google]",
+                            "Providers[google] "
+                            "Providers[standard]",
                         }
                     ]
                 ),
@@ -2122,7 +2123,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
-                "postgres presto salesforce samba sftp ssh trino",
+                "postgres presto salesforce samba sftp ssh standard trino",
             },
             id="Google provider docs changed",
         ),
@@ -2779,3 +2780,259 @@ def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
             assert "postgres" in result
             assert "trino" not in result
             assert "ydb" not in result
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_no_changes(mock_run_command):
+    """Test that provider dependency bump check passes when no pyproject.toml files are changed."""
+    selective_checks = SelectiveChecks(
+        files=("some_other_file.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_fails_on_provider_version_bump(mock_run_command):
+    """Test that provider dependency bump check fails when provider version is bumped without label."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_with_label(mock_run_command):
+    """Test that provider dependency bump check passes when label is set."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow provider dependency bump",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is True
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_on_non_provider_dependency_changes(mock_run_command):
+    """Test that provider dependency bump check passes when non-provider dependencies change."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.37.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.38.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_command):
+    """Test that provider dependency bump check works for optional-dependencies section."""
+    old_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.0.0",
+]
+"""
+    new_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.2.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump
+
+
+@pytest.mark.parametrize(
+    ("files", "expected_outputs"),
+    [
+        pytest.param(
+            (
+                "airflow-core/src/airflow/models/dag.py",
+                "airflow-core/src/airflow/models/taskinstance.py",
+                "airflow-core/tests/unit/models/test_dag.py",
+                "task-sdk/src/airflow/sdk/definitions/dag.py",
+                "task-sdk/tests/task_sdk/definitions/test_dag.py",
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Small PR with 5 files changed",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(30)),
+            {
+                "full-tests-needed": "true",
+            },
+            id="Large PR with 30 files changed",
+        ),
+        pytest.param(
+            (
+                "uv.lock",
+                "package-lock.json",
+            ),
+            {
+                "full-tests-needed": "false",
+            },
+            id="PR with only lock files changed",
+        ),
+    ],
+)
+def test_large_pr_by_file_count(files, expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "git_diff_output", "expected_outputs"),
+    [
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
+            "\n".join([f"10\t10\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "false",
+            },
+            id="Small PR with 200 lines changed",
+        ),
+        pytest.param(
+            tuple(f"airflow-core/src/airflow/models/file{i}.py" for i in range(10)),
+            "\n".join([f"30\t30\tairflow-core/src/airflow/models/file{i}.py" for i in range(10)]),
+            {
+                "full-tests-needed": "true",
+            },
+            id="PR with 600 lines changed",
+        ),
+        pytest.param(
+            ("airflow-core/src/airflow/configuration.py",),
+            "500\t500\tairflow-core/src/airflow/configuration.py",
+            {
+                "full-tests-needed": "true",
+            },
+            id="Single large file with 1000 lines",
+        ),
+    ],
+)
+def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[str, str]):
+    with patch("airflow_breeze.utils.selective_checks.run_command") as mock_run:
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = git_diff_output
+        mock_run.return_value = mock_result
+
+        stderr = SelectiveChecks(
+            files=files,
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        )
+        assert_outputs_are_printed(expected_outputs, str(stderr))

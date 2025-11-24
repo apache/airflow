@@ -23,7 +23,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from enum import Enum
+from enum import Enum, auto
 from functools import cached_property
 from pathlib import Path
 from typing import Any, TypeVar
@@ -87,6 +87,7 @@ NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
+ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -98,38 +99,38 @@ FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
-    ENVIRONMENT_FILES = "environment_files"
-    PYTHON_PRODUCTION_FILES = "python_scans"
-    JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
-    ALWAYS_TESTS_FILES = "always_test_files"
-    API_FILES = "api_files"
-    GIT_PROVIDER_FILES = "git_provider_files"
-    STANDARD_PROVIDER_FILES = "standard_provider_files"
-    API_CODEGEN_FILES = "api_codegen_files"
-    HELM_FILES = "helm_files"
-    DEPENDENCY_FILES = "dependency_files"
-    DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
-    SYSTEM_TEST_FILES = "system_tests"
-    KUBERNETES_FILES = "kubernetes_files"
-    TASK_SDK_FILES = "task_sdk_files"
-    GO_SDK_FILES = "go_sdk_files"
-    AIRFLOW_CTL_FILES = "airflow_ctl_files"
-    ALL_PYPROJECT_TOML_FILES = "all_pyproject_toml_files"
-    ALL_PYTHON_FILES = "all_python_files"
-    ALL_SOURCE_FILES = "all_sources_for_tests"
-    ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
-    ALL_AIRFLOW_CTL_PYTHON_FILES = "all_airflow_ctl_python_files"
-    ALL_PROVIDERS_PYTHON_FILES = "all_provider_python_files"
-    ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = "all_provider_distribution_config_files"
-    ALL_DEV_PYTHON_FILES = "all_dev_python_files"
-    ALL_DEVEL_COMMON_PYTHON_FILES = "all_devel_common_python_files"
-    ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
-    TESTS_UTILS_FILES = "test_utils_files"
-    ASSET_FILES = "asset_files"
-    UNIT_TEST_FILES = "unit_test_files"
-    DEVEL_TOML_FILES = "devel_toml_files"
-    UI_ENGLISH_TRANSLATION_FILES = "ui_english_translation_files"
+    ENVIRONMENT_FILES = auto()
+    PYTHON_PRODUCTION_FILES = auto()
+    JAVASCRIPT_PRODUCTION_FILES = auto()
+    ALWAYS_TESTS_FILES = auto()
+    API_FILES = auto()
+    GIT_PROVIDER_FILES = auto()
+    STANDARD_PROVIDER_FILES = auto()
+    API_CODEGEN_FILES = auto()
+    HELM_FILES = auto()
+    DEPENDENCY_FILES = auto()
+    DOC_FILES = auto()
+    UI_FILES = auto()
+    SYSTEM_TEST_FILES = auto()
+    KUBERNETES_FILES = auto()
+    TASK_SDK_FILES = auto()
+    GO_SDK_FILES = auto()
+    AIRFLOW_CTL_FILES = auto()
+    ALL_PYPROJECT_TOML_FILES = auto()
+    ALL_PYTHON_FILES = auto()
+    ALL_SOURCE_FILES = auto()
+    ALL_AIRFLOW_PYTHON_FILES = auto()
+    ALL_AIRFLOW_CTL_PYTHON_FILES = auto()
+    ALL_PROVIDERS_PYTHON_FILES = auto()
+    ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
+    ALL_DEV_PYTHON_FILES = auto()
+    ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_PROVIDER_YAML_FILES = auto()
+    TESTS_UTILS_FILES = auto()
+    ASSET_FILES = auto()
+    UNIT_TEST_FILES = auto()
+    DEVEL_TOML_FILES = auto()
+    UI_ENGLISH_TRANSLATION_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -582,12 +583,82 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
+        if self._is_large_enough_pr():
+            return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
             return True
+        return False
+
+    def _is_large_enough_pr(self) -> bool:
+        """
+        Check if PR is large enough to run full tests.
+
+        The heuristics are based on number of files changed and total lines changed,
+        while excluding generated files which can be ignored.
+        """
+        FILE_THRESHOLD = 25
+        LINE_THRESHOLD = 500
+
+        if not self._files:
+            return False
+
+        exclude_patterns = [
+            r"/newsfragments/",
+            r"^uv\.lock$",
+            r"pnpm-lock\.yaml$",
+            r"package-lock\.json$",
+        ]
+
+        relevant_files = [
+            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
+        ]
+
+        files_changed = len(relevant_files)
+        if files_changed >= FILE_THRESHOLD:
+            get_console().print(
+                f"[warning]Running full set of tests because PR touches {files_changed} files "
+                f"(≥25 threshold)[/]"
+            )
+            return True
+
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
+            return False
+
+        try:
+            result = run_command(
+                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+
+            if result.returncode == 0:
+                total_lines = 0
+                for line in result.stdout.strip().split("\n"):
+                    if line:
+                        parts = line.split("\t")
+                        if len(parts) >= 2:
+                            try:
+                                additions = int(parts[0])
+                                deletions = int(parts[1])
+                                total_lines += additions + deletions
+                            except ValueError:
+                                pass
+                if total_lines >= LINE_THRESHOLD:
+                    get_console().print(
+                        f"[warning]Running full set of tests because PR changes {total_lines} lines "
+                        f"in {files_changed} files[/]"
+                    )
+                    return True
+        except Exception:
+            pass
+
         return False
 
     @cached_property
@@ -1527,3 +1598,161 @@ class SelectiveChecks:
             )
             sys.exit(1)
         return _translation_changed
+
+    @cached_property
+    def provider_dependency_bump(self) -> bool:
+        """Check for apache-airflow-providers dependency bumps in pyproject.toml files."""
+        pyproject_files = self._matching_files(
+            FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
+            CI_FILE_GROUP_MATCHES,
+        )
+        if not pyproject_files or not self._commit_ref:
+            return False
+
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
+
+        violations = []
+        for pyproject_file in pyproject_files:
+            # Get the new version of the file
+            new_result = run_command(
+                ["git", "show", f"{self._commit_ref}:{pyproject_file}"],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if new_result.returncode != 0:
+                continue
+
+            # Get the old version of the file
+            old_result = run_command(
+                ["git", "show", f"{self._commit_ref}^:{pyproject_file}"],
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if old_result.returncode != 0:
+                continue
+
+            try:
+                new_toml = tomllib.loads(new_result.stdout)
+                old_toml = tomllib.loads(old_result.stdout)
+            except Exception:
+                continue
+
+            # Check dependencies and optional-dependencies sections
+            for section in ["dependencies", "optional-dependencies"]:
+                if section not in new_toml.get("project", {}):
+                    continue
+
+                new_deps = new_toml["project"][section]
+                old_deps = old_toml.get("project", {}).get(section, {})
+
+                if isinstance(new_deps, dict):
+                    # Handle optional-dependencies which is a dict
+                    for group_name, deps_list in new_deps.items():
+                        old_deps_list = old_deps.get(group_name, []) if isinstance(old_deps, dict) else []
+                        violations.extend(
+                            SelectiveChecks._check_provider_deps_in_list(
+                                deps_list, old_deps_list, pyproject_file, f"{section}.{group_name}"
+                            )
+                        )
+                elif isinstance(new_deps, list):
+                    # Handle dependencies which is a list
+                    old_deps_list = old_deps if isinstance(old_deps, list) else []
+                    violations.extend(
+                        SelectiveChecks._check_provider_deps_in_list(
+                            new_deps, old_deps_list, pyproject_file, section
+                        )
+                    )
+
+        if violations:
+            if ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL in self._pr_labels:
+                get_console().print(
+                    "[warning]The 'allow provider dependency bump' label is set. "
+                    "Bypassing provider dependency check."
+                )
+                return True
+
+            get_console().print(
+                "[error]Provider dependency version bumps detected that should only be "
+                "performed by Release Managers![/]"
+            )
+            get_console().print()
+            for violation in violations:
+                get_console().print(f"[error]  - {violation}[/]")
+            get_console().print()
+            get_console().print(
+                "[warning]Only Release Managers should change >= conditions for apache-airflow-providers "
+                "dependencies.[/]\n\nIf you want to refer to a future version of the dependency, please add a "
+                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n"
+            )
+            get_console().print()
+            get_console().print(
+                f"[warning]If this change is intentional and approved, please set the label on the PR:[/]\n\n"
+                f"'[info]{ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL}[/]\n"
+            )
+            get_console().print()
+            get_console().print(
+                "See https://github.com/apache/airflow/blob/main/contributing-docs/"
+                "13_airflow_dependencies_and_extras.rst for more comprehensive documentation "
+                "about airflow dependency management."
+            )
+            get_console().print()
+            sys.exit(1)
+        return False
+
+    @staticmethod
+    def _check_provider_deps_in_list(
+        new_deps: list, old_deps: list, file_path: str, section: str
+    ) -> list[str]:
+        """Check a list of dependencies for apache-airflow-providers version changes."""
+        violations = []
+
+        # Parse dependencies into a dict for easier comparison
+        def parse_dep(dep_str: str) -> tuple[str, str | None]:
+            """Parse a dependency string and return (package_name, version_constraint)."""
+            if not isinstance(dep_str, str):
+                return "", None
+            # Remove inline comments
+            dep_str = dep_str.split("#")[0].strip()
+            # Match patterns like: apache-airflow-providers-xxx>=1.0.0 or apache-airflow-providers-xxx>=1.0.0,<2.0
+            match = re.match(r"^(apache-airflow-providers-[a-z0-9-]+)\s*(.*)", dep_str, re.IGNORECASE)
+            if match:
+                return match.group(1).lower(), match.group(2).strip()
+            return "", None
+
+        old_deps_dict = {}
+        for dep in old_deps:
+            pkg_name, version = parse_dep(dep)
+            if pkg_name:
+                old_deps_dict[pkg_name] = (dep, version)
+
+        for new_dep in new_deps:
+            pkg_name, new_version = parse_dep(new_dep)
+            if not pkg_name:
+                continue
+
+            # Check if this dependency existed before
+            if pkg_name in old_deps_dict:
+                old_dep_str, old_version = old_deps_dict[pkg_name]
+                # Check if the >= condition changed
+                if new_version and old_version and new_version != old_version:
+                    # Check if >= version number changed
+                    new_ge_match = re.search(r">=\s*([0-9.]+)", new_version)
+                    old_ge_match = re.search(r">=\s*([0-9.]+)", old_version)
+
+                    if new_ge_match and old_ge_match:
+                        new_ge_version = new_ge_match.group(1)
+                        old_ge_version = old_ge_match.group(1)
+                        if new_ge_version != old_ge_version:
+                            violations.append(
+                                f"{file_path} [{section}]: {pkg_name} >= version changed from "
+                                f"{old_ge_version} to {new_ge_version}"
+                            )
+
+        return violations

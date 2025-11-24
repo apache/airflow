@@ -1467,7 +1467,9 @@ class TestOpenLineageListenerAirflow3:
 
         listener.on_task_instance_failed(previous_state=None, task_instance=task_instance, error=err)
         mock_get_task_parent_run_facet.assert_called_once_with(
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
+            parent_job_name=task_instance.dag_id,
+            dr_conf={},
         )
         expected_args = dict(
             end_time="2023-01-03T13:01:01+00:00",
@@ -1643,7 +1645,9 @@ class TestOpenLineageListenerAirflow3:
         calls = listener.adapter.complete_task.call_args_list
         assert len(calls) == 1
         mock_get_task_parent_run_facet.assert_called_once_with(
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
+            parent_job_name=task_instance.dag_id,
+            dr_conf={},
         )
         expected_args = dict(
             end_time="2023-01-03T13:01:01+00:00",

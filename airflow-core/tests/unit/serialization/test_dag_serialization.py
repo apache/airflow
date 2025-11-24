@@ -1531,7 +1531,7 @@ class TestStringifiedDAGs:
             "resources": None,
             "retries": 0,
             "retry_delay": timedelta(0, 300),
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "run_as_user": None,
             "start_date": None,
             "start_from_trigger": False,
