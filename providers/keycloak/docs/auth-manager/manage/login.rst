@@ -1,19 +1,19 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+   .. Licensed to the Apache Software Foundation (ASF) under one
+      or more contributor license agreements.  See the NOTICE file
+      distributed with this work for additional information
+      regarding copyright ownership.  The ASF licenses this file
+      to you under the Apache License, Version 2.0 (the
+      "License"); you may not use this file except in compliance
+      with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+   ..   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+   .. Unless required by applicable law or agreed to in writing,
+      software distributed under the License is distributed on an
+      "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+      KIND, either express or implied.  See the License for the
+      specific language governing permissions and limitations
+      under the License.
 
 ================================================
 Manage login settings with Keycloak auth manager
@@ -21,15 +21,43 @@ Manage login settings with Keycloak auth manager
 This topic is related to the Keycloak ``Login Settings``.
 This is shown when you are creating the client in Keycloak.
 It also shown after you created the client. It is then under ``Access Settings`` tab.
+This settings are really important to reduce the impact area (scope) of the client.
 
 Keycloak Client Configuration Guide
 ===================================
 This document explains how to correctly configure a Keycloak Client using your production HTTP(s) URL
-(``<https://yourcompany.airflow.com>``) as well as a local development example (Airflow Breeze example
-app running on ``http://localhost``).
+(``<https://yourcompany.airflow.com>``).
 
 Overview
 --------
+
+Client configuration is a critical step in setting up Keycloak authentication for your application.
+You need to ensure ``Client authentication``, ``Authorization`` and ``Authentication flow`` are properly set up.
+
+``Client authentication`` will be set to ``ON``.
+``Authorization`` should be set to ``ON``.
+``Authentication flow`` values see below table for details.
+
+Login settings (After Client is Created)
+----------------------------------------
+.. list-table::
+    :header-rows: 1
+    :widths: 30 70
+
+    * - Field
+      - Value
+    * - Standard Flow
+      - ON
+    * - Direct Access Grants
+      - ON
+    * - Implicit Flow
+      - OFF
+    * - Service accounts roles
+      - ON (by default if configuration overridden from Keycloak)
+    * - OAuth 2.0 Device Authorization Grant
+      - OFF
+    * - OIDC CIBA Grant
+      - OFF
 
 To allow your application to authenticate users through Keycloak, you must correctly configure the following
 fields in your Keycloak Client:
@@ -44,7 +72,36 @@ fields in your Keycloak Client:
 This guide shows:
 
 * **Production values**: using your company deployment ``<https://yourcompany.airflow.com>``
-* **Local development values**: using Airflow Breeze ``http://localhost:28080``
+
+Login Settings (While Creating Client)/Access Settings (After Client is Created)
+--------------------------------------------------------------------------------
+.. list-table::
+   :header-rows: 1
+   :widths: 30 40
+
+   * - Field
+     - Production Value
+   * - Root URL
+     - https://yourcompany.airflow.com
+   * - Home URL
+     - https://yourcompany.airflow.com
+   * - Valid Redirect URIs
+     - https://yourcompany.airflow.com/*
+   * - Valid Post Logout Redirect URIs
+     - https://yourcompany.airflow.com/*
+   * - Web Origins
+     - https://yourcompany.airflow.com
+
+Logout settings (After Client is Created)
+-----------------------------------------
+.. list-table::
+    :header-rows: 1
+    :widths: 30 70
+
+    * - Field
+      - Value
+    * - Front channel logout
+      - ON
 
 Notes on Keycloak Template Variables
 ------------------------------------
@@ -52,29 +109,3 @@ Notes on Keycloak Template Variables
 ``${authBaseUrl}``
 This expands to **Keycloak's own base URL**, not your application URL. You should not use it as a Root URL for
 your Airflow application.
-
-
-Sample Settings Table
----------------------
-.. list-table::
-   :header-rows: 1
-   :widths: 30 40 30
-
-   * - Field
-     - Production Value
-     - Local (Breeze) Example
-   * - Root URL
-     - https://yourcompany.airflow.com
-     - http://localhost:28080
-   * - Home URL
-     - https://yourcompany.airflow.com
-     - http://localhost:28080
-   * - Valid Redirect URIs
-     - https://yourcompany.airflow.com/*
-     - http://localhost:28080/*
-   * - Valid Post Logout Redirect URIs
-     - https://yourcompany.airflow.com/*
-     - http://localhost:28080/*
-   * - Web Origins
-     - https://yourcompany.airflow.com
-     - http://localhost:28080

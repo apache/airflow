@@ -16,3 +16,8 @@
     under the License.
 
 .. include:: /../../../devel-common/src/sphinx_exts/includes/security.rst
+
+
+Setting up Keycloak Client
+==========================
+To enable fully isolated and secure environment, please create a separate realm and manage the Apache Airflow from there.
