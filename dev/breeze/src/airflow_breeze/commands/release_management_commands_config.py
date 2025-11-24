@@ -77,6 +77,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "update-constraints",
         "publish-docs-to-s3",
         "validate-rc-by-pmc",
+        "check-release-files",
     ],
 }
 
@@ -535,5 +536,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--checks",
             ],
         },
+    ],
+    "breeze release-management check-release-files": [
+        {
+            "name": "Check release files flags",
+            "options": [
+                "--path-to-airflow-svn",
+                "--version",
+                "--release-date",
+                "--packages-file",
+            ],
+        }
     ],
 }
