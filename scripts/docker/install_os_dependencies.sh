@@ -332,6 +332,11 @@ function install_golang() {
     rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
 }
 
+function install_rust() {
+    # Install Rust for the experimental DAG Processor
+    curl https://sh.rustup.rs -sSf | bash -s -- -y
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -349,6 +354,7 @@ else
     install_additional_dev_dependencies
     if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
         install_golang
+        install_rust
     fi
     install_docker_cli
     apt_clean
