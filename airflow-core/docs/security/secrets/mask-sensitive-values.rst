@@ -40,7 +40,7 @@ Sensitive field names
 When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
 task.
 
-It will also mask the value of an Airflow Variable or a field of a Connection's extra JSON blob if the
+It will also mask the value of an Airflow Variable , rendered template dictionaries, XCom dictionaries or the field of a Connection's extra JSON blob if the
 Variable name or field name contains any of the known-sensitive keywords.
 
 **Default Sensitive Keywords:**
@@ -92,7 +92,7 @@ your Dag file or operator's ``execute`` function using the ``mask_secret`` funct
 
     @task
     def my_func():
-        from airflow.sdk.log import mask_secret
+        from airflow.sdk.execution_time.secrets_masker import mask_secret
 
         mask_secret("custom_value")
 
@@ -105,7 +105,7 @@ or
 
     class MyOperator(BaseOperator):
         def execute(self, context):
-            from airflow.sdk.log import mask_secret
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
 
             mask_secret("custom_value")
 
