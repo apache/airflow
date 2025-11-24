@@ -136,9 +136,9 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.secrets import BaseSecretsBackend
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]

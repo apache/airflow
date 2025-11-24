@@ -1294,6 +1294,7 @@ dev = [
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
 ]
@@ -1346,6 +1347,7 @@ apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1467,6 +1469,7 @@ members = [
     "docker-stack-docs",
     "shared/configuration",
     "shared/logging",
+    "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

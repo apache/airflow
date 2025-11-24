@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.secrets.base_secrets import BaseSecretsBackend
+from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection

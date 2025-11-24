@@ -18,18 +18,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackendFromShared
+from airflow.sdk._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackendFromShared
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.sdk.definitions.connection import Connection
 
 
 class BaseSecretsBackend(BaseSecretsBackendFromShared):
-    """Extends the shared base class by adding methods that work with Connection objects using the Connection class."""
+    """Extends the shared base class by adding methods that work with Connection objects using the SDK Connection class."""
 
     def deserialize_connection(self, conn_id: str, value: str) -> Connection:
         """
-        Given a serialized representation of the airflow Connection, return an instance.
+        Given a serialized representation of the Connection, return an instance.
 
         Looks at first character to determine how to deserialize.
 
@@ -37,7 +37,7 @@ class BaseSecretsBackend(BaseSecretsBackendFromShared):
         :param value: the serialized representation of the Connection object
         :return: the deserialized Connection
         """
-        from airflow.models.connection import Connection
+        from airflow.sdk.definitions.connection import Connection
 
         value = value.strip()
         if value[0] == "{":
@@ -47,8 +47,6 @@ class BaseSecretsBackend(BaseSecretsBackendFromShared):
     def get_connection(self, conn_id: str) -> Connection | None:
         """
         Return connection object with a given ``conn_id``.
-
-        Tries ``get_conn_value`` first and if not implemented, tries ``get_conn_uri``
 
         :param conn_id: connection id
         """
