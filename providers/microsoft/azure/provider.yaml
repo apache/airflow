@@ -233,7 +233,7 @@ sensors:
 
 filesystems:
   - airflow.providers.microsoft.azure.fs.adls
-  - airflow.providers.microsoft.azure.fs.msgraphfs
+  - airflow.providers.microsoft.azure.fs.msgraph
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
