@@ -376,6 +376,8 @@ customizable
 customizations
 cwd
 cx
+Cypher
+cypher
 Daemonize
 daemonize
 daemonized
