@@ -128,8 +128,6 @@
       "tooltip": "선택된 변수들 삭제"
     },
     "edit": "변수 편집",
-    "export": "내보내기",
-    "exportTooltip": "선택된 변수들 내보내기",
     "form": {
       "invalidJson": "유효하지 않은 JSON입니다",
       "keyMaxLength": "키는 최대 250자까지 입력할 수 있습니다",

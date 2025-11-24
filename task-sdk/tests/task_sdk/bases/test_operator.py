@@ -241,6 +241,23 @@ class TestBaseOperator:
                 illegal_argument_1234="hello?",
             )
 
+    @mock.patch("airflow.sdk.bases.operator.redact")
+    def test_illegal_args_with_secrets(self, mock_redact):
+        """
+        Tests that operators on illegal arguments with secrets are correctly masked.
+        """
+        secret = "secretP4ssw0rd!"
+        mock_redact.side_effect = ["***"]
+
+        msg = r"Invalid arguments were passed to BaseOperator"
+        with pytest.raises(TypeError, match=msg) as exc_info:
+            BaseOperator(
+                task_id="test_illegal_args",
+                secret_argument=secret,
+            )
+        assert "***" in str(exc_info.value)
+        assert secret not in str(exc_info.value)
+
     def test_invalid_type_for_default_arg(self):
         error_msg = "'max_active_tis_per_dag' for task 'test' expects <class 'int'>, got <class 'str'> with value 'not_an_int'"
         with pytest.raises(TypeError, match=error_msg):
@@ -712,7 +729,7 @@ class TestBaseOperator:
         task.render_template_fields({})
         assert task.arg2 == "foo_barbarbar"
 
-    @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
+    @pytest.mark.parametrize("content", [object(), uuid.uuid4()])
     def test_render_template_fields_no_change(self, content):
         """Tests if non-templatable types remain unchanged."""
         task = BaseOperator(task_id="op1")

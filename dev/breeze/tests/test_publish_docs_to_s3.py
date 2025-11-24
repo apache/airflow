@@ -46,7 +46,7 @@ class TestPublishDocsToS3:
                 self.publish_docs_to_s3.get_all_docs()
 
     def test_get_all_excluded_docs(self):
-        self.publish_docs_to_s3.exclude_docs = "amazon,google,apache-airflow"
+        self.publish_docs_to_s3.exclude_docs = "amazon google apache-airflow"
         assert self.publish_docs_to_s3.get_all_excluded_docs == ["amazon", "google", "apache-airflow"]
 
     @patch("os.listdir")
@@ -62,7 +62,7 @@ class TestPublishDocsToS3:
             "apache-airflow-ctl",
         ]
 
-        self.publish_docs_to_s3.exclude_docs = "amazon,docker-stack,apache.kafka"
+        self.publish_docs_to_s3.exclude_docs = "amazon docker-stack apache.kafka"
 
         assert sorted(self.publish_docs_to_s3.get_all_eligible_docs) == sorted(
             [
@@ -81,7 +81,7 @@ class TestPublishDocsToS3:
             "apache-airflow",
             "apache-airflow-providers-apache-kafka",
         ]
-        self.publish_docs_to_s3.exclude_docs = "amazon,apache-airflow,apache.kafka"
+        self.publish_docs_to_s3.exclude_docs = "amazon apache-airflow apache.kafka"
 
         with pytest.raises(SystemExit):
             self.publish_docs_to_s3.get_all_eligible_docs

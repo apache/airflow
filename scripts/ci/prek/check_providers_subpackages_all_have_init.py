@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -81,7 +81,7 @@ def _what_kind_of_test_init_py_needed(base_path: Path, folder: Path) -> tuple[bo
             global fatal_error
             should_fail = True
             fatal_error = True
-        return False, False
+        return True, True
     if depth == 2:
         # For known sub-packages that can occur in several packages we need to add __path__ extension
         return True, folder.name in KNOWN_SECOND_LEVEL_PATHS

@@ -1,5 +1,9 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Consuming Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "Create Event",
     "manual": {
