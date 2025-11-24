@@ -68,3 +68,20 @@ Python Version Compatibility
 ``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.
 Currently, Python 3.14 is not supported. Thanks for your understanding!
 We will work on adding support for Python 3.14.
+
+.. list-table::
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Python Version
+     - Supported
+   * - 3.10
+     - Yes
+   * - 3.11
+     - Yes
+   * - 3.12
+     - Yes
+   * - 3.13
+     - Yes
+   * - 3.14
+     - No
