@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-24T09:14:48.895863
+# This constraints file was automatically generated on 2025-11-24T15:50:41.828885
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -550,7 +550,7 @@ scrapbook==0.5.0
 segment-analytics-python==2.3.4
 semver==3.0.4
 sendgrid==6.12.2
-sentry-sdk==2.45.0
+sentry-sdk==2.46.0
 setproctitle==1.3.7
 setuptools==80.9.0
 shapely==2.1.2
