@@ -401,23 +401,6 @@ TASK_SDK_INIT_PY = AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / 
 AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
 
 
-@pytest.fixture
-def restore_version_files():
-    # save contents of all version files before test starts
-    version_files = [
-        AIRFLOW_CORE_INIT_PY,
-        TASK_SDK_INIT_PY,
-        AIRFLOWCTL_INIT_PY,
-    ]
-    original_contents = {f: f.read_text() for f in version_files if f.exists()}
-
-    yield
-
-    # restore original contents after test
-    for fp, content in original_contents.items():
-        fp.write_text(content)
-
-
 @pytest.mark.parametrize(
     ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
@@ -445,7 +428,6 @@ def restore_version_files():
     ],
 )
 def test_apply_version_suffix_to_non_provider_pyproject_tomls(
-    restore_version_files,
     distributions: tuple[str, ...],
     init_file_path: Path,
     version_suffix: str,
@@ -454,28 +436,37 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
     """
+    from filelock import FileLock
+
+    lock_file = AIRFLOW_ROOT_PATH / ".version_files.lock"
+    lock = FileLock(lock_file)
     try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib
-    distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
-    original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
-    original_contents = [path.read_text() for path in original_pyproject_toml_paths]
-    original_init_py = init_file_path.read_text()
-    with apply_version_suffix_to_non_provider_pyproject_tomls(
-        version_suffix, init_file_path, original_pyproject_toml_paths
-    ) as modified_pyproject_toml_paths:
-        modified_contents = [path.read_text() for path in modified_pyproject_toml_paths]
+        with lock:
+            try:
+                import tomllib
+            except ImportError:
+                import tomli as tomllib
+            distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
+            original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
+            original_contents = [path.read_text() for path in original_pyproject_toml_paths]
+            original_init_py = init_file_path.read_text()
+            with apply_version_suffix_to_non_provider_pyproject_tomls(
+                version_suffix, init_file_path, original_pyproject_toml_paths
+            ) as modified_pyproject_toml_paths:
+                modified_contents = [path.read_text() for path in modified_pyproject_toml_paths]
 
-        original_tomls = [tomllib.loads(content) for content in original_contents]
-        modified_tomls = [tomllib.loads(content) for content in modified_contents]
-        modified_init_py = init_file_path.read_text()
+                original_tomls = [tomllib.loads(content) for content in original_contents]
+                modified_tomls = [tomllib.loads(content) for content in modified_contents]
+                modified_init_py = init_file_path.read_text()
 
-    assert original_init_py != modified_init_py
-    assert version_suffix in modified_init_py
+            assert original_init_py != modified_init_py
+            assert version_suffix in modified_init_py
 
-    for i, original_toml in enumerate(original_tomls):
-        modified_toml = modified_tomls[i]
-        _check_dependencies_modified_properly(
-            original_toml, modified_toml, version_suffix, floored_version_suffix
-        )
+            for i, original_toml in enumerate(original_tomls):
+                modified_toml = modified_tomls[i]
+                _check_dependencies_modified_properly(
+                    original_toml, modified_toml, version_suffix, floored_version_suffix
+                )
+    finally:
+        if lock_file.exists():
+            lock_file.unlink()
