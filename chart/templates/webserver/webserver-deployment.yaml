@@ -226,7 +226,7 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/api/v2/version
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url }}
               httpHeaders:
@@ -240,7 +240,7 @@ spec:
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/api/v2/version
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:

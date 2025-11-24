@@ -108,15 +108,15 @@ class TestWebserverDeployment:
 
         assert (
             jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0])
-            == "/mypath/path/health"
+            == "/mypath/path/api/v2/version"
         )
         assert (
             jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0])
-            == "/mypath/path/health"
+            == "/mypath/path/api/v2/version"
         )
         assert (
             jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.path", docs[0])
-            == "/mypath/path/health"
+            == "/mypath/path/api/v2/version"
         )
 
     @pytest.mark.parametrize(
@@ -183,9 +183,18 @@ class TestWebserverDeployment:
         assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
             "startupProbe.httpGet.httpHeaders", container
         )
-        assert jmespath.search("livenessProbe.httpGet.path", container) == "/mypath/release-name/path/health"
-        assert jmespath.search("readinessProbe.httpGet.path", container) == "/mypath/release-name/path/health"
-        assert jmespath.search("startupProbe.httpGet.path", container) == "/mypath/release-name/path/health"
+        assert (
+            jmespath.search("livenessProbe.httpGet.path", container)
+            == "/mypath/release-name/path/api/v2/version"
+        )
+        assert (
+            jmespath.search("readinessProbe.httpGet.path", container)
+            == "/mypath/release-name/path/api/v2/version"
+        )
+        assert (
+            jmespath.search("startupProbe.httpGet.path", container)
+            == "/mypath/release-name/path/api/v2/version"
+        )
 
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
