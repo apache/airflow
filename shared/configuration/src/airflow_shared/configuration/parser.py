@@ -1585,12 +1585,16 @@ class AirflowConfigParser(ConfigParser):
         needs_separation: bool,
         only_defaults: bool,
         section_to_write: str,
+        hide_sensitive_values: bool,
+        is_sensitive: bool,
     ):
         default_value = self.get_default_value(section_to_write, option, raw=True)
         if only_defaults:
             value = default_value
         else:
             value = self.get(section_to_write, option, fallback=default_value, raw=True)
+        if hide_sensitive_values and is_sensitive:
+            value = "< hidden >"
         if value is None:
             file.write(f"# {option} = \n")
         else:
@@ -1666,6 +1670,10 @@ class AirflowConfigParser(ConfigParser):
                             section_to_write=section_to_write,
                             sources_dict=sources_dict,
                         )
+                        is_sensitive = (
+                            section_to_write.lower(),
+                            option.lower(),
+                        ) in self.sensitive_config_values
                         self._write_value(
                             file=file,
                             option=option,
@@ -1673,6 +1681,8 @@ class AirflowConfigParser(ConfigParser):
                             needs_separation=needs_separation,
                             only_defaults=only_defaults,
                             section_to_write=section_to_write,
+                            hide_sensitive_values=hide_sensitive_values,
+                            is_sensitive=is_sensitive,
                         )
                     if include_descriptions and not needs_separation:
                         # extra separation between sections in case last option did not need it
