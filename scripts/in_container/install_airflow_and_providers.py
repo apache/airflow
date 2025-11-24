@@ -1005,6 +1005,13 @@ def install_airflow_and_providers(
                 github_actions=github_actions,
                 check=False,
             )
+            result = run_command(
+                ["uv", "pip", "install", "typing-extensions>=4.15.0"],
+                github_actions=github_actions,
+                check=True,
+            )
+            if result.returncode != 0:
+                console.print("[warning]Installation of typing-extensions>=4.15.0 failed.")
             console.print("[yellow]Uninstalling Airflow-3 only providers")
             console.print(
                 "[yellow]Patching airflow 2 __init__.py -> replacing `from future`"
