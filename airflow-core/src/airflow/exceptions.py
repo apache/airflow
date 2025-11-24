@@ -60,6 +60,7 @@ class AirflowBadRequest(AirflowException):
 
     status_code = HTTPStatus.BAD_REQUEST
 
+
 class AirflowRescheduleException(AirflowException):
     """
     Raise when the task should be re-scheduled at a later time.
