@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from collections import defaultdict
 from typing import TYPE_CHECKING
+
+import structlog
 
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
@@ -35,7 +36,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.models.team import Team
 from airflow.utils.module_loading import import_string
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
