@@ -2909,7 +2909,7 @@ export type BulkTaskInstancesData = {
     requestBody: BulkBody_BulkTaskInstanceBody_;
 };
 
-export type BulkTaskInstancesResponse = BulkResponse;
+export type BulkTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
     dagId: "~";
@@ -2967,6 +2967,14 @@ export type PatchTaskInstanceDryRunData = {
 };
 
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+
+export type BulkTaskInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: BulkBody_BulkTaskInstanceBody_;
+};
+
+export type BulkTaskInstancesDryRunResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
     accept?: 'application/json' | 'application/x-ndjson' | '*/*';
@@ -5325,7 +5333,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: BulkResponse;
+                200: TaskInstanceCollectionResponse;
                 /**
                  * Unauthorized
                  */
@@ -5508,6 +5516,29 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/dry_run': {
+        patch: {
+            req: BulkTaskInstancesDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
