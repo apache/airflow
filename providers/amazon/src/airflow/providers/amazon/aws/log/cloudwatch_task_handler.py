@@ -44,11 +44,11 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.logs import CloudWatchLogEvent
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import (
-        LegacyLogResponse,
         LogMessages,
         LogResponse,
         LogSourceInfo,
         RawLogStream,
+        StreamingLogResponse,
     )
 
 
@@ -171,7 +171,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         self.close()
         return
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LegacyLogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
         str_logs: list[str] = []
 
@@ -181,7 +181,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, str_logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
         logs: list[RawLogStream] = []
         messages = [
             f"Reading remote log from Cloudwatch log_group: {self.log_group} log_stream: {relative_path}"
