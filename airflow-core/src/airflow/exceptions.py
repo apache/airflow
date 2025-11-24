@@ -332,8 +332,8 @@ def __getattr__(name: str):
     """Provide backward compatibility for moved exceptions."""
     if name in _DEPRECATED_EXCEPTIONS:
         import warnings
-        from importlib import import_module
-        from operator import attrgetter
+
+        from airflow.utils.module_loading import import_string
 
         target_path = _DEPRECATED_EXCEPTIONS[name]
         warnings.warn(
@@ -341,6 +341,5 @@ def __getattr__(name: str):
             DeprecationWarning,
             stacklevel=2,
         )
-        module_path, attr_name = target_path.rsplit(".", 1)
-        return attrgetter(attr_name)(import_module(module_path))
+        return import_string(target_path)
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
