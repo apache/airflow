@@ -21,6 +21,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+import { setRefOpacity, setRefTransformAndOpacity } from "src/utils/domUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import type {
@@ -140,15 +141,9 @@ export const useNavigation = ({
 
   // Clear navigation highlight overlays
   const clearHighlight = useCallback(() => {
-    if (navRowRef?.current) {
-      navRowRef.current.style.opacity = "0";
-    }
-    if (navColRef?.current) {
-      navColRef.current.style.opacity = "0";
-    }
-    if (navCellRef?.current) {
-      navCellRef.current.style.opacity = "0";
-    }
+    setRefOpacity(navRowRef, "0");
+    setRefOpacity(navColRef, "0");
+    setRefOpacity(navCellRef, "0");
   }, [navCellRef, navColRef, navRowRef]);
 
   // Apply highlight using direct DOM manipulation (GPU composited)
@@ -164,28 +159,25 @@ export const useNavigation = ({
       const showCol = navMode === "run" || navMode === "TI";
 
       // Update row highlight
-      if (navRowRef?.current) {
-        if (showRow) {
-          navRowRef.current.style.transform = `translateY(${rowY}px)`;
-        }
-        navRowRef.current.style.opacity = showRow ? "1" : "0";
-      }
+      setRefTransformAndOpacity(
+        navRowRef,
+        showRow ? `translateY(${rowY}px)` : undefined,
+        showRow ? "1" : "0",
+      );
 
       // Update column highlight
-      if (navColRef?.current) {
-        if (showCol) {
-          navColRef.current.style.transform = `translateX(${colX}px)`;
-        }
-        navColRef.current.style.opacity = showCol ? "1" : "0";
-      }
+      setRefTransformAndOpacity(
+        navColRef,
+        showCol ? `translateX(${colX}px)` : undefined,
+        showCol ? "1" : "0",
+      );
 
       // Update cell highlight (TI mode only)
-      if (navCellRef?.current) {
-        if (navMode === "TI") {
-          navCellRef.current.style.transform = `translate(${colX}px, ${rowY}px)`;
-        }
-        navCellRef.current.style.opacity = navMode === "TI" ? "1" : "0";
-      }
+      setRefTransformAndOpacity(
+        navCellRef,
+        navMode === "TI" ? `translate(${colX}px, ${rowY}px)` : undefined,
+        navMode === "TI" ? "1" : "0",
+      );
     },
     [navCellRef, navColRef, navRowRef],
   );

@@ -32,6 +32,7 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
+import { setRefOpacity, setRefTransform } from "src/utils/domUtils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -172,7 +173,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   // Event Delegation: Handle all mouse movement in one place
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!gridRef.current || !hoverRowRef.current || !hoverColRef.current) {
+    if (!gridRef.current) {
       return;
     }
 
@@ -197,10 +198,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     if (validRow) {
       const rowY = rowIndex * CELL_HEIGHT;
 
-      hoverRowRef.current.style.transform = `translateY(${rowY}px)`;
-      hoverRowRef.current.style.opacity = "1";
+      setRefTransform(hoverRowRef, `translateY(${rowY}px)`);
+      setRefOpacity(hoverRowRef, "1");
     } else {
-      hoverRowRef.current.style.opacity = "0";
+      setRefOpacity(hoverRowRef, "0");
     }
 
     // Validate and update column highlight (for Bar + Cells)
@@ -209,20 +210,16 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     if (validCol) {
       const colX = -colIndex * CELL_WIDTH;
 
-      hoverColRef.current.style.transform = `translateX(${colX}px)`;
-      hoverColRef.current.style.opacity = "1";
+      setRefTransform(hoverColRef, `translateX(${colX}px)`);
+      setRefOpacity(hoverColRef, "1");
     } else {
-      hoverColRef.current.style.opacity = "0";
+      setRefOpacity(hoverColRef, "0");
     }
   };
 
   const handleMouseLeave = () => {
-    if (hoverRowRef.current) {
-      hoverRowRef.current.style.opacity = "0";
-    }
-    if (hoverColRef.current) {
-      hoverColRef.current.style.opacity = "0";
-    }
+    setRefOpacity(hoverRowRef, "0");
+    setRefOpacity(hoverColRef, "0");
   };
 
   return (
