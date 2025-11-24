@@ -1051,8 +1051,8 @@ def test_expected_output_push(
             ("tests/system/any_file.py",),
             {
                 "selected-providers-list-as-string": None,
-                "all-python-versions": "['3.9']",
-                "all-python-versions-list-as-string": "3.9",
+                "all-python-versions": "['3.10']",
+                "all-python-versions-list-as-string": "3.10",
                 "ci-image-build": "true",
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
@@ -1073,8 +1073,8 @@ def test_expected_output_push(
         pytest.param(
             ("airflow/models/test.py",),
             {
-                "all-python-versions": "['3.9']",
-                "all-python-versions-list-as-string": "3.9",
+                "all-python-versions": "['3.10']",
+                "all-python-versions-list-as-string": "3.10",
                 "ci-image-build": "true",
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
@@ -1096,8 +1096,8 @@ def test_expected_output_push(
         pytest.param(
             ("airflow/file.py",),
             {
-                "all-python-versions": "['3.9']",
-                "all-python-versions-list-as-string": "3.9",
+                "all-python-versions": "['3.10']",
+                "all-python-versions-list-as-string": "3.10",
                 "ci-image-build": "true",
                 "prod-image-build": "false",
                 "needs-helm-tests": "false",
