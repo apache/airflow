@@ -1594,6 +1594,7 @@ export type VariableBody = {
     key: string;
     value: JsonValue;
     description?: string | null;
+    team_id?: string | null;
 };
 
 /**
@@ -1612,6 +1613,7 @@ export type VariableResponse = {
     value: string;
     description: string | null;
     is_encrypted: boolean;
+    team_id: string | null;
 };
 
 /**
