@@ -40,7 +40,7 @@ Sensitive field names
 When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
 task.
 
-It will also mask the value of an Airflow Variable , rendered template dictionaries, XCom dictionaries or the field of a Connection's extra JSON blob if the
+It will also mask the value of an Airflow Variable, rendered template dictionaries, XCom dictionaries or the field of a Connection's extra JSON blob if the
 Variable name or field name contains any of the known-sensitive keywords.
 
 **Default Sensitive Keywords:**
