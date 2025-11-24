@@ -2877,14 +2877,14 @@ def test_provider_dependency_bump_check_passes_on_non_provider_dependency_change
     old_toml = """
 [project]
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "boto3>=1.37.0",
 ]
 """
     new_toml = """
 [project]
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "boto3>=1.38.0",
 ]
 """

@@ -819,7 +819,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
 )
 @click.option(
     "--release-date",
-    required=True,
     type=str,
     callback=validate_release_date,
     envvar="RELEASE_DATE",
@@ -843,7 +842,7 @@ def prepare_provider_documentation(
     skip_changelog: bool,
     skip_readme: bool,
     incremental_update: bool,
-    release_date: str,
+    release_date: str | None,
 ):
     from airflow_breeze.prepare_providers.provider_documentation import (
         PrepareReleaseDocsChangesOnlyException,
@@ -855,6 +854,10 @@ def prepare_provider_documentation(
         update_min_airflow_version_and_build_files,
         update_release_notes,
     )
+
+    if not release_date and not only_min_version_update:
+        get_console().print("[error]Release date is required unless --only-min-version-update is used![/]")
+        sys.exit(1)
 
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -964,7 +967,8 @@ def prepare_provider_documentation(
     get_console().print(
         "\n[info]Please review the updated files, classify the changelog entries and commit the changes.\n"
     )
-    AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
+    if release_date:
+        AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH.write_text(release_date + "\n")
     if incremental_update:
         get_console().print(r"\[warning] Generated changes:")
         run_command(["git", "diff"])

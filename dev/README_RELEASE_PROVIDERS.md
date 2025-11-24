@@ -103,7 +103,7 @@ distributions together.
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
-searching and replacing old version occurrences with newer one. For example 2.10.0 to 3.0.0
+searching and replacing old version occurrences with newer one. For example 2.10.0 to 2.11.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
 in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management prepare-provider-documentation --only-min-version-update`
