@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import ErrorResponse
 
 
-class AirflowException(RuntimeError):
+class AirflowException(Exception):
     """
     Base class for all Airflow's errors.
 
