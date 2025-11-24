@@ -16,6 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from base import BaseSecretsBackend
+from .base import BaseSecretsBackend
 
 __all__ = ["BaseSecretsBackend"]
