@@ -20,7 +20,7 @@ import { VStack } from "@chakra-ui/react";
 import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
@@ -30,10 +30,8 @@ export const XComFilters = () => {
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       SearchParamsKeys.KEY_PATTERN,
-      SearchParamsKeys.LOGICAL_DATE_GTE,
-      SearchParamsKeys.LOGICAL_DATE_LTE,
-      SearchParamsKeys.RUN_AFTER_GTE,
-      SearchParamsKeys.RUN_AFTER_LTE,
+      SearchParamsKeys.LOGICAL_DATE_RANGE,
+      SearchParamsKeys.RUN_AFTER_RANGE,
     ];
 
     if (dagId === "~") {
@@ -55,27 +53,7 @@ export const XComFilters = () => {
     return keys;
   }, [dagId, mapIndex, runId, taskId]);
 
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
-
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
-
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
-      }
-    });
-
-    return values;
-  }, [searchParams, filterConfigs]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <VStack align="start" gap={4} paddingY="4px">

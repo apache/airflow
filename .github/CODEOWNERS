@@ -137,3 +137,6 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 
 # Golang SDK
 /go-sdk/ @ashb @kaxil @amoghrajesh
+
+# Shared Libraries
+/shared/ @ashb @amoghrajesh @potiuk

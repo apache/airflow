@@ -254,11 +254,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.9"
+AIRFLOW_UV_VERSION = "0.9.11"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.13"
+PREK_VERSION = "0.2.18"
 HATCH_VERSION = "1.15.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -783,7 +783,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Base branch to use as diff for documentation generation (used for releasing from old branch)",
 )
 @option_github_repository
-@argument_provider_distributions
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -827,6 +826,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Planned release date for the providers release in format "
     "YYYY-MM-DD[_NN] (e.g., 2025-11-16 or 2025-11-16_01).",
 )
+@argument_provider_distributions
 @option_verbose
 @option_answer
 @option_dry_run
@@ -1012,11 +1012,21 @@ def _build_provider_distributions(
     distribution_format: str,
     skip_tag_check: bool,
     skip_deleting_generated_files: bool,
-):
+) -> bool:
+    """
+    Builds provider distribution.
+
+    :param provider_id: id of the provider package
+    :param package_version_suffix: suffix to append to the package version
+    :param distribution_format: format of the distribution to build (wheel or sdist)
+    :param skip_tag_check: whether to skip tag check
+    :param skip_deleting_generated_files: whether to skip deleting generated files
+    :return: True if package was built, False if it was skipped.
+    """
     if not skip_tag_check:
         should_skip, package_version_suffix = should_skip_the_package(provider_id, package_version_suffix)
         if should_skip:
-            return
+            return False
     get_console().print()
     with ci_group(f"Preparing provider package [special]{provider_id}"):
         get_console().print()
@@ -1039,6 +1049,7 @@ def _build_provider_distributions(
             skip_cleanup=skip_deleting_generated_files,
             delete_only_build_and_dist_folders=True,
         )
+    return True
 
 
 @release_management.command(
@@ -1137,7 +1148,7 @@ def prepare_provider_distributions(
     for provider_id in packages_list:
         try:
             basic_provider_checks(provider_id)
-            _build_provider_distributions(
+            created = _build_provider_distributions(
                 provider_id,
                 version_suffix,
                 distribution_format,
@@ -1154,12 +1165,15 @@ def prepare_provider_distributions(
             suspended_packages.append(provider_id)
         else:
             get_console().print(f"\n[success]Generated package [special]{provider_id}")
-            success_packages.append(provider_id)
+            if created:
+                success_packages.append(provider_id)
+            else:
+                skipped_as_already_released_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared packages:\n")
     provider_action_summary("Success", MessageType.SUCCESS, success_packages)
     provider_action_summary(
-        "Skipped as already released", MessageType.SUCCESS, skipped_as_already_released_packages
+        "Skipped as already released", MessageType.INFO, skipped_as_already_released_packages
     )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Wrong setup generated", MessageType.ERROR, wrong_setup_packages)
@@ -1987,7 +2001,7 @@ def clean_old_provider_artifacts(
     directory: str,
 ):
     """Cleans up the old airflow providers artifacts in order to maintain
-    only one provider version in the release SVN folder"""
+    only one provider version in the release SVN folder and one -source artifact."""
     cleanup_suffixes = [
         ".tar.gz",
         ".tar.gz.sha512",
@@ -2003,9 +2017,10 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
-            if "-source" in file:
-                continue
-            versioned_file = split_version_and_suffix(file, suffix)
+            if "-source.tar.gz" in file:
+                versioned_file = split_date_version_and_suffix(file, "-source" + suffix)
+            else:
+                versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
         for package_types in package_types_dicts.values():
@@ -3253,6 +3268,43 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
     )
 
 
+def split_date_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    """Split file name with date-based version (YYYY-MM-DD format) and suffix.
+
+    Example: apache_airflow_providers-2025-11-18-source.tar.gz
+    """
+    from packaging.version import Version
+
+    no_suffix_file = file_name[: -len(suffix)]
+    # Date format is YYYY-MM-DD, so we need to extract last 3 parts
+    parts = no_suffix_file.rsplit("-", 3)
+    if len(parts) != 4:
+        raise ValueError(f"Invalid date-versioned file name format: {file_name}")
+
+    no_version_file = parts[0]
+    date_version = f"{parts[1]}-{parts[2]}-{parts[3]}"
+
+    # Validate date format
+    try:
+        datetime.strptime(date_version, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date format in file name {file_name}: {e}")
+
+    no_version_file = no_version_file.replace("_", "-")
+
+    # Convert date to a comparable version format (YYYYMMDD as integer-like version)
+    comparable_date_str = date_version.replace("-", ".")
+
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=date_version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(comparable_date_str),
+        file_name=file_name,
+    )
+
+
 PYTHON_CLIENT_DIR_PATH = AIRFLOW_ROOT_PATH / "clients" / "python"
 PYTHON_CLIENT_DIST_DIR_PATH = PYTHON_CLIENT_DIR_PATH / "dist"
 PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
@@ -4234,3 +4286,138 @@ def version_check(
         github_token=github_token,
         github_repository=github_repository,
     )
+
+
+@release_management.command(
+    name="check-release-files",
+    help="Verify that all expected packages are present in Apache Airflow svn.",
+)
+@click.option(
+    "--path-to-airflow-svn",
+    "-p",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True, path_type=Path),
+    envvar="PATH_TO_AIRFLOW_SVN",
+    help="Path to directory where release files are checked out from SVN (e.g., ~/code/asf-dist/dev/airflow)",
+)
+@click.option(
+    "--version",
+    type=str,
+    help="Version of package to verify (e.g., 2.8.1rc2, 1.0.0rc1). "
+    "Required for airflow, task-sdk, airflow-ctl, and python-client.",
+)
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format. Required for providers.",
+)
+@click.option(
+    "--packages-file",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, path_type=Path),
+    default="packages.txt",
+    show_default=True,
+    help="File containing list of packages to check (for providers only).",
+)
+@click.argument(
+    "release_type",
+    type=BetterChoice(["airflow", "task-sdk", "airflow-ctl", "python-client", "providers"]),
+    required=True,
+)
+@option_verbose
+@option_dry_run
+def check_release_files(
+    path: Path,
+    version: str | None,
+    release_date: str | None,
+    packages_file: Path,
+    release_type: str,
+):
+    """
+    Verify that all expected packages are present in Apache Airflow svn.
+
+    In case of providers, it will generate Dockerfile.pmc that you can use
+    to verify that all packages are installable.
+
+    In case of providers, you should update `packages.txt` file with list of packages
+    that you expect to find (copy-paste the list from VOTE thread).
+
+    """
+    from airflow_breeze.utils.check_release_files import (
+        AIRFLOW_CTL_DOCKER,
+        AIRFLOW_DOCKER,
+        PROVIDERS_DOCKER,
+        PYTHON_CLIENT_DOCKER,
+        TASK_SDK_DOCKER,
+        check_airflow_ctl_release,
+        check_airflow_release,
+        check_providers,
+        check_python_client_release,
+        check_task_sdk_release,
+        create_docker,
+        get_packages,
+        warn_of_missing_files,
+    )
+
+    console = get_console()
+
+    # Validate required parameters based on release type
+    if release_type == "providers":
+        if not release_date:
+            console.print("[error]--release-date is required for providers[/]")
+            sys.exit(1)
+        directory = path / "providers" / release_date
+    else:
+        if not version:
+            console.print(f"[error]--version is required for {release_type}[/]")
+            sys.exit(1)
+
+        # Determine directory based on release type
+        if release_type == "airflow":
+            directory = path / version
+        elif release_type == "task-sdk":
+            directory = path / version
+        elif release_type == "airflow-ctl":
+            directory = path / "airflow-ctl" / version
+        elif release_type == "python-client":
+            directory = path / "clients" / "python" / version
+        else:
+            console.print(f"[error]Unknown release type: {release_type}[/]")
+            sys.exit(1)
+
+    if not directory.exists():
+        console.print(f"[error]Directory does not exist: {directory}[/]")
+        sys.exit(1)
+
+    files = os.listdir(directory)
+    dockerfile_path = AIRFLOW_ROOT_PATH / "Dockerfile.pmc"
+
+    # Check files based on release type
+    missing_files = []
+
+    if release_type == "providers":
+        packages = get_packages(packages_file)
+        missing_files = check_providers(files, release_date, packages)
+        pips = [f"{name}=={ver}" for name, ver in packages]
+        create_docker(
+            PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips)),
+            dockerfile_path,
+        )
+    elif release_type == "airflow":
+        missing_files = check_airflow_release(files, version)
+        create_docker(AIRFLOW_DOCKER.format(version), dockerfile_path)
+    elif release_type == "task-sdk":
+        missing_files = check_task_sdk_release(files, version)
+        create_docker(TASK_SDK_DOCKER.format(version), dockerfile_path)
+    elif release_type == "airflow-ctl":
+        missing_files = check_airflow_ctl_release(files, version)
+        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
+    elif release_type == "python-client":
+        missing_files = check_python_client_release(files, version)
+        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path)
+
+    if missing_files:
+        warn_of_missing_files(missing_files, str(directory))
+        sys.exit(1)
+    else:
+        console.print("\n[success]All expected files are present![/]")
+        sys.exit(0)
