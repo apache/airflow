@@ -236,6 +236,8 @@ class KiotaRequestAdapterHook(BaseHook):
             if connection.schema and connection.host:
                 return f"{connection.schema}://{connection.host}"
             return NationalClouds.Global.value
+        if not self.host.startswith("http://") or not self.host.startswith("https://"):
+            return f"{connection.schema}://{self.host}"
         return self.host
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
@@ -277,7 +279,8 @@ class KiotaRequestAdapterHook(BaseHook):
                     self.log.debug("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
-        return proxies
+            return proxies
+        return None
 
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
@@ -400,20 +403,22 @@ class KiotaRequestAdapterHook(BaseHook):
 
     def get_proxies(self, config: dict) -> dict | None:
         proxies = self.proxies if self.proxies is not None else config.get("proxies", {})
-        if isinstance(proxies, str):
-            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
-            #       we could then use the get_extra_dejson method on the connection which deserializes
-            #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
-            #       connection.extra_dejson.
-            with suppress(JSONDecodeError):
-                proxies = json.loads(proxies)
-            with suppress(Exception):
-                proxies = literal_eval(proxies)
-        if not isinstance(proxies, dict):
-            raise AirflowConfigException(
-                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
-            )
-        return proxies
+        if proxies:
+            if isinstance(proxies, str):
+                # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
+                #       we could then use the get_extra_dejson method on the connection which deserializes
+                #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+                #       connection.extra_dejson.
+                with suppress(JSONDecodeError):
+                    proxies = json.loads(proxies)
+                with suppress(Exception):
+                    proxies = literal_eval(proxies)
+            if not isinstance(proxies, dict):
+                raise AirflowConfigException(
+                    f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+                )
+            return proxies
+        return None
 
     def get_credentials(
         self,

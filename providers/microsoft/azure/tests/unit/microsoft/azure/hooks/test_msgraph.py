@@ -241,11 +241,13 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_no_scheme_or_host_but_hook_overrides_host(self):
         with patch_hook():
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", host=NationalClouds.China.value)
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", host="wabi-north-europe-o-primary-redirect.analysis.windows.net"
+            )
             connection = mock_connection(schema="https", host=NationalClouds.Global.value)
             actual = hook.get_host(connection)
 
-            assert actual == NationalClouds.China.value
+            assert actual == "https://wabi-north-europe-o-primary-redirect.analysis.windows.net"
 
     def test_execute_callable(self):
         response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
