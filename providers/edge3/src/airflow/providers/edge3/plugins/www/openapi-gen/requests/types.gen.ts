@@ -56,6 +56,7 @@ export type ExecuteTask = {
     bundle_info: BundleInfo;
     log_path: string | null;
     ti: TaskInstance;
+    sentry_integration?: string;
     type?: "ExecuteTask";
 };
 
