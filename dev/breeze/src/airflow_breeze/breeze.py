@@ -41,6 +41,7 @@ from airflow_breeze.commands.release_candidate_command import release_management
 from airflow_breeze.commands.sbom_commands import sbom  # noqa: E402
 from airflow_breeze.commands.setup_commands import setup  # noqa: E402
 from airflow_breeze.commands.testing_commands import group_for_testing  # noqa: E402
+from airflow_breeze.commands.ui_commands import ui_group  # noqa: E402
 
 main.add_command(group_for_testing)
 main.add_command(kubernetes_group)
@@ -50,6 +51,7 @@ main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
 main.add_command(sbom)
+main.add_command(ui_group)
 main.add_command(workflow_run)
 
 if __name__ == "__main__":

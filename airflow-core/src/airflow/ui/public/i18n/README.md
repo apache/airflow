@@ -61,11 +61,15 @@ communicating in the dev list or merging Pull Requests on their behalf).
 
 **Engaged translator** - Active contributor participating in translation without formal ownership.
 
-**Inactive translation/code owner** — A translation/code owner is considered inactive if they meet either of
+**Complete translation** - A supported locale is considered complete when it covers at least 90% of the terms in the default locale.
+
+**Inactive owner** — Either a translation owner or a code owner might be considered inactive if they meet any of
 the following criteria:
 
 - The locale under their responsibility has remained incomplete for at least 2 consecutive releases.
-- They have not participated in the Apache Airflow project for more than 12 months.
+- They have not contributed to Apache Airflow for more than 12 months.
+- Code owners specifically might be considered inactive according to any other terms mentioned in the
+  ["Committers and PMC Members"](../../../../../../COMMITTERS.rst#inactive-committers) document.
 
 **Dev list** - The Apache Airflow development mailing list: dev@airflow.apache.org.
 
@@ -101,6 +105,8 @@ the following criteria:
 - Code owners who act as translation sponsors are also responsible for:
   - Ensuring that the translation owner is active and able to maintain the translation.
   - Act according to section 6.4 when the translation owner relinquishes their role or become inactive.
+  - When they sponsor a single translation owner, without additional translation owners/engaged translators involved,
+    they SHALL also review the language aspects of translation-related PRs using a trusted third-party opinion (e.g., LLM).
 
 ### 4.3. Engaged translator
 
@@ -128,9 +134,11 @@ the following criteria:
     owner.
 - When the above is not met, steps mentioned in section 6.4 SHOULD be taken by the appropriate roles.
 
-> [!NOTE]
-> It is welcomed and desired to have more than one translation owner to enable peer reviews and provide
-> coverage during absences.
+  > [!WARNING]
+  > It is preferred to have at least two translation owners, or at least one translation owner and another engaged translator,
+  > to allow peer reviews and provide coverage during absences.
+  > Specifically, when translation is sponsored and there's only a single translation owner, without additional proficient people involved, the code owner becomes responsible for reviewing language aspects of PRs
+  > using a third-party opinion, which could risk quality and timeliness of reviews.
 
 ### 5.2. Adding new locales
 
@@ -200,9 +208,10 @@ Translation conflicts MUST be resolved according to the procedures outlined in s
 
 ### 6.1. Approval of ownership candidates
 
-- The designated code owner, should post a thread to the dev list, requesting the approval of:
-  - Introducing a new locale (including a link to the PR)
-  - Translation owner(s) in the suggested locale for non committer candidates. (sponsored)
+- The designated code owner should post a thread to the dev list that includes the following details:
+  - The locale being suggested, including a link to the PR.
+  - Designated code owner(s) and translation owner(s) in the suggested locale.
+  - If the code owner is sponsored, they should indicate this as well. Specifically, if there is only one translation owner, the code owner should also declare how they plan to approve the language aspects of PRs (e.g., an engaged translator, LLM, etc.).
 - Within the thread, the code owner should demonstrate that the translation owner is suitable for the role,
   according to the requirements in section 5.3.
 - Approval of any translation owner who is not a committer requires at least one binding vote of 1 PMC member,
@@ -215,6 +224,8 @@ The following steps outline the process for approving a new locale to be added t
 
 - Creating a PR for adding the suggested locale to the
   codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
+  - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in
+    `dev/breeze/commands/ui_commands.py`.
   - The locale files (translated according to the guidelines) in the
     `airflow-core/src/airflow/ui/public/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the
     code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional
@@ -283,7 +294,8 @@ Language proficiency for translation owners can be demonstrated through any of t
   (e.g., Portuguese vs. Spanish), the other language might be used as a reference, but still the default
   language (English) should be the primary source for translations.
 - Translations should be accurate, maintaining original meaning and intent.
-- Translations should be complete, covering all terms and phrases in the default language.
+- Translations should be complete, covering all terms and phrases in the default language up to the defined
+  completeness threshold.
 - Translation of technical terminology should be consistent (for example: Dag, Task, Operator, etc.).
 - Language should be polite and neutral in tone.
 - Local conventions should be considered (e.g., date formats, number formatting, formal vs. informal tone,
@@ -299,13 +311,17 @@ Language proficiency for translation owners can be demonstrated through any of t
 All files:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py
+breeze ui check-translation-completeness
 ```
+
+> [!NOTE]
+> When announcing a freeze time, copy the output of the table showing completeness of all languages
+> to the mail body.
 
 Files for specific languages:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code>
+breeze ui check-translation-completeness --language <language_code>
 ```
 
 Where `<language_code>` is the code of the language you want to check, e.g., `en`, `fr`, `de`, etc.
@@ -313,25 +329,25 @@ Where `<language_code>` is the code of the language you want to check, e.g., `en
 Adding missing translations (with `TODO: translate` prefix):
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code> --add-missing
+breeze ui check-translation-completeness --language <language_code> --add-missing
 ```
 
 You can also remove extra translations from the language of your choice:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code> --remove-extra
+breeze ui check-translation-completeness --language <language_code> --remove-extra
 ```
 
 Or from all languages:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --remove-extra
+breeze ui check-translation-completeness --remove-extra
 ```
 
 The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
 
 ```bash
-prek run --hook-stage manual check-translations-completeness --verbose --all-files
+breeze ui check-translation-completeness --verbose --all-files
 ```
 
 
@@ -362,12 +378,26 @@ FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = True
 ```
 
 This fails any attempt to change English translation files in a PR unless `allow translation change`
-label is applied to the PR. This allows to still fix critical issues in English translation files and make
-deliberate updates to it but avoids accidental changes.
+label is applied to the PR. This still allows issues in the English translation files to be fixed and
+deliberate updates to be made, while avoiding accidental changes.
 
-Any change in such English translation files during freeze time MUST be communicated in the
-`#18n` Slack channel - so that translators can be informed as early as possible about those translations
+Any change in the English translation files during freeze time MUST be communicated in the
+[#18n](https://app.slack.com/client/TCQ18L22Z/C09D0A7FESJ?) Slack channel and MUST be approved by at least 1 PMC member - so that translators can be informed as early as possible about those translations
 being added.
+
+> [!NOTE]
+> The definition of completeness takes into account that some terms might be added during freeze time and remain untranslated.
+
+### 11.1 Guidelines for approving freeze exemptions
+
+The following questions should be considered before approving exemptions for changes to the English translation files during freeze time:
+
+- Are the changes necessary for a critical fix or feature?
+- Do the changes only introduce minor fixes to existing terms? (such modifications are usually less disruptive and OK to approve)
+- Do the changes introduce new terms, remove terms, or significantly alter already translated terms? (if so, it may be better to wait until the next release)
+- Is it feasible to complete the translations in all locales before the release? (the fewer changes, the more feasible)
+- If not all translations are completed before the release, will it significantly affect the user experience? (if so, it might be better to wait until the next release).
+- If not all translations are completed before the release, will any locales be left in an incomplete state? (if so, it might be better to wait until the next release).
 
 ## 12. Exceptions
 
