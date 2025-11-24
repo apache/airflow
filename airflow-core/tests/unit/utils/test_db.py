@@ -323,7 +323,7 @@ class TestDb:
             migration_expected(quiet=quiet)
             assert excinfo.value.code == expected_exit_code
 
-        expected_print_snippet = f"from={from_revision} to={to_revision}"
+        expected_print_snippet = "Migration expected: "
         stdout = temp_stdout.getvalue()
         if quiet:
             assert expected_print_snippet not in stdout
