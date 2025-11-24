@@ -30,7 +30,6 @@ from airflow._shared.observability.metrics.validators import (
     get_validator,
     validate_stat,
 )
-from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from statsd import StatsClient
@@ -155,13 +154,21 @@ class SafeStatsdLogger:
         return Timer()
 
 
-def get_statsd_logger(cls) -> SafeStatsdLogger:
+def get_statsd_logger(
+    cls,
+    stats_class: Callable[[str], str] | None = None,
+    host: str | None = None,
+    port: int | None = None,
+    prefix: str | None = None,
+    ipv6: bool = False,
+    influxdb_tags_enabled: bool = False,
+    statsd_disabled_tags: str | None = None,
+) -> SafeStatsdLogger:
     """Return logger for StatsD."""
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
     # and previously it would crash with None is callable if it was called without it.
     from statsd import StatsClient
 
-    stats_class = conf.getimport("metrics", "statsd_custom_client_path", fallback=None)
     if stats_class:
         if not issubclass(stats_class, StatsClient):
             raise AirflowConfigException(
@@ -173,15 +180,7 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
     else:
         stats_class = StatsClient
 
-    statsd = stats_class(
-        host=conf.get("metrics", "statsd_host"),
-        port=conf.getint("metrics", "statsd_port"),
-        prefix=conf.get("metrics", "statsd_prefix"),
-        ipv6=conf.getboolean("metrics", "statsd_ipv6", fallback=False),
-    )
+    statsd = stats_class(host, port, prefix, ipv6)
 
-    influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
-    metric_tags_validator = PatternBlockListValidator(
-        conf.get("metrics", "statsd_disabled_tags", fallback=None)
-    )
+    metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
     return SafeStatsdLogger(statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator)

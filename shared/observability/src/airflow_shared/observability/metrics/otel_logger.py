@@ -38,7 +38,6 @@ from airflow._shared.observability.metrics.validators import (
     get_validator,
     stat_name_otel_handler,
 )
-from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
@@ -370,16 +369,16 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
-def get_otel_logger(cls) -> SafeOtelLogger:
-    host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
-    port = conf.getint("metrics", "otel_port")  # ex: 4318
-    prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
-    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
-    # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
-    debug = conf.getboolean("metrics", "otel_debugging_on")
-    service_name = conf.get("metrics", "otel_service")
-
+def get_otel_logger(
+    cls,
+    host: str | None = None,
+    port: int | None = None,
+    prefix: str | None = None,
+    ssl_active: bool = False,
+    conf_interval: float | None = None,
+    debug: bool = False,
+    service_name: str | None = None,
+) -> SafeOtelLogger:
     resource = Resource.create(attributes={SERVICE_NAME: service_name})
     protocol = "https" if ssl_active else "http"
     # Allow transparent support for standard OpenTelemetry SDK environment variables.

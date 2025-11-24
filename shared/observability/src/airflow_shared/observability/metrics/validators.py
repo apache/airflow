@@ -30,7 +30,6 @@ from re import Pattern
 from typing import cast
 
 from airflow._shared.observability.exceptions import InvalidStatsNameException
-from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -87,14 +86,17 @@ OTEL_NAME_MAX_LENGTH = 255
 DEFAULT_VALIDATOR_TYPE = "allow"
 
 
-def get_validator() -> ListValidator:
+def get_validator(
+    metric_allow_list: str | None = None,
+    metric_block_list: str | None = None,
+) -> ListValidator:
     validators = {
         "allow": PatternAllowListValidator,
         "block": PatternBlockListValidator,
     }
     metric_lists = {
-        "allow": (metric_allow_list := conf.get("metrics", "metrics_allow_list", fallback=None)),
-        "block": (metric_block_list := conf.get("metrics", "metrics_block_list", fallback=None)),
+        "allow": metric_allow_list,
+        "block": metric_block_list,
     }
 
     if metric_allow_list:
@@ -214,15 +216,19 @@ def stat_name_default_handler(
     return stat_name
 
 
-def get_current_handler_stat_name_func() -> Callable[[str], str]:
+def get_current_handler_stat_name_func(
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
+) -> Callable[[str], str]:
     """Get Stat Name Handler from airflow.cfg."""
-    handler = conf.getimport("metrics", "stat_name_handler")
-    if handler is None:
-        if conf.get("metrics", "statsd_influxdb_enabled", fallback=False):
-            handler = partial(stat_name_default_handler, allowed_chars={*ALLOWED_CHARACTERS, ",", "="})
+    if stat_name_handler is None:
+        if statsd_influxdb_enabled:
+            stat_name_handler = partial(
+                stat_name_default_handler, allowed_chars={*ALLOWED_CHARACTERS, ",", "="}
+            )
         else:
-            handler = stat_name_default_handler
-    return handler
+            stat_name_handler = stat_name_default_handler
+    return stat_name_handler
 
 
 class ListValidator(metaclass=abc.ABCMeta):
