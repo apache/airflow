@@ -17,8 +17,7 @@
 
 Setting up Keycloak Client for Breeze
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To fully work with Keycloak in local Airflow development with Breeze, you need to set up a Keycloak client.
-While creating client there is a section called ``Login Settings`` or after creation it is ``Access Settings``.
+To fully integrate Keycloak into local Airflow development with Breeze, you need to set up a Keycloak client. During client creation, the relevant section is called ``Login Settings``. After the client is created, this section is renamed to ``Access Settings``.
 
 .. list-table::
    :header-rows: 1
