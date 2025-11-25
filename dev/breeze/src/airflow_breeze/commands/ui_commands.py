@@ -28,7 +28,9 @@ import click
 from airflow_breeze.commands.common_options import option_dry_run, option_verbose
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.run_utils import assert_prek_installed, run_compile_ui_assets
 
 LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 
@@ -674,3 +676,31 @@ def check_translation_completeness(
                     coverage_str = f"[red]{coverage:.1f}%[/red]"
                 summary_table.add_row(lang, coverage_str)
             console.print(summary_table)
+
+
+@ui_group.command(
+    name="compile-assets",
+    help="Compiles ui assets.",
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
+)
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
+@option_verbose
+@option_dry_run
+def compile_ui_assets(dev: bool, force_clean: bool):
+    perform_environment_checks()
+    assert_prek_installed()
+    compile_ui_assets_result = run_compile_ui_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
+    if compile_ui_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)

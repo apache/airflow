@@ -27,6 +27,24 @@ Those are all of the available ui commands:
   :width: 100%
   :alt: Breeze ui commands
 
+Compiling ui assets
+--------------------
+
+Before starting Airflow, Airflow API server needs to prepare www assets - compiled with node and yarn. The
+``breeze ui compile-assets`` command takes care about it. This is needed when you want to run API server
+inside of the breeze.
+
+.. image:: ./images/output_ui_compile-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ui_compile-assets.svg
+  :width: 100%
+  :alt: Breeze ui compile-assets
+
+Note
+
+This command requires the ``prek`` tool, which should be installed by following
+`this guide <../../../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#configuring-prek>`__.
+
+
 Check translation completeness
 """"""""""""""""""""""""""""""
 

@@ -2336,6 +2336,7 @@ export class TaskInstanceService {
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -2389,6 +2390,7 @@ export class TaskInstanceService {
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
                 dag_id_pattern: data.dagIdPattern,
+                run_id_pattern: data.runIdPattern,
                 state: data.state,
                 pool: data.pool,
                 pool_name_pattern: data.poolNamePattern,
