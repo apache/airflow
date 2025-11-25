@@ -50,6 +50,13 @@
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Ungültiges Datumsformat.",
+      "invalidTimeFormat": "Ungültiges Zeitformat.",
+      "startBeforeEnd": "Startdatum/-uhrzeit muss vor Enddatum/-uhrzeit liegen."
+    }
+  },
   "durationChart": {
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
