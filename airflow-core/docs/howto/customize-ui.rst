@@ -163,7 +163,7 @@ cases might include alerts yielded from APIs, database queries or files.
 .. code-block:: python
 
     import random
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
 
     class DynamicAlerts(list):
