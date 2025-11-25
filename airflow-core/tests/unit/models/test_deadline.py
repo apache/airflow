@@ -30,17 +30,8 @@ from airflow.models import DagRun
 from airflow.models.deadline import Deadline, ReferenceModels, _fetch_from_db
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import timezone
-from airflow.sdk.definitions.deadline import (
-    AsyncCallback,
-    DeadlineReference,
-    SyncCallback,
-    deadline_reference,
-)
-from airflow.triggers.base import TriggerEvent
-from airflow.triggers.deadline import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
-from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineReference, SyncCallback
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineReference, deadline_reference
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db

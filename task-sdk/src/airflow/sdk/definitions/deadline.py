@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, cast
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
@@ -27,6 +26,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serde import deserialize, serialize
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import TypeAlias
 
 logger = logging.getLogger(__name__)
