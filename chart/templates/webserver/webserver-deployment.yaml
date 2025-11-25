@@ -212,7 +212,7 @@ spec:
               containerPort: {{ .Values.ports.airflowUI }}
           livenessProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/api/v2/version
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}{{ if semverCompare "<3.0.0" .Values.airflowVersion }}/health{{ else }}/api/v2/version{{ end }}
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
@@ -226,7 +226,7 @@ spec:
             periodSeconds: {{ .Values.webserver.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/api/v2/version
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}{{ if semverCompare "<3.0.0" .Values.airflowVersion }}/health{{ else }}/api/v2/version{{ end }}
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url }}
               httpHeaders:
@@ -240,7 +240,7 @@ spec:
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/api/v2/version
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}{{ if semverCompare "<3.0.0" .Values.airflowVersion }}/health{{ else }}/api/v2/version{{ end }}
               port: {{ .Values.ports.airflowUI }}
               {{- if .Values.config.webserver.base_url}}
               httpHeaders:
