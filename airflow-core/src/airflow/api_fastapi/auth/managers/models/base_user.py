@@ -24,11 +24,7 @@ class BaseUser:
     """User model interface."""
 
     @abstractmethod
-    def get_id(self) -> str:
-        """Get user ID."""
-        ...
+    def get_id(self) -> str: ...
 
     @abstractmethod
-    def get_name(self) -> str:
-        """Get user name."""
-        ...
+    def get_name(self) -> str: ...
