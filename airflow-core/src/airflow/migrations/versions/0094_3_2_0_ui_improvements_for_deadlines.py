@@ -57,12 +57,12 @@ depends_on = None
 airflow_version = "3.2.0"
 
 
-DEADLINE_ALERT_REQUIRED_FIELDS = {"reference", "callback", "interval"}
-CALLBACK_KEY = "callback"
+CALLBACK_KEY = "callback_def"
 DAG_KEY = "dag"
 DEADLINE_KEY = "deadline"
 INTERVAL_KEY = "interval"
 REFERENCE_KEY = "reference"
+DEADLINE_ALERT_REQUIRED_FIELDS = {REFERENCE_KEY, CALLBACK_KEY, INTERVAL_KEY}
 DEFAULT_BATCH_SIZE = 1000
 ENCODING_TYPE = "deadline_alert"
 
