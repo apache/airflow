@@ -2885,6 +2885,10 @@ export type GetTaskInstancesData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     startDateGt?: string | null;
     startDateGte?: string | null;
     startDateLt?: string | null;
