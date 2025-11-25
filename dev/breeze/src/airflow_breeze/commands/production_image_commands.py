@@ -368,14 +368,14 @@ def build(
                 if not UI_VITE_MANIFEST_PATH.exists():
                     get_console().print(
                         f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
-                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                        f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
                 if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
                     get_console().print(
                         f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
                         f"does not exist.[/]\n\n"
-                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                        f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
     else:
