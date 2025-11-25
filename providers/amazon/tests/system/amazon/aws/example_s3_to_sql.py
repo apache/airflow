@@ -126,7 +126,7 @@ with DAG(
         task_id="wait_cluster_available",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=5,
+        poke_interval=100,
         timeout=60 * 30,
     )
 
