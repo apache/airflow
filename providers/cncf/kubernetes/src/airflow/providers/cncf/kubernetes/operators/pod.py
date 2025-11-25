@@ -63,7 +63,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     generic_api_retry,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_succeeded,
@@ -857,7 +857,7 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-        self.invoke_defer_method()
+        self.invoke_defer_method(context=context)
 
     def convert_config_file_to_dict(self):
         """Convert passed config_file to dict representation."""
@@ -868,7 +868,7 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self._config_dict = None
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
+    def invoke_defer_method(self, context: Context, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
         self.convert_config_file_to_dict()
 
@@ -887,29 +887,47 @@ class KubernetesPodOperator(BaseOperator):
                 self.log.info("Successfully resolved connection extras for deferral.")
 
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
-        self.defer(
-            trigger=KubernetesPodTrigger(
-                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
-                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
-                trigger_start_time=trigger_start_time,
-                kubernetes_conn_id=self.kubernetes_conn_id,
-                connection_extras=connection_extras,
-                cluster_context=self.cluster_context,
-                config_dict=self._config_dict,
-                in_cluster=self.in_cluster,
-                poll_interval=self.poll_interval,
-                get_logs=self.get_logs,
-                startup_timeout=self.startup_timeout_seconds,
-                startup_check_interval=self.startup_check_interval_seconds,
-                schedule_timeout=self.schedule_timeout_seconds,
-                base_container_name=self.base_container_name,
-                on_finish_action=self.on_finish_action.value,
-                last_log_time=last_log_time,
-                logging_interval=self.logging_interval,
-                trigger_kwargs=self.trigger_kwargs,
-            ),
-            method_name="trigger_reentry",
+
+        trigger = KubernetesPodTrigger(
+            pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+            pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+            trigger_start_time=trigger_start_time,
+            kubernetes_conn_id=self.kubernetes_conn_id,
+            connection_extras=connection_extras,
+            cluster_context=self.cluster_context,
+            config_dict=self._config_dict,
+            in_cluster=self.in_cluster,
+            poll_interval=self.poll_interval,
+            get_logs=self.get_logs,
+            startup_timeout=self.startup_timeout_seconds,
+            startup_check_interval=self.startup_check_interval_seconds,
+            schedule_timeout=self.schedule_timeout_seconds,
+            base_container_name=self.base_container_name,
+            on_finish_action=self.on_finish_action.value,
+            last_log_time=last_log_time,
+            logging_interval=self.logging_interval,
+            trigger_kwargs=self.trigger_kwargs,
+
         )
+        container_state = trigger.define_container_state(self.pod)
+        if container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED:
+            self.log.info("Skipping defferal as pod is already in a terminal state")
+            self.trigger_reentry(
+                context=context,
+                event={
+                    "status": "success" if container_state == ContainerState.TERMINATED else "failed",
+                    "namespace": self.pod.metadata.namespace,
+                    "name": self.pod.metadata.name,
+                    "message": "Container succeeded"
+                    if container_state == ContainerState.TERMINATED
+                    else "Container failed",
+                    "last_log_time": last_log_time,
+                    **(self.trigger_kwargs or {}),
+                },
+            )
+            return
+
+        self.defer(trigger, method_name="trigger_reentry")
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
