@@ -34,4 +34,14 @@ UI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze ui check-unused-translations": [
+        {
+            "name": "Unused translation options",
+            "options": [
+                "--namespace",
+                "--show-used",
+                "--remove-unused",
+            ],
+        },
+    ],
 }

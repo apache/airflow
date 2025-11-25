@@ -71,5 +71,43 @@ Example usage:
 
 -----
 
+Check for unused translations
+""""""""""""""""""""""""""""""
+
+To find translation keys that are defined but no longer used in the UI source code, you can run the
+``breeze ui check-unused-translations`` command. This command helps maintain clean translation files by:
+
+* Statically analyzing TypeScript/JavaScript source files to find all used translation keys.
+* Comparing used keys against the defined keys in the ``en`` locale JSON files.
+* Identifying and reporting keys that are defined but never used.
+* Detecting dynamic key patterns (e.g., ``states.${state}``) to avoid false positives.
+* Optionally removing all unused keys from translation files in all languages.
+
+These are all available flags of ``check-unused-translations`` command:
+
+.. image:: ./images/output_ui_check-unused-translations.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_ui_check-unused-translations.svg
+  :width: 100%
+  :alt: Breeze check unused translations
+
+Example usage:
+
+.. code-block:: bash
+
+     # Check all namespaces for unused keys
+     breeze ui check-unused-translations
+
+     # Check a specific namespace
+     breeze ui check-unused-translations --namespace dags
+
+     # Also show keys that are correctly used
+     breeze ui check-unused-translations --show-used
+
+     # Automatically remove all found unused keys from all locale files
+     breeze ui check-unused-translations --remove-unused
+
+
+-----
+
 Next step: Follow the `Advanced Breeze topics <11_advanced_breeze_topics.rst>`__ instructions to learn more
 about advanced Breeze topics and internals.
