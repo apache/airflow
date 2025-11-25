@@ -469,31 +469,33 @@ class DataFusionHook(GoogleBaseHook):
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
-        # TODO: This API endpoint starts multiple pipelines. There will eventually be a fix
-        #  return the run Id as part of the API request to run a single pipeline.
-        #  https://github.com/apache/airflow/pull/8954#discussion_r438223116
+        # Use the single-program start endpoint for better error handling
+        # https://cdap.atlassian.net/wiki/spaces/DOCS/pages/477560983/Lifecycle+Microservices#Start-a-Program
+        program_type = self.cdap_program_type(pipeline_type=pipeline_type)
+        program_id = self.cdap_program_id(pipeline_type=pipeline_type)
         url = os.path.join(
-            instance_url,
-            "v3",
-            "namespaces",
-            quote(namespace),
+            self._base_url(instance_url, namespace),
+            quote(pipeline_name),
+            f"{program_type}s",
+            program_id,
             "start",
         )
         runtime_args = runtime_args or {}
-        body = [
-            {
-                "appId": pipeline_name,
-                "runtimeargs": runtime_args,
-                "programType": self.cdap_program_type(pipeline_type=pipeline_type),
-                "programId": self.cdap_program_id(pipeline_type=pipeline_type),
-            }
-        ]
-        response = self._cdap_request(url=url, method="POST", body=body)
+        response = self._cdap_request(url=url, method="POST", body=runtime_args)
         self._check_response_status_and_data(
             response, f"Starting a pipeline failed with code {response.status}"
         )
         response_json = json.loads(response.data)
-        return response_json[0]["runId"]
+
+        # Extract and validate runId from response
+        if "runId" not in response_json:
+            error_message = response_json.get("error", "Unknown error")
+            raise AirflowException(
+                f"Failed to start pipeline '{pipeline_name}'. "
+                f"The response does not contain a runId. Error: {error_message}"
+            )
+
+        return str(response_json["runId"])
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """
