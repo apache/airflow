@@ -6880,6 +6880,31 @@ export const $XComUpdateBody = {
     description: 'Payload serializer for updating an XCom entry.'
 } as const;
 
+export const $AuthenticatedMeResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        },
+        extras: {
+            additionalProperties: {
+                type: 'string'
+            },
+            type: 'object',
+            title: 'Extras',
+            default: {}
+        }
+    },
+    type: 'object',
+    required: ['id', 'username'],
+    title: 'AuthenticatedMeResponse',
+    description: 'Authenticated user information serializer for responses.'
+} as const;
+
 export const $BaseEdgeResponse = {
     properties: {
         source_id: {
@@ -7650,56 +7675,6 @@ export const $ExtraMenuItem = {
     title: 'ExtraMenuItem'
 } as const;
 
-export const $FabAuthenticatedMeResponse = {
-    properties: {
-        id: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'string'
-                }
-            ],
-            title: 'Id'
-        },
-        first_name: {
-            type: 'string',
-            title: 'First Name'
-        },
-        last_name: {
-            type: 'string',
-            title: 'Last Name'
-        },
-        username: {
-            type: 'string',
-            title: 'Username'
-        },
-        email: {
-            type: 'string',
-            title: 'Email'
-        },
-        roles: {
-            anyOf: [
-                {
-                    items: {
-                        type: 'string'
-                    },
-                    type: 'array'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Roles'
-        }
-    },
-    type: 'object',
-    required: ['id', 'first_name', 'last_name', 'username', 'email'],
-    title: 'FabAuthenticatedMeResponse',
-    description: 'Current User (me) response serializer for FAB auth.'
-} as const;
-
 export const $GridNodeResponse = {
     properties: {
         id: {
@@ -8054,30 +8029,6 @@ export const $NodeResponse = {
     required: ['id', 'label', 'type'],
     title: 'NodeResponse',
     description: 'Node serializer for responses.'
-} as const;
-
-export const $SimpleAuthenticatedMeResponse = {
-    properties: {
-        username: {
-            type: 'string',
-            title: 'Username'
-        },
-        role: {
-            anyOf: [
-                {
-                    type: 'string'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            title: 'Role'
-        }
-    },
-    type: 'object',
-    required: ['username', 'role'],
-    title: 'SimpleAuthenticatedMeResponse',
-    description: 'Current User (me) response serializer for SimpleAuth.'
 } as const;
 
 export const $StandardHookFields = {

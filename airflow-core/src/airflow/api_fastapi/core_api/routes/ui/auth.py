@@ -20,9 +20,8 @@ from __future__ import annotations
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
-    FabAuthenticatedMeResponse,
+    AuthenticatedMeResponse,
     MenuItemCollectionResponse,
-    SimpleAuthenticatedMeResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 
@@ -43,24 +42,14 @@ def get_auth_menus(
 
 
 @auth_router.get("/auth/me")
-def get_current_user(
+def get_current_user_info(
     user: GetUserDep,
-) -> SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse:
+) -> AuthenticatedMeResponse:
     """Get current authenticated user information."""
-    auth_manager = get_auth_manager()
-    if auth_manager.get_auth_manager_type() == "SimpleAuthManager":
-        return SimpleAuthenticatedMeResponse(
-            username=user.username or "",
-            role=user.role or "",
-        )
+    current_user = get_auth_manager().serialize_user(user=user)
 
-    if auth_manager.get_auth_manager_type() == "FabAuthManager":
-        return FabAuthenticatedMeResponse(
-            id=user.id or "",
-            first_name=user.first_name or "",
-            last_name=user.last_name or "",
-            username=user.username or "",
-            email=user.email or "",
-            roles=[str(r) for r in user.roles] if user.roles is not None else None,
-        )
-    raise NotImplementedError("Unsupported auth manager type for /ui/auth/me endpoint")
+    return AuthenticatedMeResponse(
+        id=user.get_id(),
+        username=user.get_name(),
+        extras={k: v for k, v in current_user.items()},
+    )

@@ -773,10 +773,10 @@ export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<ReturnType<typ
 export type AuthLinksServiceGetAuthMenusQueryResult<TData = AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";
 export const UseAuthLinksServiceGetAuthMenusKeyFn = (queryKey?: Array<unknown>) => [useAuthLinksServiceGetAuthMenusKey, ...(queryKey ?? [])];
-export type AuthLinksServiceGetCurrentUserDefaultResponse = Awaited<ReturnType<typeof AuthLinksService.getCurrentUser>>;
-export type AuthLinksServiceGetCurrentUserQueryResult<TData = AuthLinksServiceGetCurrentUserDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
-export const useAuthLinksServiceGetCurrentUserKey = "AuthLinksServiceGetCurrentUser";
-export const UseAuthLinksServiceGetCurrentUserKeyFn = (queryKey?: Array<unknown>) => [useAuthLinksServiceGetCurrentUserKey, ...(queryKey ?? [])];
+export type AuthLinksServiceGetCurrentUserInfoDefaultResponse = Awaited<ReturnType<typeof AuthLinksService.getCurrentUserInfo>>;
+export type AuthLinksServiceGetCurrentUserInfoQueryResult<TData = AuthLinksServiceGetCurrentUserInfoDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAuthLinksServiceGetCurrentUserInfoKey = "AuthLinksServiceGetCurrentUserInfo";
+export const UseAuthLinksServiceGetCurrentUserInfoKeyFn = (queryKey?: Array<unknown>) => [useAuthLinksServiceGetCurrentUserInfoKey, ...(queryKey ?? [])];
 export type DependenciesServiceGetDependenciesDefaultResponse = Awaited<ReturnType<typeof DependenciesService.getDependencies>>;
 export type DependenciesServiceGetDependenciesQueryResult<TData = DependenciesServiceGetDependenciesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDependenciesServiceGetDependenciesKey = "DependenciesServiceGetDependencies";

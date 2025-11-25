@@ -28,19 +28,9 @@ class MenuItemCollectionResponse(BaseModel):
     extra_menu_items: list[ExtraMenuItem]
 
 
-class SimpleAuthenticatedMeResponse(BaseModel):
-    """Current User (me) response serializer for SimpleAuth."""
+class AuthenticatedMeResponse(BaseModel):
+    """Authenticated user information serializer for responses."""
 
+    id: str
     username: str
-    role: str | None
-
-
-class FabAuthenticatedMeResponse(BaseModel):
-    """Current User (me) response serializer for FAB auth."""
-
-    id: int | str
-    first_name: str
-    last_name: str
-    username: str
-    email: str
-    roles: list[str] | None = None
+    extras: dict[str, str] = {}

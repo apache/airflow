@@ -98,15 +98,6 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         By default, do nothing.
         """
 
-    def get_auth_manager_type(self) -> str:
-        """
-        Get the type identifier for this auth manager.
-
-        Returns the class name by default, but can be overridden by subclasses
-        for more specific type identification.
-        """
-        return self.__class__.__name__
-
     @abstractmethod
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""

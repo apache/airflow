@@ -1695,6 +1695,17 @@ export type XComUpdateBody = {
 };
 
 /**
+ * Authenticated user information serializer for responses.
+ */
+export type AuthenticatedMeResponse = {
+    id: string;
+    username: string;
+    extras?: {
+        [key: string]: (string);
+    };
+};
+
+/**
  * Base Edge serializer for responses.
  */
 export type BaseEdgeResponse = {
@@ -1903,18 +1914,6 @@ export type ExtraMenuItem = {
 };
 
 /**
- * Current User (me) response serializer for FAB auth.
- */
-export type FabAuthenticatedMeResponse = {
-    id: number | string;
-    first_name: string;
-    last_name: string;
-    username: string;
-    email: string;
-    roles?: Array<(string)> | null;
-};
-
-/**
  * Base Node serializer for responses.
  */
 export type GridNodeResponse = {
@@ -1997,14 +1996,6 @@ export type NodeResponse = {
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
-};
-
-/**
- * Current User (me) response serializer for SimpleAuth.
- */
-export type SimpleAuthenticatedMeResponse = {
-    username: string;
-    role: string | null;
 };
 
 /**
@@ -3352,7 +3343,7 @@ export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
-export type GetCurrentUserResponse = SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse;
+export type GetCurrentUserInfoResponse = AuthenticatedMeResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
@@ -6460,7 +6451,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: SimpleAuthenticatedMeResponse | FabAuthenticatedMeResponse;
+                200: AuthenticatedMeResponse;
             };
         };
     };

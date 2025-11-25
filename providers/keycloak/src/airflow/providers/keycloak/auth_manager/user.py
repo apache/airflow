@@ -33,6 +33,3 @@ class KeycloakAuthManagerUser(BaseUser):
 
     def get_name(self) -> str:
         return self.name
-
-    def get_groups(self):
-        return []

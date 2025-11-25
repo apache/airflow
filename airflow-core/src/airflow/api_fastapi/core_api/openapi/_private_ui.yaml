@@ -27,19 +27,16 @@ paths:
     get:
       tags:
       - Auth Links
-      summary: Get Current User
+      summary: Get Current User Info
       description: Get current authenticated user information.
-      operationId: get_current_user
+      operationId: get_current_user_info
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                anyOf:
-                - $ref: '#/components/schemas/SimpleAuthenticatedMeResponse'
-                - $ref: '#/components/schemas/FabAuthenticatedMeResponse'
-                title: Response Get Current User
+                $ref: '#/components/schemas/AuthenticatedMeResponse'
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
@@ -1099,6 +1096,26 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AuthenticatedMeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        username:
+          type: string
+          title: Username
+        extras:
+          additionalProperties:
+            type: string
+          type: object
+          title: Extras
+          default: {}
+      type: object
+      required:
+      - id
+      - username
+      title: AuthenticatedMeResponse
+      description: Authenticated user information serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1841,41 +1858,6 @@ components:
       - text
       - href
       title: ExtraMenuItem
-    FabAuthenticatedMeResponse:
-      properties:
-        id:
-          anyOf:
-          - type: integer
-          - type: string
-          title: Id
-        first_name:
-          type: string
-          title: First Name
-        last_name:
-          type: string
-          title: Last Name
-        username:
-          type: string
-          title: Username
-        email:
-          type: string
-          title: Email
-        roles:
-          anyOf:
-          - items:
-              type: string
-            type: array
-          - type: 'null'
-          title: Roles
-      type: object
-      required:
-      - id
-      - first_name
-      - last_name
-      - username
-      - email
-      title: FabAuthenticatedMeResponse
-      description: Current User (me) response serializer for FAB auth.
     GridNodeResponse:
       properties:
         id:
@@ -2332,22 +2314,6 @@ components:
 
 
         :meta private:'
-    SimpleAuthenticatedMeResponse:
-      properties:
-        username:
-          type: string
-          title: Username
-        role:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Role
-      type: object
-      required:
-      - username
-      - role
-      title: SimpleAuthenticatedMeResponse
-      description: Current User (me) response serializer for SimpleAuth.
     StandardHookFields:
       properties:
         description:

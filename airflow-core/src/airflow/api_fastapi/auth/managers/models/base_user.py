@@ -18,23 +18,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any
 
 
 class BaseUser:
-    """User model interface. These attributes/methods should be implemented in the pluggable auth manager."""
+    """User model interface."""
 
-    id: int | str | None
-    first_name: str | None
-    last_name: str | None
-    username: str | None
+    username: str
     role: str | None
-    email: str | None
-    active: bool | None
-    roles: list[Any] | None
 
     @abstractmethod
     def get_id(self) -> str:
@@ -44,9 +34,4 @@ class BaseUser:
     @abstractmethod
     def get_name(self) -> str:
         """Get user name."""
-        ...
-
-    @abstractmethod
-    def get_groups(self) -> list[str] | None:
-        """Get user groups."""
         ...
