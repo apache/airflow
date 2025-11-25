@@ -86,8 +86,8 @@ def _enable_tcp_keepalive() -> None:
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options
-    HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options
+    HTTPSConnection.default_socket_options = HTTPSConnection.default_socket_options + socket_options  # type: ignore[operator]
+    HTTPConnection.default_socket_options = HTTPConnection.default_socket_options + socket_options  # type: ignore[operator]
 
 
 def get_kube_client(

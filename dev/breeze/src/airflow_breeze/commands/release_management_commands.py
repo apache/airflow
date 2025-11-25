@@ -136,7 +136,6 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_DIR,
     AIRFLOW_SOURCES_ROOT,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
@@ -233,8 +232,8 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.16"
+AIRFLOW_PIP_VERSION = "25.3"
+AIRFLOW_UV_VERSION = "0.9.11"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
@@ -871,43 +870,23 @@ def prepare_provider_packages(
             get_console().print()
             with ci_group(f"Preparing provider package [special]{provider_id}"):
                 get_console().print()
-                new_provider_root_dir = AIRFLOW_PROVIDERS_DIR.joinpath(*provider_id.split("."))
-                if (new_provider_root_dir / "provider.yaml").exists():
-                    get_console().print(
-                        f"[info]Provider {provider_id} is a new-style provider. "
-                        f"Skipping package generation as it is not needed for new-style providers."
-                    )
-                    cleanup_build_remnants(new_provider_root_dir)
-                    build_provider_package(
-                        provider_id=provider_id,
-                        package_format=package_format,
-                        target_provider_root_sources_path=new_provider_root_dir,
-                    )
-                    move_built_packages_and_cleanup(
-                        new_provider_root_dir,
-                        DIST_DIR,
-                        skip_cleanup=skip_deleting_generated_files,
-                        delete_only_build_and_dist_folders=True,
-                    )
-                else:
-                    # TODO(potiuk) - remove this once all providers are new-style
-                    target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
-                    generate_build_files(
-                        provider_id=provider_id,
-                        version_suffix=package_version,
-                        target_provider_root_sources_path=target_provider_root_sources_path,
-                    )
-                    cleanup_build_remnants(target_provider_root_sources_path)
-                    build_provider_package(
-                        provider_id=provider_id,
-                        package_format=package_format,
-                        target_provider_root_sources_path=target_provider_root_sources_path,
-                    )
-                    move_built_packages_and_cleanup(
-                        target_provider_root_sources_path,
-                        DIST_DIR,
-                        skip_cleanup=skip_deleting_generated_files,
-                    )
+                target_provider_root_sources_path = copy_provider_sources_to_target(provider_id)
+                generate_build_files(
+                    provider_id=provider_id,
+                    version_suffix=package_version,
+                    target_provider_root_sources_path=target_provider_root_sources_path,
+                )
+                cleanup_build_remnants(target_provider_root_sources_path)
+                build_provider_package(
+                    provider_id=provider_id,
+                    package_format=package_format,
+                    target_provider_root_sources_path=target_provider_root_sources_path,
+                )
+                move_built_packages_and_cleanup(
+                    target_provider_root_sources_path,
+                    DIST_DIR,
+                    skip_cleanup=skip_deleting_generated_files,
+                )
         except PrepareReleasePackageTagExistException:
             skipped_as_already_released_packages.append(provider_id)
         except PrepareReleasePackageWrongSetupException:

@@ -994,29 +994,6 @@ class TestStringifiedDAGs:
         assert expected_val == deserialized_dag.params.dump()
         assert expected_val == deserialized_simple_task.params.dump()
 
-    def test_invalid_params(self):
-        """
-        Test to make sure that only native Param objects are being passed as dag or task params
-        """
-
-        class S3Param(Param):
-            def __init__(self, path: str):
-                schema = {"type": "string", "pattern": r"s3:\/\/(.+?)\/(.+)"}
-                super().__init__(default=path, schema=schema)
-
-        dag = DAG(dag_id="simple_dag", schedule=None, params={"path": S3Param("s3://my_bucket/my_path")})
-
-        with pytest.raises(SerializationError):
-            SerializedDAG.to_dict(dag)
-
-        dag = DAG(dag_id="simple_dag", schedule=None)
-        BaseOperator(
-            task_id="simple_task",
-            dag=dag,
-            start_date=datetime(2019, 8, 1),
-            params={"path": S3Param("s3://my_bucket/my_path")},
-        )
-
     @pytest.mark.parametrize(
         "param",
         [

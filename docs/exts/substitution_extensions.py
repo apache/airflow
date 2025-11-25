@@ -63,7 +63,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
             return isinstance(node, (nodes.literal_block, nodes.literal))
 
         for node in self.document.traverse(condition):
-            if _SUBSTITUTION_OPTION_NAME not in node:
+            if _SUBSTITUTION_OPTION_NAME not in node:  # type: ignore
                 continue
 
             # Some nodes don't have a direct document property, so walk up until we find it
@@ -78,11 +78,11 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
                 old_child = child
                 for name, value in substitution_defs.items():
                     replacement = value.astext()
-                    child = nodes.Text(child.replace(f"|{name}|", replacement))
-                node.replace(old_child, child)
+                    child = nodes.Text(child.replace(f"|{name}|", replacement))  # type: ignore
+                node.replace(old_child, child)  # type: ignore
 
             # The highlighter checks this -- without this, it will refuse to apply highlighting
-            node.rawsource = node.astext()
+            node.rawsource = node.astext()  # type: ignore
 
 
 def substitution_code_role(*args, **kwargs) -> tuple[list, list[Any]]:

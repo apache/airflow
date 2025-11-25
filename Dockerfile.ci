@@ -911,7 +911,7 @@ function check_boto_upgrade() {
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.0,!=2.32.1,!=2.32.2,<3.0.0,>=2.24.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.0,!=2.32.1,!=2.32.2,<3.0.0,>=2.24.0" "cffi<2.0.0"
     set +x
     pip check
 }
@@ -1249,9 +1249,9 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.1.1
+ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.7.16
+ARG AIRFLOW_UV_VERSION=0.9.11
 # TODO(potiuk): automate with upgrade check (possibly)
 ARG AIRFLOW_PRE_COMMIT_VERSION="3.5.0"
 
