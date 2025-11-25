@@ -179,6 +179,9 @@ class TestLocalExecutor:
         executor = LocalExecutor(parallelism=2)
         executor.start()
 
+        # We want to ensure we start a worker process, as we now only create them on demand
+        executor._spawn_worker()
+
         try:
             os.kill(os.getpid(), signal.SIGINT)
         except KeyboardInterrupt:
