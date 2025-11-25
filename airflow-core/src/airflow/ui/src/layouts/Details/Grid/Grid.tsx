@@ -45,18 +45,27 @@ dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
+  readonly ganttHoverRowRef?: React.RefObject<HTMLDivElement>;
+  readonly hoverRowRef: React.RefObject<HTMLDivElement>;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  ganttHoverRowRef,
+  hoverRowRef,
+  limit,
+  runType,
+  showGantt,
+  triggeringUser,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
-  // Overlay refs for hover highlighting (direct DOM manipulation for zero latency)
-  const hoverRowRef = useRef<HTMLDivElement>(null);
+  // Overlay ref for column highlighting (direct DOM manipulation for zero latency)
   const hoverColRef = useRef<HTMLDivElement>(null);
 
   // Overlay refs for keyboard navigation highlighting
@@ -200,8 +209,17 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
       setRefTransform(hoverRowRef, `translateY(${rowY}px)`);
       setRefOpacity(hoverRowRef, "1");
+
+      // Also update Gantt's overlay if provided
+      if (ganttHoverRowRef) {
+        setRefTransform(ganttHoverRowRef, `translateY(${rowY}px)`);
+        setRefOpacity(ganttHoverRowRef, "1");
+      }
     } else {
       setRefOpacity(hoverRowRef, "0");
+      if (ganttHoverRowRef) {
+        setRefOpacity(ganttHoverRowRef, "0");
+      }
     }
 
     // Validate and update column highlight (for Bar + Cells)
@@ -220,6 +238,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const handleMouseLeave = () => {
     setRefOpacity(hoverRowRef, "0");
     setRefOpacity(hoverColRef, "0");
+    if (ganttHoverRowRef) {
+      setRefOpacity(ganttHoverRowRef, "0");
+    }
   };
 
   return (

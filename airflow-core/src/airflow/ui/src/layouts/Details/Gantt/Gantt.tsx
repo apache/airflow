@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines -- Gantt chart component with hover synchronization logic */
 import { Box, useToken } from "@chakra-ui/react";
 import {
   Chart as ChartJS,
@@ -42,7 +44,6 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { useColorMode } from "src/context/colorMode";
-import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 import { useTimezone } from "src/context/timezone";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
@@ -71,6 +72,8 @@ ChartJS.register(
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
+  readonly gridHoverRowRef?: React.RefObject<HTMLDivElement>;
+  readonly hoverRowRef: React.RefObject<HTMLDivElement>;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly triggeringUser?: string | undefined;
@@ -80,28 +83,33 @@ const CHART_PADDING = 36;
 const CHART_ROW_HEIGHT = 20;
 const MIN_BAR_WIDTH = 10;
 
-export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) => {
+export const Gantt = ({
+  dagRunState,
+  gridHoverRowRef,
+  hoverRowRef,
+  limit,
+  runType,
+  triggeringUser,
+}: Props) => {
   const { dagId = "", groupId: selectedGroupId, runId = "", taskId: selectedTaskId } = useParams();
   const { openGroupIds } = useOpenGroups();
   const deferredOpenGroupIds = useDeferredValue(openGroupIds);
   const { t: translate } = useTranslation("common");
   const { selectedTimezone } = useTimezone();
   const { colorMode } = useColorMode();
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [
-    lightGridColor,
-    darkGridColor,
-    lightSelectedColor,
-    darkSelectedColor,
-    lightHoverColor,
-    darkHoverColor,
-  ] = useToken("colors", ["gray.200", "gray.800", "blue.200", "blue.800", "blue.100", "blue.900"]);
+  const [lightGridColor, darkGridColor, lightSelectedColor, darkSelectedColor] = useToken("colors", [
+    "gray.200",
+    "gray.800",
+    "blue.200",
+    "blue.800",
+    "blue.100",
+    "blue.900",
+  ]);
   const gridColor = colorMode === "light" ? lightGridColor : darkGridColor;
   const selectedItemColor = colorMode === "light" ? lightSelectedColor : darkSelectedColor;
-  const hoveredItemColor = colorMode === "light" ? lightHoverColor : darkHoverColor;
 
   const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
@@ -239,8 +247,14 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   );
 
   const handleBarHover = useMemo(
-    () => createHandleBarHover(data, setHoveredTaskId),
-    [data, setHoveredTaskId],
+    () =>
+      createHandleBarHover({
+        data,
+        gridHoverRowRef,
+        hoverRowRef,
+        rowHeight: CHART_ROW_HEIGHT,
+      }),
+    [data, hoverRowRef, gridHoverRowRef],
   );
 
   const chartOptions = useMemo(
@@ -250,8 +264,6 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
         gridColor,
         handleBarClick,
         handleBarHover,
-        hoveredId: hoveredTaskId,
-        hoveredItemColor,
         selectedId,
         selectedItemColor,
         selectedRun,
@@ -260,8 +272,6 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
       }),
     [
       data,
-      hoveredTaskId,
-      hoveredItemColor,
       selectedId,
       selectedItemColor,
       gridColor,
@@ -278,18 +288,39 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   }
 
   const handleChartMouseLeave = () => {
-    setHoveredTaskId(undefined);
-
-    // Clear all hover styles when mouse leaves the chart area
-    const allTasks = document.querySelectorAll<HTMLDivElement>('[id*="-"]');
-
-    allTasks.forEach((task) => {
-      task.style.backgroundColor = "";
-    });
+    // Hide hover overlays
+    if (hoverRowRef.current) {
+      hoverRowRef.current.style.opacity = "0";
+    }
+    if (gridHoverRowRef?.current) {
+      gridHoverRowRef.current.style.opacity = "0";
+    }
   };
 
   return (
-    <Box height={`${fixedHeight}px`} minW="250px" ml={-2} onMouseLeave={handleChartMouseLeave} w="100%">
+    <Box
+      height={`${fixedHeight}px`}
+      minW="250px"
+      ml={-2}
+      onMouseLeave={handleChartMouseLeave}
+      position="relative"
+      w="100%"
+    >
+      {/* Local hover overlay for Gantt - binds to hoverRowRef from parent */}
+      <Box
+        bg="blue.500/20"
+        height={`${CHART_ROW_HEIGHT}px`}
+        left={0}
+        opacity={0}
+        pointerEvents="none"
+        position="absolute"
+        ref={hoverRowRef}
+        right={0}
+        top={`${CHART_PADDING}px`}
+        transition="transform 0.05s linear, opacity 0.1s ease-out"
+        willChange="transform, opacity"
+        zIndex={-1}
+      />
       <Bar
         data={chartData}
         options={chartOptions}

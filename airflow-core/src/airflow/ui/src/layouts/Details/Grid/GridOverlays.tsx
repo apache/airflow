@@ -44,7 +44,16 @@ export const GridOverlays = ({
   const cellsTop = GRID_PADDING_TOP + BAR_HEADER_HEIGHT;
 
   return (
-    <>
+    <Box
+      bottom={0}
+      isolation="isolate"
+      left={0}
+      pointerEvents="none"
+      position="absolute"
+      right={0}
+      top={0}
+      zIndex={0}
+    >
       {/* Hover overlays - GPU composited for zero latency */}
       <Box
         bg="blue.500/20"
@@ -58,7 +67,7 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width="100%"
         willChange="transform, opacity"
-        zIndex={1}
+        zIndex={0}
       />
       <Box
         bg="blue.500/20"
@@ -72,7 +81,7 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={1}
+        zIndex={0}
       />
 
       {/* Navigation overlays - for keyboard navigation */}
@@ -88,7 +97,7 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width="100%"
         willChange="transform, opacity"
-        zIndex={2}
+        zIndex={0}
       />
       <Box
         bg="blue.500/20"
@@ -102,7 +111,7 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={2}
+        zIndex={0}
       />
       <Box
         border="2px solid"
@@ -118,8 +127,8 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={3}
+        zIndex={0}
       />
-    </>
+    </Box>
   );
 };
