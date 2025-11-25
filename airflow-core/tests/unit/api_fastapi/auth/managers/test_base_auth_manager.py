@@ -54,7 +54,7 @@ class BaseAuthManagerUserTest(BaseUser):
         return self.name
 
     def get_name(self) -> str:
-        return self.name or "unknown"
+        return self.name
 
 
 class EmptyAuthManager(BaseAuthManager[BaseAuthManagerUserTest]):
