@@ -33,4 +33,4 @@ class AuthenticatedMeResponse(BaseModel):
 
     id: str
     username: str
-    extras: dict[str, str] = {}
+    ui_attributes: dict[str, str] = {}

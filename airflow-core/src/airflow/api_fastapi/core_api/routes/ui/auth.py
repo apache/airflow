@@ -51,5 +51,6 @@ def get_current_user_info(
     return AuthenticatedMeResponse(
         id=user.get_id(),
         username=user.get_name(),
-        extras={k: v for k, v in current_user.items()},
+        # Exclude any token-like information from being included in the response
+        ui_attributes={k: v for k, v in current_user.items() if "token" not in k.lower()},
     )

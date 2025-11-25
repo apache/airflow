@@ -69,7 +69,7 @@ class TestGetMeResponse:
         assert response.json() == {
             "username": "test",
             "id": "test",
-            "extras": {"sub": "test", "role": "admin"},
+            "ui_attributes": {"sub": "test", "role": "admin"},
         }
 
     def test_with_unauthenticated_user(self, unauthenticated_test_client):
