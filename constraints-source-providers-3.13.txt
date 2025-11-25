@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-25T07:47:31.762624
+# This constraints file was automatically generated on 2025-11-25T13:53:33.078708
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -321,7 +321,7 @@ joserfc==1.4.3
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
-jsonpath-python==1.1.1
+jsonpath-python==1.1.4
 jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.9.1
