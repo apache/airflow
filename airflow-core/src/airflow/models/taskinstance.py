@@ -1301,7 +1301,11 @@ class TaskInstance(Base, LoggingMixin):
         if taskrun_result is None:
             return None
         if taskrun_result.error:
-            raise taskrun_result.error
+            from airflow.exceptions import AirflowTaskTerminated
+
+            # Don't re-raise AirflowTaskTerminated
+            if not isinstance(taskrun_result.error, AirflowTaskTerminated):
+                raise taskrun_result.error
         self.task = taskrun_result.ti.task  # type: ignore[assignment]
         return None
 

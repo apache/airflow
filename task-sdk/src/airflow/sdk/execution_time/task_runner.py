@@ -82,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskExecutionTimeout,
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
@@ -819,6 +820,12 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     # update the value of the task that is sent from there
     context["task"] = ti.task
 
+    # Send execution timeout to supervisor so it can handle timeout in parent process
+    if ti.task.execution_timeout:
+        timeout_seconds = ti.task.execution_timeout.total_seconds()
+        log.debug("Sending execution_timeout to supervisor", timeout_seconds=timeout_seconds)
+        SUPERVISOR_COMMS.send(msg=SetTaskExecutionTimeout(execution_timeout_seconds=timeout_seconds))
+
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
 
@@ -921,6 +928,8 @@ def run(
             return
 
         ti.task.on_kill()
+        # Raise exception to cause task to exit gracefully after cleanup
+        raise AirflowTaskTerminated("Task terminated by timeout")
 
     signal.signal(signal.SIGTERM, _on_term)
 
@@ -1314,23 +1323,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    # Timeout is now handled by the supervisor process, not in the task process
+    result = ctx.run(execute, context=context)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
