@@ -3208,12 +3208,6 @@ export type LoginResponse = unknown;
 
 export type LogoutResponse = unknown;
 
-export type RefreshData = {
-    next?: string | null;
-};
-
-export type RefreshResponse = unknown;
-
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
 export type GetDependenciesData = {
@@ -6281,25 +6275,6 @@ export type $OpenApiTs = {
                  * Temporary Redirect
                  */
                 307: HTTPExceptionResponse;
-            };
-        };
-    };
-    '/api/v2/auth/refresh': {
-        get: {
-            req: RefreshData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Temporary Redirect
-                 */
-                307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };

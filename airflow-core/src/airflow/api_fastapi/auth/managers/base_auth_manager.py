@@ -135,12 +135,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
         return None
 
-    def get_url_refresh(self) -> str | None:
+    def refresh_user(self, *, user: T) -> T | None:
         """
-        Return the URL to refresh the authentication token.
+        Refresh the user if needed.
 
-        This is used to refresh the authentication token when it expires.
-        The default implementation returns None, which means that the auth manager does not support refresh token.
+        By default, does nothing. Some auth managers might need to refresh the user to, for instance,
+        refresh some tokens that are needed to communicate with a service/tool.
+
+        This method is called by every single request, it must be lightweight otherwise the overall API
+        server latency will increase.
         """
         return None
 
