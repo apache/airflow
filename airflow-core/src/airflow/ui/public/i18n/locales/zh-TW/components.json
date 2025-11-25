@@ -53,7 +53,7 @@
     "validation": {
       "invalidDateFormat": "無效的日期格式",
       "invalidTimeFormat": "無效的時間格式",
-      "startBeforeEnd": "開始日期/時間必須在結束日期/時間之前"
+      "startBeforeEnd": "開始時間必須在結束時間之前"
     }
   },
   "durationChart": {
