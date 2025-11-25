@@ -1594,6 +1594,7 @@ export type VariableBody = {
     key: string;
     value: JsonValue;
     description?: string | null;
+    team_id?: string | null;
 };
 
 /**
@@ -1612,6 +1613,7 @@ export type VariableResponse = {
     value: string;
     description: string | null;
     is_encrypted: boolean;
+    team_id: string | null;
 };
 
 /**
@@ -2883,6 +2885,10 @@ export type GetTaskInstancesData = {
     runAfterGte?: string | null;
     runAfterLt?: string | null;
     runAfterLte?: string | null;
+    /**
+     * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     */
+    runIdPattern?: string | null;
     startDateGt?: string | null;
     startDateGte?: string | null;
     startDateLt?: string | null;
@@ -3323,10 +3329,6 @@ export type LoginData = {
 };
 
 export type LoginResponse = unknown;
-
-export type LogoutData = {
-    next?: string | null;
-};
 
 export type LogoutResponse = unknown;
 
@@ -6405,7 +6407,6 @@ export type $OpenApiTs = {
     };
     '/api/v2/auth/logout': {
         get: {
-            req: LogoutData;
             res: {
                 /**
                  * Successful Response
@@ -6415,10 +6416,6 @@ export type $OpenApiTs = {
                  * Temporary Redirect
                  */
                 307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };

@@ -20,6 +20,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest import mock
 
 import httpx
 from datamodel_code_generator import (
@@ -75,6 +76,7 @@ def load_config():
     return cfg
 
 
+@mock.patch("fastapi._compat.v2.get_long_model_name", lambda model: model.__name__)
 def generate_file():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
