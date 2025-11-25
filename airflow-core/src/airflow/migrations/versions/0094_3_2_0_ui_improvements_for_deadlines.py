@@ -97,8 +97,8 @@ def upgrade() -> None:
 
     with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.add_column(sa.Column("deadline_alert_id", UUIDType(binary=False), nullable=True))
-        batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=False))
-        batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=False))
+        batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=True))
+        batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=True))
         batch_op.create_foreign_key(
             batch_op.f("deadline_deadline_alert_id_fkey"),
             "deadline_alert",
