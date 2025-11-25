@@ -114,6 +114,7 @@ class FileGroupForCi(Enum):
     SYSTEM_TEST_FILES = auto()
     KUBERNETES_FILES = auto()
     TASK_SDK_FILES = auto()
+    TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
@@ -281,6 +282,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES: [
+            r"^task-sdk-integration-tests/.*\.py$",
         ],
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
@@ -877,6 +881,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
+    def run_task_sdk_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES) or self._should_be_run(
+            FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES
+        )
+
+    @cached_property
     def run_go_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.GO_SDK_FILES)
 
@@ -943,7 +953,7 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.run_helm_tests
+        return self.run_kubernetes_tests or self.run_helm_tests or self.run_task_sdk_integration_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
