@@ -1454,14 +1454,10 @@ export const ensureUseLoginServiceLoginData = (queryClient: QueryClient, { next 
 /**
 * Logout
 * Logout the user.
-* @param data The data for the request.
-* @param data.next
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }), queryFn: () => LoginService.logout({ next }) });
+export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLogoutKeyFn(), queryFn: () => LoginService.logout() });
 /**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response

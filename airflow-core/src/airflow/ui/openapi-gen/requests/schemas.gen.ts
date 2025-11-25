@@ -6559,6 +6559,18 @@ export const $VariableBody = {
                 }
             ],
             title: 'Description'
+        },
+        team_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Id'
         }
     },
     additionalProperties: false,
@@ -6612,10 +6624,22 @@ export const $VariableResponse = {
         is_encrypted: {
             type: 'boolean',
             title: 'Is Encrypted'
+        },
+        team_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Id'
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted'],
+    required: ['key', 'value', 'description', 'is_encrypted', 'team_id'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;

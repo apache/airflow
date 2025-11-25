@@ -289,6 +289,9 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
+
+    # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:
