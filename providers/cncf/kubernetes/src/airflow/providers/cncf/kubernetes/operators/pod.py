@@ -911,7 +911,7 @@ class KubernetesPodOperator(BaseOperator):
         )
         container_state = trigger.define_container_state(self.pod)
         if container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED:
-            self.log.info("Skipping defferal as pod is already in a terminal state")
+            self.log.info("Skipping deferral as pod is already in a terminal state")
             self.trigger_reentry(
                 context=context,
                 event={
@@ -927,7 +927,7 @@ class KubernetesPodOperator(BaseOperator):
             )
             return
 
-        self.defer(trigger, method_name="trigger_reentry")
+        self.defer(trigger=trigger, method_name="trigger_reentry")
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
