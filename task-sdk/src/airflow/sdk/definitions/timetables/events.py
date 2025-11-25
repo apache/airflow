@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 
-@attrs.define
+@attrs.define(init=False)
 class EventsTimetable(BaseTimetable):
     """
     Timetable that schedules DAG runs at specific listed datetimes.
@@ -61,7 +61,7 @@ class EventsTimetable(BaseTimetable):
         presorted: bool = False,
         description: str | None = None,
     ) -> None:
-        self.__attrs_init__(
+        self.__attrs_init__(  # type: ignore[attr-defined]
             sorted(event_dates) if presorted else list(event_dates),
             restrict_to_events=restrict_to_events,
             description=description,

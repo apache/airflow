@@ -237,16 +237,19 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
+def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
-    dag_model: DagModel | None = session.get(DagModel, dag.dag_id)
+    from airflow.serialization.decoders import decode_timetable
+    from airflow.serialization.encoders import encode_timetable
+
+    core_timetable = decode_timetable(encode_timetable(dag.timetable))
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "bundle_name": dag_model.bundle_name if dag_model else None,
-        "bundle_version": dag_model.bundle_version if dag_model else None,
-        "is_paused": dag_model.is_paused if dag_model else None,
-        "is_stale": dag_model.is_stale if dag_model else None,
+        "bundle_name": None,
+        "bundle_version": None,
+        "is_paused": None,
+        "is_stale": None,
         "last_parsed_time": None,
         "last_parse_duration": None,
         "last_expired": None,
@@ -255,8 +258,8 @@ def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
         "file_token": None,
         "owners": dag.owner,
         "description": dag.description,
-        "timetable_summary": dag.timetable.summary,
-        "timetable_description": dag.timetable.description,
+        "timetable_summary": core_timetable.summary,
+        "timetable_description": core_timetable.description,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
@@ -401,11 +404,10 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         )
 
     def get_dag_detail(dag: DAG) -> dict:
-        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        if dag_model:
+        if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
-            dag_detail = _get_dagbag_dag_details(dag, session)
+            dag_detail = _get_dagbag_dag_details(dag)
         if not cols:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}

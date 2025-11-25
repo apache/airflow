@@ -45,10 +45,10 @@ class DeltaTriggerTimetable(DeltaMixin, BaseTimetable):
     :param interval: The data interval of each run. Default is 0.
     """
 
-    _interval: datetime.timedelta | relativedelta = attrs.field(kw_only=True, default=datetime.timedelta())
+    interval: datetime.timedelta | relativedelta = attrs.field(kw_only=True, default=datetime.timedelta())
 
 
-@attrs.define(kw_only=True)
+@attrs.define
 class CronTriggerTimetable(CronMixin, BaseTimetable):
     """
     Timetable that triggers DAG runs according to a cron expression.
@@ -81,11 +81,11 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
       until the next hour.
     """
 
-    interval: datetime.timedelta | relativedelta = attrs.field(default=datetime.timedelta())
-    run_immediately: bool | datetime.timedelta = False
+    interval: datetime.timedelta | relativedelta = attrs.field(kw_only=True, default=datetime.timedelta())
+    run_immediately: bool | datetime.timedelta = attrs.field(kw_only=True, default=False)
 
 
-@attrs.define
+@attrs.define(init=False)
 class MultipleCronTriggerTimetable(BaseTimetable):
     """
     Timetable that triggers DAG runs according to multiple cron expressions.
@@ -97,7 +97,7 @@ class MultipleCronTriggerTimetable(BaseTimetable):
     timetable fires at the same time.
     """
 
-    _timetables: list[CronTriggerTimetable]
+    timetables: list[CronTriggerTimetable]
 
     def __init__(
         self,
@@ -108,7 +108,7 @@ class MultipleCronTriggerTimetable(BaseTimetable):
     ) -> None:
         if not crons:
             raise ValueError("cron expression required")
-        self.__attrs_init__(
+        self.__attrs_init__(  # type: ignore[attr-defined]
             [
                 CronTriggerTimetable(cron, timezone, interval=interval, run_immediately=run_immediately)
                 for cron in crons

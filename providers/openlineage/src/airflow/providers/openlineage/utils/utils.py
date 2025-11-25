@@ -662,16 +662,16 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: DAG) -> str | None:
+    def timetable_summary(cls, dag: SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
-        if getattr(dag, "timetable_summary", None):
-            return dag.timetable_summary
-        if getattr(dag, "timetable", None):
-            return dag.timetable.summary
+        if summary := getattr(dag, "timetable_summary", None):
+            return summary
+        if timetable := getattr(dag, "timetable", None):
+            return timetable.summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
         serialized = dag.timetable.serialize() or {}
 

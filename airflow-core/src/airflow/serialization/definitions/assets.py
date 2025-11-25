@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,24 +18,10 @@
 
 from __future__ import annotations
 
-import datetime
-from typing import TYPE_CHECKING
-
-import attrs
-
-from airflow.sdk.exceptions import AirflowTimetableInvalid
-
-if TYPE_CHECKING:
-    from dateutil.relativedelta import relativedelta
+from airflow.sdk import AssetWatcher  # TODO: Implement serialized assets.
 
 
-@attrs.define
-class DeltaMixin:
-    """Mixin to provide interface to work with timedelta and relativedelta."""
+class SerializedAssetWatcher(AssetWatcher):
+    """JSON serializable representation of an asset watcher."""
 
-    delta: datetime.timedelta | relativedelta
-
-    def validate(self) -> None:
-        now = datetime.datetime.now()
-        if (now + self.delta) <= now:
-            raise AirflowTimetableInvalid(f"schedule interval must be positive, not {self.delta!r}")
+    trigger: dict

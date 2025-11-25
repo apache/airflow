@@ -2395,9 +2395,16 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
+    from airflow.serialization.decoders import decode_timetable
+    from airflow.serialization.encoders import encode_timetable
     from airflow.timetables.base import TimeRestriction
 
     timezone = _import_timezone()
+
+    def _convert_timetable(timetable):
+        if not timetable:
+            return None
+        return decode_timetable(encode_timetable(timetable))
 
     def _create_task_instance(
         task: Operator,
@@ -2445,14 +2452,14 @@ def create_runtime_ti(mocked_parse):
         data_interval_start = None
         data_interval_end = None
 
-        if task.dag.timetable:
+        if timetable := _convert_timetable(task.dag.timetable):
             if run_type == DagRunType.MANUAL:
                 if logical_date is not None:
-                    data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
+                    data_interval_start, data_interval_end = timetable.infer_manual_data_interval(
                         run_after=logical_date,
                     )
             else:
-                drinfo = task.dag.timetable.next_dagrun_info(
+                drinfo = timetable.next_dagrun_info(
                     last_automated_data_interval=None,
                     restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
                 )

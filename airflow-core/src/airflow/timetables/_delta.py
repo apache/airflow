@@ -21,7 +21,6 @@ import datetime
 from typing import TYPE_CHECKING
 
 from airflow._shared.timezones.timezone import convert_to_utc
-from airflow.exceptions import AirflowTimetableInvalid
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
@@ -37,11 +36,6 @@ class DeltaMixin:
     @property
     def summary(self) -> str:
         return str(self._delta)
-
-    def validate(self) -> None:
-        now = datetime.datetime.now()
-        if (now + self._delta) <= now:
-            raise AirflowTimetableInvalid(f"schedule interval must be positive, not {self._delta!r}")
 
     def _get_next(self, current: DateTime) -> DateTime:
         return convert_to_utc(current + self._delta)

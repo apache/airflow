@@ -22,31 +22,40 @@ import typing
 import attrs
 
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
-from airflow.sdk.definitions.timetables.simple import AssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.base import BaseTimetable
 
 if typing.TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
-    from airflow.sdk.definitions.timetables.base import BaseTimetable
+
+
+@attrs.define
+class AssetTriggeredTimetable(BaseTimetable):
+    """
+    Timetable that never schedules anything.
+
+    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
+
+    :meta private:
+    """
+
+    assets: BaseAsset
+
+
+def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
+    if isinstance(o, BaseAsset):
+        return o
+    return AssetAll(*o)
 
 
 @attrs.define(kw_only=True)
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
     """Combine time-based scheduling with event-based scheduling."""
 
+    assets: BaseAsset = attrs.field(converter=_coerce_assets)
     timetable: BaseTimetable
 
-    def __init__(
-        self,
-        *,
-        timetable: BaseTimetable,
-        assets: Collection[Asset] | BaseAsset,
-    ) -> None:
-        if isinstance(assets, BaseAsset):
-            asset_condition = assets
-        else:
-            asset_condition = AssetAll(*assets)
-        self.__attrs_init__(timetable=timetable, assets=asset_condition)
-        self.active_runs_limit = timetable.active_runs_limit
-        self.can_be_scheduled = timetable.can_be_scheduled
+    def __attrs_post_init__(self) -> None:
+        self.active_runs_limit = self.timetable.active_runs_limit
+        self.can_be_scheduled = self.timetable.can_be_scheduled

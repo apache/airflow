@@ -18,11 +18,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+import contextlib
+from typing import TYPE_CHECKING, Any
 
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
+
+if TYPE_CHECKING:
+    from airflow.timetables.base import Timetable as CoreTimetable
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -78,3 +82,33 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             f"{rendered[: max_length - 79]!r}... "
         )
     return template_field
+
+
+class TimetableNotRegistered(ValueError):
+    """When an unregistered timetable is being accessed."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetable]:
+    """Find a user-defined custom timetable class registered via a plugin."""
+    from airflow import plugins_manager
+
+    plugins_manager.initialize_timetables_plugins()
+    if plugins_manager.timetable_classes is not None:
+        with contextlib.suppress(KeyError):
+            plugins_manager.timetable_classes[importable_string]
+    raise TimetableNotRegistered(importable_string)
+
+
+def is_core_timetable_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core timetable class."""
+    return importable_string.startswith("airflow.timetables.")

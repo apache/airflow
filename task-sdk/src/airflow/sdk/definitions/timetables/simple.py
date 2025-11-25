@@ -14,19 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-import attrs
 
 from airflow.sdk.definitions.timetables.base import BaseTimetable
 
-if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import BaseAsset
 
-
-class _TrivialTimetable(BaseTimetable):
+class TrivialTimetable(BaseTimetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     def __hash__(self) -> int:
@@ -44,7 +38,7 @@ class _TrivialTimetable(BaseTimetable):
         return True
 
 
-class NullTimetable(_TrivialTimetable):
+class NullTimetable(TrivialTimetable):
     """
     Timetable that never schedules anything.
 
@@ -54,7 +48,7 @@ class NullTimetable(_TrivialTimetable):
     can_be_scheduled = False
 
 
-class OnceTimetable(_TrivialTimetable):
+class OnceTimetable(TrivialTimetable):
     """
     Timetable that schedules the execution once as soon as possible.
 
@@ -62,7 +56,7 @@ class OnceTimetable(_TrivialTimetable):
     """
 
 
-class ContinuousTimetable(_TrivialTimetable):
+class ContinuousTimetable(TrivialTimetable):
     """
     Timetable that schedules continually, while still respecting start_date and end_date.
 
@@ -70,16 +64,3 @@ class ContinuousTimetable(_TrivialTimetable):
     """
 
     active_runs_limit = 1
-
-
-@attrs.define
-class AssetTriggeredTimetable(_TrivialTimetable):
-    """
-    Timetable that never schedules anything.
-
-    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
-
-    :meta private:
-    """
-
-    assets: BaseAsset

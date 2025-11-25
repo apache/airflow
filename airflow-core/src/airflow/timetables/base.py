@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunType
 
 
-class _NullAsset(BaseAsset):
+class NullAsset(BaseAsset):
     """
     Sentinel type that represents "no assets".
 
@@ -169,6 +169,7 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     can_be_scheduled: bool = True
     """
     Whether this timetable can actually schedule runs in an automated manner.
@@ -184,6 +185,7 @@ class Timetable(Protocol):
     This should be a list of field names on the DAG run object.
     """
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     active_runs_limit: int | None = None
     """Maximum active runs that can be active at one time for a DAG.
 
@@ -193,7 +195,7 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    asset_condition: BaseAsset = _NullAsset()
+    asset_condition: BaseAsset = NullAsset()
     """The asset condition that triggers a DAG using this timetable.
 
     If this is not *None*, this should be an asset, or a combination of, that
