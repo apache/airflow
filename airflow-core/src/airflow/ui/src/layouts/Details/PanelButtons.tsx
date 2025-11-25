@@ -80,12 +80,12 @@ const getOptions = (translate: (key: string) => string) =>
 const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
   const breakpoints = enableResponsiveOptions
     ? [
-        { limit: 100, min: 1600, options: ["5", "10", "25", "50"] }, // xl: extra large screens
-        { limit: 25, min: 1024, options: ["5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 384, options: ["5", "10"] }, // md: medium screens
-        { limit: 5, min: 0, options: ["5"] }, // sm: small screens and below
+        { limit: 100, min: 1600, options: ["1", "5", "10", "25", "50"] }, // xl: extra large screens
+        { limit: 25, min: 1024, options: ["1", "5", "10", "25"] }, // lg: large screens
+        { limit: 10, min: 384, options: ["1", "5", "10"] }, // md: medium screens
+        { limit: 5, min: 0, options: ["1", "5"] }, // sm: small screens and below
       ]
-    : [{ limit: 5, min: 0, options: ["5", "10", "25", "50"] }];
+    : [{ limit: 5, min: 0, options: ["1", "5", "10", "25", "50"] }];
 
   const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
 
