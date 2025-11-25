@@ -405,6 +405,10 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
+    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
+    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
+    # See: https://github.com/apache/airflow/issues/58337
     local lto_option=""
     if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
         lto_option="--with-lto"
