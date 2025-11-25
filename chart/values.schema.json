@@ -8957,6 +8957,326 @@
                 }
             }
         },
+        "databaseCleanup": {
+            "description": "This runs as a CronJob to cleanup the database after the retention period.",
+            "type": "object",
+            "x-docsSection": "Jobs",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable database cleanup.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "schedule": {
+                    "description": "Database cleanup schedule (templated).",
+                    "type": "string",
+                    "default": "0 0 * * 0"
+                },
+                "retentionDays": {
+                    "description": "Number of days to retain records in the metadata database.",
+                    "type": "integer",
+                    "default": 90
+                },
+                "command": {
+                    "description": "Command to use when running the database cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash"
+                    ]
+                },
+                "args": {
+                    "description": "Args to use when running the database cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "-c",
+                        "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes --verbose"
+                    ]
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the database cleanup cronjob.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for database cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for database cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for database cleanup pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "labels to add to database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "resources": {
+                    "description": "Resources for database cleanup pods",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the database cleanup CronJob Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "securityContext": {
+                    "description": "Security context for the database cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the database cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the database cleanup. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the database cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the database cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to database cleanup.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "failedJobsHistoryLimit": {
+                    "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 1,
+                    "x-docsSection": null
+                },
+                "successfulJobsHistoryLimit": {
+                    "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 1,
+                    "x-docsSection": null
+                }
+            }
+        },
         "postgresql": {
             "description": "Configuration for PostgreSQL subchart.",
             "type": "object",

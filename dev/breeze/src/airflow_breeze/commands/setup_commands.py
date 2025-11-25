@@ -559,7 +559,6 @@ DEVELOPER_COMMANDS = [
     "exec",
     "shell",
     "run",
-    "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
     "doctor",
