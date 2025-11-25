@@ -334,7 +334,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 self.pod = existing_pod
                 self.pod_request_obj = None
                 if self.pod.metadata.name.endswith("-driver"):
-                    self.name = self.pod.metadata.name[: -len("-driver")]
+                    self.name = self.pod.metadata.name.removesuffix("-driver")
                 return
 
             if "spark" not in template_body:
@@ -377,7 +377,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         job_name = self.name
         if self.pod and self.pod.metadata and self.pod.metadata.name:
             if self.pod.metadata.name.endswith("-driver"):
-                job_name = self.pod.metadata.name[: -len("-driver")]
+                job_name = self.pod.metadata.name.removesuffix("-driver")
         self.launcher.delete_spark_job(spark_job_name=job_name)
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
