@@ -35,6 +35,18 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     debug = conf.getboolean("metrics", "otel_debugging_on")
     service_name = conf.get("metrics", "otel_service")
 
+    metrics_allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
+    metrics_block_list = conf.get("metrics", "metrics_block_list", fallback=None)
+
     return otel_logger.get_otel_logger(
-        cls, host, port, prefix, ssl_active, conf_interval, debug, service_name
+        cls,
+        host,
+        port,
+        prefix,
+        ssl_active,
+        conf_interval,
+        debug,
+        service_name,
+        metrics_allow_list,
+        metrics_block_list,
     )

@@ -28,8 +28,8 @@ from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
-    validate_stat,
 )
+from airflow.observability.metrics.validators import validate_stat
 
 if TYPE_CHECKING:
     from statsd import StatsClient
@@ -163,6 +163,8 @@ def get_statsd_logger(
     ipv6: bool = False,
     influxdb_tags_enabled: bool = False,
     statsd_disabled_tags: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
 ) -> SafeStatsdLogger:
     """Return logger for StatsD."""
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
@@ -183,4 +185,5 @@ def get_statsd_logger(
     statsd = stats_class(host, port, prefix, ipv6)
 
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
-    return SafeStatsdLogger(statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator)
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+    return SafeStatsdLogger(statsd, validator, influxdb_tags_enabled, metric_tags_validator)

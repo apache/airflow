@@ -33,6 +33,16 @@ def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
     datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)
     statsd_disabled_tags = conf.get("metrics", "statsd_disabled_tags", fallback=None)
 
+    metrics_allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
+    metrics_block_list = conf.get("metrics", "metrics_block_list", fallback=None)
+
     return datadog_logger.get_dogstatsd_logger(
-        cls, host, port, namespace, datadog_metrics_tags, statsd_disabled_tags
+        cls,
+        host,
+        port,
+        namespace,
+        datadog_metrics_tags,
+        statsd_disabled_tags,
+        metrics_allow_list,
+        metrics_block_list,
     )

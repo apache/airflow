@@ -16,25 +16,35 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from functools import wraps
+from typing import cast
 
-from airflow._shared.observability.metrics import validators
+from airflow._shared.observability.exceptions import InvalidStatsNameException
+from airflow._shared.observability.metrics.validators import get_current_handler_stat_name_func
 from airflow.configuration import conf
 
-if TYPE_CHECKING:
-    from airflow._shared.observability.metrics.validators import ListValidator
+log = logging.getLogger(__name__)
 
 
-def get_validator() -> ListValidator:
-    metric_allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
-    metric_block_list = conf.get("metrics", "metrics_block_list", fallback=None)
+def validate_stat(fn: Callable) -> Callable:
+    """Check if stat name contains invalid characters; logs and does not emit stats if name is invalid."""
 
-    return validators.get_validator(metric_allow_list, metric_block_list)
+    @wraps(fn)
+    def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
+        stat_name_handler = conf.getimport("metrics", "stat_name_handler")
+        statsd_influxdb_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
 
+        try:
+            if stat is not None:
+                handler_stat_name_func = get_current_handler_stat_name_func(
+                    stat_name_handler, statsd_influxdb_enabled
+                )
+                stat = handler_stat_name_func(stat)
+            return fn(self, stat, *args, **kwargs)
+        except InvalidStatsNameException:
+            log.exception("Invalid stat name: %s.", stat)
+            return None
 
-def get_current_handler_stat_name_func() -> Callable[[str], str]:
-    stat_name_handler = conf.getimport("metrics", "stat_name_handler")
-    statsd_influxdb_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
-
-    return validators.get_current_handler_stat_name_func(stat_name_handler, statsd_influxdb_enabled)
+    return cast("Callable", wrapper)

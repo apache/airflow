@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from functools import wraps
 from socket import socket
 from typing import TYPE_CHECKING
 
@@ -25,6 +26,21 @@ from airflow._shared.observability.traces.base_tracer import EmptyTrace, Tracer
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
+
+
+def add_debug_span(func):
+    """Decorate a function with span."""
+    func_name = func.__name__
+    qual_name = func.__qualname__
+    module_name = func.__module__
+    component = qual_name.rsplit(".", 1)[0] if "." in qual_name else module_name
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with DebugTrace.start_span(span_name=func_name, component=component):
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 class _TraceMeta(type):

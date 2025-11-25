@@ -17,12 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from functools import wraps
 from typing import TYPE_CHECKING, Any, Protocol
 
 import structlog
-
-from airflow.observability.trace import DebugTrace
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
@@ -42,21 +39,6 @@ def gen_links_from_kv_list(list):
     from airflow._shared.observability.traces.otel_tracer import gen_links_from_kv_list
 
     return gen_links_from_kv_list(list)
-
-
-def add_debug_span(func):
-    """Decorate a function with span."""
-    func_name = func.__name__
-    qual_name = func.__qualname__
-    module_name = func.__module__
-    component = qual_name.rsplit(".", 1)[0] if "." in qual_name else module_name
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with DebugTrace.start_span(span_name=func_name, component=component):
-            return func(*args, **kwargs)
-
-    return wrapper
 
 
 class EmptyContext:

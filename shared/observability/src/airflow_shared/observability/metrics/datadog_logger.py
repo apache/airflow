@@ -26,8 +26,8 @@ from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
-    validate_stat,
 )
+from airflow.observability.metrics.validators import validate_stat
 
 if TYPE_CHECKING:
     from datadog import DogStatsd
@@ -163,6 +163,8 @@ def get_dogstatsd_logger(
     namespace: str | None = None,
     datadog_metrics_tags: bool = True,
     statsd_disabled_tags: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
 ) -> SafeDogStatsdLogger:
     """Get DataDog StatsD logger."""
     from datadog import DogStatsd
@@ -174,4 +176,5 @@ def get_dogstatsd_logger(
         constant_tags=cls.get_constant_tags(),
     )
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
-    return SafeDogStatsdLogger(dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator)
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+    return SafeDogStatsdLogger(dogstatsd, validator, datadog_metrics_tags, metric_tags_validator)

@@ -25,9 +25,8 @@ import re
 import string
 import warnings
 from collections.abc import Callable, Iterable
-from functools import partial, wraps
+from functools import partial
 from re import Pattern
-from typing import cast
 
 from airflow._shared.observability.exceptions import InvalidStatsNameException
 
@@ -87,47 +86,30 @@ DEFAULT_VALIDATOR_TYPE = "allow"
 
 
 def get_validator(
-    metric_allow_list: str | None = None,
-    metric_block_list: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
 ) -> ListValidator:
     validators = {
         "allow": PatternAllowListValidator,
         "block": PatternBlockListValidator,
     }
     metric_lists = {
-        "allow": metric_allow_list,
-        "block": metric_block_list,
+        "allow": metrics_allow_list,
+        "block": metrics_block_list,
     }
 
-    if metric_allow_list:
+    if metrics_allow_list:
         list_type = "allow"
-        if metric_block_list:
+        if metrics_block_list:
             log.warning(
                 "Ignoring metrics_block_list as both metrics_allow_list and metrics_block_list have been set."
             )
-    elif metric_block_list:
+    elif metrics_block_list:
         list_type = "block"
     else:
         list_type = DEFAULT_VALIDATOR_TYPE
 
     return validators[list_type](metric_lists[list_type])
-
-
-def validate_stat(fn: Callable) -> Callable:
-    """Check if stat name contains invalid characters; logs and does not emit stats if name is invalid."""
-
-    @wraps(fn)
-    def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
-        try:
-            if stat is not None:
-                handler_stat_name_func = get_current_handler_stat_name_func()
-                stat = handler_stat_name_func(stat)
-            return fn(self, stat, *args, **kwargs)
-        except InvalidStatsNameException:
-            log.exception("Invalid stat name: %s.", stat)
-            return None
-
-    return cast("Callable", wrapper)
 
 
 def stat_name_otel_handler(

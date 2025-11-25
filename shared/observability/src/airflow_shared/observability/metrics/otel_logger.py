@@ -378,6 +378,8 @@ def get_otel_logger(
     conf_interval: float | None = None,
     debug: bool = False,
     service_name: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
 ) -> SafeOtelLogger:
     resource = Resource.create(attributes={SERVICE_NAME: service_name})
     protocol = "https" if ssl_active else "http"
@@ -408,4 +410,6 @@ def get_otel_logger(
         ),
     )
 
-    return SafeOtelLogger(metrics.get_meter_provider(), prefix, get_validator())
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+
+    return SafeOtelLogger(metrics.get_meter_provider(), prefix, validator)
