@@ -21,7 +21,6 @@
 
 from __future__ import annotations
 
-import os
 from http import HTTPStatus
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -31,50 +30,51 @@ if TYPE_CHECKING:
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
-# When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed
-# In that case, we define fallback exception classes
-if os.environ.get("_AIRFLOW__AS_LIBRARY"):
-    try:
-        from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
-    except ImportError:
-        # Fallback exception classes when airflow.sdk is not installed
-        class AirflowException(RuntimeError):  # type: ignore[no-redef]
-            """Base exception for Airflow errors."""
+try:
+    from airflow.sdk.exceptions import (
+        AirflowException,
+        AirflowNotFoundException,
+        AirflowRescheduleException,
+        TaskNotFound,
+    )
+except ModuleNotFoundError:
+    # When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed.
+    # In that case, we define fallback exception classes that mirror the SDK ones.
+    class AirflowException(Exception):  # type: ignore[no-redef]
+        """Base exception for Airflow errors."""
 
-            pass
+        pass
 
-        class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
-            """Raise when a requested object is not found."""
+    class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
+        """Raise when a requested object is not found."""
 
-            pass
-else:
-    from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException
+        pass
 
+    class TaskNotFound(AirflowException):  # type: ignore[no-redef]
+        """Raise when a Task is not available in the system."""
 
-class TaskNotFound(AirflowException):
-    """Raise when a Task is not available in the system."""
+        pass
+
+    class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
+        """
+        Raise when the task should be re-scheduled at a later time.
+
+        :param reschedule_date: The date when the task should be rescheduled
+        """
+
+        def __init__(self, reschedule_date):
+            super().__init__()
+            self.reschedule_date = reschedule_date
+
+        def serialize(self):
+            cls = self.__class__
+            return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
     status_code = HTTPStatus.BAD_REQUEST
-
-
-class AirflowRescheduleException(AirflowException):
-    """
-    Raise when the task should be re-scheduled at a later time.
-
-    :param reschedule_date: The date when the task should be rescheduled
-    """
-
-    def __init__(self, reschedule_date):
-        super().__init__()
-        self.reschedule_date = reschedule_date
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
 
 class InvalidStatsNameException(AirflowException):
