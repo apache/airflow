@@ -16,10 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.0.28'
 default_language_version:
   python: python3
   node: 22.19.0
-minimum_prek_version: '0.2.0'
+  golang: 1.24.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -189,13 +190,6 @@ repos:
           ^\.pre-commit-config\.yaml$|
           ^\.github/\.pre-commit-config\.yaml$|
           ^scripts/ci/prek/update_installers_and_prek\.py$
-        pass_filenames: false
-        require_serial: true
-      - id: check-translations-completeness
-        name: Check translation completeness (manual)
-        entry: ./dev/i18n/check_translations_completeness.py
-        stages: ['manual']
-        language: python
         pass_filenames: false
         require_serial: true
       - id: check-taskinstance-tis-attrs

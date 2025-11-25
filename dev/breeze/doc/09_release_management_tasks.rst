@@ -757,11 +757,6 @@ properties of the dependencies. This is done by the ``export-dependency-informat
   :width: 100%
   :alt: Breeze sbom export dependency information
 
------
-
-Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
-learn more about Breeze internals.
-
 Preparing Airflow Task SDK distributions
 """""""""""""""""""""""""""""""""""
 
@@ -985,3 +980,8 @@ Example usage:
 .. code-block:: bash
 
      breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+
+
+-----
+
+Next step: Follow the `UI Tasks <10_ui_tasks.rst>`_ to learn more about UI tasks.
