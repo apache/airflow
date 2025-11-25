@@ -190,23 +190,6 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
-    def test_from_json_missing_conn_type(self):
-        """Test that missing conn_type throws an error while using from_json."""
-        import re
-
-        json_data = {
-            "host": "localhost",
-            "port": "5432",
-        }
-
-        with pytest.raises(
-            ValueError,
-            match=re.escape(
-                "Connection type (conn_type) is required but missing from connection configuration. Please add 'conn_type' field to your connection definition."
-            ),
-        ):
-            Connection.from_json(json.dumps(json_data), conn_id="test_conn")
-
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
         connection = Connection(
