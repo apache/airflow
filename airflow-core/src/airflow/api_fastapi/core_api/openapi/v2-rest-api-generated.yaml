@@ -8619,15 +8619,6 @@ paths:
       summary: Logout
       description: Logout the user.
       operationId: logout
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
       responses:
         '200':
           description: Successful Response
@@ -8635,17 +8626,11 @@ paths:
             application/json:
               schema: {}
         '307':
+          description: Temporary Redirect
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -13068,6 +13053,12 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        team_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Team Id
       additionalProperties: false
       type: object
       required:
@@ -13107,12 +13098,19 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
+        team_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Team Id
       type: object
       required:
       - key
       - value
       - description
       - is_encrypted
+      - team_id
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:

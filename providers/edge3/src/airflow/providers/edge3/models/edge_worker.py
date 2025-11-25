@@ -50,6 +50,12 @@ class EdgeWorkerVersionException(AirflowException):
     pass
 
 
+class EdgeWorkerDuplicateException(AirflowException):
+    """Signal that a worker with the same name is already active."""
+
+    pass
+
+
 class EdgeWorkerState(str, Enum):
     """Status of a Edge Worker instance."""
 

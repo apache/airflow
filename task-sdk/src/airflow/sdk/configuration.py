@@ -27,8 +27,8 @@ from io import StringIO
 from typing import Any
 
 from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow.sdk import yaml
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
-from airflow.utils import yaml
 
 log = logging.getLogger(__name__)
 
@@ -195,7 +195,7 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.utils.module_loading import import_string
+    from airflow.sdk.module_loading import import_string
 
     backend_list = []
     worker_mode = False

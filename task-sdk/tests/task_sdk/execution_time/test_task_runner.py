@@ -164,6 +164,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -210,6 +211,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -269,6 +271,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     log = mock.Mock()
@@ -323,6 +326,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -593,6 +597,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
         dag_rel_path="",
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
     ti = mocked_parse(what, "basic_templated_dag", task)
 
@@ -708,6 +713,7 @@ def test_startup_and_run_dag_with_rtif(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
     mocked_parse(what, "basic_dag", task)
 
@@ -755,6 +761,7 @@ def test_task_run_with_user_impersonation(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -802,6 +809,7 @@ def test_task_run_with_user_impersonation_default_user(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -841,6 +849,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -980,6 +989,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mock_supervisor_comms._get_response.return_value = what
@@ -2891,6 +2901,7 @@ class TestTaskRunnerCallsListeners:
             bundle_info=FAKE_BUNDLE,
             ti_context=make_ti_context(),
             start_date=timezone.utcnow(),
+            sentry_integration="",
         )
 
         mock_supervisor_comms._get_response.return_value = what

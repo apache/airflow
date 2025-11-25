@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import enum
-import functools
 import json
 import math
 import time
@@ -31,7 +30,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
-import tenacity
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -39,9 +37,13 @@ from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError, TimeoutError
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    KubernetesApiException,
+    PodLaunchFailedException,
+    generic_api_retry,
+)
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
@@ -71,76 +73,6 @@ Sentinel for no xcom result.
 
 :meta private:
 """
-
-
-API_RETRIES = conf.getint("workers", "api_retries", fallback=5)
-API_RETRY_WAIT_MIN = conf.getfloat("workers", "api_retry_wait_min", fallback=1)
-API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
-
-_default_wait = tenacity.wait_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
-
-
-def get_retry_after_seconds(retry_state) -> int:
-    """Extract Retry-After header from ApiException if present and log wait time."""
-    exception = retry_state.outcome.exception() if retry_state.outcome else None
-    if exception and isinstance(exception, ApiException) and str(exception.status) == "429":
-        retry_after = exception.headers.get("Retry-After") if exception.headers else None
-        if retry_after:
-            try:
-                wait_seconds = int(retry_after)
-                return wait_seconds
-            except ValueError:
-                pass
-    # Default exponential backoff
-    wait_seconds = int(_default_wait(retry_state))
-    return wait_seconds
-
-
-def generic_api_retry(func):
-    """Apply tenacity retry logic for generic Kubernetes API calls."""
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        retry_decorator = tenacity.retry(
-            stop=tenacity.stop_after_attempt(API_RETRIES),
-            wait=get_retry_after_seconds,
-            reraise=True,
-        )
-        return retry_decorator(func)(*args, **kwargs)
-
-    return wrapper
-
-
-def should_retry_start_pod(exception: BaseException) -> bool:
-    """Check if an Exception indicates a transient error and warrants retrying."""
-    if isinstance(exception, ApiException):
-        # Retry on 409 (conflict) and 429 (too many requests)
-        return str(exception.status) in ("409", "429")
-    return False
-
-
-def create_pod_api_retry(func):
-    """
-    Apply tenacity retry logic for pod creation.
-
-    Retries on 409 and 429 errors, and respects Retry-After header for 429.
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        retry_decorator = tenacity.retry(
-            stop=tenacity.stop_after_attempt(API_RETRIES),
-            wait=get_retry_after_seconds,
-            reraise=True,
-            retry=tenacity.retry_if_exception(should_retry_start_pod),
-        )
-        return retry_decorator(func)(*args, **kwargs)
-
-    return wrapper
-
-
-class PodLaunchFailedException(AirflowException):
-    """When pod launching fails in KubernetesPodOperator."""
 
 
 class PodPhase:
@@ -405,6 +337,7 @@ class PodManager(LoggingMixin):
             raise e
         return resp
 
+    @generic_api_retry
     def delete_pod(self, pod: V1Pod) -> None:
         """Delete POD."""
         try:
@@ -416,7 +349,7 @@ class PodManager(LoggingMixin):
             if str(e.status) != "404":
                 raise
 
-    @create_pod_api_retry
+    @generic_api_retry
     def create_pod(self, pod: V1Pod) -> V1Pod:
         """Launch the pod asynchronously."""
         return self.run_pod_async(pod)
@@ -817,7 +750,6 @@ class PodManager(LoggingMixin):
             post_termination_timeout=post_termination_timeout,
         )
 
-    @generic_api_retry
     def get_init_container_names(self, pod: V1Pod) -> list[str]:
         """
         Return container names from the POD except for the airflow-xcom-sidecar container.
@@ -826,7 +758,6 @@ class PodManager(LoggingMixin):
         """
         return [container_spec.name for container_spec in pod.spec.init_containers]
 
-    @generic_api_retry
     def get_container_names(self, pod: V1Pod) -> list[str]:
         """
         Return container names from the POD except for the airflow-xcom-sidecar container.
@@ -848,7 +779,7 @@ class PodManager(LoggingMixin):
                 namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
             )
         except HTTPError as e:
-            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
+            raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
     @generic_api_retry
     def read_pod(self, pod: V1Pod) -> V1Pod:
@@ -856,7 +787,7 @@ class PodManager(LoggingMixin):
         try:
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except HTTPError as e:
-            raise AirflowException(f"There was an error reading the kubernetes API: {e}")
+            raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
     def await_xcom_sidecar_container_start(
         self, pod: V1Pod, timeout: int = 900, log_interval: int = 30
@@ -1040,7 +971,6 @@ class AsyncPodManager(LoggingMixin):
         self._callbacks = callbacks or []
         self.stop_watching_events = False
 
-    @generic_api_retry
     async def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
         return await self._hook.get_pod(
@@ -1048,7 +978,6 @@ class AsyncPodManager(LoggingMixin):
             pod.metadata.namespace,
         )
 
-    @generic_api_retry
     async def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
         """Get pod's events."""
         return await self._hook.get_pod_events(
@@ -1082,7 +1011,6 @@ class AsyncPodManager(LoggingMixin):
             check_interval=check_interval,
         )
 
-    @generic_api_retry
     async def fetch_container_logs_before_current_sec(
         self, pod: V1Pod, container_name: str, since_time: DateTime | None = None
     ) -> DateTime | None:
