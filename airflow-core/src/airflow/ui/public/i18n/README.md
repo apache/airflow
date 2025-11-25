@@ -224,7 +224,8 @@ The following steps outline the process for approving a new locale to be added t
 
 - Creating a PR for adding the suggested locale to the
   codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
-  - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in `dev/i18n/check_translations_completeness.py`.
+  - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in
+    `dev/breeze/commands/ui_commands.py`.
   - The locale files (translated according to the guidelines) in the
     `airflow-core/src/airflow/ui/public/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the
     code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional
@@ -310,7 +311,7 @@ Language proficiency for translation owners can be demonstrated through any of t
 All files:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py
+breeze ui check-translation-completeness
 ```
 
 > [!NOTE]
@@ -320,7 +321,7 @@ uv run dev/i18n/check_translations_completeness.py
 Files for specific languages:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code>
+breeze ui check-translation-completeness --language <language_code>
 ```
 
 Where `<language_code>` is the code of the language you want to check, e.g., `en`, `fr`, `de`, etc.
@@ -328,25 +329,25 @@ Where `<language_code>` is the code of the language you want to check, e.g., `en
 Adding missing translations (with `TODO: translate` prefix):
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code> --add-missing
+breeze ui check-translation-completeness --language <language_code> --add-missing
 ```
 
 You can also remove extra translations from the language of your choice:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code> --remove-extra
+breeze ui check-translation-completeness --language <language_code> --remove-extra
 ```
 
 Or from all languages:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --remove-extra
+breeze ui check-translation-completeness --remove-extra
 ```
 
 The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
 
 ```bash
-prek run --hook-stage manual check-translations-completeness --verbose --all-files
+breeze ui check-translation-completeness --verbose --all-files
 ```
 
 

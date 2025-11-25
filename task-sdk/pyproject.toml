@@ -26,7 +26,7 @@ license-files = ["LICENSE", "NOTICE"]
 # in all our providers - and usually it will take a while before we can support it for majority of
 # providers, so we proactively limit it to <3.14.
 # It takes about 4-7 months after Python release before we can support it
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10,!=3.14"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},

@@ -327,14 +327,25 @@ class TestBaseChartTest:
         assert ("Service", "test-basic-statsd") not in list_of_kind_names_tuples
         assert ("Deployment", "test-basic-statsd") not in list_of_kind_names_tuples
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
-    def test_network_policies_are_valid(self, airflow_version):
+    @pytest.mark.parametrize(
+        ("airflow_version", "executor"),
+        [
+            ["2.10.0", "CeleryExecutor"],
+            ["2.10.0", "CeleryKubernetesExecutor"],
+            ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor"],
+            ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["default", "CeleryExecutor"],
+            ["default", "CeleryExecutor,KubernetesExecutor"],
+        ],
+    )
+    def test_network_policies_are_valid(self, airflow_version, executor):
         k8s_objects = render_chart(
             name="test-basic",
             values=self._get_values_with_version(
                 values={
                     "networkPolicies": {"enabled": True},
-                    "executor": "CeleryExecutor",
+                    "executor": executor,
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                 },
@@ -366,14 +377,24 @@ class TestBaseChartTest:
         for kind_name in expected_kind_names:
             assert kind_name in kind_names_tuples
 
-    @pytest.mark.parametrize("airflow_version", ["2.10.0", "3.0.0", "default"])
-    def test_labels_are_valid(self, airflow_version):
+    @pytest.mark.parametrize(
+        ("airflow_version", "executor"),
+        [
+            ["2.10.0", "CeleryExecutor"],
+            ["2.10.0", "CeleryExecutor,KubernetesExecutor"],
+            ["3.0.0", "CeleryExecutor"],
+            ["3.0.0", "CeleryExecutor,KubernetesExecutor"],
+            ["default", "CeleryExecutor"],
+            ["default", "CeleryExecutor,KubernetesExecutor"],
+        ],
+    )
+    def test_labels_are_valid(self, airflow_version, executor):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
 
         values = {
             "labels": {"label1": "value1", "label2": "value2"},
-            "executor": "CeleryExecutor",
+            "executor": executor,
             "data": {
                 "resultBackendConnection": {
                     "user": "someuser",
@@ -490,6 +511,8 @@ class TestBaseChartTest:
                 expected_labels["component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
+                if executor == "CeleryExecutor,KubernetesExecutor":
+                    expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
             assert actual_labels == expected_labels
 
