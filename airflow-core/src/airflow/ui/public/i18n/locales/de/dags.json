@@ -35,7 +35,7 @@
       "title": "{{type}} bereinigen und neu planen"
     },
     "confirmationDialog": {
-      "description": "Der Task befindet sich derzeit in dem Zustand {{state}}, ausgelöst vom Benutzer {{user}} um {{time}}. \nDer Task kann nicht zurückgesetzt werden, bis er abgeschlossen ist, oder die Option \"Zurücksetzen von laufenden Tasks verhindern\" darf im Dialogfeld zum Zurücksetzen des Tasks nicht genutzt werden.",
+      "description": "Der Task befindet sich derzeit in dem Zustand {{state}}, ausgelöst durch den Benutzer {{user}} um {{time}}. \nDer Task kann nicht zurückgesetzt werden, bevor er abgeschlossen ist, oder ein Benutzer im Zurücksetz-Dialog die Option \"Zurücksetzen von laufenden Tasks verhindern\" deaktiviert.",
       "title": "Task-Instanz kann nicht zurückgesetzt werden"
     },
     "delete": {
