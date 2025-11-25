@@ -2271,7 +2271,7 @@ class SerializedDAG(BaseSerialization):
     dag_id: str
     dag_display_name: str
     dagrun_timeout: datetime.timedelta | None
-    deadline: list[DeadlineAlert] | DeadlineAlert | None
+    deadline: list[str] | None
     default_args: dict[str, Any]
     description: str | None
     disable_bundle_versioning: bool
@@ -2397,11 +2397,13 @@ class SerializedDAG(BaseSerialization):
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
-            serialized_dag["deadline"] = (
-                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
-                if isinstance(dag.deadline, list)
-                else None
-            )
+            if dag.deadline:
+                deadline_list = dag.deadline if isinstance(dag.deadline, list) else [dag.deadline]
+                serialized_dag["deadline"] = [
+                    deadline.serialize_deadline_alert() for deadline in deadline_list
+                ]
+            else:
+                serialized_dag["deadline"] = None
 
             # Edge info in the JSON exactly matches our internal structure
             serialized_dag["edge_info"] = dag.edge_info

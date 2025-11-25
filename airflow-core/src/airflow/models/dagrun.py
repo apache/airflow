@@ -1263,7 +1263,7 @@ class DagRun(Base, LoggingMixin):
                     msg="success",
                 )
 
-            if dag.deadline and isinstance(dag.deadline[0], str):
+            if dag.deadline:
                 # The dagrun has succeeded.  If there were any Deadlines for it which were not breached, they are no longer needed.
                 deadline_alerts = [
                     DeadlineAlertModel.get_by_id(alert_id, session) for alert_id in dag.deadline
