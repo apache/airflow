@@ -474,7 +474,7 @@ class AirflowAppBuilder:
             baseview=baseview,
             cond=cond,
         )
-        if self.app:
+        if current_app:
             self._add_permissions_menu(name)
             if category:
                 self._add_permissions_menu(category)
