@@ -254,7 +254,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return url
 
     @classmethod
-    def to_httpx_proxies(cls, proxies: dict) -> dict | None:
+    def to_httpx_proxies(cls, proxies: dict | None) -> dict | None:
         if proxies:
             proxies = proxies.copy()
             if proxies.get("http"):
@@ -267,7 +267,7 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
+    def to_msal_proxies(self, authority: str | None, proxies: dict | None) -> dict | None:
         self.log.debug("authority: %s", authority)
         if authority and proxies:
             no_proxies = proxies.get("no")
@@ -427,7 +427,7 @@ class KiotaRequestAdapterHook(BaseHook):
         config,
         authority: str | None,
         verify: bool,
-        proxies: dict,
+        proxies: dict | None,
     ) -> ClientCredentialBase:
         tenant_id = config.get("tenant_id") or config.get("tenantId")
         certificate_path = config.get("certificate_path")
