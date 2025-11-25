@@ -50,7 +50,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 try:
-    from airflow.sdk._shared.observability.stats import Stats
+    from airflow.observability.stats import Stats
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]

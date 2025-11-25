@@ -118,7 +118,7 @@ from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.timezone import coerce_datetime
 
 try:
-    from airflow.sdk._shared.observability.stats import Stats
+    from airflow.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 

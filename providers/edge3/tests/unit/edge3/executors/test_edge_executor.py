@@ -31,7 +31,7 @@ from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 
 try:
-    from airflow.sdk._shared.observability.stats import Stats
+    from airflow.observability.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
