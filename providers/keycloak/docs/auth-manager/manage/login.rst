@@ -19,24 +19,22 @@
 Manage login settings with Keycloak auth manager
 ================================================
 This topic is related to the Keycloak ``Login Settings``.
-This is shown when you are creating the client in Keycloak.
-It also shown after you created the client. It is then under ``Access Settings`` tab.
-This settings are really important to reduce the impact area (scope) of the client.
+These settings appear when you create a client in Keycloak, and remain accessible afterward under the ``Access Settings`` tab.
+They play an important role in limiting the client's scope and reducing its potential impact area.
 
 Keycloak Client Configuration Guide
 ===================================
-This document explains how to correctly configure a Keycloak Client using your production HTTP(s) URL
+This document explains how to properly configure a Keycloak client using your production HTTP(S) URL
 (``<https://yourcompany.airflow.com>``).
 
 Overview
 --------
+Client configuration is a crucial part of enabling Keycloak authentication for your application.
+You must ensure that Client Authentication, Authorization, and the Authentication Flow are correctly configured.
 
-Client configuration is a critical step in setting up Keycloak authentication for your application.
-You need to ensure ``Client authentication``, ``Authorization`` and ``Authentication flow`` are properly set up.
-
-``Client authentication`` will be set to ``ON``.
-``Authorization`` should be set to ``ON``.
-``Authentication flow`` values see below table for details.
+Set ``Client Authentication`` to ``ON``.
+Set ``Authorization`` to ``ON``.
+For ``Authentication Flow`` values, refer to the table below.
 
 Login settings (After Client is Created)
 ----------------------------------------
@@ -59,8 +57,7 @@ Login settings (After Client is Created)
     * - OIDC CIBA Grant
       - OFF
 
-To allow your application to authenticate users through Keycloak, you must correctly configure the following
-fields in your Keycloak Client:
+To enable your application to authenticate users through Keycloak, you must configure the following fields in your Keycloak client:
 
 * Root URL
 * Home URL
@@ -68,10 +65,6 @@ fields in your Keycloak Client:
 * Valid Post Logout Redirect URIs
 * Web Origins
 * Admin URL (optional)
-
-This guide shows:
-
-* **Production values**: using your company deployment ``<https://yourcompany.airflow.com>``
 
 Login Settings (While Creating Client)/Access Settings (After Client is Created)
 --------------------------------------------------------------------------------
@@ -107,5 +100,4 @@ Notes on Keycloak Template Variables
 ------------------------------------
 
 ``${authBaseUrl}``
-This expands to **Keycloak's own base URL**, not your application URL. You should not use it as a Root URL for
-your Airflow application.
+This resolves to **Keycloak's own base URL**, not your application's URL. You should not use it as the Root URL for your Airflow application.

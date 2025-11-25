@@ -20,4 +20,5 @@
 
 Setting up Keycloak Client
 ==========================
-To enable fully isolated and secure environment, please create a separate realm and manage the Apache Airflow from there.
+You can both create or use an existing Keycloak realm and create a client for Airflow in it.
+To create a client, follow the `Keycloak Client </auth-manager/manage/login.html>`_

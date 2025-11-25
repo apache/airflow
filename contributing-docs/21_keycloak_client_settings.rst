@@ -17,7 +17,13 @@
 
 Setting up Keycloak Client for Breeze
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To fully integrate Keycloak into local Airflow development with Breeze, you need to set up a Keycloak client. During client creation, the relevant section is called ``Login Settings``. After the client is created, this section is renamed to ``Access Settings``.
+To fully integrate Keycloak into local Airflow development with Breeze, you need to configure a Keycloak client.
+You can start by using the ``breeze start-airflow --integration keycloak`` command,
+which launches Airflow with Keycloak support and starts a Keycloak instance with default settings.
+
+Next, create a Keycloak client for Airflow in the Keycloak admin console, accessible at ``http://localhost:48080/``.
+During client creation, the relevant configuration section is called ``Login Settings``;
+after the client is created, this section appears as ``Access Settings``.
 
 .. list-table::
    :header-rows: 1
@@ -42,5 +48,5 @@ To fully integrate Keycloak into local Airflow development with Breeze, you need
      - http://localhost:28080
      - ${authBaseUrl}
 
-After configuring the client, your settings will remain intact as long as you do not remove the Docker volumes.
-To acquire client credentials, you need to check ``Credentials`` tab of the created client.
+After you configure the client, the settings will persist as long as the Docker volumes are not removed.
+To obtain the client credentials, open the ``Credentials`` tab of the client you created.
