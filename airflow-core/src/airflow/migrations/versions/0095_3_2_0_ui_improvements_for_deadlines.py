@@ -41,7 +41,6 @@ from alembic import op
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
-from airflow.migrations.db_types import TIMESTAMP
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -80,9 +79,7 @@ def upgrade() -> None:
     op.create_table(
         "deadline_alert",
         sa.Column("id", UUIDType(binary=False), default=uuid6.uuid7),
-        sa.Column(
-            "created_at", UtcDateTime, nullable=False, server_default=sa.text("timezone('utc', now())")
-        ),
+        sa.Column("created_at", UtcDateTime, nullable=False),
         sa.Column("serialized_dag_id", UUIDType(binary=False), nullable=False),
         sa.Column("name", sa.String(250), nullable=True),
         sa.Column("description", sa.Text(), nullable=True),
@@ -92,34 +89,51 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("deadline_alert_pkey")),
     )
 
+    conn = op.get_bind()
+    dialect_name = conn.dialect.name
+
+    if dialect_name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
+
     with op.batch_alter_table("deadline", schema=None) as batch_op:
         batch_op.add_column(sa.Column("deadline_alert_id", UUIDType(binary=False), nullable=True))
-        batch_op.add_column(
-            sa.Column("created_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now())
-        )
-        batch_op.add_column(
-            sa.Column(
-                "last_updated_at", TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
-            )
+        batch_op.add_column(sa.Column("created_at", UtcDateTime, nullable=False))
+        batch_op.add_column(sa.Column("last_updated_at", UtcDateTime, nullable=False))
+        batch_op.create_foreign_key(
+            batch_op.f("deadline_deadline_alert_id_fkey"),
+            "deadline_alert",
+            ["deadline_alert_id"],
+            ["id"],
+            ondelete="SET NULL",
         )
 
-    op.create_foreign_key(
-        op.f("deadline_deadline_alert_id_fkey"),
-        "deadline",
-        "deadline_alert",
-        ["deadline_alert_id"],
-        ["id"],
-        ondelete="SET NULL",
+    # For migration/backcompat purposes if no timestamp is there from the migration, use now()
+    # then lock the columns down so all new entries require the timestamps to be provided.
+    now = timezone.utcnow()
+    conn.execute(
+        sa.text("""
+            UPDATE deadline
+            SET created_at = :now, last_updated_at = :now
+            WHERE created_at IS NULL OR last_updated_at IS NULL
+        """),
+        {"now": now},
     )
 
-    op.create_foreign_key(
-        op.f("deadline_alert_serialized_dag_id_fkey"),
-        "deadline_alert",
-        "serialized_dag",
-        ["serialized_dag_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
+    with op.batch_alter_table("deadline", schema=None) as batch_op:
+        batch_op.alter_column("created_at", existing_type=UtcDateTime, nullable=False)
+        batch_op.alter_column("last_updated_at", existing_type=UtcDateTime, nullable=False)
+
+    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+        batch_op.create_foreign_key(
+            batch_op.f("deadline_alert_serialized_dag_id_fkey"),
+            "serialized_dag",
+            ["serialized_dag_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+
+    if dialect_name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
 
     migrate_existing_deadline_alert_data_from_serialized_dag()
 
@@ -128,13 +142,23 @@ def downgrade() -> None:
     """Remove changes that were added to enable adding DeadlineAlerts to the UI."""
     migrate_deadline_alert_data_back_to_serialized_dag()
 
-    op.drop_constraint(op.f("deadline_deadline_alert_id_fkey"), "deadline", type_="foreignkey")
-    op.drop_constraint(op.f("deadline_alert_serialized_dag_id_fkey"), "deadline_alert", type_="foreignkey")
+    conn = op.get_bind()
+    dialect_name = conn.dialect.name
+
+    if dialect_name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=OFF"))
 
     with op.batch_alter_table("deadline", schema=None) as batch_op:
-        batch_op.drop_column("deadline_alert_id", if_exists=True)
-        batch_op.drop_column("last_updated_at", if_exists=True)
-        batch_op.drop_column("created_at", if_exists=True)
+        batch_op.drop_constraint(batch_op.f("deadline_deadline_alert_id_fkey"), type_="foreignkey")
+        batch_op.drop_column("deadline_alert_id")
+        batch_op.drop_column("last_updated_at")
+        batch_op.drop_column("created_at")
+
+    with op.batch_alter_table("deadline_alert", schema=None) as batch_op:
+        batch_op.drop_constraint(batch_op.f("deadline_alert_serialized_dag_id_fkey"), type_="foreignkey")
+
+    if dialect_name == "sqlite":
+        conn.execute(sa.text("PRAGMA foreign_keys=ON"))
 
     op.drop_table("deadline_alert")
 
@@ -286,6 +310,20 @@ def report_errors(errors: ErrorDict, operation: str = "migration") -> None:
 
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
+    from alembic import context
+
+    if context.is_offline_mode():
+        print(
+            """
+            ------------
+            --  WARNING: Unable to migrate DeadlineAlert data while in offline mode!
+            --  The deadline_alert table will remain empty in offline mode.
+            --  Run the migration in online mode to populate the deadline_alert table.
+            ------------
+            """
+        )
+        return
+
     from airflow.configuration import conf
     from airflow.serialization.enums import Encoding
 
@@ -444,6 +482,20 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
 
 def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     """Restore DeadlineAlert data from deadline_alert table back to serialized_dag."""
+    from alembic import context
+
+    if context.is_offline_mode():
+        print(
+            """
+            ------------
+            --  WARNING: Unable to restore DeadlineAlert data while in offline mode!
+            --  The downgrade will skip data restoration in offline mode.
+            --  Run the migration in online mode to restore the deadline_alert data.
+            ------------
+            """
+        )
+        return
+
     from airflow.configuration import conf
     from airflow.serialization.enums import Encoding
 
@@ -459,14 +511,9 @@ def migrate_deadline_alert_data_back_to_serialized_dag() -> None:
     conn = op.get_bind()
     dialect = conn.dialect.name
 
+    # Count all dags - we'll filter in the loop for those with deadline data
     total_dags = conn.execute(
-        sa.text("""
-                SELECT COUNT(*)
-                FROM serialized_dag
-                WHERE (data IS NOT NULL AND data -> 'dag' -> 'deadline' IS NOT NULL AND
-                       jsonb_typeof(data -> 'dag' -> 'deadline') = 'array')
-                   OR data_compressed IS NOT NULL
-                """)
+        sa.text("SELECT COUNT(*) FROM serialized_dag WHERE data IS NOT NULL OR data_compressed IS NOT NULL")
     ).scalar()
 
     total_batches = (total_dags + BATCH_SIZE - 1) // BATCH_SIZE
