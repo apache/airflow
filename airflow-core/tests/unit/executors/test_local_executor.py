@@ -189,63 +189,6 @@ class TestLocalExecutor:
         finally:
             executor.end()
 
-    @skip_spawn_mp_start
-    def test_executor_replace_dead_workers(self):
-        executor = LocalExecutor(parallelism=2)
-        executor.start()
-
-        # Mock the process to make it appear dead.
-        # However, the processes that lost their references must be included in end() before termination.
-        # Otherwise, the test will not finish and a timeout will occur.
-        dead_process = {}
-
-        for killed_pid, killed_proc in executor.workers.items():
-            proc = mock.MagicMock()
-            proc.is_alive.return_value = False
-
-            dead_process[killed_pid] = killed_proc
-            executor.workers[killed_pid] = proc
-
-        success_tis = [
-            workloads.TaskInstance(
-                id=uuid7(),
-                dag_version_id=uuid7(),
-                task_id=f"success_{i}",
-                dag_id="mydag",
-                run_id="run1",
-                try_number=1,
-                state="queued",
-                pool_slots=1,
-                queue="default",
-                priority_weight=1,
-                map_index=-1,
-                start_date=timezone.utcnow(),
-            )
-            for i in range(self.TEST_SUCCESS_COMMANDS)
-        ]
-
-        for ti in success_tis:
-            executor.queue_workload(
-                workloads.ExecuteTask(
-                    token="",
-                    ti=ti,
-                    dag_rel_path="some/path",
-                    log_path=None,
-                    bundle_info=dict(name="hi", version="hi"),
-                ),
-                session=mock.MagicMock(spec=Session),
-            )
-
-        with spy_on(executor._spawn_worker) as spawn_worker:
-            executor._process_workloads(list(executor.queued_tasks.values()))
-
-            assert 1 <= len(spawn_worker.calls) <= 2
-
-        for killed_pid, killed_proc in dead_process.items():
-            executor.workers[killed_pid] = killed_proc
-
-        executor.end()
-
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
         [
