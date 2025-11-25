@@ -21,6 +21,7 @@ Integration tests for DAG Run operations.
 These tests validate the Execution API endpoints for DAG Run operations:
 - get_state(): Get DAG run state
 - get_count(): Get count of DAG runs
+- get_previous(): Get previous DAG run
 """
 
 from __future__ import annotations
