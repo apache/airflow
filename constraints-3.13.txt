@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-24T19:50:20.181665
+# This constraints file was automatically generated on 2025-11-25T07:50:52.499758
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -186,7 +186,7 @@ asn1crypto==1.5.1
 asttokens==3.0.1
 async-property==0.2.2
 async-timeout==4.0.3
-asyncpg==0.30.0
+asyncpg==0.31.0
 asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
@@ -545,7 +545,7 @@ pytokens==0.3.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
-qdrant-client==1.16.0
+qdrant-client==1.16.1
 reactivex==4.1.0
 redis==5.2.1
 redshift-connector==2.1.10
