@@ -789,6 +789,11 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_CONFIG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="Hide sensitive configuration values (passwords, keys, etc.) in the output.",
+)
 
 # lint
 ARG_LINT_CONFIG_SECTION = Arg(
@@ -1717,6 +1722,7 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_CONFIG_HIDE_SENSITIVE,
         ),
     ),
     ActionCommand(
