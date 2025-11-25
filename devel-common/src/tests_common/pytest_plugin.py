@@ -36,12 +36,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-try:
-    from _pytest.config.findpaths import ConfigValue
-except ImportError:
-    from collections import namedtuple
-
-    ConfigValue = namedtuple("ConfigValue", ["value", "origin", "mode"])
+from _pytest.config.findpaths import ConfigValue
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -2162,13 +2157,12 @@ def _ensure_configured_logging(request):
         except ModuleNotFoundError:
             return
 
-    log_level = "INFO"
+    log_level = logging.INFO
     for setting_name in ("log_cli_level", "log_level"):
-        val = request.config.getoption(setting_name)
-        if val is None:
-            val = request.config.getini(setting_name)
-        if val:
-            log_level = val
+        log_level = request.config.getoption(setting_name)
+        if log_level is None:
+            log_level = request.config.getini(setting_name)
+        if log_level:
             break
     configure_logging(log_level=log_level)
 
