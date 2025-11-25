@@ -170,12 +170,16 @@ class SafeOtelLogger:
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
         metrics_validator: ListValidator = PatternAllowListValidator(),
+        stat_name_handler: Callable[[str], str] | None = None,
+        statsd_influxdb_enabled: bool = False,
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
         self.metrics_validator = metrics_validator
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
+        self.stat_name_handler = stat_name_handler
+        self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
     def incr(
         self,
@@ -380,6 +384,8 @@ def get_otel_logger(
     service_name: str | None = None,
     metrics_allow_list: str | None = None,
     metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
     resource = Resource.create(attributes={SERVICE_NAME: service_name})
     protocol = "https" if ssl_active else "http"
@@ -412,4 +418,6 @@ def get_otel_logger(
 
     validator = get_validator(metrics_allow_list, metrics_block_list)
 
-    return SafeOtelLogger(metrics.get_meter_provider(), prefix, validator)
+    return SafeOtelLogger(
+        metrics.get_meter_provider(), prefix, validator, stat_name_handler, statsd_influxdb_enabled
+    )

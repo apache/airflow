@@ -25,8 +25,9 @@ import re
 import string
 import warnings
 from collections.abc import Callable, Iterable
-from functools import partial
+from functools import partial, wraps
 from re import Pattern
+from typing import cast
 
 from airflow._shared.observability.exceptions import InvalidStatsNameException
 
@@ -110,6 +111,25 @@ def get_validator(
         list_type = DEFAULT_VALIDATOR_TYPE
 
     return validators[list_type](metric_lists[list_type])
+
+
+def validate_stat(fn: Callable) -> Callable:
+    """Check if stat name contains invalid characters; logs and does not emit stats if name is invalid."""
+
+    @wraps(fn)
+    def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
+        try:
+            if stat is not None:
+                handler_stat_name_func = get_current_handler_stat_name_func(
+                    self.stat_name_handler, self.statsd_influxdb_enabled
+                )
+                stat = handler_stat_name_func(stat)
+            return fn(self, stat, *args, **kwargs)
+        except InvalidStatsNameException:
+            log.exception("Invalid stat name: %s.", stat)
+            return None
+
+    return cast("Callable", wrapper)
 
 
 def stat_name_otel_handler(

@@ -38,6 +38,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     metrics_allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
     metrics_block_list = conf.get("metrics", "metrics_block_list", fallback=None)
 
+    stat_name_handler = conf.getimport("metrics", "stat_name_handler")
+    statsd_influxdb_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
+
     return otel_logger.get_otel_logger(
         cls,
         host,
@@ -49,4 +52,6 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         service_name,
         metrics_allow_list,
         metrics_block_list,
+        stat_name_handler,
+        statsd_influxdb_enabled,
     )
