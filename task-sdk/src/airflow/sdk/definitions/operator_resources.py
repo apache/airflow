@@ -40,7 +40,7 @@ class Resource:
 
     def __init__(self, name, units_str, qty):
         if qty < 0:
-            raise RuntimeError(
+            raise ValueError(
                 f"Received resource quantity {qty} for resource {name}, "
                 f"but resource quantity must be non-negative."
             )
