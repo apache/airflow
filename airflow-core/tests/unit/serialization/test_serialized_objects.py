@@ -465,7 +465,7 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
 def test_serialize_deserialize_deadline_alert(reference):
     public_deadline_alert_fields = {
-        field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
+        getattr(DeadlineAlertFields, field) for field in vars(DeadlineAlertFields) if not field.startswith("_")
     }
     original = DeadlineAlert(
         reference=reference,
