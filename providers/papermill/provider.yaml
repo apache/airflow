@@ -22,12 +22,13 @@ description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
 state: ready
-source-date-epoch: 1763070119
+source-date-epoch: 1764110498
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.12.0
   - 3.11.4
   - 3.11.3
   - 3.11.2

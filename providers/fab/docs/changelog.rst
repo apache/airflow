@@ -20,6 +20,26 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Misc
+~~~~
+
+* ``Remove deprecation warning in Fab provider (#58686)``
+* ``Fix mypy errors in providers (#58644)``
+* ``Bump webpack from 5.102.1 to 5.103.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58634)``
+* ``Upgrade js-yaml to 4.1.1 in FAB (#58501)``
+* ``Migrate FAB PATCH /roles/{name} to FastAPI (#58023)``
+
+Doc-only
+~~~~~~~~
+
+* ``Updates to release process of providers (#58316)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.0.2
 .....
 
