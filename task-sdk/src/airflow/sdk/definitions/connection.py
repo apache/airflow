@@ -293,12 +293,6 @@ class Connection:
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
-        conn_type = kwargs.get("conn_type", None)
-        if not conn_type:
-            raise ValueError(
-                "Connection type (conn_type) is required but missing from connection configuration. "
-                "Please add 'conn_type' field to your connection definition."
-            )
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)
