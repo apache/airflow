@@ -333,12 +333,13 @@ def __getattr__(name: str):
     if name in _DEPRECATED_EXCEPTIONS:
         import warnings
 
+        from airflow import DeprecatedImportWarning
         from airflow.utils.module_loading import import_string
 
         target_path = _DEPRECATED_EXCEPTIONS[name]
         warnings.warn(
             f"airflow.exceptions.{name} is deprecated. Use {target_path} instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         return import_string(target_path)
