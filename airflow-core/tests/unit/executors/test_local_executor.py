@@ -106,15 +106,28 @@ class TestLocalExecutor:
         mock_supervise.side_effect = fake_supervise
 
         executor = LocalExecutor(parallelism=2)
-        executor.start()
 
-        assert executor.result_queue.empty()
+        with spy_on(executor._spawn_worker) as spawn_worker:
+            executor.start()
 
-        for ti in success_tis:
+            assert executor.result_queue.empty()
+
+            for ti in success_tis:
+                executor.queue_workload(
+                    workloads.ExecuteTask(
+                        token="",
+                        ti=ti,
+                        dag_rel_path="some/path",
+                        log_path=None,
+                        bundle_info=dict(name="hi", version="hi"),
+                    ),
+                    session=mock.MagicMock(spec=Session),
+                )
+
             executor.queue_workload(
                 workloads.ExecuteTask(
                     token="",
-                    ti=ti,
+                    ti=fail_ti,
                     dag_rel_path="some/path",
                     log_path=None,
                     bundle_info=dict(name="hi", version="hi"),
@@ -122,21 +135,14 @@ class TestLocalExecutor:
                 session=mock.MagicMock(spec=Session),
             )
 
-        executor.queue_workload(
-            workloads.ExecuteTask(
-                token="",
-                ti=fail_ti,
-                dag_rel_path="some/path",
-                log_path=None,
-                bundle_info=dict(name="hi", version="hi"),
-            ),
-            session=mock.MagicMock(spec=Session),
-        )
+            # Process queued workloads to trigger worker spawning
+            executor._process_workloads(list(executor.queued_tasks.values()))
 
-        # Process queued workloads to trigger worker spawning
-        executor._process_workloads(list(executor.queued_tasks.values()))
+            executor.end()
 
-        executor.end()
+            expected = 2
+            # Depending on how quickly the tasks run, we might not need to create all the workers we could
+            assert 1 <= len(spawn_worker.calls) <= expected
 
         # By that time Queues are already shutdown so we cannot check if they are empty
         assert len(executor.running) == 0
@@ -181,7 +187,7 @@ class TestLocalExecutor:
             executor.end()
 
     @skip_spawn_mp_start
-    def test_worker_process_revive(self):
+    def test_executor_replace_dead_workers(self):
         executor = LocalExecutor(parallelism=2)
         executor.start()
 
@@ -230,10 +236,7 @@ class TestLocalExecutor:
         with spy_on(executor._spawn_worker) as spawn_worker:
             executor._process_workloads(list(executor.queued_tasks.values()))
 
-            if executor.is_mp_using_fork:
-                assert len(spawn_worker.calls) == 2
-            else:
-                assert len(spawn_worker.calls) == 1
+            assert 1 <= len(spawn_worker.calls) <= 2
 
         for killed_pid, killed_proc in dead_process.items():
             executor.workers[killed_pid] = killed_proc
