@@ -20,6 +20,7 @@ UI_COMMANDS: dict[str, str | list[str]] = {
     "name": "UI commands",
     "commands": [
         "check-translation-completeness",
+        "compile-assets",
     ],
 }
 
@@ -33,5 +34,14 @@ UI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--remove-extra",
             ],
         },
+    ],
+    "breeze ui compile-assets": [
+        {
+            "name": "Compile ui assets flags",
+            "options": [
+                "--dev",
+                "--force-clean",
+            ],
+        }
     ],
 }

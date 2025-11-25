@@ -121,7 +121,6 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
-    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
@@ -842,34 +841,6 @@ def build_docs(
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
-
-
-@main.command(
-    name="compile-ui-assets",
-    help="Compiles ui assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_ui_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_prek_installed()
-    compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(name="down", help="Stop running breeze environment.")
