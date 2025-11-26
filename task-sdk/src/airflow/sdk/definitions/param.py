@@ -23,9 +23,9 @@ import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
 from typing import TYPE_CHECKING, Any, ClassVar
 
-from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import ParamValidationError
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -297,7 +297,7 @@ class DagParam(ResolveMixin):
             return self._default
         with contextlib.suppress(KeyError):
             return context["params"][self._name]
-        raise AirflowException(f"No value could be resolved for parameter {self._name}")
+        raise RuntimeError(f"No value could be resolved for parameter {self._name}")
 
     def serialize(self) -> dict:
         """Serialize the DagParam object into a dictionary."""

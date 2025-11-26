@@ -1,0 +1,60 @@
+Move task-level exception imports into the Task SDK
+
+Airflow now sources task-facing exceptions (``AirflowSkipException``, ``TaskDeferred``, etc.) from
+``airflow.sdk.exceptions``. ``airflow.exceptions`` still exposes the same exceptions, but they are
+proxies that emit ``DeprecatedImportWarning`` so Dag authors can migrate before the shim is removed.
+
+**What changed:**
+
+- Runtime code now consistently raises the SDK versions of task-level exceptions.
+- The Task SDK redefines these classes so workers no longer depend on ``airflow-core`` at runtime.
+- ``airflow.providers.common.compat.sdk`` centralizes compatibility imports for providers.
+
+**Behaviour changes:**
+
+- Sensors and other helpers that validate user input now raise ``ValueError`` (instead of
+  ``AirflowException``) when ``poke_interval``/ ``timeout`` arguments are invalid.
+- Importing deprecated exception names from ``airflow.exceptions`` logs a warning directing users to
+  the SDK import path.
+
+**Exceptions now provided by ``airflow.sdk.exceptions``:**
+
+- ``AirflowException`` and ``AirflowNotFoundException``
+- ``AirflowRescheduleException`` and ``AirflowSensorTimeout``
+- ``AirflowSkipException``, ``AirflowFailException``, ``AirflowTaskTimeout``, ``AirflowTaskTerminated``
+- ``TaskDeferred``, ``TaskDeferralTimeout``, ``TaskDeferralError``
+- ``DagRunTriggerException`` and ``DownstreamTasksSkipped``
+- ``AirflowDagCycleException`` and ``AirflowInactiveAssetInInletOrOutletException``
+- ``ParamValidationError``, ``DuplicateTaskIdFound``, ``TaskAlreadyInTaskGroup``, ``TaskNotFound``, ``XComNotFound``
+
+**Backward compatibility:**
+
+- Existing Dags/operators that still import from ``airflow.exceptions`` continue to work, though
+  they log warnings.
+- Providers can rely on ``airflow.providers.common.compat.sdk`` to keep one import path that works
+  across supported Airflow versions.
+
+**Migration:**
+
+- Update custom operators, sensors, and extensions to import exception classes from
+  ``airflow.sdk.exceptions`` (or from the provider compat shim).
+- Adjust custom validation code to expect ``ValueError`` for invalid sensor arguments if it
+  previously caught ``AirflowException``.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [x] Code interface changes
+
+* Migration rules needed
+
+  * Import task-level exceptions such as ``AirflowSkipException``, ``TaskDeferred``,
+    ``AirflowFailException``, etc. from ``airflow.sdk.exceptions`` instead of ``airflow.exceptions``.
+  * Update custom sensors/operators that validated arguments by catching ``AirflowException`` to
+    expect ``ValueError`` for invalid ``poke_interval`` / ``timeout`` inputs.

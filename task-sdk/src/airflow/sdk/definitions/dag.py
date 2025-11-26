@@ -32,18 +32,13 @@ from datetime import datetime, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import attrs
 import jinja2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.exceptions import (
-    DuplicateTaskIdFound,
-    ParamValidationError,
-    RemovedInAirflow4Warning,
-    TaskNotFound,
-)
 from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
@@ -52,7 +47,14 @@ from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException, FailFastDagInvalidTriggerRule
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
+    DuplicateTaskIdFound,
+    FailFastDagInvalidTriggerRule,
+    ParamValidationError,
+    RemovedInAirflow4Warning,
+    TaskNotFound,
+)
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -1314,7 +1316,13 @@ class DAG:
                 ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
                 if not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
-                    time.sleep(1)
+                    if use_executor:
+                        # If we are using a real executor, those often make some request or describe call to
+                        # an external service to track the progress of the running tasks. Doing that every 1s
+                        # is way too aggressive, especially given that these are just tests.
+                        time.sleep(30)
+                    else:
+                        time.sleep(1)
 
                 for ti in scheduled_tis:
                     task = self.task_dict[ti.task_id]
@@ -1339,6 +1347,7 @@ class DAG:
                             ti,
                             dag_rel_path=Path(self.fileloc),
                             generator=executor.jwt_generator,
+                            sentry_integration=executor.sentry_integration,
                             # For the system test/debug purpose, we use the default bundle which uses
                             # local file system. If it turns out to be a feature people want, we could
                             # plumb the Bundle to use as a parameter to dag.test
@@ -1399,13 +1408,13 @@ def _run_task(
             # it is run.
             ti.set_state(TaskInstanceState.QUEUED)
             task_sdk_ti = TaskInstanceSDK(
-                id=ti.id,
+                id=UUID(str(ti.id)),
                 task_id=ti.task_id,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
                 map_index=ti.map_index,
-                dag_version_id=ti.dag_version_id,
+                dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
             taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)

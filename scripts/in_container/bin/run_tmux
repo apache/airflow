@@ -18,15 +18,6 @@
 if [ ! -e /usr/local/bin/stop_airflow ]; then
     ln -s "/opt/airflow/scripts/in_container/stop_tmux_airflow.sh" /usr/local/bin/stop_airflow || true
 fi
-# Use LocalExecutor if not set and if backend is not sqlite as it gives
-# better performance
-if [[ ${BACKEND} != "sqlite"  ]]; then
-    export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
-fi
-
-if [[ ${BREEZE_DEBUG_CELERY_WORKER} == "true" ]]; then
-    export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
-fi
 
 export TMUX_TMPDIR=~/.tmux/tmp
 if [ -e ~/.tmux/tmp ]; then
