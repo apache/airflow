@@ -83,6 +83,7 @@ if TYPE_CHECKING:
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
+        AirflowSensorTimeout as AirflowSensorTimeout,
         AirflowSkipException as AirflowSkipException,
         AirflowTaskTimeout as AirflowTaskTimeout,
         ParamValidationError as ParamValidationError,
@@ -229,6 +230,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
     # ============================================================================
