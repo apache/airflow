@@ -413,12 +413,10 @@ class SerializedDagModel(Base):
             # This looks odd, but I had issues comparing the serialized data directly
             # while doing manual testing. To avoid them, we fetch by dag_id and interval,
             # then use python's dict comparison instead of trying to match strings in SQL.
-            candidates = (
-                session.scalars(
-                    select(DeadlineAlertModel).filter(
-                        DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
-                        DeadlineAlertModel.interval == interval,
-                    )
+            candidates = session.scalars(
+                select(DeadlineAlertModel).filter(
+                    DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
+                    DeadlineAlertModel.interval == interval,
                 )
             )
 

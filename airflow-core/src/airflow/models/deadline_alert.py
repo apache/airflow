@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 import uuid6
 from sqlalchemy import JSON, Float, ForeignKey, String, Text, select
+from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped
 from sqlalchemy_utils import UUIDType
 
@@ -98,4 +99,7 @@ class DeadlineAlert(Base):
         :param deadline_alert_id: The UUID of the DeadlineAlert to retrieve
         :param session: Database session
         """
-        return session.scalar(select(cls).where(id=deadline_alert_id))
+        result = session.scalar(select(cls).where(cls.id == deadline_alert_id))
+        if result is None:
+            raise NoResultFound(f"No DeadlineAlert found with id {deadline_alert_id}")
+        return result
