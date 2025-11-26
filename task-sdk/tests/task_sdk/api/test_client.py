@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from unittest import mock
 
+import certifi
 import httpx
 import pytest
 import time_machine
@@ -38,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     DagRunState,
     DagRunStateResponse,
+    HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
     TerminalTIState,
@@ -48,7 +50,6 @@ from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     DeferTask,
     ErrorResponse,
-    HITLDetailRequestResult,
     OKResponse,
     PreviousDagRunResult,
     RescheduleTask,
@@ -61,7 +62,7 @@ if TYPE_CHECKING:
 
 class TestClient:
     @pytest.mark.parametrize(
-        ["path", "json_response"],
+        ("path", "json_response"),
         [
             (
                 "/task-instances/1/run",
@@ -248,7 +249,7 @@ class TestClient:
         assert response.request.headers["Authorization"] == "Bearer abc"
 
     @pytest.mark.parametrize(
-        ["status_code", "description"],
+        ("status_code", "description"),
         [
             (399, "status code < 400"),
             (301, "3xx redirect status code"),
@@ -263,7 +264,7 @@ class TestClient:
 
 class TestTaskInstanceOperations:
     """
-    Test that the TestVariableOperations class works as expected. While the operations are simple, it
+    Test that the TestTaskInstanceOperations class works as expected. While the operations are simple, it
     still catches the basic functionality of the client for task instances including endpoint and
     response parsing.
     """
@@ -445,6 +446,24 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx.MockTransport(handle_request))
         result = client.task_instances.set_rtif(id=TI_ID, body=rendered_fields)
+
+        assert result == OKResponse(ok=True)
+
+    def test_taskinstance_set_rendered_map_index_success(self):
+        TI_ID = uuid6.uuid7()
+        rendered_map_index = "Label: task_1"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{TI_ID}/rendered-map-index":
+                actual_body = json.loads(request.read())
+                assert request.method == "PATCH"
+                # Body should be the string directly, not wrapped in JSON
+                assert actual_body == rendered_map_index
+                return httpx.Response(status_code=204)
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.task_instances.set_rendered_map_index(id=TI_ID, rendered_map_index=rendered_map_index)
 
         assert result == OKResponse(ok=True)
 
@@ -1281,7 +1300,7 @@ class TestHITLOperations:
             params=None,
             multiple=False,
         )
-        assert isinstance(result, HITLDetailRequestResult)
+        assert isinstance(result, HITLDetailRequest)
         assert result.ti_id == ti_id
         assert result.options == ["Approval", "Reject"]
         assert result.subject == "This is subject"
@@ -1348,3 +1367,36 @@ class TestHITLOperations:
         assert result.params_input == {}
         assert result.responded_by_user == HITLUser(id="admin", name="admin")
         assert result.responded_at == timezone.datetime(2025, 7, 3, 0, 0, 0)
+
+
+class TestSSLContextCaching:
+    @pytest.fixture(autouse=True)
+    def clear_ssl_context_cache(self):
+        Client._get_ssl_context_cached.cache_clear()
+        yield
+        Client._get_ssl_context_cached.cache_clear()
+
+    def test_cache_hit_on_same_parameters(self):
+        ca_file = certifi.where()
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
+        ctx2 = Client._get_ssl_context_cached(ca_file, None)
+        assert ctx1 is ctx2
+
+    def test_cache_miss_if_cache_cleared(self):
+        ca_file = certifi.where()
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
+        Client._get_ssl_context_cached.cache_clear()
+        ctx2 = Client._get_ssl_context_cached(ca_file, None)
+        assert ctx1 is not ctx2
+
+    def test_cache_miss_on_different_parameters(self):
+        ca_file = certifi.where()
+
+        ctx1 = Client._get_ssl_context_cached(ca_file, None)
+        ctx2 = Client._get_ssl_context_cached(ca_file, ca_file)
+
+        info = Client._get_ssl_context_cached.cache_info()
+
+        assert ctx1 is not ctx2
+        assert info.misses == 2
+        assert info.currsize == 2

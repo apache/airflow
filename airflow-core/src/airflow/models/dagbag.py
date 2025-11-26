@@ -66,13 +66,13 @@ class DBDagBag:
         return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info = inspect(dag_run)
+        info: Any = inspect(dag_run)
         if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
             # Relationship is already loaded, safe to access
             return dag_run.created_dag_version

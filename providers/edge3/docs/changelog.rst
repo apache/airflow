@@ -27,6 +27,56 @@
 Changelog
 ---------
 
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* `` Add push_logs configuration option to Edge executor (#58125)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#58235)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 6 files in providers (edge3,git) (#58018)``
+   * ``Synchronize default versions in all split .pre-commit-config.yaml (#57851)``
+
+1.4.1
+.....
+
+.. warning::
+  The React Plugin integration in this release is incompatible with Airflow 3.1.0
+  It is recommended to use apache-airflow>=3.1.1
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Link to Dag in Plugin (#55642)``
+* ``Bugfix/support Subpath w/o Execution API Url (#57372)``
+* ``Adjust authentication token after UI changes in Airflow 3.1.1 (#57370)``
+
+Misc
+~~~~
+
+* ``Bump vite from 7.1.7 to 7.1.11 in plugin integration (#56909)``
+* ``Bump happy-dom from 18.0.1 to 20.0.2 in plugin integration (#56686)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 23 updates (#57286)``
+* ``Fix mypy warnings for SQLA2 migration (#56989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Extract prek hooks for Edge provider (#57104)``
+   * ``Prepare edge3 provider ad-hoc release (October 2025) (#57280)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Prepare edge3 provider ad-hoc release rc2 (October 2025) (#57538)``
+
 1.4.0
 .....
 
@@ -106,10 +156,10 @@ Misc
 
 * ``Pick/vite vitest full (#55623)``
 * ``Bump React and React-DOM (#55598)``
-* ``Bump axios from 1.11.0 to 1.12.0 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55550)``
+* ``Bump axios from 1.11.0 to 1.12.0 in plugin integration (#55550)``
 * ``Some small UI polishing for Edge React UI (#55545)``
 * ``Adjust Edge color scheme after merge of PR 53981 (#55485)``
-* ``Bump vite from 5.4.19 to 5.4.20 in /providers/edge3/src/airflow/providers/edge3/plugins/www (#55449)``
+* ``Bump vite from 5.4.19 to 5.4.20 in plugin integration (#55449)``
 
 Doc-only
 ~~~~~~~~

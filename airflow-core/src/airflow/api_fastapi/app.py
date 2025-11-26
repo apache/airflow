@@ -161,8 +161,6 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    global auth_manager
-
     if auth_manager is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "

@@ -46,7 +46,7 @@ ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.mark.parametrize(
-    "sql_conn_value, name, should_raise",
+    ("sql_conn_value", "name", "should_raise"),
     [
         pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
         pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
@@ -72,7 +72,7 @@ def test_invalid_names(sql_conn_value, name, should_raise, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "sql_conn_value, uri, should_raise",
+    ("sql_conn_value", "uri", "should_raise"),
     [
         pytest.param("mysql://localhost/db", "", True, id="mysql-empty"),
         pytest.param("mysql://localhost/db", "\n\t", True, id="mysql-whitespace"),
@@ -128,7 +128,7 @@ def test_both_name_and_uri():
 
 
 @pytest.mark.parametrize(
-    "uri, normalized",
+    ("uri", "normalized"),
     [
         pytest.param("foobar", "foobar", id="scheme-less"),
         pytest.param("foo:bar", "foo:bar", id="scheme-less-colon"),
@@ -144,17 +144,22 @@ def test_uri_with_scheme(uri: str, normalized: str) -> None:
     assert os.fspath(asset) == normalized
 
 
-def test_uri_with_auth() -> None:
-    with pytest.warns(UserWarning, match="username") as record:
-        asset = Asset("ftp://user@localhost/foo.txt")
+def test_uri_with_password() -> None:
+    with pytest.warns(UserWarning, match="password") as record:
+        asset = Asset("ftp://user:password@localhost/foo.txt")
     assert len(record) == 1
     assert str(record[0].message) == (
-        "An Asset URI should not contain auth info (e.g. username or "
-        "password). It has been automatically dropped."
+        "An Asset URI should not contain a password. User info has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[asset])
     assert asset.uri == "ftp://localhost/foo.txt"
     assert os.fspath(asset) == "ftp://localhost/foo.txt"
+
+
+def test_uri_without_password() -> None:
+    uri = "abfss://filesystem@account.dfs.core.windows.net/path"
+    asset = Asset(uri)
+    assert asset.uri == uri
 
 
 def test_uri_without_scheme():
@@ -319,14 +324,14 @@ test_cases = [
 ]
 
 
-@pytest.mark.parametrize("expression, expected", test_cases)
+@pytest.mark.parametrize(("expression", "expected"), test_cases)
 def test_evaluate_assets_expression(expression, expected):
     expr = expression()
     assert assets_equal(expr, expected)
 
 
 @pytest.mark.parametrize(
-    "expression, error",
+    ("expression", "error"),
     [
         pytest.param(
             lambda: asset1 & 1,  # type: ignore[operator]
@@ -433,7 +438,7 @@ class TestAssetUniqueKey:
         )
 
     @pytest.mark.parametrize(
-        "name, uri, expected_asset_unique_key",
+        ("name", "uri", "expected_asset_unique_key"),
         [
             ("test", None, AssetUniqueKey(name="test", uri="test")),
             (None, "test://test/", AssetUniqueKey(name="test://test/", uri="test://test/")),
@@ -452,21 +457,21 @@ class TestAssetAlias:
 
 
 class TestAssetSubclasses:
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_name(self, subcls, group):
         obj = subcls(name="foobar")
         assert obj.name == "foobar"
         assert obj.uri == "foobar"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_uri(self, subcls, group):
         obj = subcls(uri="s3://bucket/key/path")
         assert obj.name == "s3://bucket/key/path"
         assert obj.uri == "s3://bucket/key/path"
         assert obj.group == group
 
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_both_name_and_uri(self, subcls, group):
         obj = subcls("foobar", "s3://bucket/key/path")
         assert obj.name == "foobar"
@@ -474,7 +479,7 @@ class TestAssetSubclasses:
         assert obj.group == group
 
     @pytest.mark.parametrize("arg", ["foobar", "s3://bucket/key/path"])
-    @pytest.mark.parametrize("subcls, group", ((Model, "model"), (Dataset, "dataset")))
+    @pytest.mark.parametrize(("subcls", "group"), ((Model, "model"), (Dataset, "dataset")))
     def test_only_posarg(self, subcls, group, arg):
         obj = subcls(arg)
         assert obj.name == arg

@@ -50,6 +50,7 @@ export const useAutoRefresh = ({
   const { data: dagRunData } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
+      limit: 1,
       state: ["running", "queued"],
     },
     undefined,

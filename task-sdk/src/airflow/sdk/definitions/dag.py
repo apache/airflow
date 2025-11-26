@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import functools
 import itertools
+import json
 import logging
 import os
 import sys
@@ -31,27 +32,29 @@ from datetime import datetime, timedelta
 from inspect import signature
 from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import attrs
 import jinja2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.exceptions import (
-    DuplicateTaskIdFound,
-    ParamValidationError,
-    RemovedInAirflow4Warning,
-    TaskNotFound,
-)
 from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.node import validate_key
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException, FailFastDagInvalidTriggerRule
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
+    DuplicateTaskIdFound,
+    FailFastDagInvalidTriggerRule,
+    ParamValidationError,
+    RemovedInAirflow4Warning,
+    TaskNotFound,
+)
 from airflow.timetables.base import Timetable
 from airflow.timetables.simple import (
     AssetTriggeredTimetable,
@@ -65,6 +68,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
+    from typing_extensions import Self
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
@@ -72,7 +76,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.supervisor import TaskRunResult
-    from airflow.typing_compat import Self
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -119,7 +122,7 @@ _DAG_HASH_ATTRS = frozenset(
 
 def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a plain ``schedule`` value."""
-    from airflow.configuration import conf as airflow_conf
+    from airflow.sdk.configuration import conf as airflow_conf
     from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
     from airflow.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
 
@@ -141,13 +144,13 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
 
 
 def _config_bool_factory(section: str, key: str) -> Callable[[], bool]:
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     return functools.partial(conf.getboolean, section, key)
 
 
 def _config_int_factory(section: str, key: str) -> Callable[[], int]:
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     return functools.partial(conf.getint, section, key)
 
@@ -1171,31 +1174,42 @@ class DAG:
         import re
         import time
         from contextlib import ExitStack
+        from unittest.mock import patch
 
         from airflow import settings
-        from airflow.configuration import secrets_backend_list
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
-        from airflow.secrets.local_filesystem import LocalFilesystemBackend
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         exit_stack = ExitStack()
 
         if conn_file_path or variable_file_path:
-            local_secrets = LocalFilesystemBackend(
-                variables_file_path=variable_file_path, connections_file_path=conn_file_path
-            )
-            secrets_backend_list.insert(0, local_secrets)
-            exit_stack.callback(lambda: secrets_backend_list.pop(0))
+            backend_kwargs = {}
+            if conn_file_path:
+                backend_kwargs["connections_file_path"] = conn_file_path
+            if variable_file_path:
+                backend_kwargs["variables_file_path"] = variable_file_path
 
+            exit_stack.enter_context(
+                patch.dict(
+                    os.environ,
+                    {
+                        "AIRFLOW__SECRETS__BACKEND": "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+                        "AIRFLOW__SECRETS__BACKEND_KWARGS": json.dumps(backend_kwargs),
+                    },
+                )
+            )
+
+        if settings.Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = settings.Session()
 
         with exit_stack:
             self.validate()
 
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
-            logical_date = logical_date if not isinstance(logical_date, ArgNotSet) else timezone.utcnow()
+            logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
 
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
@@ -1327,6 +1341,7 @@ class DAG:
                             ti,
                             dag_rel_path=Path(self.fileloc),
                             generator=executor.jwt_generator,
+                            sentry_integration=executor.sentry_integration,
                             # For the system test/debug purpose, we use the default bundle which uses
                             # local file system. If it turns out to be a feature people want, we could
                             # plumb the Bundle to use as a parameter to dag.test
@@ -1387,13 +1402,13 @@ def _run_task(
             # it is run.
             ti.set_state(TaskInstanceState.QUEUED)
             task_sdk_ti = TaskInstanceSDK(
-                id=ti.id,
+                id=UUID(str(ti.id)),
                 task_id=ti.task_id,
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
                 map_index=ti.map_index,
-                dag_version_id=ti.dag_version_id,
+                dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
             taskrun_result = run_task_in_process(ti=task_sdk_ti, task=task)

@@ -69,12 +69,12 @@ class TestGetDagRuns(TestPublicDagEndpoint):
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
                 if dag_run.start_date is not None:
-                    dag_run.end_date = dag_run.start_date.add(hours=1)
+                    dag_run.end_date = dag_run.start_date + pendulum.duration(hours=1)
                 session.add(dag_run)
         session.commit()
 
     @pytest.mark.parametrize(
-        "query_params, expected_ids,expected_total_dag_runs",
+        ("query_params", "expected_ids", "expected_total_dag_runs"),
         [
             # Filters
             ({}, [DAG1_ID, DAG2_ID], 11),
@@ -109,11 +109,13 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
         required_dag_run_key = [
-            "dag_run_id",
             "dag_id",
+            "run_id",
             "state",
             "run_after",
-            "dag_versions",
+            "start_date",
+            "end_date",
+            "logical_date",
         ]
         for recent_dag_runs in body["dags"]:
             dag_runs = recent_dag_runs["latest_dag_runs"]
@@ -172,7 +174,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.commit()
 
     @pytest.mark.parametrize(
-        "has_pending_actions, expected_total_entries, expected_pending_actions",
+        ("has_pending_actions", "expected_total_entries", "expected_pending_actions"),
         [
             # Without has_pending_actions param, should query all DAGs
             (None, 3, None),
@@ -312,6 +314,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             "start_date": "2025-01-01T00:00:00Z",
             "end_date": "2025-01-01T01:00:00Z",
             "state": "failed",
+            "duration": 3600.0,
         }
 
     def test_latest_run_should_response_401(self, unauthenticated_test_client):
@@ -323,7 +326,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_count",
+        ("query_params", "expected_dag_count"),
         [
             ({"has_asset_schedule": True}, 3),
             ({"has_asset_schedule": False}, 2),

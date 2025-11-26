@@ -30,10 +30,13 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    AsyncPodManager,
     PodLogsConsumer,
     PodManager,
     PodPhase,
+    parse_log_line,
 )
 from airflow.utils.timezone import utc
 
@@ -41,6 +44,18 @@ from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallbac
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+
+
+def test_parse_log_line():
+    log_message = "This should return no timestamp"
+    timestamp, line = parse_log_line(log_message)
+    assert timestamp is None
+    assert line == log_message
+
+    real_timestamp = "2020-10-08T14:16:17.793417674Z"
+    timestamp, line = parse_log_line(f"{real_timestamp} {log_message}")
+    assert timestamp == pendulum.parse(real_timestamp)
+    assert line == log_message
 
 
 class TestPodManager:
@@ -222,6 +237,8 @@ class TestPodManager:
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
         ]
         with pytest.raises(AirflowException):
             self.pod_manager.read_pod_events(mock.sentinel)
@@ -293,20 +310,11 @@ class TestPodManager:
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
         ]
         with pytest.raises(AirflowException):
             self.pod_manager.read_pod(mock.sentinel)
-
-    def test_parse_log_line(self):
-        log_message = "This should return no timestamp"
-        timestamp, line = self.pod_manager.parse_log_line(log_message)
-        assert timestamp is None
-        assert line == log_message
-
-        real_timestamp = "2020-10-08T14:16:17.793417674Z"
-        timestamp, line = self.pod_manager.parse_log_line(f"{real_timestamp} {log_message}")
-        assert timestamp == pendulum.parse(real_timestamp)
-        assert line == log_message
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
@@ -393,10 +401,11 @@ class TestPodManager:
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
 
+    @pytest.mark.parametrize("status", [409, 429])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_retries_on_409_error(self, mock_run_pod_async):
+    def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, status):
         mock_run_pod_async.side_effect = [
-            ApiException(status=409),
+            ApiException(status=status),
             mock.MagicMock(),
         ]
         self.pod_manager.create_pod(mock.sentinel)
@@ -404,7 +413,7 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_fails_on_other_exception(self, mock_run_pod_async):
-        mock_run_pod_async.side_effect = [ApiException(status=504)]
+        mock_run_pod_async.side_effect = [ApiException(status=401)]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
@@ -415,11 +424,13 @@ class TestPodManager:
             ApiException(status=409),
             ApiException(status=409),
             ApiException(status=409),
+            ApiException(status=409),
+            ApiException(status=409),
         ]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
-        assert mock_run_pod_async.call_count == 3
+        assert mock_run_pod_async.call_count == 5
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
@@ -477,7 +488,7 @@ class TestPodManager:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
-    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep, caplog):
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep):
         condition_scheduled = mock.MagicMock()
         condition_scheduled.type = "PodScheduled"
         condition_scheduled.status = "True"
@@ -500,17 +511,21 @@ class TestPodManager:
         schedule_timeout = 30
         startup_timeout = 60
         mock_pod = MagicMock()
-        await self.pod_manager.await_pod_start(
-            pod=mock_pod,
-            schedule_timeout=schedule_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-            startup_timeout=startup_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
-            check_interval=startup_check_interval,
-        )
-        mock_time_sleep.assert_called_with(startup_check_interval)
-        assert mock_time_sleep.call_count == 3
-        assert f"::group::Waiting until {schedule_timeout}s to get the POD scheduled..." in caplog.text
-        assert f"Waiting {startup_timeout}s to get the POD running..." in caplog.text
-        assert self.pod_manager.stop_watching_events is True
+
+        with mock.patch.object(self.pod_manager.log, "info") as mock_log_info:
+            await self.pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=schedule_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+                startup_timeout=startup_timeout,  # Never hit, any value is fine, as time.sleep is mocked to do nothing
+                check_interval=startup_check_interval,
+            )
+            mock_time_sleep.assert_called_with(startup_check_interval)
+            assert self.pod_manager.stop_watching_events is True
+            assert mock_time_sleep.call_count == 3
+            mock_log_info.assert_any_call(
+                "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+            )
+            mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_container_is_running(self, container_is_running_mock):
@@ -588,7 +603,9 @@ class TestPodManager:
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs["since_seconds"] == 5
 
-    @pytest.mark.parametrize("follow, is_running_calls, exp_running", [(True, 3, False), (False, 3, False)])
+    @pytest.mark.parametrize(
+        ("follow", "is_running_calls", "exp_running"), [(True, 3, False), (False, 3, False)]
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_container_running_follow(
         self, container_running_mock, follow, is_running_calls, exp_running
@@ -700,9 +717,236 @@ class TestPodManager:
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
 
 
+class TestAsyncPodManager:
+    @pytest.fixture
+    def mock_log_info(self):
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
+            yield mock_log_info
+
+    def setup_method(self):
+        self.mock_async_hook = mock.AsyncMock()
+        self.async_pod_manager = AsyncPodManager(
+            async_hook=self.mock_async_hook,
+            callbacks=[],
+        )
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = "Pod took too long to be scheduled on the cluster, giving up. More than 0s. Check the pod events in kubernetes."
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=0,
+                startup_timeout=0,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_informative_error_on_startup_timeout(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        condition = mock.MagicMock()
+        condition.type = "PodScheduled"
+        condition.status = "True"
+        pod_response.status.conditions = [condition]
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = "Pod took too long to start. More than 0s. Check the pod events in kubernetes."
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=0,
+                startup_timeout=0,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_start_pod_raises_fast_error_on_image_error(self):
+        pod_response = mock.MagicMock()
+        pod_response.status.phase = "Pending"
+        container_status = mock.MagicMock()
+        waiting_state = mock.MagicMock()
+        waiting_state.reason = "ErrImagePull"
+        waiting_state.message = "Test error"
+        container_status.state.waiting = waiting_state
+        pod_response.status.container_statuses = [container_status]
+        self.mock_async_hook.get_pod.return_value = pod_response
+        expected_msg = f"Pod docker image cannot be pulled, unable to start: {waiting_state.reason}\n{waiting_state.message}"
+        mock_pod = mock.MagicMock()
+        with pytest.raises(AirflowException, match=expected_msg):
+            await self.async_pod_manager.await_pod_start(
+                pod=mock_pod,
+                schedule_timeout=60,
+                startup_timeout=60,
+            )
+        self.mock_async_hook.get_pod.assert_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_start_pod_startup_interval_seconds(self, mock_time_sleep, mock_log_info):
+        condition_scheduled = mock.MagicMock()
+        condition_scheduled.type = "PodScheduled"
+        condition_scheduled.status = "True"
+
+        pod_info_pending = mock.MagicMock()
+        pod_info_pending.status.phase = PodPhase.PENDING
+        pod_info_pending.status.conditions = []
+
+        pod_info_pending_scheduled = mock.MagicMock()
+        pod_info_pending_scheduled.status.phase = PodPhase.PENDING
+        pod_info_pending_scheduled.status.conditions = [condition_scheduled]
+
+        pod_info_succeeded = mock.MagicMock()
+        pod_info_succeeded.status.phase = PodPhase.SUCCEEDED
+
+        # Simulate sequence of pod states
+        self.mock_async_hook.get_pod.side_effect = [
+            pod_info_pending,
+            pod_info_pending_scheduled,
+            pod_info_pending_scheduled,
+            pod_info_succeeded,
+        ]
+        startup_check_interval = 10
+        schedule_timeout = 30
+        startup_timeout = 60
+        mock_pod = mock.MagicMock()
+
+        await self.async_pod_manager.await_pod_start(
+            pod=mock_pod,
+            schedule_timeout=schedule_timeout,
+            startup_timeout=startup_timeout,
+            check_interval=startup_check_interval,
+        )
+        assert mock_time_sleep.call_count == 3
+        mock_log_info.assert_any_call(
+            "::group::Waiting until %ss to get the POD scheduled...", schedule_timeout
+        )
+        mock_log_info.assert_any_call("Waiting %ss to get the POD running...", startup_timeout)
+        assert self.async_pod_manager.stop_watching_events is True
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events(self, mock_time_sleep, mock_log_info):
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod"
+        mock_pod.metadata.namespace = "default"
+
+        events = mock.MagicMock()
+        events.items = []
+        for id in ["event 1", "event 2"]:
+            event = mock.MagicMock()
+            event.message = f"test {id}"
+            event.involved_object.field_path = f"object {id}"
+            events.items.append(event)
+        startup_check_interval = 10
+
+        def get_pod_events_side_effect(name, namespace):
+            self.async_pod_manager.stop_watching_events = True
+            return events
+
+        self.mock_async_hook.get_pod_events.side_effect = get_pod_events_side_effect
+
+        await self.async_pod_manager.watch_pod_events(pod=mock_pod, check_interval=startup_check_interval)
+        mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "test event 1", "object event 1")
+        mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "test event 2", "object event 2")
+        mock_time_sleep.assert_called_once_with(startup_check_interval)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
+        [
+            # Case 1: No logs
+            ([], pendulum.now(), [], []),
+            # Case 2: One log line with timestamp before now
+            (
+                [f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} message"],
+                pendulum.now(),
+                ["message"],
+                [],
+            ),
+            # Case 3: Log line with timestamp equal to now (should be skipped, so last_time is None)
+            ([f"{pendulum.now().to_iso8601_string()} message"], pendulum.now(), [], ["message"]),
+            # Case 4: Multiple log lines, last before now
+            (
+                [
+                    f"{pendulum.now().subtract(seconds=3).to_iso8601_string()} msg1",
+                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg2",
+                ],
+                pendulum.now(),
+                ["msg1", "msg2"],
+                [],
+            ),
+            # Case 5: Log lines with continuation (no timestamp)
+            (
+                [
+                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
+                    "continued line",
+                ],
+                pendulum.now(),
+                ["msg1\ncontinued line"],
+                [],
+            ),
+            # Case 6: Log lines with continuation (no timestamp)
+            (
+                [
+                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
+                    f"{pendulum.now().to_iso8601_string()} msg2",
+                ],
+                pendulum.now(),
+                ["msg1"],
+                ["msg2"],
+            ),
+        ],
+    )
+    async def test_fetch_container_logs_before_current_sec_various_logs(
+        self, log_lines, now, expected_log_messages, not_expected_log_messages
+    ):
+        pod = mock.MagicMock()
+        container_name = "base"
+        since_time = now.subtract(minutes=1)
+        mock_async_hook = mock.AsyncMock()
+        mock_async_hook.read_logs.return_value = log_lines
+
+        with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
+            async_pod_manager = AsyncPodManager(
+                async_hook=mock_async_hook,
+                callbacks=[],
+            )
+            with mock.patch.object(async_pod_manager.log, "info") as mock_log_info:
+                result = await async_pod_manager.fetch_container_logs_before_current_sec(
+                    pod=pod, container_name=container_name, since_time=since_time
+                )
+                assert result == now
+
+                for expected in expected_log_messages:
+                    mock_log_info.assert_any_call("[%s] %s", container_name, expected)
+                for not_expected in not_expected_log_messages:
+                    unexpected_call = mock.call("[%s] %s", container_name, not_expected)
+                    assert unexpected_call not in mock_log_info.mock_calls
+
+    @pytest.mark.asyncio
+    async def test_fetch_container_logs_before_current_sec_error_handling(self):
+        pod = mock.MagicMock()
+        container_name = "base"
+        since_time = pendulum.now().subtract(minutes=1)
+
+        async def fake_read_logs(**kwargs):
+            raise KubernetesApiError("error")
+
+        self.async_pod_manager._hook.read_logs = fake_read_logs
+        with pytest.raises(KubernetesApiError):
+            await self.async_pod_manager.fetch_container_logs_before_current_sec(
+                pod=pod, container_name=container_name, since_time=since_time
+            )
+
+
 class TestPodLogsConsumer:
     @pytest.mark.parametrize(
-        "chunks, expected_logs",
+        ("chunks", "expected_logs"),
         [
             ([b"message"], [b"message"]),
             ([b"message1\nmessage2"], [b"message1\n", b"message2"]),
@@ -734,7 +978,13 @@ class TestPodLogsConsumer:
             assert list(consumer) == []
 
     @pytest.mark.parametrize(
-        "container_run, termination_time, now_time, post_termination_timeout, expected_logs_available",
+        (
+            "container_run",
+            "termination_time",
+            "now_time",
+            "post_termination_timeout",
+            "expected_logs_available",
+        ),
         [
             (
                 False,
@@ -807,7 +1057,13 @@ class TestPodLogsConsumer:
             assert consumer.logs_available() == expected_logs_available
 
     @pytest.mark.parametrize(
-        "read_pod_cache_timeout, mock_read_pod_at_0, mock_read_pod_at_1, mock_read_pods, expected_read_pods",
+        (
+            "read_pod_cache_timeout",
+            "mock_read_pod_at_0",
+            "mock_read_pod_at_1",
+            "mock_read_pods",
+            "expected_read_pods",
+        ),
         [
             (
                 120,

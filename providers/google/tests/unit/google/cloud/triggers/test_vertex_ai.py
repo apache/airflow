@@ -179,7 +179,7 @@ class TestBaseVertexAIJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "job_state, job_name, status, message",
+        ("job_state", "job_name", "status", "message"),
         [
             (
                 JobState.JOB_STATE_CANCELLED,

@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+5.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``HTTP Notifier implementation (#56160)``
+* ``Add poll_interval attribute to HttpEventTrigger (#57583)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'http' provider to 'common.compat' (#57089)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to http Provider test (#57917)``
+
 5.4.0
 .....
 
@@ -62,8 +88,6 @@ Doc-only
    * ``Switch pre-commit to prek (#54258)``
    * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
    * ``Conn docs extra fix (#53942)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 5.3.3
@@ -251,8 +275,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Correct new changelog breaking changes header (#44659)``
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 4.13.3
@@ -284,7 +306,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``add lowerbount to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
+* ``add lower bound to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
 * ``Set lower bound to asgiref>=2.3.0 (#43001)``
 
 
@@ -583,7 +605,7 @@ Misc
 Features
 ~~~~~~~~
 
-* ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+* ``Add non login-password auth support for SimpleHttpOperator (#29206)``
 
 4.2.0
 .....

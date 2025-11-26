@@ -288,9 +288,9 @@ class TestCli:
         with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
-            stdout = stdout.getvalue()
-        assert "Commands" in stdout
-        assert "Groups" in stdout
+            stdout_val = stdout.getvalue()
+        assert "Commands" in stdout_val
+        assert "Groups" in stdout_val
 
     def test_dag_parser_commands_and_comamnd_group_sections(self):
         parser = cli_parser.get_parser(dag_parser=True)
@@ -298,9 +298,9 @@ class TestCli:
         with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
-            stdout = stdout.getvalue()
-        assert "Commands" in stdout
-        assert "Groups" in stdout
+            stdout_val = stdout.getvalue()
+        assert "Commands" in stdout_val
+        assert "Groups" in stdout_val
 
     def test_should_display_help(self):
         parser = cli_parser.get_parser()
@@ -384,11 +384,13 @@ class TestCli:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
                 parser.parse_args([command])
-            stderr = stderr.getvalue()
-        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
+            stderr_val = stderr.getvalue()
+        assert (
+            f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'"
+        ) in stderr_val
 
     @pytest.mark.parametrize(
-        "executor,expected_args",
+        ("executor", "expected_args"),
         [
             ("CeleryExecutor", ["celery"]),
             ("KubernetesExecutor", ["kubernetes"]),
@@ -412,8 +414,8 @@ class TestCli:
                 with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
                     parser.parse_args([expected_arg, "--help"])
                 assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
-                stderr = stderr.getvalue()
-                assert "airflow command error" not in stderr
+                stderr_val = stderr.getvalue()
+                assert "airflow command error" not in stderr_val
 
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
@@ -556,3 +558,13 @@ class TestCliSubprocess:
         )
         assert result.returncode == 0
         assert "celery_config_options" not in result.stdout
+
+    def test_cli_parser_skips_team_validation(self):
+        """Test that CLI parser calls get_executor_names with validate_teams=False to prevent database dependency during CLI loading."""
+        with patch.object(executor_loader.ExecutorLoader, "get_executor_names") as mock_get_executor_names:
+            mock_get_executor_names.return_value = []
+            # Force reload of cli_parser to trigger the executor loading
+            reload(cli_parser)
+
+            # Verify get_executor_names was called with validate_teams=False
+            mock_get_executor_names.assert_called_with(validate_teams=False)

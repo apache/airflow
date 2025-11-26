@@ -79,7 +79,7 @@ class S3DocsPublish:
     def get_all_excluded_docs(self):
         if not self.exclude_docs:
             return []
-        excluded_docs = self.exclude_docs.split(",")
+        excluded_docs = self.exclude_docs.split(" ")
 
         # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
         if "no-docs-excluded" in excluded_docs:
@@ -123,7 +123,10 @@ class S3DocsPublish:
             return (0, "")
         get_console().print(f"[info]Syncing {source} to {destination}\n")
         result = subprocess.run(
-            ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
+            ["aws", "s3", "sync", "--delete", source, destination],
+            check=False,
+            capture_output=True,
+            text=True,
         )
         return (result.returncode, result.stderr)
 
@@ -292,7 +295,7 @@ class S3DocsPublish:
                     "Quantity": 1,
                     "Items": ["/*"],
                 },
-                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", 0))),
+                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", str(0)))),
             },
         )
         get_console().print(

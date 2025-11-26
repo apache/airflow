@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -43,7 +43,10 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerTriggerDAGRunOperator,
     CloudComposerUpdateEnvironmentOperator,
 )
-from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
+from airflow.providers.google.cloud.sensors.cloud_composer import (
+    CloudComposerDAGRunSensor,
+    CloudComposerExternalTaskSensor,
+)
 
 try:
     from airflow.sdk import TriggerRule
@@ -229,6 +232,33 @@ with DAG(
     )
     # [END howto_operator_trigger_dag_run]
 
+    # [START howto_sensor_external_task]
+    external_task_sensor = CloudComposerExternalTaskSensor(
+        task_id="external_task_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID,
+        composer_external_dag_id="airflow_monitoring",
+        composer_external_task_id="echo",
+        allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+    )
+    # [END howto_sensor_external_task]
+
+    # [START howto_sensor_external_task_deferrable_mode]
+    defer_external_task_sensor = CloudComposerExternalTaskSensor(
+        task_id="defer_external_task_sensor",
+        project_id=PROJECT_ID,
+        region=REGION,
+        environment_id=ENVIRONMENT_ID_ASYNC,
+        composer_external_dag_id="airflow_monitoring",
+        composer_external_task_id="echo",
+        allowed_states=["success"],
+        execution_range=[datetime.now() - timedelta(1), datetime.now()],
+        deferrable=True,
+    )
+    # [END howto_sensor_external_task_deferrable_mode]
+
     # [START howto_operator_delete_composer_environment]
     delete_env = CloudComposerDeleteEnvironmentOperator(
         task_id="delete_env",
@@ -262,6 +292,7 @@ with DAG(
         [run_airflow_cli_cmd, defer_run_airflow_cli_cmd],
         [dag_run_sensor, defer_dag_run_sensor],
         trigger_dag_run,
+        [external_task_sensor, defer_external_task_sensor],
         # TEST TEARDOWN
         [delete_env, defer_delete_env],
     )

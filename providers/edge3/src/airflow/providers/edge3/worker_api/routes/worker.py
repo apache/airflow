@@ -50,6 +50,7 @@ worker_router = AirflowRouter(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_409_CONFLICT,
         ]
     ),
 )
@@ -172,9 +173,22 @@ def register(
     """Register a new worker to the backend."""
     _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
+    else:
+        # Prevent duplicate workers unless the existing worker is in offline or unknown state
+        allowed_states_for_reuse = {
+            EdgeWorkerState.OFFLINE,
+            EdgeWorkerState.UNKNOWN,
+            EdgeWorkerState.OFFLINE_MAINTENANCE,
+        }
+        if worker.state not in allowed_states_for_reuse:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Worker '{worker_name}' is already active in state '{worker.state}'. "
+                f"Cannot start a duplicate worker with the same name.",
+            )
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
         worker.maintenance_comment, body.maintenance_comments
@@ -194,7 +208,9 @@ def set_state(
 ) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
         worker.maintenance_comment, body.maintenance_comments
@@ -213,7 +229,7 @@ def set_state(
         free_concurrency=int(body.sysinfo["free_concurrency"]),
         queues=worker.queues,
     )
-    _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
+    _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(
         state=worker.state, queues=worker.queues, maintenance_comments=worker.maintenance_comment
     )
@@ -229,7 +245,9 @@ def update_queues(
     session: SessionDep,
 ) -> None:
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Worker not found")
     if body.new_queues:
         worker.add_queues(body.new_queues)
     if body.remove_queues:

@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
@@ -29,6 +30,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_vi
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
+    EdgeWorkerState,
     add_worker_queues,
     change_maintenance_comment,
     exit_maintenance,
@@ -44,6 +46,10 @@ from airflow.providers.edge3.worker_api.datamodels_ui import (
     Worker,
     WorkerCollectionResponse,
 )
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import ScalarResult
 
 ui_router = AirflowRouter(tags=["UI"])
 
@@ -56,10 +62,20 @@ ui_router = AirflowRouter(tags=["UI"])
 )
 def worker(
     session: SessionDep,
+    worker_name_pattern: str | None = None,
+    queue_name_pattern: str | None = None,
+    state: Annotated[list[EdgeWorkerState] | None, Query()] = None,
 ) -> WorkerCollectionResponse:
     """Return Edge Workers."""
-    query = select(EdgeWorkerModel).order_by(EdgeWorkerModel.worker_name)
-    workers: list[EdgeWorkerModel] = session.scalars(query)
+    query = select(EdgeWorkerModel)
+    if worker_name_pattern:
+        query = query.where(EdgeWorkerModel.worker_name.ilike(f"%{worker_name_pattern}%"))
+    if queue_name_pattern:
+        query = query.where(EdgeWorkerModel._queues.ilike(f"%'{queue_name_pattern}%"))
+    if state:
+        query = query.where(EdgeWorkerModel.state.in_(state))
+    query = query.order_by(EdgeWorkerModel.worker_name)
+    workers: ScalarResult[EdgeWorkerModel] = session.scalars(query)
 
     result = [
         Worker(
@@ -91,7 +107,7 @@ def jobs(
 ) -> JobCollectionResponse:
     """Return Edge Jobs."""
     query = select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
-    jobs: list[EdgeJobModel] = session.scalars(query)
+    jobs: ScalarResult[EdgeJobModel] = session.scalars(query)
 
     result = [
         Job(
@@ -100,7 +116,7 @@ def jobs(
             run_id=j.run_id,
             map_index=j.map_index,
             try_number=j.try_number,
-            state=j.state,
+            state=TaskInstanceState(j.state),
             queue=j.queue,
             queued_dttm=j.queued_dttm,
             edge_worker=j.edge_worker,

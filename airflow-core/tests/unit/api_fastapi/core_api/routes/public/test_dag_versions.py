@@ -22,6 +22,7 @@ import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -43,7 +44,7 @@ class TestDagVersionEndpoint:
 
 class TestGetDagVersion(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, dag_version, expected_response",
+        ("dag_id", "dag_version", "expected_response"),
         [
             [
                 "ANOTHER_DAG_ID",
@@ -104,15 +105,13 @@ class TestGetDagVersion(TestDagVersionEndpoint):
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_get_dag_version(self, mock_hasattr, test_client, dag_id, dag_version, expected_response):
-        mock_hasattr.return_value = False
+    def test_get_dag_version(self, test_client, dag_id, dag_version, expected_response):
         response = test_client.get(f"/dags/{dag_id}/dagVersions/{dag_version}")
         assert response.status_code == 200
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "dag_id, dag_version, expected_response",
+        ("dag_id", "dag_version", "expected_response"),
         [
             [
                 "ANOTHER_DAG_ID",
@@ -180,7 +179,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
 
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     @mock.patch("airflow.dag_processing.bundles.manager.DagBundlesManager.view_url")
-    @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
+    @mock.patch("airflow.models.dag_version.hasattr")
     def test_get_dag_version_with_unconfigured_bundle(
         self, mock_hasattr, mock_view_url, test_client, dag_maker, session
     ):
@@ -214,7 +213,7 @@ class TestGetDagVersion(TestDagVersionEndpoint):
 
 class TestGetDagVersions(TestDagVersionEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, expected_response",
+        ("dag_id", "expected_response", "expected_query_count"),
         [
             [
                 "~",
@@ -263,6 +262,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
+                2,
             ],
             [
                 "dag_with_multiple_versions",
@@ -301,19 +301,23 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
+                4,
             ],
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
     @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
-    def test_get_dag_versions(self, mock_hasattr, test_client, dag_id, expected_response):
+    def test_get_dag_versions(
+        self, mock_hasattr, test_client, dag_id, expected_response, expected_query_count
+    ):
         mock_hasattr.return_value = False
-        response = test_client.get(f"/dags/{dag_id}/dagVersions")
+        with assert_queries_count(expected_query_count):
+            response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "dag_id, expected_response",
+        ("dag_id", "expected_response", "expected_query_count"),
         [
             [
                 "~",
@@ -362,6 +366,7 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 4,
                 },
+                2,
             ],
             [
                 "dag_with_multiple_versions",
@@ -400,17 +405,21 @@ class TestGetDagVersions(TestDagVersionEndpoint):
                     ],
                     "total_entries": 3,
                 },
+                4,
             ],
         ],
     )
     @pytest.mark.usefixtures("make_dag_with_multiple_versions")
-    def test_get_dag_versions_with_url_template(self, test_client, dag_id, expected_response):
-        response = test_client.get(f"/dags/{dag_id}/dagVersions")
+    def test_get_dag_versions_with_url_template(
+        self, test_client, dag_id, expected_response, expected_query_count
+    ):
+        with assert_queries_count(expected_query_count):
+            response = test_client.get(f"/dags/{dag_id}/dagVersions")
         assert response.status_code == 200
         assert response.json() == expected_response
 
     @pytest.mark.parametrize(
-        "params, expected_versions, expected_total_entries",
+        ("params", "expected_versions", "expected_total_entries"),
         [
             [{"limit": 1}, [("ANOTHER_DAG_ID", 1)], 4],
             [{"limit": 2}, [("ANOTHER_DAG_ID", 1), ("dag_with_multiple_versions", 1)], 4],
@@ -483,7 +492,8 @@ class TestGetDagVersions(TestDagVersionEndpoint):
     def test_get_dag_versions_parameters(
         self, test_client, params, expected_versions, expected_total_entries
     ):
-        response = test_client.get("/dags/~/dagVersions", params=params)
+        with assert_queries_count(2):
+            response = test_client.get("/dags/~/dagVersions", params=params)
         assert response.status_code == 200
         response_payload = response.json()
         assert response_payload["total_entries"] == expected_total_entries

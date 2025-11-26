@@ -50,6 +50,12 @@ class EdgeWorkerVersionException(AirflowException):
     pass
 
 
+class EdgeWorkerDuplicateException(AirflowException):
+    """Signal that a worker with the same name is already active."""
+
+    pass
+
+
 class EdgeWorkerState(str, Enum):
     """Status of a Edge Worker instance."""
 
@@ -230,7 +236,9 @@ def request_maintenance(
 ) -> None:
     """Write maintenance request to the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     worker.state = EdgeWorkerState.MAINTENANCE_REQUEST
     worker.maintenance_comment = maintenance_comment
 
@@ -239,7 +247,9 @@ def request_maintenance(
 def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Write maintenance exit to the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     worker.state = EdgeWorkerState.MAINTENANCE_EXIT
     worker.maintenance_comment = None
 
@@ -248,7 +258,9 @@ def exit_maintenance(worker_name: str, session: Session = NEW_SESSION) -> None:
 def remove_worker(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Remove a worker that is offline or just gone from DB."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
@@ -267,7 +279,9 @@ def change_maintenance_comment(
 ) -> None:
     """Write maintenance comment in the db."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.MAINTENANCE_MODE,
         EdgeWorkerState.MAINTENANCE_PENDING,
@@ -285,7 +299,9 @@ def change_maintenance_comment(
 def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
     """Request to shutdown the edge worker."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state not in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
@@ -298,7 +314,9 @@ def request_shutdown(worker_name: str, session: Session = NEW_SESSION) -> None:
 def add_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Add queues to an edge worker."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,
@@ -314,7 +332,9 @@ def add_worker_queues(worker_name: str, queues: list[str], session: Session = NE
 def remove_worker_queues(worker_name: str, queues: list[str], session: Session = NEW_SESSION) -> None:
     """Remove queues from an edge worker."""
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-    worker: EdgeWorkerModel = session.scalar(query)
+    worker: EdgeWorkerModel | None = session.scalar(query)
+    if not worker:
+        raise ValueError(f"Edge Worker {worker_name} not found in list of registered workers")
     if worker.state in (
         EdgeWorkerState.OFFLINE,
         EdgeWorkerState.OFFLINE_MAINTENANCE,

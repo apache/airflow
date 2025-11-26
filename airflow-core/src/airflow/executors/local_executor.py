@@ -26,7 +26,6 @@ LocalExecutor.
 from __future__ import annotations
 
 import ctypes
-import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
@@ -34,8 +33,10 @@ import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
+import structlog
+
 from airflow.executors import workloads
-from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import TaskInstanceState
 
 # add logger to parameter of setproctitle to support logging
@@ -47,6 +48,8 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
@@ -61,7 +64,7 @@ def _run_worker(
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    log = logging.getLogger(logger_name)
+    log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
     while True:
@@ -101,7 +104,7 @@ def _run_worker(
             output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
+def _execute_work(log: Logger, workload: workloads.ExecuteTask) -> None:
     """
     Execute command received and stores result state in queue.
 
@@ -138,7 +141,7 @@ class LocalExecutor(BaseExecutor):
 
     It uses the multiprocessing Python library and queues to parallelize the execution of tasks.
 
-    :param parallelism: how many parallel processes are run in the executor
+    :param parallelism: how many parallel processes are run in the executor, must be > 0
     """
 
     is_local: bool = True
@@ -149,11 +152,6 @@ class LocalExecutor(BaseExecutor):
     result_queue: SimpleQueue[TaskInstanceStateType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
-
-    def __init__(self, parallelism: int = PARALLELISM, **kwargs) -> None:
-        super().__init__(parallelism=parallelism, **kwargs)
-        if self.parallelism < 0:
-            raise ValueError("parallelism must be greater than or equal to 0")
 
     def start(self) -> None:
         """Start the executor."""
@@ -190,7 +188,7 @@ class LocalExecutor(BaseExecutor):
         # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
-        if num_outstanding and (self.parallelism == 0 or len(self.workers) < self.parallelism):
+        if num_outstanding and len(self.workers) < self.parallelism:
             # This only creates one worker, which is fine as we call this directly after putting a message on
             # activity_queue in execute_async
             self._spawn_worker()

@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import (
-    AirflowException,
-)
+from airflow.exceptions import AirflowException
 
 
 class PodMutationHookException(AirflowException):
@@ -27,3 +25,11 @@ class PodMutationHookException(AirflowException):
 
 class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
+
+
+class KubernetesApiError(AirflowException):
+    """Raised when an error is encountered while trying access Kubernetes API."""
+
+
+class KubernetesApiPermissionError(AirflowException):
+    """Raised when an error is encountered while trying access Kubernetes API."""

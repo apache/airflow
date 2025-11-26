@@ -35,6 +35,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
     add_unique_suffix,
     create_unique_id,
 )
@@ -55,6 +56,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 log = logging.getLogger(__name__)
+
+JOB_NAME_PREFIX = "job-"
 
 
 class KubernetesJobOperator(KubernetesPodOperator):
@@ -378,15 +381,18 @@ class KubernetesJobOperator(KubernetesPodOperator):
 
         job = self.reconcile_jobs(job_template, job)
 
+        # Account for job name prefix when generating/truncating the name
+        max_base_length = POD_NAME_MAX_LENGTH - len(JOB_NAME_PREFIX)
+
         if not job.metadata.name:
             job.metadata.name = create_unique_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=max_base_length
             )
         elif self.random_name_suffix:
             # user has supplied job name, we're just adding suffix
-            job.metadata.name = add_unique_suffix(name=job.metadata.name)
+            job.metadata.name = add_unique_suffix(name=job.metadata.name, max_len=max_base_length)
 
-        job.metadata.name = f"job-{job.metadata.name}"
+        job.metadata.name = f"{JOB_NAME_PREFIX}{job.metadata.name}"
 
         if not job.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

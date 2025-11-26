@@ -84,9 +84,9 @@ class HITLUser(TypedDict):
 class HITLDetailPropertyMixin:
     """The property part of HITLDetail and HITLDetailHistory."""
 
-    responded_at: UtcDateTime
-    responded_by: dict[str, Any]
-    assignees: list[dict[str, str]]
+    responded_at: datetime | None
+    responded_by: dict[str, Any] | None
+    assignees: list[dict[str, str]] | None
 
     @hybrid_property
     def response_received(self) -> bool:
@@ -153,7 +153,9 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     params: Mapped[dict] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}
     )
-    assignees: Mapped[dict | None] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    assignees: Mapped[list[dict[str, str]] | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Response Content Detail
@@ -161,7 +163,7 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     responded_by: Mapped[dict | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True
     )
-    chosen_options: Mapped[dict | None] = mapped_column(
+    chosen_options: Mapped[list[str] | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json),
         nullable=True,
         default=None,

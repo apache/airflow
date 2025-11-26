@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
+from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -33,7 +33,7 @@ from tests_common.test_utils.config import conf_vars
 
 class TestVariables:
     @pytest.mark.parametrize(
-        "deserialize_json, value, expected_value",
+        ("deserialize_json", "value", "expected_value"),
         [
             pytest.param(
                 False,
@@ -58,7 +58,7 @@ class TestVariables:
         assert var == expected_value
 
     @pytest.mark.parametrize(
-        "key, value, description, serialize_json",
+        ("key", "value", "description", "serialize_json"),
         [
             pytest.param(
                 "key",
