@@ -104,6 +104,7 @@ class TestCommsDecoder:
             "start_date": "2024-12-01T01:00:00Z",
             "dag_rel_path": "/dev/null",
             "bundle_info": {"name": "any-name", "version": "any-version"},
+            "sentry_integration": "",
         }
         bytes = msgspec.msgpack.encode(_ResponseFrame(0, msg, None))
         w.sendall(len(bytes).to_bytes(4, byteorder="big") + bytes)
