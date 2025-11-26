@@ -299,7 +299,8 @@ class TestKiotaRequestAdapterHook:
 
             self.assert_tenant_id(actual, "azure-tenant-id")
 
-    def test_proxies(self):
+    @pytest.mark.asyncio
+    async def test_proxies(self):
         with patch_hook(
             side_effect=lambda conn_id: get_airflow_connection(
                 conn_id=conn_id,
@@ -311,7 +312,8 @@ class TestKiotaRequestAdapterHook:
 
             assert actual._http_client._mounts
 
-    def test_proxies_override_with_empty_dict(self):
+    @pytest.mark.asyncio
+    async def test_proxies_override_with_empty_dict(self):
         with patch_hook(
             side_effect=lambda conn_id: get_airflow_connection(
                 conn_id=conn_id,
