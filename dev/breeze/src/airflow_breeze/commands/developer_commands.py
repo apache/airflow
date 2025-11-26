@@ -72,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
+    option_use_mprocs,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -562,6 +563,7 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_mprocs
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -610,13 +612,14 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    use_mprocs: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in the tmux or mprocs session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -694,6 +697,7 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        use_mprocs=use_mprocs,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )

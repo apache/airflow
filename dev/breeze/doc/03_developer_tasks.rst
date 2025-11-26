@@ -161,6 +161,7 @@ You can change the used host port numbers by setting appropriate environment var
 * ``MSSQL_HOST_PORT``
 * ``FLOWER_HOST_PORT``
 * ``REDIS_HOST_PORT``
+* ``RABBITMQ_HOST_PORT``
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 

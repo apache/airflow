@@ -641,13 +641,33 @@ If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or s
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+
+Using mprocs Instead of tmux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, ``breeze start-airflow`` uses tmux to manage Airflow components. You can use mprocs as an
+alternative with the ``--use-mprocs`` flag:
+
+.. code-block:: bash
+
+  breeze start-airflow --use-mprocs
+
+**Benefits of using mprocs:**
+
+* Modern terminal UI with better visual feedback
+* Easier navigation with mouse and keyboard
+* Individual process controls (start, stop, restart)
+* Process status indicators
+* Better cross-platform support
+
+For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUICK_REFERENCE.md>`__.
 
 1. Knowing more about Breeze
 
 .. code-block:: bash
 
-  breeze --help
+   breeze --help
 
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
