@@ -1381,7 +1381,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, str], set[str]]:
+        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, str, str], set[str]]:
             d = defaultdict(set)
             for event in outlet_events:
                 try:
@@ -1391,31 +1391,38 @@ class TaskInstance(Base, LoggingMixin):
                 if alias_name not in outlet_alias_names:
                     continue
                 asset_key = AssetUniqueKey(**event["dest_asset_key"])
-                extra_json = json.dumps(event["extra"], sort_keys=True)
-                d[asset_key, extra_json].add(alias_name)
+                # fallback for backward compatibility
+                asset_extra_json = json.dumps(event.get("dest_asset_extra", {}), sort_keys=True)
+                asset_event_extra_json = json.dumps(event["extra"], sort_keys=True)
+                d[asset_key, asset_extra_json, asset_event_extra_json].add(alias_name)
             return d
 
         outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
         if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
-            for (asset_key, extra_json), event_aliase_names in event_extras_from_aliases.items():
-                extra = json.loads(extra_json)
+            for (
+                asset_key,
+                asset_extra_json,
+                asset_event_extras_json,
+            ), event_aliase_names in event_extras_from_aliases.items():
+                asset_event_extra = json.loads(asset_event_extras_json)
+                asset = Asset(name=asset_key.name, uri=asset_key.uri, extra=json.loads(asset_extra_json))
                 ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
                 event = asset_manager.register_asset_change(
                     task_instance=ti,
-                    asset=asset_key,
+                    asset=asset,
                     source_alias_names=event_aliase_names,
-                    extra=extra,
+                    extra=asset_event_extra,
                     session=session,
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel(name=asset_key.name, uri=asset_key.uri))
+                    session.add(AssetModel.from_public(asset))
                     session.flush()  # So event can set up its asset fk.
                     asset_manager.register_asset_change(
                         task_instance=ti,
-                        asset=asset_key,
+                        asset=asset,
                         source_alias_names=event_aliase_names,
-                        extra=extra,
+                        extra=asset_event_extra,
                         session=session,
                     )
 
