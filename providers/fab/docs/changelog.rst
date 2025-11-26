@@ -33,13 +33,9 @@ Misc
 * ``Upgrade js-yaml to 4.1.1 in FAB (#58501)``
 * ``Migrate FAB PATCH /roles/{name} to FastAPI (#58023)``
 
-Doc-only
-~~~~~~~~
-
-* ``Updates to release process of providers (#58316)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
 
 3.0.2
 .....

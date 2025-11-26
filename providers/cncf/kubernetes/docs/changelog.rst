@@ -51,13 +51,9 @@ Misc
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 
-Doc-only
-~~~~~~~~
-
-* ``Updates to release process of providers (#58316)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
    * ``Send executor integration info in workload (#57800)``
    * ``Fixes #57515 - Fix test_async_write_logs_should_execute_successfully test (#58276)``
 

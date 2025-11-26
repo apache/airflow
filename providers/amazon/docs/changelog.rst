@@ -41,13 +41,9 @@ Misc
 * ``Remove the limitation for sagemaker for Python 3.13 (#58388)``
 * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
 
-Doc-only
-~~~~~~~~
-
-* ``Updates to release process of providers (#58316)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
    * ``Check for cluster stability just before the transfer (#58690)``
    * ``Increase wait for redshift clusters (#58645)``
    * ``Remove global from lineage.hook (#58285)``

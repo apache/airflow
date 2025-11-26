@@ -44,13 +44,9 @@ Misc
 
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 
-Doc-only
-~~~~~~~~
-
-* ``Updates to release process of providers (#58316)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
 
 6.6.1
 .....

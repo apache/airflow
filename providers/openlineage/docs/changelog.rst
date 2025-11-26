@@ -51,13 +51,9 @@ Misc
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
 
-Doc-only
-~~~~~~~~
-
-* ``Updates to release process of providers (#58316)``
-
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
    * ``Remove global from lineage.hook (#58285)``
 
 2.8.0
