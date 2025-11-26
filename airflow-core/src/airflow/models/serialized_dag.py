@@ -582,11 +582,12 @@ class SerializedDagModel(Base):
         session.add(new_serialized_dag)
         session.flush()
 
-        dag_data = new_serialized_dag.data.copy()
-        deadlines_processed = cls._process_deadline_alerts(new_serialized_dag.id, dag_data, session)
+        if new_serialized_dag.data:
+            dag_data = new_serialized_dag.data.copy()
+            deadlines_processed = cls._process_deadline_alerts(new_serialized_dag.id, dag_data, session)
 
-        if deadlines_processed:
-            cls._update_serialized_dag_data(new_serialized_dag, dag_data)
+            if deadlines_processed:
+                cls._update_serialized_dag_data(new_serialized_dag, dag_data)
 
         log.debug("DAG: %s written to the DB", dag.dag_id)
         DagCode.write_code(dagv, dag.fileloc, session=session)
