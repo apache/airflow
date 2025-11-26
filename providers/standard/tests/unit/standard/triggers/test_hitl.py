@@ -74,10 +74,10 @@ class TestHITLTrigger:
         expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
         if AIRFLOW_V_3_2_PLUS:
             expected_params_in_trigger_kwargs = {
-                "input_1": {"value": 1, "description": None, "schema": {}, "source": "task"}
+                "input": {"value": 1, "description": None, "schema": {}, "source": "task"}
             }
         else:
-            expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
+            expected_params_in_trigger_kwargs = {"input": {"value": 1, "description": None, "schema": {}}}
 
         assert classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
         assert kwargs == {
