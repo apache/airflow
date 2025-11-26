@@ -35,15 +35,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    AirflowTaskTerminated,
-    AirflowTaskTimeout,
-    DownstreamTasksSkipped,
-)
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
@@ -70,7 +61,16 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+    AirflowTaskTimeout,
+    DownstreamTasksSkipped,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -3137,7 +3137,7 @@ class TestTaskRunnerCallsCallbacks:
         self.results.append("execute success")
 
     def _execute_skipped(self, context):
-        from airflow.exceptions import AirflowSkipException
+        from airflow.sdk.exceptions import AirflowSkipException
 
         self.results.append("execute skipped")
         raise AirflowSkipException
@@ -3244,7 +3244,6 @@ class TestTaskRunnerCallsCallbacks:
 
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
-        from airflow.exceptions import AirflowException
 
         def failure_callback(context):
             ti = context["task_instance"]
@@ -3303,8 +3302,6 @@ class TestTaskRunnerCallsCallbacks:
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
-
-        from airflow.exceptions import AirflowException
 
         success_data = {}
         failure_data = {}

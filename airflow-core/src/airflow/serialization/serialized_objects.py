@@ -63,7 +63,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializationError,
     SerializationError,
-    TaskDeferred,
     TaskNotFound,
 )
 from airflow.models.connection import Connection
@@ -739,6 +738,7 @@ class BaseSerialization:
         :meta private:
         """
         from airflow.sdk.definitions._internal.types import is_arg_set
+        from airflow.sdk.exceptions import TaskDeferred
 
         if not is_arg_set(var):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)

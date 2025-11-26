@@ -34,7 +34,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
@@ -956,7 +956,6 @@ class TestSecretsBackend:
 
     def test_get_connection_not_found_raises_error(self, mock_supervisor_comms):
         """Test that _get_connection raises error when no backend finds connection."""
-        from airflow.exceptions import AirflowNotFoundException
 
         # Backend returns None (not found)
         class EmptyBackend:

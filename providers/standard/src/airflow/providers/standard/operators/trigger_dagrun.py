@@ -264,7 +264,7 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
-        from airflow.exceptions import DagRunTriggerException
+        from airflow.providers.common.compat.sdk import DagRunTriggerException
 
         raise DagRunTriggerException(
             trigger_dag_id=self.trigger_dag_id,
