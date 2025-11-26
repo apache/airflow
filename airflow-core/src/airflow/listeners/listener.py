@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from functools import cache
 from typing import TYPE_CHECKING
 
 import pluggy
@@ -28,9 +29,6 @@ if TYPE_CHECKING:
     from pluggy._hooks import _HookRelay
 
 log = logging.getLogger(__name__)
-
-
-_listener_manager: ListenerManager | None = None
 
 
 def _before_hookcall(hook_name, hook_impls, kwargs):
@@ -82,10 +80,9 @@ class ListenerManager:
             self.pm.unregister(plugin)
 
 
+@cache
 def get_listener_manager() -> ListenerManager:
     """Get singleton listener manager."""
-    global _listener_manager
-    if not _listener_manager:
-        _listener_manager = ListenerManager()
-        integrate_listener_plugins(_listener_manager)
+    _listener_manager = ListenerManager()
+    integrate_listener_plugins(_listener_manager)
     return _listener_manager

@@ -1944,12 +1944,17 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage import hook
+    from airflow.lineage.hook import HookLineageCollector
 
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-    yield hook.get_hook_lineage_collector()
-    hook._hook_lineage_collector = None
+    hlc = HookLineageCollector()
+    with mock.patch(
+        "airflow.lineage.hook.get_hook_lineage_collector",
+        return_value=hlc,
+    ):
+        # Redirect calls to compat provider to support back-compat tests of 2.x as well
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        yield get_hook_lineage_collector()
 
 
 @pytest.fixture
@@ -2490,6 +2495,11 @@ def create_runtime_ti(mocked_parse):
         if upstream_map_indexes is not None:
             ti_context.upstream_map_indexes = upstream_map_indexes
 
+        compat_fields = {
+            "requests_fd": 0,
+            "sentry_integration": "",
+        }
+
         startup_details = StartupDetails(
             ti=TaskInstance(
                 id=ti_id,
@@ -2505,7 +2515,7 @@ def create_runtime_ti(mocked_parse):
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
             # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
-            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
+            **{k: v for k, v in compat_fields.items() if k in StartupDetails.model_fields},  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

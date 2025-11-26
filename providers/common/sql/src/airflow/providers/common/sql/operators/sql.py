@@ -24,9 +24,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow import XComArg
-from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import SkipMixin
-from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowFailException,
+    AirflowSkipException,
+    BaseHook,
+    BaseOperator,
+)
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts

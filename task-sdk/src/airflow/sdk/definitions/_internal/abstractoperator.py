@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import methodtools
 
-from airflow.configuration import conf
 from airflow.sdk import TriggerRule, WeightRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext

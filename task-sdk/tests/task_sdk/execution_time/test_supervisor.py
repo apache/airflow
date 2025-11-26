@@ -2650,6 +2650,14 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
+    # Patch configurations in both airflow-core and task-sdk due to shared library refactoring.
+    #
+    # conf_vars() patches airflow.configuration.conf (airflow-core):
+    #   - remote_logging: needed by airflow_local_settings.py to decide whether to set up REMOTE_TASK_LOG
+    #   - remote_base_log_folder: needed by airflow_local_settings.py to create the CloudWatch handler
+    #
+    # task_sdk_conf_vars() patches airflow.sdk.configuration.conf (task-sdk):
+    #   - remote_log_conn_id: needed by load_remote_conn_id() to return the correct connection id
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),
@@ -2657,41 +2665,46 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             ("logging", "remote_log_conn_id"): remote_conn,
         }
     ):
-        env = os.environ.copy()
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        with conf_vars(
+            {
+                ("logging", "remote_log_conn_id"): remote_conn,
+            }
+        ):
+            env = os.environ.copy()
+            client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with _remote_logging_conn(client):
-            new_keys = os.environ.keys() - env.keys()
-            if remote_logging:
-                assert new_keys == {expected_env}
-            else:
-                assert not new_keys
+            with _remote_logging_conn(client):
+                new_keys = os.environ.keys() - env.keys()
+                if remote_logging:
+                    assert new_keys == {expected_env}
+                else:
+                    assert not new_keys
 
-        if remote_logging and expected_env:
-            connection_available = {"available": False, "conn_uri": None}
+            if remote_logging and expected_env:
+                connection_available = {"available": False, "conn_uri": None}
 
-            def mock_upload_to_remote(process_log, ti):
-                connection_available["available"] = expected_env in os.environ
-                connection_available["conn_uri"] = os.environ.get(expected_env)
+                def mock_upload_to_remote(process_log, ti):
+                    connection_available["available"] = expected_env in os.environ
+                    connection_available["conn_uri"] = os.environ.get(expected_env)
 
-            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+                mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
 
-            activity_subprocess = ActivitySubprocess(
-                process_log=mocker.MagicMock(),
-                id=TI_ID,
-                pid=12345,
-                stdin=mocker.MagicMock(),
-                client=client,
-                process=mocker.MagicMock(),
-            )
-            activity_subprocess.ti = mocker.MagicMock()
+                activity_subprocess = ActivitySubprocess(
+                    process_log=mocker.MagicMock(),
+                    id=TI_ID,
+                    pid=12345,
+                    stdin=mocker.MagicMock(),
+                    client=client,
+                    process=mocker.MagicMock(),
+                )
+                activity_subprocess.ti = mocker.MagicMock()
 
-            activity_subprocess._upload_logs()
+                activity_subprocess._upload_logs()
 
-            assert connection_available["available"], (
-                f"Connection {expected_env} was not available during upload_to_remote call"
-            )
-            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+                assert connection_available["available"], (
+                    f"Connection {expected_env} was not available during upload_to_remote call"
+                )
+                assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
 class TestSignalRetryLogic:

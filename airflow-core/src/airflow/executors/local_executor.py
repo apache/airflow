@@ -26,13 +26,14 @@ LocalExecutor.
 from __future__ import annotations
 
 import ctypes
-import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
+
+import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -47,6 +48,8 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
@@ -61,7 +64,7 @@ def _run_worker(
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    log = logging.getLogger(logger_name)
+    log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
     while True:
@@ -101,7 +104,7 @@ def _run_worker(
             output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
+def _execute_work(log: Logger, workload: workloads.ExecuteTask) -> None:
     """
     Execute command received and stores result state in queue.
 

@@ -112,6 +112,7 @@ class ExecuteTask(BaseDagBundleWorkload):
     """Execute the given Task."""
 
     ti: TaskInstance
+    sentry_integration: str = ""
 
     type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
 
@@ -122,6 +123,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         dag_rel_path: Path | None = None,
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
+        sentry_integration: str = "",
     ) -> ExecuteTask:
         from airflow.utils.helpers import log_filename_template_renderer
 
@@ -140,6 +142,7 @@ class ExecuteTask(BaseDagBundleWorkload):
             token=cls.generate_token(str(ti.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
         )
 
 

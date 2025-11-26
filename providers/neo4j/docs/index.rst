@@ -36,6 +36,7 @@
 
     Connection types <connections/neo4j>
     Operators <operators/neo4j>
+    Sensors <sensors/neo4j>
 
 .. toctree::
     :hidden:

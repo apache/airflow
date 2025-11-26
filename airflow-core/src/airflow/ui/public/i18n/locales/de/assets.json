@@ -4,6 +4,7 @@
   "asset_one": "Datenset (Asset)",
   "asset_other": "Datensets (Assets)",
   "consumingDags": "Konsumierende Dags",
+  "consumingTasks": "Konsumierende Tasks",
   "createEvent": {
     "button": "Ereignis erstellen",
     "manual": {

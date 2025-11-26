@@ -104,7 +104,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
   {
@@ -112,7 +112,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     cell: ({ row: { original } }) => (
       <HStack>
         <RunTypeIcon runType={original.run_type} />
-        <Text>{original.run_type}</Text>
+        <Text>{translate(`common:runTypes.${original.run_type}`)}</Text>
       </HStack>
     ),
     enableSorting: false,

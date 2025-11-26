@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "그래프 방향"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "필터 적용하기",
+      "clearFilter": "필터 지우기",
+      "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
+      "label": "필터",
+      "options": {
+        "both": "업스트림 & 다운스트림 모두",
+        "downstream": "다운스트림",
+        "upstream": "업스트림"
+      },
+      "selectedTask": "선택된 작업"
     }
   },
   "paramsFailed": "매개변수 로드 실패",

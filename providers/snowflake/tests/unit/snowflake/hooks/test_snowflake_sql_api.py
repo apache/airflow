@@ -1433,3 +1433,39 @@ class TestSnowflakeSqlApiHook:
 
         failed_response.raise_for_status.assert_called_once()
         failed_response.json.assert_not_called()
+
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_cancel_sql_api_query_execution(self, mock_get_url_header_params, mock_requests):
+        """Test _cancel_sql_api_query_execution makes POST request with /cancel suffix."""
+        query_id = "test-query-id"
+        mock_get_url_header_params.return_value = (
+            HEADERS,
+            {"requestId": "uuid"},
+            f"{API_URL}/{query_id}/cancel",
+        )
+        mock_requests.request.return_value = create_successful_response_mock(
+            {"status": "success", "message": "Statement cancelled."}
+        )
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook._cancel_sql_api_query_execution(query_id)
+
+        mock_get_url_header_params.assert_called_once_with(query_id, "/cancel")
+        mock_requests.request.assert_called_once_with(
+            method="post",
+            url=f"{API_URL}/{query_id}/cancel",
+            headers=HEADERS,
+            params={"requestId": "uuid"},
+            json=None,
+        )
+
+    @mock.patch(f"{HOOK_PATH}._cancel_sql_api_query_execution")
+    def test_cancel_queries(self, mock_cancel_execution):
+        """Test cancel_queries calls _cancel_sql_api_query_execution for each query id."""
+        query_ids = ["query-1", "query-2", "query-3"]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook.cancel_queries(query_ids)
+
+        assert mock_cancel_execution.call_count == 3
+        mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])

@@ -157,8 +157,9 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 3.0.0 in the first Provider's release after 22nd of April 2026. 22nd of April 2025 is the date when the
-first ``PATCHLEVEL``  version of 3.0 (3.0.0) was released.
+to 3.1.0 in the first Provider's release after 20th of May 2026. 20th of May 2025 was the date when the
+first ``PATCHLEVEL``  version of 2.11 (2.11.0) was released and since Airflow 3.0 was released in April 2025,
+we go straight to Airflow 3.1 as minimum supported version of Airflow for providers in May 2026.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use

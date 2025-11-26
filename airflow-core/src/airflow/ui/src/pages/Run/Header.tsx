@@ -37,13 +37,7 @@ import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
-export const Header = ({
-  dagRun,
-  isRefreshing,
-}: {
-  readonly dagRun: DAGRunResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
@@ -113,7 +107,6 @@ export const Header = ({
           </>
         }
         icon={<FiBarChart />}
-        isRefreshing={isRefreshing}
         state={dagRun.state}
         stats={[
           ...(dagRun.logical_date === null

@@ -1067,7 +1067,6 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
-    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """

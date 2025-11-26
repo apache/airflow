@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Deployment
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}

@@ -187,11 +187,11 @@ option_prod_image_file_to_load = click.option(
 @click.group(
     cls=BreezeGroup, name="prod-image", help="Tools that developers can use to manually manage PROD images"
 )
-def prod_image():
+def prod_image_group():
     pass
 
 
-@prod_image.command(name="build")
+@prod_image_group.command(name="build")
 @click.option(
     "--installation-method",
     help="Install Airflow from: sources (.) or packages (apache-airflow).",
@@ -368,14 +368,14 @@ def build(
                 if not UI_VITE_MANIFEST_PATH.exists():
                     get_console().print(
                         f"\n[error]UI Vite manifest file {UI_VITE_MANIFEST_PATH} does not exist.[/]\n\n"
-                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                        f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
                 if not FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH.exists():
                     get_console().print(
                         f"\n[error]UI Vite manifest file {FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH} "
                         f"does not exist.[/]\n\n"
-                        f"You should build the UI assets with\n\n   [info]breeze compile-ui-assets[/]\n"
+                        f"You should build the UI assets with\n\n   [info]breeze ui compile-assets[/]\n"
                     )
                     sys.exit(1)
     else:
@@ -476,7 +476,7 @@ def build(
         run_build(prod_image_params=base_build_params)
 
 
-@prod_image.command(name="pull")
+@prod_image_group.command(name="pull")
 @option_python
 @option_run_in_parallel
 @option_parallelism
@@ -583,7 +583,7 @@ def run_verify_in_parallel(
     )
 
 
-@prod_image.command(
+@prod_image_group.command(
     name="verify",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -695,7 +695,7 @@ def verify(
         sys.exit(return_code)
 
 
-@prod_image.command(name="save")
+@prod_image_group.command(name="save")
 @option_github_repository
 @option_image_file_dir
 @option_platform_single
@@ -734,7 +734,7 @@ def save(
         sys.exit(result.returncode)
 
 
-@prod_image.command(name="load")
+@prod_image_group.command(name="load")
 @option_dry_run
 @option_from_run
 @option_from_pr

@@ -77,19 +77,6 @@ def s3_bucket(mocked_s3_res):
     return bucket
 
 
-@pytest.fixture
-def hook_lineage_collector():
-    from airflow.lineage import hook
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-
-    yield get_hook_lineage_collector()
-
-    hook._hook_lineage_collector = None
-
-
 class TestAwsS3Hook:
     @mock_aws
     def test_get_conn(self):

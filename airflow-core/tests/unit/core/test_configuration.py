@@ -399,6 +399,7 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        # Configure secrets backend on test_conf itself
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),

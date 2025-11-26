@@ -128,8 +128,6 @@
       "tooltip": "Seçili değişkenleri sil"
     },
     "edit": "Değişkeni Düzenle",
-    "export": "Dışa Aktar",
-    "exportTooltip": "Seçili değişkenleri dışa aktar",
     "form": {
       "invalidJson": "Geçersiz JSON",
       "keyMaxLength": "Anahtar en fazla 250 karakter içerebilir",

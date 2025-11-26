@@ -30,7 +30,7 @@ from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
-from airflow.configuration import ensure_secrets_loaded
+from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.models.team import Team
@@ -149,7 +149,7 @@ class Variable(Base, LoggingMixin):
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
@@ -185,6 +185,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
+        team_id: str | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -196,13 +197,14 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param team_id: ID of the team associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer
 
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
+        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
             warnings.warn(
@@ -221,6 +223,11 @@ class Variable(Base, LoggingMixin):
             )
             return
 
+        if team_id and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment. To assign a team to a variable, multi-mode must be enabled."
+            )
+
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key=key)
         if serialize_json:
@@ -235,7 +242,7 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            new_variable = Variable(key=key, val=stored_value, description=description)
+            new_variable = Variable(key=key, val=stored_value, description=description, team_id=team_id)
 
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
@@ -252,6 +259,7 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
+                    team_id=team_id,
                 )
                 stmt = pg_stmt.on_conflict_do_update(
                     index_elements=["key"],
@@ -259,6 +267,7 @@ class Variable(Base, LoggingMixin):
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
+                        team_id=team_id,
                     ),
                 )
             elif dialect_name == "mysql":
@@ -269,11 +278,13 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
+                    team_id=team_id,
                 )
                 stmt = mysql_stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
+                    team_id=team_id,
                 )
             else:
                 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -283,6 +294,7 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
+                    team_id=team_id,
                 )
                 stmt = sqlite_stmt.on_conflict_do_update(
                     index_elements=["key"],
@@ -290,6 +302,7 @@ class Variable(Base, LoggingMixin):
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
+                        team_id=team_id,
                     ),
                 )
 

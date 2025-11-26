@@ -2,6 +2,7 @@
 
 import { UseQueryResult } from "@tanstack/react-query";
 import { JobsService, LogsService, MonitorService, UiService, WorkerService } from "../requests/services.gen";
+import { EdgeWorkerState } from "../requests/types.gen";
 export type LogsServiceLogfilePathDefaultResponse = Awaited<ReturnType<typeof LogsService.logfilePath>>;
 export type LogsServiceLogfilePathQueryResult<TData = LogsServiceLogfilePathDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useLogsServiceLogfilePathKey = "LogsServiceLogfilePath";
@@ -20,10 +21,11 @@ export const UseMonitorServiceHealthKeyFn = (queryKey?: Array<unknown>) => [useM
 export type UiServiceWorkerDefaultResponse = Awaited<ReturnType<typeof UiService.worker>>;
 export type UiServiceWorkerQueryResult<TData = UiServiceWorkerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useUiServiceWorkerKey = "UiServiceWorker";
-export const UseUiServiceWorkerKeyFn = ({ queueNamePattern, workerNamePattern }: {
+export const UseUiServiceWorkerKeyFn = ({ queueNamePattern, state, workerNamePattern }: {
   queueNamePattern?: string;
+  state?: EdgeWorkerState[];
   workerNamePattern?: string;
-} = {}, queryKey?: Array<unknown>) => [useUiServiceWorkerKey, ...(queryKey ?? [{ queueNamePattern, workerNamePattern }])];
+} = {}, queryKey?: Array<unknown>) => [useUiServiceWorkerKey, ...(queryKey ?? [{ queueNamePattern, state, workerNamePattern }])];
 export type UiServiceJobsDefaultResponse = Awaited<ReturnType<typeof UiService.jobs>>;
 export type UiServiceJobsQueryResult<TData = UiServiceJobsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useUiServiceJobsKey = "UiServiceJobs";

@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowSkipException
 
 
 class DockerContainerFailedException(AirflowException):

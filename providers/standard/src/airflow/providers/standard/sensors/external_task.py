@@ -24,9 +24,8 @@ from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DagModel
-from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowSkipException, BaseOperatorLink, BaseSensorOperator
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -251,6 +250,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self._has_checked_existence = False
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.external_dates_filter: str | None = None
 
     def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
         logical_date = self._get_logical_date(context)
@@ -262,13 +262,19 @@ class ExternalTaskSensor(BaseSensorOperator):
             return result if isinstance(result, list) else [result]
         return [logical_date]
 
+    @staticmethod
+    def _serialize_dttm_filter(dttm_filter: Sequence[datetime.datetime]) -> str:
+        return ",".join(dt.isoformat() for dt in dttm_filter)
+
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
 
         dttm_filter = self._get_dttm_filter(context)
-        serialized_dttm_filter = ",".join(dt.isoformat() for dt in dttm_filter)
+        serialized_dttm_filter = self._serialize_dttm_filter(dttm_filter)
+        # Save as attribute - to be used by listeners
+        self.external_dates_filter = serialized_dttm_filter
 
         if self.external_task_ids:
             self.log.info(
@@ -456,6 +462,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         """Execute when the trigger fires - return immediately."""
         if event is None:
             raise ExternalTaskNotFoundError("No event received from trigger")
+
+        # Re-set as attribute after coming back from deferral - to be used by listeners
+        self.external_dates_filter = self._serialize_dttm_filter(self._get_dttm_filter(context))
 
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)

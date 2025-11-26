@@ -630,3 +630,30 @@ class TestExecutorLoader:
 
                 # No team validation should occur since only global teams are configured
                 mock_get_team_names.assert_not_called()
+
+    def test_get_executor_names_skip_team_validation(self):
+        """Test that get_executor_names can skip team validation."""
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names,
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Should not call team validation when validate_teams=False
+                executor_loader.ExecutorLoader.get_executor_names(validate_teams=False)
+                mock_get_team_names.assert_not_called()
+
+    def test_get_executor_names_default_validates_teams(self):
+        """Test that get_executor_names validates teams by default."""
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names,
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Default behavior should validate teams
+                mock_get_team_names.return_value = {"team_a"}
+                executor_loader.ExecutorLoader.get_executor_names()
+                mock_get_team_names.assert_called_once()

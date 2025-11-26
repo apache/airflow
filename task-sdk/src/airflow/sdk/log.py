@@ -80,7 +80,7 @@ def configure_logging(
     colored_console_log: bool | None = None,
 ):
     """Set up struct logging and stdlib logging config."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     if log_level == "DEFAULT":
         log_level = "INFO"
@@ -144,6 +144,8 @@ def init_log_file(local_relative_path: str) -> Path:
 
     Any directories that are missing are created with the right permission bits.
     """
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
     from airflow.sdk._shared.logging import init_log_file
 
@@ -174,6 +176,9 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
+
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
@@ -195,6 +200,9 @@ def relative_path_from_logger(logger) -> Path | None:
     if fh.fileno() == 1 or not isinstance(fname, str):
         # Logging to stdout, or something odd about this logger, don't try to upload!
         return None
+
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency
     from airflow.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")

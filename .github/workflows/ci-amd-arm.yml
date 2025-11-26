@@ -116,6 +116,7 @@ jobs:
       run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
+      run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -771,6 +772,7 @@ jobs:
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
     if: needs.build-info.outputs.prod-image-build == 'true'

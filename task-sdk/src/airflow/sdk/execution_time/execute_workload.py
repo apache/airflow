@@ -40,8 +40,8 @@ log = structlog.get_logger(logger_name=__name__)
 
 
 def execute_workload(workload: ExecuteTask) -> None:
-    from airflow.configuration import conf
     from airflow.executors import workloads
+    from airflow.sdk.configuration import conf
     from airflow.sdk.execution_time.supervisor import supervise
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
@@ -71,6 +71,7 @@ def execute_workload(workload: ExecuteTask) -> None:
         token=workload.token,
         server=server,
         log_path=workload.log_path,
+        sentry_integration=workload.sentry_integration,
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.
         subprocess_logs_to_stdout=True,

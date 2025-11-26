@@ -68,6 +68,13 @@ integrations:
     logo: /docs/integration-logos/Teradata.png
     tags: [software]
 
+  - integration-name: Tpt
+    external-doc-url: https://www.teradata.com/
+    how-to-guide:
+      - /docs/apache-airflow-providers-teradata/operators/tpt.rst
+    logo: /docs/integration-logos/Teradata.png
+    tags: [software]
+
 operators:
   - integration-name: Teradata
     python-modules:
@@ -76,6 +83,9 @@ operators:
   - integration-name: Bteq
     python-modules:
       - airflow.providers.teradata.operators.bteq
+  - integration-name: Tpt
+    python-modules:
+      - airflow.providers.teradata.operators.tpt
 
 hooks:
   - integration-name: Teradata
@@ -87,6 +97,9 @@ hooks:
   - integration-name: Bteq
     python-modules:
       - airflow.providers.teradata.hooks.bteq
+  - integration-name: Tpt
+    python-modules:
+      - airflow.providers.teradata.hooks.tpt
 
 transfers:
   - source-integration-name: Teradata

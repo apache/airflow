@@ -172,6 +172,7 @@ class ClearTaskInstancesBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = False
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
 class Value(RootModel[list]):
@@ -924,6 +925,7 @@ class VariableBody(BaseModel):
     key: Annotated[str, Field(max_length=250, title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VariableResponse(BaseModel):
@@ -935,6 +937,7 @@ class VariableResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VersionInfo(BaseModel):
@@ -1312,6 +1315,7 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,

@@ -194,6 +194,7 @@ class TestAirflowCommon:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "dagProcessor": {"enabled": True},
             },
@@ -206,11 +207,12 @@ class TestAirflowCommon:
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
             ],
         )
 
-        # Objects in show_only are 8 but only one of Webserver or API server is created so we have 7 objects
-        assert len(k8s_objects) == 7
+        # Objects in show_only are 9 but only one of Webserver or API server is created so we have 8 objects
+        assert len(k8s_objects) == 8
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -226,6 +228,7 @@ class TestAirflowCommon:
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "dagProcessor": {"enabled": True},
@@ -257,6 +260,7 @@ class TestAirflowCommon:
             },
             show_only=[
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -272,8 +276,8 @@ class TestAirflowCommon:
             ],
         )
 
-        # Objects in show_only are 13 but only one of Webserver or API server is created so we have 12 objects
-        assert len(k8s_objects) == 12
+        # Objects in show_only are 14 but only one of Webserver or API server is created so we have 13 objects
+        assert len(k8s_objects) == 13
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -464,6 +468,7 @@ class TestAirflowCommon:
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
+                "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
                 "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
@@ -477,15 +482,16 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/jobs/create-user-job.yaml",
             ],
         )
 
-        assert len(docs) == 10
+        assert len(docs) == 11
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            if component == "airflow-cleanup-pods":
+            if component in ["airflow-cleanup-pods", "database-cleanup"]:
                 priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
             else:
                 priority = doc["spec"]["template"]["spec"]["priorityClassName"]
@@ -525,6 +531,7 @@ class TestAirflowCommon:
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -536,6 +543,7 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/jobs/create-user-job.yaml",
             ],

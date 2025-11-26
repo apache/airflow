@@ -16,17 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { Dayjs } from "dayjs";
+import { useMemo } from "react";
 
-export const downloadJson = (data: Record<string, string | undefined>, name: string) => {
-  const jsonData = JSON.stringify(data, undefined, 2);
-  const blob = new Blob([jsonData], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+export const useCalendarSelect = (currentMonth: Dayjs) =>
+  useMemo(() => {
+    const monthStart = currentMonth.startOf("month");
+    const monthEnd = currentMonth.endOf("month");
+    const startDate = monthStart.startOf("week");
+    const endDate = monthEnd.endOf("week");
 
-  const link = document.createElement("a");
+    const days = [];
+    let day = startDate;
 
-  link.href = url;
-  link.download = `${name}.json`;
-  link.click();
+    while (day.isSame(endDate, "day") || day.isBefore(endDate, "day")) {
+      days.push(day);
+      day = day.add(1, "day");
+    }
 
-  URL.revokeObjectURL(url);
-};
+    return { days, monthEnd, monthStart };
+  }, [currentMonth]);

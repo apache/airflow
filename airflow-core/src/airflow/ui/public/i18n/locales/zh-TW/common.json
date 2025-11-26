@@ -90,6 +90,7 @@
     "back": "返回",
     "defaultMessage": "發生未預期的錯誤",
     "home": "首頁",
+    "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
     "title": "錯誤"
   },
@@ -109,10 +110,9 @@
   "filters": {
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
-    "logicalDateFrom": "從邏輯日期",
-    "logicalDateTo": "到邏輯日期",
-    "runAfterFrom": "從最早可執行時間",
-    "runAfterTo": "到最早可執行時間"
+    "endTime": "結束時間",
+    "selectDateRange": "選擇日期範圍",
+    "startTime": "起始時間"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",

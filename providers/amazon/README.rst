@@ -50,9 +50,9 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==========================================  ============================================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ============================================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.10.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
@@ -66,10 +66,11 @@ PIP package                                 Version required
 ``asgiref``                                 ``>=2.3.0``
 ``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
-``sagemaker-studio``                        ``>=1.0.9; python_version < "3.13"``
-``sagemaker-studio``                        ``>=1.0.9,<1.1.0; python_version >= "3.13"``
+``sagemaker-studio``                        ``>=1.0.9``
+``pydynamodb``                              ``>=0.7.5; python_version >= "3.13"``
+``sqlean.py``                               ``>=3.47.0; python_version >= "3.13"``
 ``marshmallow``                             ``>=3``
-==========================================  ============================================
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
