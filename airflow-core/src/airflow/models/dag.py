@@ -136,10 +136,7 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
     ) is not None:
         return data_interval
 
-    if run.logical_date is None:
-        raise ValueError("Try to infer data_interval without logical_date")
-
-    if (data_interval := timetable.infer_manual_data_interval(run_after=run.logical_date)) is not None:
+    if (data_interval := timetable.infer_manual_data_interval(run_after=run.run_after)) is not None:
         return data_interval
 
     # Compatibility: runs created before AIP-39 implementation don't have an
