@@ -411,6 +411,7 @@ class TestBaseChartTest:
             "ingress": {"enabled": True},
             "networkPolicies": {"enabled": True},
             "cleanup": {"enabled": True},
+            "databaseCleanup": {"enabled": True},
             "flower": {"enabled": True},
             "dagProcessor": {"enabled": True},
             "logs": {"persistence": {"enabled": True}},
@@ -429,6 +430,7 @@ class TestBaseChartTest:
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", "airflow-cleanup-pods"),
+            (f"{release_name}-airflow-database-cleanup", "ServiceAccount", "database-cleanup"),
             (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
@@ -446,6 +448,9 @@ class TestBaseChartTest:
             (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
             (f"{release_name}-cleanup-role", "Role", None),
             (f"{release_name}-cleanup-rolebinding", "RoleBinding", None),
+            (f"{release_name}-database-cleanup", "CronJob", "database-cleanup"),
+            (f"{release_name}-database-cleanup-role", "Role", None),
+            (f"{release_name}-database-cleanup-rolebinding", "RoleBinding", None),
             (f"{release_name}-create-user", "Job", "create-user-job"),
             (f"{release_name}-fernet-key", "Secret", None),
             (f"{release_name}-flower", "Deployment", "flower"),
@@ -532,6 +537,7 @@ class TestBaseChartTest:
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
