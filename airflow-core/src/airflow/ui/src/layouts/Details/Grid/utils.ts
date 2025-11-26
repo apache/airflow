@@ -18,6 +18,12 @@
  */
 import type { GridNodeResponse, NodeResponse } from "openapi/requests/types.gen";
 
+// Grid layout
+export const CELL_WIDTH = 18;
+export const CELL_HEIGHT = 20;
+export const BAR_HEADER_HEIGHT = 100;
+export const GRID_PADDING_TOP = 80;
+
 export type GridTask = {
   depth: number;
   isGroup?: boolean;

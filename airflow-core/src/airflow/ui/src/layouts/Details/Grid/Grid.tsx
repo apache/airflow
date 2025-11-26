@@ -37,8 +37,9 @@ import { setRef } from "src/utils/domUtils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
-import { BAR_HEADER_HEIGHT, CELL_HEIGHT, CELL_WIDTH, GRID_PADDING_TOP, GridOverlays } from "./GridOverlays";
+import { GridOverlays } from "./GridOverlays";
 import { TaskNames } from "./TaskNames";
+import { BAR_HEADER_HEIGHT, CELL_HEIGHT, CELL_WIDTH, GRID_PADDING_TOP } from "./utils";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);

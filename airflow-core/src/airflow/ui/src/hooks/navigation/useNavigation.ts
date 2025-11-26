@@ -20,7 +20,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
-import type { GridTask } from "src/layouts/Details/Grid/utils";
+import { CELL_WIDTH, CELL_HEIGHT, type GridTask } from "src/layouts/Details/Grid/utils";
 import { setRef } from "src/utils/domUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
@@ -32,10 +32,6 @@ import type {
   UseNavigationReturn,
 } from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
-
-// Grid cell dimensions (must match Grid.tsx)
-const CELL_WIDTH = 18;
-const CELL_HEIGHT = 20;
 
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {

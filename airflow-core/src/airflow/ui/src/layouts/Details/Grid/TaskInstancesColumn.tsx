@@ -22,7 +22,7 @@ import { useParams } from "react-router-dom";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { GridTI } from "./GridTI";
-import type { GridTask } from "./utils";
+import { CELL_WIDTH, CELL_HEIGHT, type GridTask } from "./utils";
 
 type Props = {
   readonly depth?: number;
@@ -40,7 +40,7 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
     if (!taskInstance) {
-      return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
+      return <Box height={`${CELL_HEIGHT}px`} key={`${node.id}-${runId}`} width={`${CELL_WIDTH}px`} />;
     }
 
     return (

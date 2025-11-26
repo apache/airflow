@@ -27,6 +27,8 @@ import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
+import { CELL_HEIGHT } from "./utils";
+
 type Props = {
   readonly dagId: string;
   readonly instance: LightGridTaskInstanceSummary;
@@ -68,7 +70,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
       alignItems="center"
       bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
       data-grid-cell
-      height="20px"
+      height={`${CELL_HEIGHT}px`}
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}

@@ -25,9 +25,7 @@ import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
-import type { GridTask } from "./utils";
-
-const BAR_HEIGHT = 100;
+import { CELL_WIDTH, BAR_HEADER_HEIGHT, type GridTask } from "./utils";
 
 type Props = {
   readonly colIndex: number;
@@ -55,12 +53,12 @@ export const Bar = ({ colIndex: _colIndex, max, nodes, onCellClick, onColumnClic
     >
       <Flex
         alignItems="flex-end"
-        height={BAR_HEIGHT}
+        height={BAR_HEADER_HEIGHT}
         justifyContent="center"
         onClick={onColumnClick}
         pb="2px"
         px="5px"
-        width="18px"
+        width={`${CELL_WIDTH}px`}
         zIndex={1}
       >
         <GridButton
@@ -68,7 +66,7 @@ export const Bar = ({ colIndex: _colIndex, max, nodes, onCellClick, onColumnClic
           color="fg"
           dagId={dagId}
           flexDir="column"
-          height={`${(run.duration / max) * BAR_HEIGHT}px`}
+          height={`${(run.duration / max) * BAR_HEADER_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
           minHeight="14px"

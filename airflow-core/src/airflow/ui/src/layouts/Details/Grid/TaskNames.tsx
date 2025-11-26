@@ -24,7 +24,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 import { useOpenGroups } from "src/context/openGroups";
 
-import type { GridTask } from "./utils";
+import { CELL_HEIGHT, type GridTask } from "./utils";
 
 type Props = {
   depth?: number;
@@ -50,7 +50,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       data-task-id={node.id}
       id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
-      maxHeight="20px"
+      maxHeight={`${CELL_HEIGHT}px`}
       transition="background-color 0.2s"
     >
       {node.isGroup ? (

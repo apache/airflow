@@ -19,10 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import type { RefObject } from "react";
 
-export const CELL_WIDTH = 18;
-export const CELL_HEIGHT = 20;
-export const BAR_HEADER_HEIGHT = 100;
-export const GRID_PADDING_TOP = 80;
+import { CELL_WIDTH, CELL_HEIGHT, BAR_HEADER_HEIGHT, GRID_PADDING_TOP } from "./utils";
 
 type Props = {
   readonly gridHeight: number;
@@ -54,7 +51,6 @@ export const GridOverlays = ({
       top={0}
       zIndex={0}
     >
-      {/* Hover overlays - GPU composited for zero latency */}
       <Box
         bg="blue.500/20"
         height={`${CELL_HEIGHT}px`}
@@ -84,7 +80,6 @@ export const GridOverlays = ({
         zIndex={0}
       />
 
-      {/* Navigation overlays - for keyboard navigation */}
       <Box
         bg="blue.500/20"
         height={`${CELL_HEIGHT}px`}
