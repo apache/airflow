@@ -1,0 +1,52 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-influxdb3
+
+name: InfluxDB 3
+
+description: |
+    `InfluxDB 3.x <https://www.influxdata.com/>`__ (Core/Enterprise/Cloud Dedicated)
+
+state: ready
+source-date-epoch: 1763069749
+# Note that those versions are maintained by release manager - do not update them manually
+# with the exception of case where other provider in sources has >= new provider version.
+# In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
+# to be done in the same PR
+versions:
+  - 1.0.0
+
+integrations:
+  - integration-name: InfluxDB 3
+    external-doc-url: https://www.influxdata.com/
+    tags: [software]
+
+hooks:
+  - integration-name: InfluxDB 3
+    python-modules:
+      - airflow.providers.influxdb3.hooks.influxdb3
+
+operators:
+  - integration-name: InfluxDB 3
+    python-modules:
+      - airflow.providers.influxdb3.operators.influxdb3
+
+connection-types:
+  - hook-class-name: airflow.providers.influxdb3.hooks.influxdb3.InfluxDB3Hook
+    connection-type: influxdb3
