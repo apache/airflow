@@ -502,18 +502,10 @@ option_executor_start_airflow = click.option(
     "or CeleryExecutor depending on the integration used).",
 )
 
-option_kubeconfig_file = click.option(
-    "--kubeconfig-file",
-    type=click.Path(exists=True, file_okay=True, dir_okay=False, readable=True, resolve_path=True),
-    help="Path to kubeconfig file to use for KubernetesExecutor. "
-    "If not provided, breeze will auto-create a KinD cluster.",
-)
-
 option_force_rebuild_cluster = click.option(
     "--force-rebuild-cluster",
     is_flag=True,
-    help="Force rebuild of the auto-created KinD cluster for KubernetesExecutor "
-    "(only applies when --kubeconfig-file is not provided).",
+    help="Force rebuild of the auto-created KinD cluster for KubernetesExecutor.",
 )
 
 
@@ -554,7 +546,6 @@ option_force_rebuild_cluster = click.option(
 @option_docker_host
 @option_dry_run
 @option_executor_start_airflow
-@option_kubeconfig_file
 @option_force_rebuild_cluster
 @option_force_build
 @option_forward_credentials
@@ -603,7 +594,6 @@ def start_airflow(
     create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
-    kubeconfig_file: str | None,
     force_rebuild_cluster: bool,
     extra_args: tuple,
     force_build: bool,
