@@ -383,6 +383,14 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_use_mprocs = click.option(
+    "--use-mprocs/--use-tmux",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Use mprocs instead of tmux for start-airflow.",
+    envvar="USE_MPROCS",
+)
 option_tty = click.option(
     "--tty",
     envvar="TTY",
