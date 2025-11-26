@@ -37,20 +37,43 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 
     [traces]
     otel_on = True
-    otel_host = localhost
-    otel_port = 8889
-    otel_application = airflow
-    otel_ssl_active = False
     otel_task_log_event = True
 
-.. note::
+Configure the OpenTelemetry SDK, by exporting the regular OpenTelemetry variables to your environment
 
-    To support the OpenTelemetry exporter standard, the ``traces`` configurations are transparently superseded by use of standard OpenTelemetry SDK environment variables.
+.. code-block:: ini
 
-    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`` overridden ``otel_host``, ``otel_port`` and ``otel_ssl_active``
+    - exporter
+      |_ values: 'otlp', 'console'
+      |_ default: 'otlp'
+    OTEL_TRACES_EXPORTER
 
-    See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
-    `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
+    - export protocol
+      |_ values: 'grpc', 'http/protobuf'
+      |_ default: 'grpc'
+    OTEL_EXPORTER_OTLP_PROTOCOL
+
+    - endpoint
+      |_ example for grpc protocol: 'http://localhost:4317'
+      |_ example for http protocol: 'http://localhost:4318/v1/traces'
+      |_ if SSL is enabled, use 'https' instead of 'http'
+    OTEL_EXPORTER_OTLP_ENDPOINT
+      or
+    OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+
+    - service name
+      |_ default: 'Airflow'
+    OTEL_SERVICE_NAME
+
+    - resource attributes
+      |_ values: 'key1=value1,key2=value2,...'
+      |_ example: 'service.name=my-service,service.version=1.0.0'
+    OTEL_RESOURCE_ATTRIBUTES
+
+    - list of headers to apply to all outgoing traces
+      |_ values: 'key1=value1,key2=value2,...'
+      |_ example: 'api-key=key,other-config-value=value'
+    OTEL_EXPORTER_OTLP_HEADERS
 
 Enable Https
 -----------------
