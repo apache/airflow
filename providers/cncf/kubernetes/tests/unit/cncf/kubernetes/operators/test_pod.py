@@ -69,6 +69,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
+TRIGGER_CLASS = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 
 TEST_TASK_ID = "kubernetes_task_async"
 TEST_NAMESPACE = "default"
@@ -2396,8 +2397,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
+    # @patch(f"{TRIGGER_CLASS}.define_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
+        test_async_create_pod_should_execute_successfully
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
