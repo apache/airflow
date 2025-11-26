@@ -803,6 +803,7 @@ class TaskInfo(InfoJsonEncodable):
         "sla",
         "task_id",
         "trigger_dag_id",
+        "trigger_run_id",
         "external_dag_id",
         "external_task_id",
         "trigger_rule",
