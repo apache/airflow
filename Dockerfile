@@ -52,7 +52,7 @@ ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 
 # PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
-# 
+#
 # Link-Time Optimization uses MD5 checksums during the compilation process to verify
 # object files and intermediate representations. In FIPS-compliant environments, MD5
 # is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
@@ -62,7 +62,7 @@ ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 #   docker build --build-arg PYTHON_LTO="false" ...
 #
 # Default: "true" (LTO enabled for better performance)
-# 
+#
 # Related: https://github.com/apache/airflow/issues/58337
 ARG PYTHON_LTO="true"
 
