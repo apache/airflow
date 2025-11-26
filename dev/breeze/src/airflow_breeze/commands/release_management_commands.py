@@ -87,7 +87,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
@@ -254,7 +254,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.11"
+AIRFLOW_UV_VERSION = "0.9.12"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
@@ -539,7 +539,7 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
 )
@@ -701,7 +701,7 @@ def _prepare_non_core_distributions(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-task-sdk-distributions",
     help="Prepare sdist/whl distributions of Airflow Task SDK.",
 )
@@ -729,7 +729,7 @@ def prepare_task_sdk_distributions(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-airflow-ctl-distributions",
     help="Prepare sdist/whl distributions of airflowctl.",
 )
@@ -765,7 +765,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
         get_console().print()
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-provider-documentation",
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
@@ -1056,7 +1056,7 @@ def _build_provider_distributions(
     return True
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-provider-distributions",
     help="Prepare sdist/whl distributions of Airflow Providers.",
 )
@@ -1276,7 +1276,7 @@ def run_generate_constraints_in_parallel(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="tag-providers",
     help="Generates tags for airflow provider releases.",
 )
@@ -1346,7 +1346,7 @@ def tag_providers(
             get_console().print("\n[success]Tags pushed successfully.[/]")
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-constraints",
     help="Generates pinned constraint files with all extras from pyproject.toml in parallel.",
 )
@@ -1500,7 +1500,7 @@ def _run_command_for_providers(
 SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*|  Created wheel.*"
 
 
-@release_management.command(
+@release_management_group.command(
     name="install-provider-distributions",
     help="Installs provider distributiobs that can be found in dist.",
 )
@@ -1652,7 +1652,7 @@ def install_provider_distributions(
         sys.exit(result_command.returncode)
 
 
-@release_management.command(
+@release_management_group.command(
     name="verify-provider-distributions",
     help="Verifies if all provider code is following expectations for providers.",
 )
@@ -1820,7 +1820,7 @@ def run_publish_docs_in_parallel(
             get_console().print(f"[warning]{entry}")
 
 
-@release_management.command(
+@release_management_group.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
 )
@@ -1928,7 +1928,7 @@ def publish_docs(
                 get_console().print(f"[warning]{entry}")
 
 
-@release_management.command(
+@release_management_group.command(
     name="add-back-references",
     help="Command to add back references for documentation to make it backward compatible.",
 )
@@ -1994,7 +1994,7 @@ def add_back_references(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="clean-old-provider-artifacts",
     help="Cleans the old provider artifacts",
 )
@@ -2107,7 +2107,7 @@ def check_skip_latest(airflow_version, skip_latest):
     return skip_latest
 
 
-@release_management.command(
+@release_management_group.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -2265,7 +2265,7 @@ def release_prod_images(
         alias_images(airflow_version, dockerhub_repo, python_versions, image_prefix, skip_latest)
 
 
-@release_management.command(
+@release_management_group.command(
     name="merge-prod-images",
     help="Merge production images in DockerHub based on digest files (needs DockerHub permissions).",
 )
@@ -2483,7 +2483,7 @@ def get_commented_out_prs_from_provider_changelogs() -> list[int]:
     return sorted(commented_prs)
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
@@ -2831,7 +2831,7 @@ def print_issue_content(
     print(content)
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-helm-chart",
     help="Generates content for issue to test the helm chart release.",
 )
@@ -2883,7 +2883,7 @@ def generate_issue_content_helm_chart(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-core", help="Generates content for issue to test the core release."
 )
 @click.option(
@@ -2934,7 +2934,9 @@ def generate_issue_content_core(
     )
 
 
-@release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
+@release_management_group.command(
+    name="generate-providers-metadata", help="Generates metadata for providers."
+)
 @click.option(
     "--refresh-constraints-and-airflow-releases",
     is_flag=True,
@@ -3014,7 +3016,7 @@ def generate_providers_metadata(
     PROVIDER_METADATA_JSON_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
-@release_management.command(
+@release_management_group.command(
     name="update-providers-next-version",
     help="Update provider versions marked with '# use next version' comment.",
 )
@@ -3173,7 +3175,7 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="update-constraints", help="Update released constraints with manual changes."
 )
 @click.option(
@@ -3488,7 +3490,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
     run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
 
-@release_management.command(name="prepare-python-client", help="Prepares python client packages.")
+@release_management_group.command(name="prepare-python-client", help="Prepares python client packages.")
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
@@ -3731,7 +3733,7 @@ CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
 VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 
 
-@release_management.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
+@release_management_group.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
 @click.option(
     "--version",
     help="Version used for helm chart. This version has to be set and has to match the version in "
@@ -3922,7 +3924,7 @@ def prepare_helm_chart_tarball(
     get_console().print(f"[success]Tarball created in {final_archive}")
 
 
-@release_management.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
+@release_management_group.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
 @click.option(
     "--sign-email",
     help="Email associated with the key used to sign the package.",
@@ -4142,7 +4144,7 @@ def generate_issue_content(
     print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
 
 
-@release_management.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
+@release_management_group.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
 @click.option(
     "--source-dir-path",
     help="Path to the directory with the generated documentation.",
@@ -4231,7 +4233,7 @@ def publish_docs_to_s3(
         sys.exit(1)
 
 
-@release_management.command(
+@release_management_group.command(
     name="constraints-version-check", help="Check constraints against released versions of packages."
 )
 @option_builder
@@ -4292,7 +4294,7 @@ def version_check(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="check-release-files",
     help="Verify that all expected packages are present in Apache Airflow svn.",
 )

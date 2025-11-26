@@ -70,7 +70,7 @@ export const getHITLParamsDict = (
   searchParams: URLSearchParams,
 ): ParamsSpec => {
   const paramsDict: ParamsSpec = {};
-  const { preloadedHITLOptions } = getPreloadHITLFormData(searchParams, hitlDetail);
+  const { preloadedHITLOptions, preloadedHITLParams } = getPreloadHITLFormData(searchParams, hitlDetail);
   const isApprovalTask =
     hitlDetail.options.includes("Approve") &&
     hitlDetail.options.includes("Reject") &&
@@ -113,8 +113,35 @@ export const getHITLParamsDict = (
       }
       const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
 
+      // Check if there's a preloaded value from URL params
+      let finalValue = preloadedHITLParams[key] ?? value;
+
+      // If preloaded value is a string that might be JSON, try to parse it
+      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
+        try {
+          const parsed: unknown = JSON.parse(finalValue);
+
+          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+            finalValue = parsed;
+          }
+        } catch {
+          // If parsing fails, keep the string value
+        }
+      }
+
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";
+
+      // Determine the type based on the final value
+      let valueType: string;
+
+      if (typeof finalValue === "number") {
+        valueType = "number";
+      } else if (typeof finalValue === "object" && finalValue !== null && !Array.isArray(finalValue)) {
+        valueType = "object";
+      } else {
+        valueType = "string";
+      }
 
       const schema: ParamSchema = {
         const: undefined,
@@ -129,7 +156,7 @@ export const getHITLParamsDict = (
         minLength: undefined,
         section: undefined,
         title: key,
-        type: typeof value === "number" ? "number" : "string",
+        type: valueType,
         values_display: undefined,
         ...(paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : {}),
       };
@@ -137,7 +164,7 @@ export const getHITLParamsDict = (
       paramsDict[key] = {
         description,
         schema,
-        value: paramData?.value ?? value,
+        value: paramData?.value ?? finalValue,
       };
     });
   }
