@@ -313,7 +313,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 86ee5ea442ee969842e00913c6b76c060a7aa8ef  # frozen: v1.16.3
+    rev: c2a58da700f433eee600b605a327e6e346f76043  # frozen: v1.17.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
