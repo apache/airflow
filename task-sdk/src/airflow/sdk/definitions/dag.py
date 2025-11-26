@@ -1316,7 +1316,13 @@ class DAG:
                 ids_unrunnable = {x for x in all_tis if x.state not in FINISHED_STATES} - scheduled_tis
                 if not scheduled_tis and ids_unrunnable:
                     log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
-                    time.sleep(1)
+                    if use_executor:
+                        # If we are using a real executor, those often make some request or describe call to
+                        # an external service to track the progress of the running tasks. Doing that every 1s
+                        # is way too aggressive, especially given that these are just tests.
+                        time.sleep(30)
+                    else:
+                        time.sleep(1)
 
                 for ti in scheduled_tis:
                     task = self.task_dict[ti.task_id]
