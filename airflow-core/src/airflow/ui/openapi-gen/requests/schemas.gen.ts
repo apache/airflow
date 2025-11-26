@@ -6913,14 +6913,6 @@ export const $AuthenticatedMeResponse = {
         username: {
             type: 'string',
             title: 'Username'
-        },
-        ui_attributes: {
-            additionalProperties: {
-                type: 'string'
-            },
-            type: 'object',
-            title: 'Ui Attributes',
-            default: {}
         }
     },
     type: 'object',

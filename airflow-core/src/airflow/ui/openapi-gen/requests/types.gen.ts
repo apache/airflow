@@ -1702,9 +1702,6 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
-    ui_attributes?: {
-        [key: string]: (string);
-    };
 };
 
 /**

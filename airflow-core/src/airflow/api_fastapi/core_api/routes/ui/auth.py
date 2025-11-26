@@ -45,12 +45,8 @@ def get_auth_menus(
 def get_current_user_info(
     user: GetUserDep,
 ) -> AuthenticatedMeResponse:
-    """Get current authenticated user information."""
-    current_user = get_auth_manager().serialize_user(user=user)
-
+    """Convienently get the current authenticated user information."""
     return AuthenticatedMeResponse(
         id=user.get_id(),
         username=user.get_name(),
-        # Exclude any token-like information from being included in the response
-        ui_attributes={k: v for k, v in current_user.items() if "token" not in k.lower()},
     )

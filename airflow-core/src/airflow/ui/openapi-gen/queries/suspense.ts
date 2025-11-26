@@ -1468,7 +1468,7 @@ export const useLoginServiceLogoutSuspense = <TData = Common.LoginServiceLogoutD
 export const useAuthLinksServiceGetAuthMenusSuspense = <TData = Common.AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(queryKey), queryFn: () => AuthLinksService.getAuthMenus() as TData, ...options });
 /**
 * Get Current User Info
-* Get current authenticated user information.
+* Convienently get the current authenticated user information.
 * @returns AuthenticatedMeResponse Successful Response
 * @throws ApiError
 */

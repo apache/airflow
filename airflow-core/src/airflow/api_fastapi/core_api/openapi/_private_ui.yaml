@@ -28,7 +28,7 @@ paths:
       tags:
       - Auth Links
       summary: Get Current User Info
-      description: Get current authenticated user information.
+      description: Convienently get the current authenticated user information.
       operationId: get_current_user_info
       responses:
         '200':
@@ -1104,12 +1104,6 @@ components:
         username:
           type: string
           title: Username
-        ui_attributes:
-          additionalProperties:
-            type: string
-          type: object
-          title: Ui Attributes
-          default: {}
       type: object
       required:
       - id
