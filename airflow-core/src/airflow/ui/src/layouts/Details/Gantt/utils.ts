@@ -25,6 +25,7 @@ import type { NavigateFunction, Location } from "react-router-dom";
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
 import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
+import { setRef } from "src/utils/domUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -100,24 +101,14 @@ export const createHandleBarHover =
       const rowY = rowIndex * rowHeight;
 
       // Update hover row overlay position
-      if (hoverRowRef.current) {
-        hoverRowRef.current.style.transform = `translateY(${rowY}px)`;
-        hoverRowRef.current.style.opacity = "1";
-      }
+      setRef(hoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
 
       // Also update Grid's overlay if provided
-      if (gridHoverRowRef?.current) {
-        gridHoverRowRef.current.style.transform = `translateY(${rowY}px)`;
-        gridHoverRowRef.current.style.opacity = "1";
-      }
+      setRef(gridHoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
     } else {
       // Hide hover overlays
-      if (hoverRowRef.current) {
-        hoverRowRef.current.style.opacity = "0";
-      }
-      if (gridHoverRowRef?.current) {
-        gridHoverRowRef.current.style.opacity = "0";
-      }
+      setRef(hoverRowRef, { opacity: "0" });
+      setRef(gridHoverRowRef, { opacity: "0" });
     }
   };
 

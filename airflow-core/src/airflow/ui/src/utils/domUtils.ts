@@ -18,37 +18,15 @@
  */
 import type { RefObject } from "react";
 
-export const setRefStyle = <T extends HTMLElement | null>(
+export const setRef = <T extends HTMLElement | null>(
   ref: RefObject<T> | null | undefined,
-  property: string,
-  value: string,
+  styles: Record<string, string>,
 ): void => {
   if (ref?.current && ref.current instanceof HTMLElement) {
-    ref.current.style.setProperty(property, value);
+    const element = ref.current;
+
+    Object.entries(styles).forEach(([property, value]) => {
+      element.style.setProperty(property, value);
+    });
   }
-};
-
-export const setRefOpacity = <T extends HTMLElement | null>(
-  ref: RefObject<T> | null | undefined,
-  opacity: "0" | "1",
-): void => {
-  setRefStyle(ref, "opacity", opacity);
-};
-
-export const setRefTransform = <T extends HTMLElement | null>(
-  ref: RefObject<T> | null | undefined,
-  transform: string,
-): void => {
-  setRefStyle(ref, "transform", transform);
-};
-
-export const setRefTransformAndOpacity = <T extends HTMLElement | null>(
-  ref: RefObject<T> | null | undefined,
-  transform: string | undefined,
-  opacity: "0" | "1",
-): void => {
-  if (transform !== undefined) {
-    setRefTransform(ref, transform);
-  }
-  setRefOpacity(ref, opacity);
 };

@@ -21,7 +21,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { setRefOpacity, setRefTransformAndOpacity } from "src/utils/domUtils";
+import { setRef } from "src/utils/domUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import type {
@@ -141,9 +141,9 @@ export const useNavigation = ({
 
   // Clear navigation highlight overlays
   const clearHighlight = useCallback(() => {
-    setRefOpacity(navRowRef, "0");
-    setRefOpacity(navColRef, "0");
-    setRefOpacity(navCellRef, "0");
+    setRef(navRowRef, { opacity: "0" });
+    setRef(navColRef, { opacity: "0" });
+    setRef(navCellRef, { opacity: "0" });
   }, [navCellRef, navColRef, navRowRef]);
 
   // Apply highlight using direct DOM manipulation (GPU composited)
@@ -159,24 +159,15 @@ export const useNavigation = ({
       const showCol = navMode === "run" || navMode === "TI";
 
       // Update row highlight
-      setRefTransformAndOpacity(
-        navRowRef,
-        showRow ? `translateY(${rowY}px)` : undefined,
-        showRow ? "1" : "0",
-      );
+      setRef(navRowRef, showRow ? { opacity: "1", transform: `translateY(${rowY}px)` } : { opacity: "0" });
 
       // Update column highlight
-      setRefTransformAndOpacity(
-        navColRef,
-        showCol ? `translateX(${colX}px)` : undefined,
-        showCol ? "1" : "0",
-      );
+      setRef(navColRef, showCol ? { opacity: "1", transform: `translateX(${colX}px)` } : { opacity: "0" });
 
       // Update cell highlight (TI mode only)
-      setRefTransformAndOpacity(
+      setRef(
         navCellRef,
-        navMode === "TI" ? `translate(${colX}px, ${rowY}px)` : undefined,
-        navMode === "TI" ? "1" : "0",
+        navMode === "TI" ? { opacity: "1", transform: `translate(${colX}px, ${rowY}px)` } : { opacity: "0" },
       );
     },
     [navCellRef, navColRef, navRowRef],

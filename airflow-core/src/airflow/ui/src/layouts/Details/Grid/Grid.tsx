@@ -32,7 +32,7 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
-import { setRefOpacity, setRefTransform } from "src/utils/domUtils";
+import { setRef } from "src/utils/domUtils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
@@ -207,18 +207,16 @@ export const Grid = ({
     if (validRow) {
       const rowY = rowIndex * CELL_HEIGHT;
 
-      setRefTransform(hoverRowRef, `translateY(${rowY}px)`);
-      setRefOpacity(hoverRowRef, "1");
+      setRef(hoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
 
       // Also update Gantt's overlay if provided
       if (ganttHoverRowRef) {
-        setRefTransform(ganttHoverRowRef, `translateY(${rowY}px)`);
-        setRefOpacity(ganttHoverRowRef, "1");
+        setRef(ganttHoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
       }
     } else {
-      setRefOpacity(hoverRowRef, "0");
+      setRef(hoverRowRef, { opacity: "0" });
       if (ganttHoverRowRef) {
-        setRefOpacity(ganttHoverRowRef, "0");
+        setRef(ganttHoverRowRef, { opacity: "0" });
       }
     }
 
@@ -228,18 +226,17 @@ export const Grid = ({
     if (validCol) {
       const colX = -colIndex * CELL_WIDTH;
 
-      setRefTransform(hoverColRef, `translateX(${colX}px)`);
-      setRefOpacity(hoverColRef, "1");
+      setRef(hoverColRef, { opacity: "1", transform: `translateX(${colX}px)` });
     } else {
-      setRefOpacity(hoverColRef, "0");
+      setRef(hoverColRef, { opacity: "0" });
     }
   };
 
   const handleMouseLeave = () => {
-    setRefOpacity(hoverRowRef, "0");
-    setRefOpacity(hoverColRef, "0");
+    setRef(hoverRowRef, { opacity: "0" });
+    setRef(hoverColRef, { opacity: "0" });
     if (ganttHoverRowRef) {
-      setRefOpacity(ganttHoverRowRef, "0");
+      setRef(ganttHoverRowRef, { opacity: "0" });
     }
   };
 

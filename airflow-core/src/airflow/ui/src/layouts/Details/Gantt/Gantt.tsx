@@ -53,6 +53,7 @@ import { useGridTiSummaries } from "src/queries/useGridTISummaries";
 import { getComputedCSSVariableValue } from "src/theme";
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { DEFAULT_DATETIME_FORMAT_WITH_TZ, formatDate } from "src/utils/datetimeUtils";
+import { setRef } from "src/utils/domUtils";
 
 import { createHandleBarClick, createHandleBarHover, createChartOptions } from "./utils";
 
@@ -289,12 +290,8 @@ export const Gantt = ({
 
   const handleChartMouseLeave = () => {
     // Hide hover overlays
-    if (hoverRowRef.current) {
-      hoverRowRef.current.style.opacity = "0";
-    }
-    if (gridHoverRowRef?.current) {
-      gridHoverRowRef.current.style.opacity = "0";
-    }
+    setRef(hoverRowRef, { opacity: "0" });
+    setRef(gridHoverRowRef, { opacity: "0" });
   };
 
   return (
