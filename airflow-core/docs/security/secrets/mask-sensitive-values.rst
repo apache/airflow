@@ -20,8 +20,10 @@
 Masking sensitive data
 ----------------------
 
-Airflow will by default mask Connection passwords and sensitive Variables and keys from a Connection's
-extra (JSON) field when they appear in Task logs, in the Variable and in the Rendered fields views of the UI.
+Airflow will by default mask Connection passwords, sensitive Variables, and keys from a Connection's
+extra (JSON) field whose names contain one or more of the sensitive keywords when they appear in Task logs,
+in the Variables UI, and in the Rendered fields views of the UI. Keys in the extra JSON that do not include
+any of these sensitive keywords will not be redacted automatically.
 
 It does this by looking for the specific *value* appearing anywhere in your output. This means that if you
 have a connection with a password of ``a``, then every instance of the letter a in your logs will be replaced
@@ -58,7 +60,7 @@ your Dag file or operator's ``execute`` function using the ``mask_secret`` funct
 
     @task
     def my_func():
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
 
         mask_secret("custom_value")
 
@@ -71,7 +73,7 @@ or
 
     class MyOperator(BaseOperator):
         def execute(self, context):
-            from airflow.sdk.execution_time.secrets_masker import mask_secret
+            from airflow.sdk.log import mask_secret
 
             mask_secret("custom_value")
 

@@ -35,9 +35,10 @@ import (
 type ClientSuite struct {
 	suite.Suite
 
-	apiClient       *apiMock.ClientInterface
-	variablesClient *apiMock.VariablesClient
-	ctx             context.Context
+	apiClient         *apiMock.ClientInterface
+	variablesClient   *apiMock.VariablesClient
+	connectionsClient *apiMock.ConnectionsClient
+	ctx               context.Context
 }
 
 var AnyContext any = mock.MatchedBy(func(_ context.Context) bool { return true })
@@ -60,10 +61,13 @@ func TestClientSuite(t *testing.T) {
 func (s *ClientSuite) SetupTest() {
 	c := apiMock.NewClientInterface(s.T())
 	vars := apiMock.NewVariablesClient(s.T())
+	conns := apiMock.NewConnectionsClient(s.T())
 	c.EXPECT().Variables().Maybe().Return(vars)
+	c.EXPECT().Connections().Maybe().Return(conns)
 
 	s.apiClient = c
 	s.variablesClient = vars
+	s.connectionsClient = conns
 	s.ctx = context.WithValue(context.Background(), sdkcontext.ApiClientContextKey, c)
 }
 
@@ -77,7 +81,7 @@ func (s *ClientSuite) TestGetVariable() {
 	c := &client{}
 	val, err := c.GetVariable(s.ctx, key)
 	s.Require().NoError(err)
-	s.Assert().Equal(expected, val)
+	s.Equal(expected, val)
 }
 
 func (s *ClientSuite) TestGetVariable_404Error() {
@@ -86,7 +90,7 @@ func (s *ClientSuite) TestGetVariable_404Error() {
 
 	c := &client{}
 	_, err := c.GetVariable(s.ctx, key)
-	s.Assert().ErrorContainsf(err, `variable not found: "my_var"`, "")
+	s.ErrorContainsf(err, `variable not found: "my_var"`, "")
 }
 
 func (s *ClientSuite) TestGetVariable_EnvFirst() {
@@ -95,6 +99,110 @@ func (s *ClientSuite) TestGetVariable_EnvFirst() {
 	c := &client{}
 	val, err := c.GetVariable(s.ctx, "my_var")
 	s.Require().NoError(err)
-	s.Assert().Equal("value1", val)
+	s.Equal("value1", val)
 	s.variablesClient.AssertNotCalled(s.T(), "Get")
+}
+
+func (s *ClientSuite) TestGetConnection() {
+	tests := map[string]struct {
+		connId      string
+		apiResponse *api.ConnectionResponse
+		wantConn    Connection
+		wantErr     bool
+	}{
+		"minimal fields": {
+			connId: "my-db",
+			apiResponse: &api.ConnectionResponse{
+				ConnId:   "my-db",
+				ConnType: "postgres",
+			},
+			wantConn: Connection{
+				ID:   "my-db",
+				Type: "postgres",
+			},
+		},
+		"all fields set": {
+			connId: "full-db",
+			apiResponse: &api.ConnectionResponse{
+				ConnId:   "full-db",
+				ConnType: "mysql",
+				Host:     ptr("dbhost"),
+				Port:     ptr(3306),
+				Login:    ptr("user"),
+				Password: ptr("pass"),
+				Schema:   ptr("schema"),
+				Extra:    ptr(`{"foo": "bar", "baz": 42}`),
+			},
+			wantConn: Connection{
+				ID:       "full-db",
+				Type:     "mysql",
+				Host:     "dbhost",
+				Port:     3306,
+				Login:    ptr("user"),
+				Password: ptr("pass"),
+				Path:     "schema",
+				Extra: map[string]any{
+					"foo": "bar",
+					"baz": float64(42),
+				},
+			},
+		},
+		"extra field not valid json": {
+			connId: "bad-extra",
+			apiResponse: &api.ConnectionResponse{
+				ConnId:   "bad-extra",
+				ConnType: "mysql",
+				Extra:    ptr(`{"foo": "bar"`), // malformed JSON
+			},
+			wantConn: Connection{
+				ID:    "bad-extra",
+				Type:  "mysql",
+				Extra: map[string]any{},
+			},
+			wantErr: true,
+		},
+		"nil host/port/schema/extra": {
+			connId: "nil-fields",
+			apiResponse: &api.ConnectionResponse{
+				ConnId:   "nil-fields",
+				ConnType: "sqlite",
+			},
+			wantConn: Connection{
+				ID:   "nil-fields",
+				Type: "sqlite",
+			},
+		},
+		"empty login/password": {
+			connId: "empty-login",
+			apiResponse: &api.ConnectionResponse{
+				ConnId:   "empty-login",
+				ConnType: "mysql",
+				Login:    ptr(""),
+				Password: ptr(""),
+			},
+			wantConn: Connection{
+				ID:       "empty-login",
+				Type:     "mysql",
+				Login:    ptr(""),
+				Password: ptr(""),
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		s.Run(name, func() {
+			s.connectionsClient.EXPECT().
+				Get(AnyContext, tc.connId).
+				Return(tc.apiResponse, nil)
+
+			c := &client{}
+			gotConn, err := c.GetConnection(s.ctx, tc.connId)
+			if tc.wantErr {
+				s.Error(err)
+			} else {
+				s.NoError(err)
+			}
+			s.Equal(tc.wantConn, gotConn)
+		})
+	}
 }

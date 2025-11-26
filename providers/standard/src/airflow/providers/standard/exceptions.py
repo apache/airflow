@@ -57,9 +57,13 @@ class DuplicateStateError(AirflowExternalTaskSensorException):
     """Raised when duplicate states are provided across allowed, skipped and failed states."""
 
 
-class HITLTriggerEventError(AirflowException):
+class HITLTriggerEventError(Exception):
     """Raised when TriggerEvent contains error."""
 
 
 class HITLTimeoutError(HITLTriggerEventError):
     """Raised when HITLOperator timeouts."""
+
+
+class HITLRejectException(AirflowException):
+    """Raised when an ApprovalOperator receives a "Reject" response when fail_on_reject is set to True."""

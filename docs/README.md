@@ -28,6 +28,7 @@
 - [Typical workflows](#typical-workflows)
   - [Publishing the documentation by the release manager](#publishing-the-documentation-by-the-release-manager)
   - [Publishing changes to the website (including theme)](#publishing-changes-to-the-website-including-theme)
+- [Publishing changes manually](#publishing-changes-manually)
 - [Fixing historical documentation](#fixing-historical-documentation)
   - [Manually publishing documentation directly to S3](#manually-publishing-documentation-directly-to-s3)
   - [Manually publishing documentation via `apache-airflow-site-archive` repo](#manually-publishing-documentation-via-apache-airflow-site-archive-repo)
@@ -78,7 +79,19 @@ There are a few repositories under `apache` organization that are used to build 
 We have two S3 buckets where we can publish the documentation generated from the `apache-airflow` repository:
 
 * `s3://live-docs-airflow-apache-org/docs/` - live, [official documentation](https://airflow.apache.org/docs/)
-* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/) TODO: make it work
+* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/)
+
+Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
+in order to provide caching and automated resolution of folders into index.html files.
+
+The cloudfront distributions of ours are:
+
+* Live cloudfront url: https://d7fnmbhf26p21.cloudfront.net
+* Staging cloudfront url: https://d3a2du7x0n8ydr.cloudfront.net
+
+Those cloudfront caches are automatically invalidated when we publish new documentation to S3 using
+GitHub Actions workflows, but you can also manually invalidate them using the AWS Console if needed.
+
 
 # Diagrams of the documentation architecture
 
@@ -196,6 +209,21 @@ The version of sphinx theme is fixed in both repositories:
 In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version,
 and only after that can we switch to the new version of the theme.
 
+# Publishing changes manually
+
+Sometimes you do not want to use Publishing workflows to publish individual files and caches might get
+into the way as both Cloudfront and Fastly caches might take some time to invalidate. In such a case, when
+you manually upload the files to S3 bucket, you can immediately invalidate the caches:
+
+1) Manually run invalidation request in Cloudfront for the documentation S3 bucket you uploaded the files
+   to via AWS Console or AWS CLI (You can use `/*` to invalidate all files).
+
+![Cloudfront invalidation](images/cloudfront_invalidation.png)
+
+2) Run the `Build docs` workflow in `airflow-site` repository to invalidate Fastly cache for the website.
+   Use `main` branch to rebuild site for `live` site and `staging` to rebuild the `staging` site:
+
+![Build docs](images/build-docs.png)
 
 # Fixing historical documentation
 
@@ -210,20 +238,24 @@ bad links or when we change some of the structure in the documentation. This can
    text editor, script, etc. Those files are generated as `html` files and are not meant to be regenerated,
    they should be modified as `html` files in-place
 3. Commit the changes to `airflow-site-archive` repository and push them to `some` branch of the repository.
-4. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified
-   documentation to the S3 bucket.
-5. You can choose whether to sync the changes to `live` or `staging` bucket. The default is `live`.
+4. Create a Pull Request from that branch and merge it to `main`
+5. Run `Sync GitHub to S3` workflow in `airflow-site-archive` repository. This will upload the modified
+   documentation to the S3 bucket. Use `main` branch (default) as "Reference of the commit used
+   for synchronization". You can choose whether to sync the changes to `live` or `staging` bucket.
+   The default is `live`:
+   ![Sync GitHub to S3](images/sync_github_to_s3.png)
 6. By default, the workflow will synchronize all documentation modified in a single last commit pushed to
-   the branch you specified. You can also specify "full_sync" to synchronize all files in the repository.
-7. In case you specify "full_sync", you can also synchronize `all` docs or only selected documentation
+   the `main`. You can also specify `full_sync` to synchronize all files in the repository if you want to
+   make sure that S3 reflects `main`. The workflow might run for a long time (hours) in case of full sync
+   or many changes to the `.html` files.
+7. In case you specify `full_sync`, you can also synchronize `all` docs or only selected documentation
    packages (for example `apache-airflow` or `docker-stack` or `amazon` or `helm-chart`) - you can specify
-   more than one package separated by  spaces.
-8. After you synchronize the changes to S3, the Sync `S3 to GitHub` workflow will be triggered
-   automatically, and the changes will be synchronized to `airflow-site-archive` `main` branch - so there
-   is no need to merge your changes to `main` branch of `airflow-site-archive` repository. You can safely
-   delete the branch you created in step 3.
-
-![Sync GitHub to S3](images/sync_github_to_s3.png)
+   more than one package separated by spaces.
+8. The workflow will invalidate Cloudfront cache for "live" or "staging" bucket respectively.
+9. Run the `Build docs` workflow in `airflow-site` repository to make sure that Fastly cache of the
+   https://airflow.apache.org or https://airflow.staged.apache.org/ invalidated. Use `main` to rebuild site
+   for `live` site and `staging` to rebuild the `staging` site:
+   ![Build docs](images/build-docs.png)
 
 
 ## Manually publishing documentation directly to S3

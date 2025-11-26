@@ -60,10 +60,10 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 if TYPE_CHECKING:
-    from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule
+    from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream

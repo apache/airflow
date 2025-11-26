@@ -454,7 +454,7 @@ see in CI in your local environment.
 
    .. code-block:: bash
 
-      breeze compile-ui-assets
+      breeze ui compile-assets
 
    After running this, verify that the compiled UI assets have been added to ``/airflow/.build/ui``.
 

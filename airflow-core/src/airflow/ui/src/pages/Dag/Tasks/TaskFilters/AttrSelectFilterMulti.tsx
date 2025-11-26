@@ -58,7 +58,7 @@ export const AttrSelectFilterMulti = ({
       onValueChange={handleValueChange}
       value={selectedValues}
     >
-      <Select.Trigger colorPalette="blue" minW="max-content">
+      <Select.Trigger colorPalette="brand" minW="max-content">
         <Select.ValueText placeholder={placeholderText} width="auto">
           {() => displayValue}
         </Select.ValueText>

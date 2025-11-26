@@ -48,7 +48,7 @@ CREATE_TRANSFORM_PARAMS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": "3"},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": "3"},
 }
 CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "TransformJobName": "job_name",
@@ -58,7 +58,7 @@ CREATE_TRANSFORM_PARAMS_INTEGER_FIELDS: dict = {
     "BatchStrategy": "MultiRecord",
     "TransformInput": {"DataSource": {"S3DataSource": {"S3DataType": "S3Prefix", "S3Uri": "s3_uri"}}},
     "TransformOutput": {"S3OutputPath": "output_path"},
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 3},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": 3},
 }
 
 CREATE_MODEL_PARAMS: dict = {
@@ -98,9 +98,9 @@ class TestSageMakerTransformOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
-            if key3:
-                (key3,) = key3
+        for key1, key2, *key3_org in EXPECTED_INTEGER_FIELDS:
+            if key3_org:
+                (key3,) = key3_org
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
             else:
                 self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])

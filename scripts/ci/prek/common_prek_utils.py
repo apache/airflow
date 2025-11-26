@@ -221,9 +221,12 @@ def run_command_via_breeze_shell(
         subprocess_cmd.extend(["--project-name", project_name])
     subprocess_cmd.append(" ".join([shlex.quote(arg) for arg in cmd]))
     if os.environ.get("VERBOSE_COMMANDS"):
-        console.print(
-            f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
-        )
+        if console:
+            console.print(
+                f"[magenta]Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}[/]"
+            )
+        else:
+            print(f"Running command: {' '.join([shlex.quote(item) for item in subprocess_cmd])}")
     result = subprocess.run(
         subprocess_cmd,
         check=False,
@@ -276,17 +279,31 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
 def validate_cmd_result(cmd_result, include_ci_env_check=False):
     if include_ci_env_check:
         if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
-            console.print(
-                "\n[yellow]If you see strange stacktraces above, especially about missing imports "
-                "run this command:[/]\n"
-            )
-            console.print("[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n")
+            if console:
+                console.print(
+                    "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+                    "run this command:[/]\n"
+                )
+                console.print(
+                    "[magenta]breeze ci-image build --python 3.10 --upgrade-to-newer-dependencies[/]\n"
+                )
+            else:
+                print(
+                    "\nIf you see strange stacktraces above, especially about missing imports "
+                    "run this command:\nbreeze ci-image build --python 3.10 --upgrade-to-newer-dependencies\n"
+                )
 
     elif cmd_result.returncode != 0:
-        console.print(
-            "[warning]\nIf you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.10` and try again."
-        )
+        if console:
+            console.print(
+                "[warning]\nIf you see strange stacktraces above, "
+                "run `breeze ci-image build --python 3.10` and try again."
+            )
+        else:
+            print(
+                "\nIf you see strange stacktraces above, "
+                "run `breeze ci-image build --python 3.10` and try again."
+            )
     sys.exit(cmd_result.returncode)
 
 
@@ -303,8 +320,7 @@ def get_provider_id_from_path(file_path: Path) -> str | None:
             for providers_root_candidate in parent.parents:
                 if providers_root_candidate.name == "providers":
                     return parent.relative_to(providers_root_candidate).as_posix().replace("/", ".")
-            else:
-                return None
+            return None
     return None
 
 

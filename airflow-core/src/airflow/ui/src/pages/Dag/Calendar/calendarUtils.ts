@@ -1,3 +1,5 @@
+/* eslint-disable max-lines */
+
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,7 +27,6 @@ import type {
   RunCounts,
   DailyCalendarData,
   HourlyCalendarData,
-  CalendarCellData,
   CalendarColorMode,
   CalendarGranularity,
   CalendarScale,
@@ -35,23 +36,23 @@ import type {
 dayjs.extend(isSameOrBefore);
 
 // Calendar color constants
+export const PLANNED_COLOR = { _dark: "stone.600", _light: "stone.500" };
 const EMPTY_COLOR = { _dark: "gray.700", _light: "gray.100" };
-const PLANNED_COLOR = { _dark: "scheduled.600", _light: "scheduled.200" };
 
 const TOTAL_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
-  { _dark: "green.300", _light: "green.200" },
-  { _dark: "green.500", _light: "green.400" },
-  { _dark: "green.700", _light: "green.600" },
-  { _dark: "green.900", _light: "green.800" },
+  { _dark: "green.900", _light: "green.200" },
+  { _dark: "green.700", _light: "green.400" },
+  { _dark: "green.500", _light: "green.600" },
+  { _dark: "green.300", _light: "green.800" },
 ];
 
 const FAILURE_COLOR_INTENSITIES = [
   EMPTY_COLOR, // 0
-  { _dark: "red.300", _light: "red.200" },
-  { _dark: "red.500", _light: "red.400" },
-  { _dark: "red.700", _light: "red.600" },
-  { _dark: "red.900", _light: "red.800" },
+  { _dark: "red.900", _light: "red.200" },
+  { _dark: "red.700", _light: "red.400" },
+  { _dark: "red.500", _light: "red.600" },
+  { _dark: "red.300", _light: "red.800" },
 ];
 
 const createDailyDataMap = (data: Array<CalendarTimeRangeResponse>) => {
@@ -220,16 +221,27 @@ export const createCalendarScale = (
 
   // Handle single value case
   if (minCount === maxCount) {
-    const singleColor = viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2]! : FAILURE_COLOR_INTENSITIES[2]!;
+    const singleColor =
+      (viewMode === "total" ? TOTAL_COLOR_INTENSITIES[2] : FAILURE_COLOR_INTENSITIES[2]) ?? EMPTY_COLOR;
 
     return {
       getColor: (counts: RunCounts) => {
-        if (counts.planned > 0) {
+        const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
+        const hasPlanned = counts.planned > 0;
+        const hasActual = actualCount > 0;
+
+        if (hasPlanned && hasActual) {
+          return {
+            actual: singleColor,
+            planned: PLANNED_COLOR,
+          };
+        }
+
+        if (hasPlanned && !hasActual) {
           return PLANNED_COLOR;
         }
-        const targetCount = viewMode === "total" ? counts.total : counts.failed;
 
-        return targetCount === 0 ? EMPTY_COLOR : singleColor;
+        return actualCount === 0 ? EMPTY_COLOR : singleColor;
       },
       legendItems: [
         { color: EMPTY_COLOR, label: "0" },
@@ -253,12 +265,46 @@ export const createCalendarScale = (
 
   const uniqueThresholds = [...new Set(thresholds)].sort((first, second) => first - second);
 
-  const getColor = (counts: RunCounts): string | { _dark: string; _light: string } => {
-    if (counts.planned > 0) {
+  const getColor = (
+    counts: RunCounts,
+  ):
+    | string
+    | { _dark: string; _light: string }
+    | {
+        actual: string | { _dark: string; _light: string };
+        planned: string | { _dark: string; _light: string };
+      } => {
+    const actualCount = viewMode === "total" ? counts.total - counts.planned : counts.failed;
+    const hasPlanned = counts.planned > 0;
+    const hasActual = actualCount > 0;
+
+    if (hasPlanned && hasActual) {
+      let actualColor = colorScheme[0] ?? EMPTY_COLOR;
+
+      for (let index = uniqueThresholds.length - 1; index >= 1; index -= 1) {
+        const threshold = uniqueThresholds[index];
+
+        if (threshold !== undefined && actualCount >= threshold) {
+          actualColor = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
+          break;
+        }
+      }
+
+      if (actualCount > 0 && actualColor === colorScheme[0]) {
+        actualColor = colorScheme[1] ?? EMPTY_COLOR;
+      }
+
+      return {
+        actual: actualColor,
+        planned: PLANNED_COLOR,
+      };
+    }
+
+    if (hasPlanned && !hasActual) {
       return PLANNED_COLOR;
     }
 
-    const targetCount = viewMode === "total" ? counts.total : counts.failed;
+    const targetCount = actualCount;
 
     if (targetCount === 0) {
       return colorScheme[0] ?? EMPTY_COLOR;
@@ -294,7 +340,7 @@ export const createCalendarScale = (
       label = `${threshold}-${nextThreshold - 1}`;
     }
 
-    const color = colorScheme[Math.min(index, colorScheme.length - 1)]!;
+    const color = colorScheme[Math.min(index, colorScheme.length - 1)] ?? EMPTY_COLOR;
 
     legendItems.push({
       color,
@@ -307,18 +353,4 @@ export const createCalendarScale = (
     legendItems,
     type: "gradient",
   };
-};
-
-export const createTooltipContent = (cellData: CalendarCellData): string => {
-  const { counts, date } = cellData;
-
-  if (counts.total === 0) {
-    return `${date}: No runs`;
-  }
-
-  const parts = Object.entries(counts)
-    .filter(([key, value]) => key !== "total" && value > 0)
-    .map(([state, count]) => `${count} ${state}`);
-
-  return `${date}: ${counts.total} runs (${parts.join(", ")})`;
 };

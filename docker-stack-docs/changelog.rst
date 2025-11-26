@@ -62,6 +62,13 @@ especially dev libraries installed with ``apt`` might not be installed by defaul
 as a side-effect in the original image, however that should only affect those who want to customise the image.
 They should be able to install in their custom images following the :doc:`Building the image <build>`
 
+The Python 3.13 image for Airflow 3.1.0 (both slim and regular) does not contain ``fab`` provider because
+at the time of release the ``fab`` provider did not support Python 3.13. It should be possible to install
+future versions of ``fab`` provider (when they support Python 3.13) in the image using ``pip install``,
+and until it is possible - if you need ``fab`` provider (and particularly FABAuthManager) in the
+image, you should use Python 3.12 image. You can use experimental KeycloakAuthManager in Python 3.13 image
+or develop your own AuthManager.
+
 Airflow 3.0.2
 ~~~~~~~~~~~~~
 

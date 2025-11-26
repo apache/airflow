@@ -442,7 +442,7 @@ class TestSFTPHook:
         assert hook.key_file == TEST_KEY_FILE
 
     @pytest.mark.parametrize(
-        "path, exists",
+        ("path", "exists"),
         [
             (TMP_DIR_FOR_TESTS, True),
             (TMP_FILE_FOR_TESTS, True),
@@ -456,7 +456,7 @@ class TestSFTPHook:
         assert result == exists
 
     @pytest.mark.parametrize(
-        "path, prefix, delimiter, match",
+        ("path", "prefix", "delimiter", "match"),
         [
             ("test/path/file.bin", None, None, True),
             ("test/path/file.bin", "test", None, True),
@@ -762,7 +762,7 @@ class TestSFTPHookAsync:
         mock_connect.assert_called_with(**expected_connection_details)
 
     @pytest.mark.parametrize(
-        "mock_port, mock_host_key",
+        ("mock_port", "mock_host_key"),
         [
             (22, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
             (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
@@ -814,10 +814,8 @@ class TestSFTPHookAsync:
         )
 
         hook = SFTPHookAsync()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
             await hook._get_conn()
-
-        assert str(exc.value) == "Host key check was skipped, but `host_key` value was given"
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")

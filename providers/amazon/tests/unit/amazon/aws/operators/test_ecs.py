@@ -37,7 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -207,7 +207,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         )
 
     @pytest.mark.parametrize(
-        "launch_type, capacity_provider_strategy,platform_version,tags,volume_configurations,expected_args",
+        (
+            "launch_type",
+            "capacity_provider_strategy",
+            "platform_version",
+            "tags",
+            "volume_configurations",
+            "expected_args",
+        ),
         [
             [
                 "EC2",
@@ -469,12 +476,12 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(
+            Exception,
+            match="This task is not in success state - last 10 logs from Cloudwatch:\n1\n2\n3\n4\n5",
+        ):
             self.ecs._check_success_task()
 
-        assert str(ctx.value) == (
-            "This task is not in success state - last 10 logs from Cloudwatch:\n1\n2\n3\n4\n5"
-        )
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -488,10 +495,11 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(
+            Exception, match="This task is not in success state - last 10 logs from Cloudwatch:\n"
+        ):
             self.ecs._check_success_task()
 
-        assert str(ctx.value) == "This task is not in success state - last 10 logs from Cloudwatch:\n"
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -502,13 +510,12 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED", "exitCode": 1}]}]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(
+            Exception,
+            match=r"This task is not in success state .*'name': 'foo'.*'lastStatus': 'STOPPED'.*'exitCode': 1",
+        ):
             self.ecs._check_success_task()
 
-        assert "This task is not in success state " in str(ctx.value)
-        assert "'name': 'foo'" in str(ctx.value)
-        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
-        assert "'exitCode': 1" in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -520,14 +527,11 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "tasks": [{"containers": [{"name": "foo", "lastStatus": "STOPPED"}]}]
         }
 
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(
+            Exception, match=r"This task is not in success state .*'name': 'foo'.*'lastStatus': 'STOPPED'"
+        ):
             self.ecs._check_success_task()
 
-        print(str(ctx.value))
-        assert "This task is not in success state " in str(ctx.value)
-        assert "'name': 'foo'" in str(ctx.value)
-        assert "'lastStatus': 'STOPPED'" in str(ctx.value)
-        assert "exitCode" not in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -536,12 +540,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.return_value = {
             "tasks": [{"containers": [{"name": "container-name", "lastStatus": "PENDING"}]}]
         }
-        with pytest.raises(Exception) as ctx:
+        with pytest.raises(
+            Exception, match=r"This task is still pending .*'name': 'container-name'.*'lastStatus': 'PENDING'"
+        ):
             self.ecs._check_success_task()
-        # Ordering of str(dict) is not guaranteed.
-        assert "This task is still pending " in str(ctx.value)
-        assert "'name': 'container-name'" in str(ctx.value)
-        assert "'lastStatus': 'PENDING'" in str(ctx.value)
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
@@ -601,7 +603,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @pytest.mark.parametrize(
-        "launch_type, tags",
+        ("launch_type", "tags"),
         [
             ["EC2", None],
             ["FARGATE", None],
@@ -610,7 +612,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         ],
     )
     @pytest.mark.parametrize(
-        "arns, expected_arn",
+        ("arns", "expected_arn"),
         [
             pytest.param(
                 [
@@ -673,7 +675,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == expected_arn
 
     @pytest.mark.parametrize(
-        "launch_type, tags",
+        ("launch_type", "tags"),
         [
             ["EC2", None],
             ["FARGATE", None],
@@ -852,7 +854,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    @pytest.mark.parametrize(("waiter_delay", "waiter_max_attempts"), WAITERS_TEST_CASES)
     def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters
@@ -926,7 +928,7 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
 
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
+    @pytest.mark.parametrize(("waiter_delay", "waiter_max_attempts"), WAITERS_TEST_CASES)
     def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
         mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
         patch_hook_waiters.return_value = mocked_waiters

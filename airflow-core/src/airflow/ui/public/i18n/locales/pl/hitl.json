@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Treść",
+    "createdAt": "Utworzono o",
     "response": {
       "all": "Wszystkie",
       "pending": "Oczekujące",
@@ -16,11 +18,13 @@
   "requiredActionCount_other": "Wymagane akcje ({{count}})",
   "requiredActionState": "Stan wymaganej akcji",
   "response": {
+    "created": "Utworzono o ",
     "error": "Nie udało się uzyskać odpowiedzi",
     "optionsDescription": "Wybierz opcje dla tej instancji zadania",
     "optionsLabel": "Opcje",
     "received": "Odpowiedź otrzymana o ",
     "respond": "Odpowiedz",
+    "responded_by_user_name": "Odpowiedź udzielona przez {{userName}}",
     "success": "Odpowiedź dla {{taskId}} została pomyślnie wysłana",
     "title": "Instancja zadania wymagająca interwencji człowieka - {{taskId}}"
   },

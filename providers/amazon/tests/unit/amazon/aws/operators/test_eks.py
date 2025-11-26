@@ -66,7 +66,7 @@ CREATE_CLUSTER_KWARGS = {"version": "1.22"}
 CREATE_FARGATE_PROFILE_KWARGS = {"tags": {"hello": "world"}}
 CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
-    "instanceTypes": "t3.large",
+    "instanceTypes": "t4g.large",
 }
 
 
@@ -808,7 +808,7 @@ class TestEksPodOperator:
         assert op.config_file == mock_config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        ("compatible_kpo", "kwargs", "expected_attributes"),
         [
             (
                 True,

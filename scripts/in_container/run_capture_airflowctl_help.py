@@ -38,10 +38,10 @@ COMMANDS = [
     "",  # for `airflowctl -h`, main help
     "assets",
     "auth",
-    "backfills",
+    "backfill",
     "config",
     "connections",
-    "dag",
+    "dags",
     "dagrun",
     "jobs",
     "pools",
@@ -99,8 +99,8 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
 
     # Check for changes
     changed_commands = []
-    for command in commands:
-        command = command or "main"
+    for command_raw in commands:
+        command = command_raw or "main"
         console.print(f"[bright_blue]Checking command: {command}[/]", end="")
 
         if skip_hash_check:

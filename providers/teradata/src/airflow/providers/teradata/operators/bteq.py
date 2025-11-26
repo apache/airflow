@@ -27,19 +27,16 @@ from airflow.providers.teradata.utils.bteq_util import (
     prepare_bteq_script_for_remote_execution,
     read_file,
 )
+from airflow.providers.teradata.utils.constants import Constants
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        from airflow.utils.context import Context
-
+    from airflow.providers.common.compat.sdk import Context
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.teradata.hooks.bteq import BteqHook
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.version_compat import BaseOperator
 
 
 def contains_template(parameter_value):
@@ -114,9 +111,7 @@ class BteqOperator(BaseOperator):
     def execute(self, context: Context) -> int | None:
         """Execute BTEQ code using the BteqHook."""
         if not self.sql and not self.file_path:
-            raise ValueError(
-                "BteqOperator requires either the 'sql' or 'file_path' parameter. Both are missing."
-            )
+            raise ValueError(Constants.BTEQ_MISSED_PARAMS)
         self._hook = BteqHook(teradata_conn_id=self.teradata_conn_id, ssh_conn_id=self.ssh_conn_id)
         self._ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id) if self.ssh_conn_id else None
 
@@ -159,15 +154,13 @@ class BteqOperator(BaseOperator):
                 )
             if self.file_path:
                 if not is_valid_file(self.file_path):
-                    raise ValueError(
-                        f"The provided file path '{self.file_path}' is invalid or does not exist."
-                    )
+                    raise ValueError(Constants.BTEQ_INVALID_PATH % self.file_path)
                 try:
                     is_valid_encoding(self.file_path, self.temp_file_read_encoding or "UTF-8")
                 except UnicodeDecodeError as e:
-                    errmsg = f"The provided file '{self.file_path}' encoding is different from BTEQ I/O encoding i.e.'UTF-8'."
+                    errmsg = Constants.BTEQ_INVALID_CHARSET % (self.file_path, "UTF-8")
                     if self.bteq_script_encoding:
-                        errmsg = f"The provided file '{self.file_path}' encoding is different from the specified BTEQ I/O encoding '{self.bteq_script_encoding}'."
+                        errmsg = Constants.BTEQ_INVALID_CHARSET % (self.file_path, self.bteq_script_encoding)
                     raise ValueError(errmsg) from e
                 return self._handle_local_bteq_file(
                     file_path=self.file_path,
@@ -200,13 +193,9 @@ class BteqOperator(BaseOperator):
                             file_path=self.file_path,
                             context=context,
                         )
-                    raise ValueError(
-                        f"The provided remote file path '{self.file_path}' is invalid or file does not exist on remote machine at given path."
-                    )
+                    raise ValueError(Constants.BTEQ_REMOTE_FILE_PATH_INVALID % self.file_path)
             else:
-                raise ValueError(
-                    "BteqOperator requires either the 'sql' or 'file_path' parameter. Both are missing."
-                )
+                raise ValueError(Constants.BTEQ_MISSED_PARAMS)
         return None
 
     def _handle_remote_bteq_file(
@@ -242,9 +231,7 @@ class BteqOperator(BaseOperator):
                         self.temp_file_read_encoding,
                     )
             return None
-        raise ValueError(
-            "Please provide a valid file path for the BTEQ script to be executed on the remote machine."
-        )
+        raise ValueError(Constants.BTEQ_MISSED_PARAMS)
 
     def _handle_local_bteq_file(
         self,

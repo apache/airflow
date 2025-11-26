@@ -39,6 +39,7 @@
     "fileLocation": "Bestandslocatie",
     "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
     "lastExpired": "Laatst verlopen",
+    "lastParseDuration": "Laatste parse duur",
     "lastParsed": "Laatst geparsed",
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
@@ -58,6 +59,7 @@
     "dataIntervalEnd": "Data interval einde",
     "dataIntervalStart": "Data interval begin",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
     "runType": "Run type",
@@ -76,6 +78,11 @@
     "documentation": "Documentatie",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
+  },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Druk op {{hotkey}} om logs te downloaden"
   },
   "duration": "Duur",
   "endDate": "Einddatum",
@@ -98,16 +105,14 @@
     "any": "Elk",
     "or": "Of"
   },
+  "filter": "Filter",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filter op Dag",
-    "keyPlaceholder": "Filter op XCom sleutel",
-    "logicalDateFromPlaceholder": "Van logische datum",
-    "logicalDateToPlaceholder": "Tot logische datum",
-    "mapIndexPlaceholder": "Filter op Map Index",
-    "runAfterFromPlaceholder": "Van Run na",
-    "runAfterToPlaceholder": "Tot Run na",
-    "runIdPlaceholder": "Filter op Run ID",
-    "taskIdPlaceholder": "Filter op Task ID"
+    "durationFrom": "Duur van",
+    "durationTo": "Duur tot",
+    "logicalDateFrom": "Van logische datum",
+    "logicalDateTo": "Tot logische datum",
+    "runAfterFrom": "Van Run na",
+    "runAfterTo": "Tot Run na"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
@@ -149,6 +154,7 @@
     "running": "Lopend",
     "scheduled": "Gepland"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
@@ -163,7 +169,6 @@
     },
     "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Acties",
     "permissions": "Permissies",

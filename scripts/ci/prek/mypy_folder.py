@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -116,7 +116,10 @@ def get_all_files(folder: str) -> list[str]:
         ) and not file.as_posix().endswith("src/airflow/providers/__init__.py"):
             files_to_check.append(file.relative_to(AIRFLOW_ROOT_PATH).as_posix())
     file_spec = "@/files/mypy_files.txt"
-    console.print(f"[info]Running mypy with {file_spec}")
+    if console:
+        console.print(f"[info]Running mypy with {file_spec}")
+    else:
+        print(f"info: Running mypy with {file_spec}")
     return files_to_check
 
 
@@ -126,26 +129,42 @@ for mypy_folder in mypy_folders:
     all_files_to_check.extend(get_all_files(mypy_folder))
 MYPY_FILE_LIST.write_text("\n".join(all_files_to_check))
 
-if os.environ.get("CI"):
-    console.print("[info]The content of the file is:")
-    console.print(all_files_to_check)
+if console:
+    if os.environ.get("CI"):
+        console.print("[info]The content of the file is:")
+        console.print(all_files_to_check)
+    else:
+        console.print(f"[info]You cand check the list of files in:[/] {MYPY_FILE_LIST}")
 else:
-    console.print(f"[info]You cand check the list of files in:[/] {MYPY_FILE_LIST}")
+    if os.environ.get("CI"):
+        print("info: The content of the file is:")
+        print(all_files_to_check)
+    else:
+        print(f"info: You cand check the list of files in: {MYPY_FILE_LIST}")
 
 print(f"Running mypy with {FILE_ARGUMENT}")
 
 mypy_cmd_parts = [f"TERM=ansi mypy {shlex.quote(FILE_ARGUMENT)}"]
 
 if show_unused_warnings == "true":
-    console.print(
-        "[info]Running mypy with --warn-unused-ignores to display unused ignores, unset environment variable: SHOW_UNUSED_MYPY_WARNINGS to runoff this behaviour"
-    )
+    if console:
+        console.print(
+            "[info]Running mypy with --warn-unused-ignores to display unused ignores, unset environment variable: SHOW_UNUSED_MYPY_WARNINGS to runoff this behaviour"
+        )
+    else:
+        print(
+            "info: Running mypy with --warn-unused-ignores to display unused ignores, unset environment variable: SHOW_UNUSED_MYPY_WARNINGS to runoff this behaviour"
+        )
     mypy_cmd_parts.append("--warn-unused-ignores")
-
 if show_unreachable_warnings == "true":
-    console.print(
-        "[info]Running mypy with --warn-unreachable to display unreachable code, unset environment variable: SHOW_UNREACHABLE_MYPY_WARNINGS to runoff this behaviour"
-    )
+    if console:
+        console.print(
+            "[info]Running mypy with --warn-unreachable to display unreachable code, unset environment variable: SHOW_UNREACHABLE_MYPY_WARNINGS to runoff this behaviour"
+        )
+    else:
+        print(
+            "info: Running mypy with --warn-unreachable to display unreachable code, unset environment variable: SHOW_UNREACHABLE_MYPY_WARNINGS to runoff this behaviour"
+        )
     mypy_cmd_parts.append("--warn-unreachable")
 
 mypy_cmd = " ".join(mypy_cmd_parts)
@@ -165,22 +184,42 @@ res = run_command_via_breeze_shell(
 )
 ci_environment = os.environ.get("CI")
 if res.returncode != 0:
-    if ci_environment:
+    if console:
+        if ci_environment:
+            console.print(
+                "[yellow]You are running mypy with the folders selected. If you want to "
+                "reproduce it locally, you need to run the following command:\n"
+            )
+            console.print("prek --hook-stage manual mypy-<folder> --all-files\n")
+        upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
+        if upgrading:
+            console.print(
+                "[yellow]You are running mypy with the image that has dependencies upgraded automatically.\n"
+            )
+        flag = " --upgrade-to-newer-dependencies" if upgrading else ""
         console.print(
-            "[yellow]You are running mypy with the folders selected. If you want to "
-            "reproduce it locally, you need to run the following command:\n"
+            "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
+            " this command and try again:\n"
         )
-        console.print("prek --hook-stage manual mypy-<folder> --all-files\n")
-    upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
-    if upgrading:
+        console.print(f"breeze ci-image build --python 3.10{flag}\n")
         console.print(
-            "[yellow]You are running mypy with the image that has dependencies upgraded automatically.\n"
+            "[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n"
         )
-    flag = " --upgrade-to-newer-dependencies" if upgrading else ""
-    console.print(
-        "[yellow]If you see strange stacktraces above, and can't reproduce it, please run"
-        " this command and try again:\n"
-    )
-    console.print(f"breeze ci-image build --python 3.10{flag}\n")
-    console.print("[yellow]You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
+    else:
+        if ci_environment:
+            print(
+                "You are running mypy with the folders selected. If you want to "
+                "reproduce it locally, you need to run the following command:\n"
+            )
+            print("prek --hook-stage manual mypy-<folder> --all-files\n")
+        upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
+        if upgrading:
+            print("You are running mypy with the image that has dependencies upgraded automatically.\n")
+        flag = " --upgrade-to-newer-dependencies" if upgrading else ""
+        print(
+            "If you see strange stacktraces above, and can't reproduce it, please run"
+            " this command and try again:\n"
+        )
+        print(f"breeze ci-image build --python 3.10{flag}\n")
+        print("You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used.\n")
 sys.exit(res.returncode)

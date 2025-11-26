@@ -30,6 +30,7 @@ import pytest
 import structlog
 
 from airflow.sdk import task as task_decorator
+from airflow.sdk._shared.secrets_masker import _secrets_masker, mask_secret
 from airflow.sdk.bases.operator import (
     BaseOperator,
     BaseOperatorMeta,
@@ -62,6 +63,9 @@ class ClassWithCustomAttributes:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(self.__dict__)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -237,6 +241,23 @@ class TestBaseOperator:
                 illegal_argument_1234="hello?",
             )
 
+    @mock.patch("airflow.sdk.bases.operator.redact")
+    def test_illegal_args_with_secrets(self, mock_redact):
+        """
+        Tests that operators on illegal arguments with secrets are correctly masked.
+        """
+        secret = "secretP4ssw0rd!"
+        mock_redact.side_effect = ["***"]
+
+        msg = r"Invalid arguments were passed to BaseOperator"
+        with pytest.raises(TypeError, match=msg) as exc_info:
+            BaseOperator(
+                task_id="test_illegal_args",
+                secret_argument=secret,
+            )
+        assert "***" in str(exc_info.value)
+        assert secret not in str(exc_info.value)
+
     def test_invalid_type_for_default_arg(self):
         error_msg = "'max_active_tis_per_dag' for task 'test' expects <class 'int'>, got <class 'str'> with value 'not_an_int'"
         with pytest.raises(TypeError, match=error_msg):
@@ -257,7 +278,7 @@ class TestBaseOperator:
 
     def test_dag_task_invalid_weight_rule(self):
         # Test if we enter an invalid weight rule
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
             BaseOperator(task_id="should_fail", weight_rule="no rule")
 
     def test_dag_task_not_registered_weight_strategy(self):
@@ -476,10 +497,12 @@ class TestBaseOperator:
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
 
-        with pytest.raises(ValueError):
+        CHAIN_NOT_SUPPORTED = "Chain not supported for different length Iterable. Got {} and {}."
+
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([op1, op2], [op3, op4, op5])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(3, 2)):
             chain([op1, op2, op3], [label1, label2])
 
         # Begin test for `XComArgs` with `EdgeModifiers`
@@ -489,16 +512,16 @@ class TestBaseOperator:
             for i in range(1, 6)
         ]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([xop1, xop2], [xop3, xop4, xop5])
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(3, 2)):
             chain([xop1, xop2, xop3], [label1, label2])
 
         # Begin test for `TaskGroups`
         [tg1, tg2, tg3, tg4, tg5] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 6)]
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHAIN_NOT_SUPPORTED.format(2, 3)):
             chain([tg1, tg2], [tg3, tg4, tg5])
 
     def test_set_xcomargs_dependencies_works_recursively(self):
@@ -523,7 +546,10 @@ class TestBaseOperator:
 
     def test_set_xcomargs_dependencies_error_when_outside_dag(self):
         op1 = BaseOperator(task_id="op1")
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError,
+            match=r"Tried to create relationships between tasks that don't have Dags yet. Set the Dag for at least one task and try again: \[<Task\(MockOperator\): op2>, <Task\(BaseOperator\): op1>\]",
+        ):
             MockOperator(task_id="op2", arg1=op1.output)
 
     def test_cannot_change_dag(self):
@@ -703,7 +729,7 @@ class TestBaseOperator:
         task.render_template_fields({})
         assert task.arg2 == "foo_barbarbar"
 
-    @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
+    @pytest.mark.parametrize("content", [object(), uuid.uuid4()])
     def test_render_template_fields_no_change(self, content):
         """Tests if non-templatable types remain unchanged."""
         task = BaseOperator(task_id="op1")
@@ -915,6 +941,30 @@ def test_render_template_fields_logging(
         assert not_expected_log not in caplog.text
 
 
+@pytest.mark.enable_redact
+def test_render_template_fields_secret_masking(caplog):
+    """Test that sensitive values are masked in Jinja template rendering exceptions."""
+    masker = _secrets_masker()
+    masker.reset_masker()
+
+    masker.sensitive_variables_fields = ["password", "secret", "token"]
+
+    mask_secret("mysecretpassword", "password")
+
+    task = MockOperator(task_id="op1", arg1="{{ password + 1 }}")
+    context = {"password": "mysecretpassword"}
+
+    with (
+        pytest.raises(TypeError),
+        caplog.at_level(logging.ERROR, logger="airflow.sdk.definitions.templater"),
+    ):
+        task.render_template_fields(context=context)
+
+    assert "mysecretpassword" not in caplog.text
+    assert "Template: '{{ password + 1 }}'" in caplog.text
+    assert "Exception rendering Jinja template for task 'op1', field 'arg1'" in caplog.text
+
+
 class HelloWorldOperator(BaseOperator):
     log = structlog.get_logger(__name__)
 
@@ -950,6 +1000,7 @@ class TestExecutorSafeguard:
                 "level": "warning",
                 "timestamp": mock.ANY,
                 "logger": "tests.task_sdk.bases.test_operator",
+                "loc": mock.ANY,
             },
         ]
 

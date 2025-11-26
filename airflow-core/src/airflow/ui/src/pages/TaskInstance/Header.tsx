@@ -23,21 +23,16 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { getDuration, useContainerWidth } from "src/utils";
+import { renderDuration, useContainerWidth } from "src/utils";
 
-export const Header = ({
-  isRefreshing,
-  taskInstance,
-}: {
-  readonly isRefreshing?: boolean;
-  readonly taskInstance: TaskInstanceResponse;
-}) => {
+export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
   const containerRef = useRef<HTMLDivElement>();
   const containerWidth = useContainerWidth(containerRef);
@@ -53,7 +48,7 @@ export const Header = ({
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: translate("duration"), value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+      ? [{ label: translate("duration"), value: renderDuration(taskInstance.duration) }]
       : []),
     {
       label: translate("taskInstance.dagVersion"),
@@ -93,6 +88,9 @@ export const Header = ({
     setNote(taskInstance.note ?? "");
   };
 
+  // Stable dialog state at header/page level
+  const [clearOpen, setClearOpen] = useState(false);
+
   return (
     <Box ref={containerRef}>
       <HeaderCard
@@ -111,6 +109,7 @@ export const Header = ({
             />
             <ClearTaskInstanceButton
               isHotkeyEnabled
+              onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
               withText={containerWidth > 700}
             />
@@ -122,12 +121,17 @@ export const Header = ({
           </>
         }
         icon={<MdOutlineTask />}
-        isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
-        subTitle={<Time datetime={taskInstance.start_date} />}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
+      {clearOpen ? (
+        <ClearTaskInstanceDialog
+          onClose={() => setClearOpen(false)}
+          open={clearOpen}
+          taskInstance={taskInstance}
+        />
+      ) : undefined}
     </Box>
   );
 };

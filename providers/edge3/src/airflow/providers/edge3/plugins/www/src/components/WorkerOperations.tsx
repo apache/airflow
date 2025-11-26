@@ -21,8 +21,13 @@ import type { Worker } from "openapi/requests/types.gen";
 
 import { toaster } from "src/components/ui";
 
+import { AddQueueButton } from "./AddQueueButton";
+import { MaintenanceEditCommentButton } from "./MaintenanceEditCommentButton";
 import { MaintenanceEnterButton } from "./MaintenanceEnterButton";
 import { MaintenanceExitButton } from "./MaintenanceExitButton";
+import { RemoveQueueButton } from "./RemoveQueueButton";
+import { WorkerDeleteButton } from "./WorkerDeleteButton";
+import { WorkerShutdownButton } from "./WorkerShutdownButton";
 
 interface WorkerOperationsProps {
   onOperations: () => void;
@@ -40,8 +45,11 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
 
   if (state === "idle" || state === "running") {
     return (
-      <Flex justifyContent="end">
+      <Flex justifyContent="end" gap={2}>
+        <AddQueueButton onQueueUpdate={onWorkerChange} workerName={workerName} />
+        <RemoveQueueButton onQueueUpdate={onWorkerChange} worker={worker} />
         <MaintenanceEnterButton onEnterMaintenance={onWorkerChange} workerName={workerName} />
+        <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
       </Flex>
     );
   } else if (
@@ -55,10 +63,22 @@ export const WorkerOperations = ({ onOperations, worker }: WorkerOperationsProps
         <Box fontSize="sm" whiteSpace="pre-wrap">
           {worker.maintenance_comments || "No comment"}
         </Box>
-        <Flex justifyContent="end">
+        <Flex justifyContent="end" gap={2}>
+          <MaintenanceEditCommentButton onEditComment={onWorkerChange} workerName={workerName} />
           <MaintenanceExitButton onExitMaintenance={onWorkerChange} workerName={workerName} />
+          {state === "offline maintenance" ? (
+            <WorkerDeleteButton onDelete={onWorkerChange} workerName={workerName} />
+          ) : (
+            <WorkerShutdownButton onShutdown={onWorkerChange} workerName={workerName} />
+          )}
         </Flex>
       </VStack>
+    );
+  } else if (state === "offline" || state === "unknown") {
+    return (
+      <Flex justifyContent="end">
+        <WorkerDeleteButton onDelete={onWorkerChange} workerName={workerName} />
+      </Flex>
     );
   }
   return null;

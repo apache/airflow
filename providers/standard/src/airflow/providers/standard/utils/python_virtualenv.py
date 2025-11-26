@@ -19,8 +19,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import shlex
 import shutil
+import subprocess
 import warnings
 from pathlib import Path
 
@@ -28,7 +31,6 @@ import jinja2
 from jinja2 import select_autoescape
 
 from airflow.configuration import conf
-from airflow.utils.process_utils import execute_in_subprocess
 
 
 def _is_uv_installed() -> bool:
@@ -132,6 +134,37 @@ def _index_urls_to_uv_env_vars(index_urls: list[str] | None = None) -> dict[str,
     return uv_index_env_vars
 
 
+def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str, str] | None = None) -> None:
+    """
+    Execute a process and stream output to logger.
+
+    :param cmd: command and arguments to run
+    :param cwd: Current working directory passed to the Popen constructor
+    :param env: Additional environment variables to set for the subprocess.
+    """
+    log = logging.getLogger(__name__)
+
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
+    with subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=0,
+        close_fds=False,
+        cwd=cwd,
+        env=env,
+    ) as proc:
+        log.info("Output:")
+        if proc.stdout:
+            with proc.stdout:
+                for line in iter(proc.stdout.readline, b""):
+                    log.info("%s", line.decode().rstrip())
+
+        exit_code = proc.wait()
+    if exit_code != 0:
+        raise subprocess.CalledProcessError(exit_code, cmd)
+
+
 def prepare_virtualenv(
     venv_directory: str,
     python_bin: str,
@@ -169,7 +202,7 @@ def prepare_virtualenv(
         venv_cmd = _generate_uv_cmd(venv_directory, python_bin, system_site_packages)
     else:
         venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
-    execute_in_subprocess(venv_cmd)
+    _execute_in_subprocess(venv_cmd)
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
@@ -188,7 +221,7 @@ def prepare_virtualenv(
             )
 
     if pip_cmd:
-        execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
+        _execute_in_subprocess(pip_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
 
     return f"{venv_directory}/bin/python"
 

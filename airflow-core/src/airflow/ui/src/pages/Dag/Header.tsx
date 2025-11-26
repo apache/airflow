@@ -50,11 +50,9 @@ type LatestRunInfo = {
 
 export const Header = ({
   dag,
-  isRefreshing,
   latestRunInfo,
 }: {
   readonly dag?: DAGDetailsResponse;
-  readonly isRefreshing?: boolean;
   readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -102,6 +100,13 @@ export const Header = ({
       ) : undefined,
     },
     {
+      label: translate("dagDetails.maxActiveRuns"),
+      value:
+        dag?.max_active_runs === undefined
+          ? undefined
+          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
+    },
+    {
       label: translate("dagDetails.owner"),
       value: <DagOwners ownerLinks={dag?.owner_links ?? undefined} owners={dag?.owners} />,
     },
@@ -128,7 +133,7 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} withText={true} />
+            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText />
             <Menu.Root>
               <Menu.Trigger asChild>
                 <Button aria-label={translate("dag:header.buttons.advanced")} variant="outline">
@@ -156,7 +161,6 @@ export const Header = ({
         )
       }
       icon={<DagIcon />}
-      isRefreshing={isRefreshing}
       stats={stats}
       subTitle={
         dag !== undefined && (

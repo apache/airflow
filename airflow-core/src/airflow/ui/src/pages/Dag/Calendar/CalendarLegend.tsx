@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "src/components/ui";
 
+import { PLANNED_COLOR } from "./calendarUtils";
 import type { CalendarScale, CalendarColorMode } from "./types";
 
 type Props = {
@@ -83,15 +84,41 @@ export const CalendarLegend = ({ scale, vertical = false, viewMode }: Props) => 
       <Box>
         <HStack gap={4} justify="center" wrap="wrap">
           <HStack gap={2}>
+            <Box bg={PLANNED_COLOR} borderRadius="2px" boxShadow="sm" height="14px" width="14px" />
+            <Text color="fg.muted" fontSize="xs">
+              {translate("common:states.planned")}
+            </Text>
+          </HStack>
+          <HStack gap={2}>
             <Box
-              bg={{ _dark: "scheduled.600", _light: "scheduled.200" }}
               borderRadius="2px"
               boxShadow="sm"
               height="14px"
+              overflow="hidden"
+              position="relative"
               width="14px"
-            />
+            >
+              <Box
+                bg={PLANNED_COLOR}
+                clipPath="polygon(0 100%, 100% 100%, 0 0)"
+                height="100%"
+                position="absolute"
+                width="100%"
+              />
+              <Box
+                bg={
+                  viewMode === "failed"
+                    ? { _dark: "red.700", _light: "red.400" }
+                    : { _dark: "green.700", _light: "green.400" }
+                }
+                clipPath="polygon(100% 0, 100% 100%, 0 0)"
+                height="100%"
+                position="absolute"
+                width="100%"
+              />
+            </Box>
             <Text color="fg.muted" fontSize="xs">
-              {translate("common:states.planned")}
+              {translate("calendar.legend.mixed")}
             </Text>
           </HStack>
         </HStack>

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link, Image, Menu } from "@chakra-ui/react";
+import { Link, Image, Menu, Icon, Box } from "@chakra-ui/react";
 import { FiExternalLink } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
 import { RiArchiveStackLine } from "react-icons/ri";
@@ -46,11 +46,11 @@ export const PluginMenuItem = ({
   const displayIcon = colorMode === "dark" && typeof iconDarkMode === "string" ? iconDarkMode : icon;
   const pluginIcon =
     typeof displayIcon === "string" ? (
-      <Image height="1.25rem" mr={topLevel ? 0 : 2} src={displayIcon} width="1.25rem" />
+      <Image boxSize={5} src={displayIcon} />
     ) : urlRoute === "legacy-fab-views" ? (
-      <RiArchiveStackLine size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <Icon as={RiArchiveStackLine} boxSize={5} />
     ) : (
-      <LuPlug size="1.25rem" style={{ marginRight: topLevel ? 0 : "8px" }} />
+      <Icon as={LuPlug} boxSize={5} />
     );
 
   const isExternal = urlRoute === undefined || urlRoute === null;
@@ -58,9 +58,10 @@ export const PluginMenuItem = ({
   if (topLevel) {
     return (
       <NavButton
-        icon={pluginIcon}
+        icon={LuPlug}
         isExternal={isExternal}
         key={name}
+        pluginIcon={pluginIcon}
         title={name}
         to={isExternal ? href : `plugin/${urlRoute}`}
       />
@@ -80,13 +81,15 @@ export const PluginMenuItem = ({
           width="100%"
         >
           {pluginIcon}
-          {name}
-          <FiExternalLink />
+          <Box flex="1">{name}</Box>
+          <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
         </Link>
       ) : (
         <RouterLink style={{ outline: "none" }} to={`plugin/${urlRoute}`}>
           {pluginIcon}
-          {name}
+          <Box flex="1" ml={2}>
+            {name}
+          </Box>
         </RouterLink>
       )}
     </Menu.Item>

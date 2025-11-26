@@ -78,7 +78,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
         </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03b_contributors_quick_start_seasoned_developers.rst>`__
 
 Docker Compose
 --------------
@@ -154,7 +154,7 @@ installing packages, managing workspaces and running development tools.).
 
 Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
 We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
-easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+easy to use, it is faster than any of the other tools available (way faster!) and has a lot of features
 that make it easier to work with Python.
 
 The ``gh`` cli needed for release managers

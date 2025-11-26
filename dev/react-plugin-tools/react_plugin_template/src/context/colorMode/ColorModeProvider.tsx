@@ -17,8 +17,7 @@
  * under the License.
  */
 
-import { ThemeProvider } from "next-themes";
-import type { ThemeProviderProps } from "next-themes/dist/types";
+import { ThemeProvider, type ThemeProviderProps } from "next-themes";
 
 export const ColorModeProvider = (props: ThemeProviderProps) => (
   <ThemeProvider attribute="class" disableTransitionOnChange {...props} />

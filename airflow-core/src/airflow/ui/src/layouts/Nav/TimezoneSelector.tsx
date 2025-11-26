@@ -25,6 +25,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTimezone } from "src/context/timezone";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 import type { Option as TimezoneOption } from "src/utils/option";
 
 dayjs.extend(utc);
@@ -60,7 +61,7 @@ const TimezoneSelector: React.FC = () => {
 
   useEffect(() => {
     const updateTime = () => {
-      setCurrentTime(dayjs().tz(selectedTimezone).format("YYYY-MM-DD HH:mm:ss"));
+      setCurrentTime(dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT));
     };
 
     updateTime();

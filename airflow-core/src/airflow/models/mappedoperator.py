@@ -30,8 +30,10 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
+from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
@@ -47,7 +49,6 @@ if TYPE_CHECKING:
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink, Context
     from airflow.sdk.definitions.operator_resources import Resources
-    from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -92,7 +93,7 @@ class MappedOperator(DAGNode):
 
     # Needed for serialization.
     task_id: str
-    params: ParamsDict | dict = attrs.field(init=False, factory=dict)
+    params: SerializedParamsDict = attrs.field(init=False, factory=SerializedParamsDict)
     operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
@@ -114,6 +115,10 @@ class MappedOperator(DAGNode):
     dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
     task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
 
+    doc: str | None = attrs.field(init=False)
+    doc_json: str | None = attrs.field(init=False)
+    doc_rst: str | None = attrs.field(init=False)
+    doc_yaml: str | None = attrs.field(init=False)
     start_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     end_date: pendulum.DateTime | None = attrs.field(init=False, default=None)
     upstream_task_ids: set[str] = attrs.field(factory=set, init=False)
@@ -135,6 +140,9 @@ class MappedOperator(DAGNode):
     deps: frozenset[BaseTIDep] = attrs.field(init=False, default=DEFAULT_OPERATOR_DEPS)
 
     is_mapped: ClassVar[bool] = True
+
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTask({self.task_type}): {self.task_id}>"
 
     @property
     def node_id(self) -> str:
@@ -267,11 +275,24 @@ class MappedOperator(DAGNode):
 
     @property
     def retry_delay(self) -> datetime.timedelta:
-        return self.partial_kwargs["retry_delay"]
+        return self.partial_kwargs.get("retry_delay", SerializedBaseOperator.retry_delay)
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        value = self.partial_kwargs.get("retry_exponential_backoff", 0)
+        if value is True:
+            return 2.0
+        if value is False:
+            return 0.0
+        return float(value)
+
+    @property
+    def max_retry_delay(self) -> datetime.timedelta | None:
+        return self.partial_kwargs.get("max_retry_delay")
+
+    @property
+    def retry_delay_multiplier(self) -> float:
+        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:

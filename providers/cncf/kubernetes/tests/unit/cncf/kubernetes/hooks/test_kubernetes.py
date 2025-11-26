@@ -142,7 +142,7 @@ class TestKubernetesHook:
         clear_test_connections()
 
     @pytest.mark.parametrize(
-        "in_cluster_param, conn_id, in_cluster_called",
+        ("in_cluster_param", "conn_id", "in_cluster_called"),
         (
             (True, None, True),
             (None, None, False),
@@ -219,7 +219,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "disable_verify_ssl, conn_id, disable_called",
+        ("disable_verify_ssl", "conn_id", "disable_called"),
         (
             (True, None, True),
             (None, None, False),
@@ -251,7 +251,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "disable_tcp_keepalive, conn_id, expected",
+        ("disable_tcp_keepalive", "conn_id", "expected"),
         (
             (True, None, False),
             (None, None, True),
@@ -283,7 +283,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "config_path_param, conn_id, call_path",
+        ("config_path_param", "conn_id", "call_path"),
         (
             (None, None, KUBE_CONFIG_PATH),
             ("/my/path/override", None, "/my/path/override"),
@@ -309,7 +309,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "conn_id, has_config",
+        ("conn_id", "has_config"),
         (
             (None, False),
             ("kube_config", True),
@@ -341,7 +341,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "context_param, conn_id, expected_context",
+        ("context_param", "conn_id", "expected_context"),
         (
             ("param-context", None, "param-context"),
             (None, None, None),
@@ -372,7 +372,7 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         (
             pytest.param(None, None, id="no-conn-id"),
             pytest.param("with_namespace", "mock_namespace", id="conn-with-namespace"),
@@ -390,7 +390,7 @@ class TestKubernetesHook:
             )
 
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         (
             pytest.param("sidecar_container_image", "private.repo.com/alpine:3.16", id="sidecar-with-image"),
             pytest.param("sidecar_container_image_empty", None, id="sidecar-without-image"),
@@ -401,7 +401,7 @@ class TestKubernetesHook:
         assert hook.get_xcom_sidecar_container_image() == expected
 
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         (
             pytest.param(
                 "sidecar_container_resources",
@@ -491,7 +491,7 @@ class TestKubernetesHook:
         assert job_actual == job_expected
 
     @pytest.mark.parametrize(
-        "conditions, expected_result",
+        ("conditions", "expected_result"),
         [
             (None, False),
             ([], False),
@@ -538,7 +538,7 @@ class TestKubernetesHook:
         assert not job_failed
 
     @pytest.mark.parametrize(
-        "condition_type, status, expected_result",
+        ("condition_type", "status", "expected_result"),
         [
             ("Complete", False, False),
             ("Complete", True, True),
@@ -573,7 +573,7 @@ class TestKubernetesHook:
         assert not job_successful
 
     @pytest.mark.parametrize(
-        "condition_type, status, expected_result",
+        ("condition_type", "status", "expected_result"),
         [
             ("Complete", False, False),
             ("Complete", True, True),
@@ -677,8 +677,9 @@ class TestKubernetesHook:
 
     @patch(f"{HOOK_MODULE}.json.dumps")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
-    def test_create_job_retries_three_times(self, mock_client, mock_json_dumps):
+    def test_create_job_retries_five_times(self, mock_client, mock_json_dumps):
         mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
@@ -689,17 +690,17 @@ class TestKubernetesHook:
         with pytest.raises(ApiException):
             hook.create_job(job=mock.MagicMock())
 
-        assert mock_client.create_namespaced_job.call_count == 3
+        assert mock_client.create_namespaced_job.call_count == 5
 
     @pytest.mark.parametrize(
-        "given_namespace, expected_namespace",
+        ("given_namespace", "expected_namespace"),
         [
             (None, "default-namespace"),
             ("given-namespace", "given-namespace"),
         ],
     )
     @pytest.mark.parametrize(
-        "given_client, expected_client",
+        ("given_client", "expected_client"),
         [
             (None, mock.MagicMock()),
             (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
@@ -762,7 +763,7 @@ class TestKubernetesHook:
     def test_check_kueue_deployment_raise_exception(self, mock_get_deployment_status, mock_log):
         mock_get_deployment_status.side_effect = ValueError
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Exception occurred while checking for Deployment status"):
             KubernetesHook().check_kueue_deployment_running(name=DEPLOYMENT_NAME, namespace=NAMESPACE)
 
         mock_log.exception.assert_called_once_with("Exception occurred while checking for Deployment status.")
@@ -1060,25 +1061,25 @@ class TestAsyncKubernetesHook:
             config_file=None,
             cluster_context=None,
         )
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook.log",
-            new_callable=PropertyMock,
-        ) as log:
-            await hook.read_logs(
-                name=POD_NAME,
-                namespace=NAMESPACE,
-            )
 
-            lib_method.assert_called_once()
-            lib_method.assert_called_with(
-                name=POD_NAME,
-                namespace=NAMESPACE,
-                follow=False,
-                timestamps=True,
-            )
-            log.return_value.info.assert_called_with(
-                "Container logs from %s", "2023-01-11 Some string logs..."
-            )
+        logs = await hook.read_logs(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            container_name=CONTAINER_NAME,
+            since_seconds=10,
+        )
+
+        lib_method.assert_called_once()
+        lib_method.assert_called_with(
+            name=POD_NAME,
+            namespace=NAMESPACE,
+            container=CONTAINER_NAME,
+            follow=False,
+            timestamps=True,
+            since_seconds=10,
+        )
+        assert len(logs) == 1
+        assert "2023-01-11 Some string logs..." in logs
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

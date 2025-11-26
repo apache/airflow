@@ -39,7 +39,7 @@ def clean_db(session):
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "logical_date, is_met",
+    ("logical_date", "is_met"),
     [
         (datetime(2016, 11, 3), False),
         (datetime(2016, 11, 1), True),

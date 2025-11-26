@@ -857,8 +857,8 @@ Here's a simple example using the existing email Notifier:
             interval=timedelta(minutes=30),
             callback=SmtpNotifier(
                 to="team@example.com",
-                subject="[Alert] Dag {{ dag.dag_id }} exceeded time threshold",
-                html_content="The Dag has been running for more than 30 minutes since being queued.",
+                subject="🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}",
+                html_content="The Dag Run {{ dag_run.dag_run_id }} has been running for more than 30 minutes since being queued.",
             ),
         ),
     ):

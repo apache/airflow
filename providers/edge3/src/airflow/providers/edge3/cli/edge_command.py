@@ -353,6 +353,37 @@ def remote_worker_request_shutdown(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
+def shutdown_all_workers(args) -> None:
+    """Request graceful shutdown of all edge workers."""
+    _check_valid_db_connection()
+    if not (
+        args.yes
+        or input("This will shutdown all active edge workers, this cannot be undone! Proceed? (y/n)").upper()
+        == "Y"
+    ):
+        raise SystemExit("Cancelled")
+
+    from airflow.providers.edge3.models.edge_worker import get_registered_edge_hosts, request_shutdown
+
+    all_hosts = list(get_registered_edge_hosts())
+    if not all_hosts:
+        logger.info("No edge workers found to shutdown.")
+        return
+
+    shutdown_count = 0
+    for host in all_hosts:
+        try:
+            request_shutdown(host.worker_name)
+            logger.info("Requested shutdown of Edge Worker host %s", host.worker_name)
+            shutdown_count += 1
+        except Exception as e:
+            logger.error("Failed to shutdown Edge Worker host %s: %s", host.worker_name, e)
+
+    logger.info("Requested shutdown of %d edge workers by %s.", shutdown_count, getuser())
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def add_worker_queues(args) -> None:
     """Add queues to an edge worker."""
     _check_valid_db_connection()
@@ -468,6 +499,12 @@ ARG_UMASK = Arg(
 ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file if run in daemon mode")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file if run in daemon mode")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file if run in daemon mode")
+ARG_YES = Arg(
+    ("-y", "--yes"),
+    help="Skip confirmation prompt and proceed with shutdown",
+    action="store_true",
+    default=False,
+)
 
 EDGE_COMMANDS: list[ActionCommand] = [
     ActionCommand(
@@ -580,5 +617,11 @@ EDGE_COMMANDS: list[ActionCommand] = [
             ARG_REQUIRED_EDGE_HOSTNAME,
             ARG_QUEUES_MANAGE,
         ),
+    ),
+    ActionCommand(
+        name="shutdown-all-workers",
+        help=shutdown_all_workers.__doc__,
+        func=shutdown_all_workers,
+        args=(ARG_YES,),
     ),
 ]

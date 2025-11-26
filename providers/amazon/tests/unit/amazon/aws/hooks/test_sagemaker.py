@@ -57,7 +57,7 @@ create_training_params = {
     "AlgorithmSpecification": {"TrainingImage": image, "TrainingInputMode": "File"},
     "RoleArn": role,
     "OutputDataConfig": {"S3OutputPath": output_url},
-    "ResourceConfig": {"InstanceCount": 2, "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": 50},
+    "ResourceConfig": {"InstanceCount": 2, "InstanceType": "ml.c6g.8xlarge", "VolumeSizeInGB": 50},
     "TrainingJobName": job_name,
     "HyperParameters": {"k": "10", "feature_dim": "784", "mini_batch_size": "500", "force_dense": "True"},
     "StoppingCondition": {"MaxRuntimeInSeconds": 60 * 60},
@@ -121,7 +121,7 @@ create_transform_params = {
     "TransformOutput": {
         "S3OutputPath": output_url,
     },
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 123},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": 123},
 }
 
 create_transform_params_fs = {
@@ -141,7 +141,7 @@ create_transform_params_fs = {
     "TransformOutput": {
         "S3OutputPath": output_url,
     },
-    "TransformResources": {"InstanceType": "ml.m4.xlarge", "InstanceCount": 123},
+    "TransformResources": {"InstanceType": "ml.m6g.xlarge", "InstanceCount": 123},
 }
 
 create_model_params = {
@@ -160,7 +160,7 @@ create_endpoint_config_params = {
             "VariantName": "AllTraffic",
             "ModelName": model_name,
             "InitialInstanceCount": 1,
-            "InstanceType": "ml.c4.xlarge",
+            "InstanceType": "ml.c6g.xlarge",
         }
     ],
 }
@@ -171,7 +171,7 @@ update_endpoint_params = create_endpoint_params
 
 DESCRIBE_TRAINING_COMPLETED_RETURN = {
     "TrainingJobStatus": "Completed",
-    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c4.xlarge", "VolumeSizeInGB": 10},
+    "ResourceConfig": {"InstanceCount": 1, "InstanceType": "ml.c6g.xlarge", "VolumeSizeInGB": 10},
     "TrainingStartTime": datetime(2018, 2, 17, 7, 15, 0, 103000),
     "TrainingEndTime": datetime(2018, 2, 17, 7, 19, 34, 953000),
     "ResponseMetadata": {

@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
     "response": {
       "all": "All",
       "pending": "Pending",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "Required Actions ({{count}})",
   "requiredActionState": "Required Action State",
   "response": {
+    "created": "Response created at ",
     "error": "Response failed",
     "optionsDescription": "Choose your options for this task instance",
     "optionsLabel": "Options",
     "received": "Response received at ",
     "respond": "Respond",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"
   },

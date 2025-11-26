@@ -21,11 +21,8 @@ import datetime
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING
-
-import packaging.version
 from flask import current_app, g
-from flask_appbuilder.models.sqla import Model
+from flask_appbuilder import Model
 from sqlalchemy import (
     Boolean,
     Column,
@@ -33,7 +30,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    MetaData,
+    Sequence,
     String,
     Table,
     UniqueConstraint,
@@ -41,41 +38,97 @@ from sqlalchemy import (
     func,
     select,
 )
-from sqlalchemy.orm import backref, declared_attr, registry, relationship
+from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
 
-from airflow import __version__ as airflow_version
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-from airflow.models.base import _get_schema, naming_convention
-
-if TYPE_CHECKING:
-    try:
-        from sqlalchemy import Identity
-    except Exception:
-        Identity = None
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
 
-metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
-mapper_registry = registry(metadata=metadata)
+assoc_group_role = Table(
+    "ab_group_role",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence("ab_group_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    ),
+    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
+    UniqueConstraint("group_id", "role_id"),
+    Index("idx_group_id", "group_id"),
+    Index("idx_group_role_id", "role_id"),
+)
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
-    "3.0.0"
-):
-    Model.metadata = metadata
-else:
-    from airflow.models.base import Base
+assoc_permission_role = Table(
+    "ab_permission_view_role",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence(
+            "ab_permission_view_role_id_seq",
+            start=1,
+            increment=1,
+            minvalue=1,
+            cycle=False,
+        ),
+        primary_key=True,
+    ),
+    Column(
+        "permission_view_id",
+        Integer,
+        ForeignKey("ab_permission_view.id", ondelete="CASCADE"),
+    ),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
+    UniqueConstraint("permission_view_id", "role_id"),
+    Index("idx_permission_view_id", "permission_view_id"),
+    Index("idx_role_id", "role_id"),
+)
 
-    Model.metadata = Base.metadata
+assoc_user_role = Table(
+    "ab_user_role",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence("ab_user_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    ),
+    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
+    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
+    UniqueConstraint("user_id", "role_id"),
+)
+
+assoc_user_group = Table(
+    "ab_user_group",
+    Model.metadata,
+    Column(
+        "id",
+        Integer,
+        Sequence("ab_user_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    ),
+    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
+    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
+    UniqueConstraint("user_id", "group_id"),
+)
 
 
 class Action(Model):
     """Represents permission actions such as `can_read`."""
 
     __tablename__ = "ab_permission"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_permission_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
     def __repr__(self):
         return self.name
@@ -85,11 +138,19 @@ class Resource(Model):
     """Represents permission object such as `User` or `Dag`."""
 
     __tablename__ = "ab_view_menu"
-    id = Column(Integer, primary_key=True)
-    name = Column(String(250), unique=True, nullable=False)
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_view_menu_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    name: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
 
     def __eq__(self, other):
         return (isinstance(other, self.__class__)) and (self.name == other.name)
+
+    def __hash__(self):
+        return hash((self.id, self.name))
 
     def __neq__(self, other):
         return self.name != other.name
@@ -98,50 +159,18 @@ class Resource(Model):
         return self.name
 
 
-assoc_permission_role = Table(
-    "ab_permission_view_role",
-    Model.metadata,
-    Column("id", Integer, primary_key=True),
-    Column(
-        "permission_view_id",
-        Integer,
-        ForeignKey("ab_permission_view.id", ondelete="CASCADE"),
-    ),
-    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
-    UniqueConstraint("permission_view_id", "role_id"),
-)
-
-assoc_user_group = Table(
-    "ab_user_group",
-    Model.metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
-    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
-    UniqueConstraint("user_id", "group_id"),
-    Index("idx_user_id", "user_id"),
-    Index("idx_user_group_id", "group_id"),
-)
-
-assoc_group_role = Table(
-    "ab_group_role",
-    Model.metadata,
-    Column("id", Integer, primary_key=True),
-    Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
-    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
-    UniqueConstraint("group_id", "role_id"),
-    Index("idx_group_id", "group_id"),
-    Index("idx_group_role_id", "role_id"),
-)
-
-
 class Role(Model):
     """Represents a user role to which permissions can be assigned."""
 
     __tablename__ = "ab_role"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(64), unique=True, nullable=False)
-    permissions = relationship(
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    permissions: Mapped[list[Permission]] = relationship(
         "Permission",
         secondary=assoc_permission_role,
         backref="role",
@@ -153,93 +182,100 @@ class Role(Model):
         return self.name
 
 
-class Group(Model):
-    """Represents a user group."""
-
-    __tablename__ = "ab_group"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
-    label = Column(String(150))
-    description = Column(String(512))
-    users = relationship("User", secondary=assoc_user_group, backref="groups", passive_deletes=True)
-    roles = relationship("Role", secondary=assoc_group_role, backref="groups", passive_deletes=True)
-
-    def __repr__(self):
-        return self.name
-
-
 class Permission(Model):
     """Permission pair comprised of an Action + Resource combo."""
 
     __tablename__ = "ab_permission_view"
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
-    id = Column(Integer, primary_key=True)
-    action_id = Column("permission_id", Integer, ForeignKey("ab_permission.id"))
-    action = relationship(
-        "Action",
-        uselist=False,
-        lazy="joined",
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
     )
-    resource_id = Column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
-    resource = relationship(
-        "Resource",
-        uselist=False,
-        lazy="joined",
+    action_id: Mapped[int] = mapped_column("permission_id", Integer, ForeignKey("ab_permission.id"))
+    action: Mapped[Action] = relationship("Action", lazy="joined", uselist=False)
+    resource_id: Mapped[int] = mapped_column("view_menu_id", Integer, ForeignKey("ab_view_menu.id"))
+    resource: Mapped[Resource] = relationship("Resource", lazy="joined", uselist=False)
+
+    def __repr__(self):
+        return str(self.action).replace("_", " ") + f" on {str(self.resource)}"
+
+
+class Group(Model):
+    """Represents an Airflow user group."""
+
+    __tablename__ = "ab_group"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    label: Mapped[str | None] = mapped_column(String(150))
+    description: Mapped[str | None] = mapped_column(String(512))
+    users: Mapped[list[User]] = relationship(
+        "User", secondary=assoc_user_group, backref="groups", passive_deletes=True
+    )
+    roles: Mapped[list[Role]] = relationship(
+        "Role", secondary=assoc_group_role, backref="groups", passive_deletes=True
     )
 
     def __repr__(self):
-        return str(self.action).replace("_", " ") + " on " + str(self.resource)
-
-
-assoc_user_role = Table(
-    "ab_user_role",
-    Model.metadata,
-    Column("id", Integer, primary_key=True),
-    Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
-    Column("role_id", Integer, ForeignKey("ab_role.id", ondelete="CASCADE")),
-    UniqueConstraint("user_id", "role_id"),
-)
+        return self.name
 
 
 class User(Model, BaseUser):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
-    id = Column(Integer, primary_key=True)
-    first_name = Column(String(256), nullable=False)
-    last_name = Column(String(256), nullable=False)
-    username = Column(
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        Sequence("ab_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
-    password = Column(String(256))
-    active = Column(Boolean, default=True)
-    email = Column(String(512), unique=True, nullable=False)
-    last_login = Column(DateTime)
-    login_count = Column(Integer)
-    fail_login_count = Column(Integer)
-    roles = relationship(
-        "Role", secondary=assoc_user_role, backref="user", lazy="selectin", passive_deletes=True
+    password: Mapped[str | None] = mapped_column(String(256))
+    active: Mapped[bool | None] = mapped_column(Boolean, default=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    last_login: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fail_login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    roles: Mapped[list[Role]] = relationship(
+        "Role",
+        secondary=assoc_user_role,
+        backref="user",
+        lazy="selectin",
+        passive_deletes=True,
     )
-    created_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
-    changed_on = Column(DateTime, default=datetime.datetime.now, nullable=True)
+    created_on: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(), nullable=True
+    )
+    changed_on: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(), nullable=True
+    )
 
     @declared_attr
-    def created_by_fk(self):
+    def created_by_fk(self) -> Column:
         return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
 
     @declared_attr
-    def changed_by_fk(self):
+    def changed_by_fk(self) -> Column:
         return Column(Integer, ForeignKey("ab_user.id"), default=self.get_user_id, nullable=True)
 
-    created_by = relationship(
+    created_by: Mapped[User] = relationship(
         "User",
         backref=backref("created", uselist=True),
         remote_side=[id],
         primaryjoin="User.created_by_fk == User.id",
         uselist=False,
     )
-    changed_by = relationship(
+    changed_by: Mapped[User] = relationship(
         "User",
         backref=backref("changed", uselist=True),
         remote_side=[id],
@@ -274,7 +310,7 @@ class User(Model, BaseUser):
             if current_app:
                 sm = current_app.appbuilder.sm
                 self._perms: set[tuple[str, str]] = set(
-                    sm.get_session.execute(
+                    sm.session.execute(
                         select(sm.action_model.name, sm.resource_model.name)
                         .join(sm.permission_model.action)
                         .join(sm.permission_model.resource)
@@ -307,16 +343,23 @@ class RegisterUser(Model):
     """Represents a user registration."""
 
     __tablename__ = "ab_register_user"
-    id = Column(Integer, primary_key=True)
-    first_name = Column(String(256), nullable=False)
-    last_name = Column(String(256), nullable=False)
-    username = Column(
+
+    id = mapped_column(
+        Integer,
+        Sequence("ab_register_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        primary_key=True,
+    )
+    first_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_name: Mapped[str] = mapped_column(String(64), nullable=False)
+    username: Mapped[str] = mapped_column(
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
-    password = Column(String(256))
-    email = Column(String(512), nullable=False)
-    registration_date = Column(DateTime, default=datetime.datetime.now, nullable=True)
-    registration_hash = Column(String(256))
+    password: Mapped[str | None] = mapped_column(String(256))
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    registration_date: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(), nullable=True
+    )
+    registration_hash: Mapped[str | None] = mapped_column(String(256))
 
 
 @event.listens_for(User.__table__, "before_create")

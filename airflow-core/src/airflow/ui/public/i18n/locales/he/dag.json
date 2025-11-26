@@ -10,6 +10,7 @@
     "hourly": "שעתי",
     "legend": {
       "less": "פחות",
+      "mixed": "מעורב",
       "more": "יותר"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "השנה הקודמת"
     },
     "noData": "אין נתונים זמינים",
+    "noFailedRuns": "אין הרצות שנכשלו",
     "noRuns": "אין הרצות",
     "totalRuns": "סה״כ הרצות",
     "week": "שבוע {{weekNumber}}",
@@ -35,7 +37,8 @@
   "code": {
     "bundleUrl": "כתובת החבילה",
     "noCode": "לא נמצא קוד",
-    "parsedAt": "נקרא בשעה:"
+    "parseDuration": "משך זמן הניתוח:",
+    "parsedAt": "נותח בשעה:"
   },
   "extraLinks": "קישורים נוספים",
   "grid": {

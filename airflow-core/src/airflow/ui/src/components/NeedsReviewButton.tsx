@@ -20,7 +20,8 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
-import { useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
 
@@ -33,15 +34,26 @@ export const NeedsReviewButton = ({
   readonly runId?: string;
   readonly taskId?: string;
 }) => {
-  const { data: hitlStatsData, isLoading } = useHumanInTheLoopServiceGetHitlDetails({
-    dagId,
-    dagRunId: runId,
-    responseReceived: false,
-    taskId,
-  });
+  const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
+
+  const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
+    {
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
+      responseReceived: false,
+      state: ["deferred"],
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
-  const { t: translate } = useTranslation("hitl");
+  const { i18n, t: translate } = useTranslation("hitl");
+
+  const isRTL = i18n.dir() === "rtl";
 
   return hitlTIsCount > 0 ? (
     <Box maxW="250px">
@@ -50,8 +62,9 @@ export const NeedsReviewButton = ({
         count={hitlTIsCount}
         icon={<LuUserRoundPen />}
         isLoading={isLoading}
+        isRTL={isRTL}
         label={translate("requiredAction_other")}
-        link="dags?needs_review=true"
+        link="required_actions?response_received=false"
       />
     </Box>
   ) : undefined;

@@ -88,7 +88,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 17.2.0
+Release: 19.0.0
 
 Provider package
 ----------------
@@ -112,7 +112,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.4.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
@@ -120,7 +120,7 @@ PIP package                                 Version required
 ``gcloud-aio-bigquery``                     ``>=6.1.2``
 ``gcloud-aio-storage``                      ``>=9.0.0``
 ``gcsfs``                                   ``>=2023.10.0``
-``google-ads``                              ``>=26.0.0``
+``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.11.0,!=2.16.0,!=2.18.0``
 ``google-api-python-client``                ``>=2.0.2``
@@ -228,5 +228,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 17.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 17.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-17.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 19.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 19.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-19.0.0-py3-none-any.whl.sha512>`__)

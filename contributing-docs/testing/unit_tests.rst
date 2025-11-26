@@ -61,7 +61,7 @@ For avoid this make sure:
   components in backward compatible way.
 * You use ``pytest.warn`` (see `pytest doc <https://docs.pytest.org/en/latest/how-to/capture-warnings.html#warns>`__
   context manager for catch warning during the test deprecated components.
-  Yes we still need to test legacy/deprecated stuff until it complitly removed)
+  Yes we still need to test legacy/deprecated stuff until it completely removed)
 
 .. code-block:: python
 
@@ -420,7 +420,7 @@ How to make your test not depend on DB
 ......................................
 
 This is tricky and there is no single solution. Sometimes we can mock-out the methods that require
-DB access or objects that normally require database. Sometimes we can decide to test just sinle method
+DB access or objects that normally require database. Sometimes we can decide to test just single method
 of class rather than more complex set of steps. Generally speaking it's good to have as many "pure"
 unit tests that require no DB as possible comparing to DB tests. They are usually faster an more
 reliable as well.
@@ -1152,16 +1152,16 @@ are not part of the public API. We deal with it in one of the following ways:
    other compatibility shims defined there and you can add more if needed in a similar way.
 
 3) If only some tests are not compatible and use features that are available only in newer Airflow version,
-   we can mark those tests with appropriate ``AIRFLOW_V_2_X_PLUS`` boolean constant defined in ``version_compat.py``
-   For example:
+   we can mark those tests with appropriate ``AIRFLOW_V_3_X_PLUS`` boolean constant defined
+   in ``version_compat.py``. For example:
 
 .. code-block:: python
 
-  from tests_common.test_utils.version_compat import AIRFLOW_V_2_10_PLUS
+  from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
-  @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="The tests should be skipped for Airflow < 2.10")
-  def some_test_that_only_works_for_airflow_2_10_plus():
+  @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The tests should be skipped for Airflow < 3.0")
+  def some_test_that_only_works_for_airflow_3_0_plus():
       pass
 
 4) Sometimes, the tests should only be run when Airflow is installed from the sources in main.

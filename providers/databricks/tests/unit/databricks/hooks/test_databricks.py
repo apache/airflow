@@ -26,9 +26,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
-import aiohttp.client_exceptions
 import azure.identity
-import azure.identity.aio
 import pytest
 import tenacity
 from azure.core.credentials import AccessToken
@@ -358,7 +356,7 @@ class TestDatabricksHook:
         assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -975,7 +973,7 @@ class TestDatabricksHook:
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({})
 
-    @pytest.mark.parametrize("access_token, token_type", [("my_token", None), ("my_token", "not bearer")])
+    @pytest.mark.parametrize(("access_token", "token_type"), [("my_token", None), ("my_token", "not bearer")])
     def test_is_oauth_token_valid_raises_invalid_type(self, access_token, token_type):
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({"access_token": access_token, "token_type": token_type})

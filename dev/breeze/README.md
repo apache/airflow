@@ -129,12 +129,3 @@ uv lock
 Note that when you update dependencies/lock them you should commit the changes in `pyproject.toml` and `uv.lock`.
 
 See [uv documentation](https://docs.astral.sh/uv/getting-started/) for more details on using `uv`.
-
-
-PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PREK.
-
----------------------------------------------------------------------------------------------------------
-
-Package config hash: 85824868b3ba0b7a43509b65f87150d872d2e2f50fea09872d37c9d1e0207ae3084072fb126ba5ebc314c83d86fa17e026630ee3253ddd44a0e139d3f9f1e281
-
----------------------------------------------------------------------------------------------------------

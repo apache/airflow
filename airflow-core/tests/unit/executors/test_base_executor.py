@@ -33,15 +33,15 @@ from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.sdk import BaseOperator
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
-def test_supports_sentry():
-    assert not BaseExecutor.supports_sentry
+def test_sentry_integration():
+    assert not BaseExecutor.sentry_integration
 
 
 def test_is_local_default_value():
@@ -53,7 +53,7 @@ def test_is_production_default_value():
 
 
 def test_invalid_slotspool():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="parallelism is set to 0 or lower"):
         BaseExecutor(0)
 
 
@@ -125,7 +125,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 
 
 @pytest.mark.parametrize(
-    "executor_class, executor_name",
+    ("executor_class", "executor_name"),
     [(LocalExecutor, "LocalExecutor")],
 )
 @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
@@ -254,7 +254,7 @@ def test_debug_dump(caplog):
 
 def test_base_executor_cannot_send_callback():
     executor = BaseExecutor()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Callback sink is not ready"):
         executor.send_callback(mock.Mock(spec=CallbackRequest))
 
 
@@ -285,7 +285,7 @@ def test_parser_add_command(mock_add_command, mock_get_cli_command):
     mock_add_command.assert_called_once()
 
 
-@pytest.mark.parametrize("loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
+@pytest.mark.parametrize(("loop_duration", "total_tries"), [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])
 def test_running_retry_attempt_type(loop_duration, total_tries):
     """
     Verify can_try_again returns True until at least 5 seconds have passed.
