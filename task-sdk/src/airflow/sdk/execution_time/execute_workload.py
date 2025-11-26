@@ -71,6 +71,7 @@ def execute_workload(workload: ExecuteTask) -> None:
         token=workload.token,
         server=server,
         log_path=workload.log_path,
+        sentry_integration=workload.sentry_integration,
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.
         subprocess_logs_to_stdout=True,

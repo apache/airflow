@@ -156,6 +156,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
+    sentry_integration: str = ""
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -679,6 +681,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
         state=TaskInstanceState.RUNNING,
+        sentry_integration=what.sentry_integration,
     )
 
 
