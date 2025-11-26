@@ -630,7 +630,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-                    "ci-image-build": "false",
+                    "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-api-tests": "false",
                     "run-helm-tests": "false",
