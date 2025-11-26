@@ -121,7 +121,7 @@ message of heading 2 with a link included:
 
 .. code-block:: python
 
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
     DASHBOARD_UIALERTS = [
         UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
