@@ -68,6 +68,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
+TRIGGER_CLASS = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 
 TEST_TASK_ID = "kubernetes_task_async"
 TEST_NAMESPACE = "default"
@@ -2341,8 +2342,16 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("find_pod"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch(f"{TRIGGER_CLASS}.define_container_state")
     def test_async_create_pod_should_execute_successfully(
-        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push, mocker
+        self,
+        mock_container_state,
+        mocked_pod,
+        mocked_pod_obj,
+        mocked_found_pod,
+        mocked_client,
+        do_xcom_push,
+        mocker,
     ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
