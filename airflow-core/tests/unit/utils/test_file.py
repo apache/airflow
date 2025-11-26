@@ -154,6 +154,51 @@ class TestListPyFilesPath:
             f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
 
+    def test_find_path_from_directory_glob_ignore_with_directory_negation(self, tmp_path):
+        (tmp_path / "root_dag_to_appear.py").write_text("# test dag")
+        (tmp_path / "other.py").write_text("# other dag")
+        subfolder = tmp_path / "subfolder"
+        subfolder.mkdir()
+        (subfolder / "dag_to_appear.py").write_text("# test dag")
+        (subfolder / "ignored.py").write_text("# should be ignored dag")
+
+        (tmp_path / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!root_dag_to_appear.py",
+                    "!subfolder/",
+                    "!subfolder/dag_to_appear.py",
+                ]
+            )
+        )
+
+        found = list(find_path_from_directory(tmp_path, ".airflowignore", "glob"))
+        found_paths = {str(Path(f).relative_to(tmp_path)) for f in found}
+
+        assert found_paths == {"root_dag_to_appear.py", "subfolder/dag_to_appear.py"}
+
+    def test_find_path_from_directory_glob_wildcard_negation(self, tmp_path):
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        (subdir / "dag_one.py").write_text("# dag")
+        (subdir / "other.py").write_text("# other dag")
+
+        (tmp_path / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!*/",
+                    "!*/dag_*.py",
+                ]
+            )
+        )
+
+        found = list(find_path_from_directory(tmp_path, ".airflowignore", "glob"))
+        found_paths = {str(Path(f).relative_to(tmp_path)) for f in found}
+
+        assert found_paths == {"subdir/dag_one.py"}
+
     def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
         ignore_list_file = ".airflowignore"
         found = list(find_path_from_directory(test_dir, ignore_list_file))

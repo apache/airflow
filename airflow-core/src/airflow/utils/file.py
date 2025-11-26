@@ -108,15 +108,25 @@ class _GlobIgnoreRule(NamedTuple):
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path, accounting for exclusion rules and ordering."""
         matched = False
+        is_dir = path.is_dir()
+
         for rule in rules:
             if not isinstance(rule, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(rule)}")
             rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
-            if (
-                rule.wild_match_pattern.include is not None
-                and rule.wild_match_pattern.match_file(rel_path) is not None
-            ):
-                matched = rule.wild_match_pattern.include
+            if rule.wild_match_pattern.include is not None:
+                # Try matching the path as-is.
+                if rule.wild_match_pattern.match_file(rel_path) is not None:
+                    matched = rule.wild_match_pattern.include
+
+                # For directories and negation patterns, also try matching with trailing slash
+                # This allows patterns like "!subfolder/" to un-ignore directories.
+                elif (
+                    is_dir
+                    and rule.wild_match_pattern.include is False
+                    and rule.wild_match_pattern.match_file(rel_path + "/") is not None
+                ):
+                    matched = rule.wild_match_pattern.include
 
         return matched
 
