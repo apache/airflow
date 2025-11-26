@@ -107,6 +107,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskExecutionTimeout,
     SetXCom,
     SkipDownstreamTasks,
     StartupDetails,
@@ -943,6 +944,12 @@ class ActivitySubprocess(WatchedSubprocess):
     _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
     _rendered_map_index: str | None = attrs.field(default=None, init=False)
 
+    _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
+    """The execution timeout in seconds, if set by the task."""
+
+    _execution_timeout_set_time: float | None = attrs.field(default=None, init=False)
+    """When the execution timeout was set (monotonic time). Timer starts from here."""
+
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
     ti: RuntimeTI | None = None
@@ -1072,14 +1079,23 @@ class ActivitySubprocess(WatchedSubprocess):
             last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
-            max_wait_time = max(
-                0,  # Make sure this value is never negative,
-                min(
-                    # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
-                    HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
-                    MIN_HEARTBEAT_INTERVAL,
-                ),
-            )
+            wait_times = [
+                # Ensure we heartbeat _at most_ 75% through the task instance heartbeat timeout time
+                HEARTBEAT_TIMEOUT - last_heartbeat_ago * 0.75,
+                MIN_HEARTBEAT_INTERVAL,
+                # Cap at 1 second to ensure we check for new timeout messages frequently
+                1.0,
+            ]
+
+            # If execution timeout is set, also wake up to check it
+            if self._execution_timeout_seconds is not None and self._execution_timeout_set_time is not None:
+                elapsed = time.monotonic() - self._execution_timeout_set_time
+                time_until_timeout = self._execution_timeout_seconds - elapsed
+                # Wake up 100ms before timeout or when timeout is reached
+                wait_times.append(max(0.1, time_until_timeout))
+
+            max_wait_time = max(0, min(wait_times))  # Make sure this value is never negative
+
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
             alive = self._service_subprocess(max_wait_time=max_wait_time) is None
@@ -1103,6 +1119,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 # logs
                 self._send_heartbeat_if_needed()
 
+                # Check if task has exceeded execution_timeout
+                self._check_task_timeout()
+
                 self._handle_process_overtime_if_needed()
 
     def _handle_process_overtime_if_needed(self):
@@ -1121,6 +1140,47 @@ class ActivitySubprocess(WatchedSubprocess):
                 ti_id=self.id,
             )
             self.kill(signal.SIGTERM, force=True)
+
+    def _check_task_timeout(self):
+        """
+        Check if task has exceeded execution_timeout and kill it if necessary.
+
+        This handles task timeout at the supervisor level rather than in the task
+        process itself.
+
+        The method implements signal escalation: SIGTERM -> SIGKILL if process doesn't exit.
+        """
+        # Only check timeout if we have a timeout set
+        if self._execution_timeout_seconds is None or self._execution_timeout_set_time is None:
+            return
+
+        # Don't check timeout if task has already reached a terminal state
+        if self._terminal_state:
+            return
+
+        elapsed_time = time.monotonic() - self._execution_timeout_set_time
+
+        if elapsed_time > self._execution_timeout_seconds:
+            log.error(
+                "Task execution timeout exceeded; terminating process",
+                timeout_seconds=self._execution_timeout_seconds,
+                elapsed_seconds=elapsed_time,
+                ti_id=self.id,
+                pid=self.pid,
+            )
+            self.process_log.error(
+                "Task execution timeout exceeded. Terminating process.",
+                timeout_seconds=self._execution_timeout_seconds,
+                elapsed_seconds=elapsed_time,
+            )
+
+            # Kill the process with signal escalation (SIGTERM -> SIGKILL)
+            self.kill(signal.SIGTERM, force=True)
+
+            # Only set terminal state if the task didn't already respond with one
+            if not self._terminal_state:
+                self._terminal_state = TaskInstanceState.FAILED
+                self._task_end_time_monotonic = time.monotonic()
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
@@ -1409,6 +1469,10 @@ class ActivitySubprocess(WatchedSubprocess):
             inactive_assets_resp = self.client.task_instances.validate_inlets_and_outlets(msg.ti_id)
             resp = InactiveAssetsResult.from_inactive_assets_response(inactive_assets_resp)
             dump_opts = {"exclude_unset": True}
+        elif isinstance(msg, SetTaskExecutionTimeout):
+            self._execution_timeout_seconds = msg.execution_timeout_seconds
+            self._execution_timeout_set_time = time.monotonic()
+            resp = None
         elif isinstance(msg, ResendLoggingFD):
             # We need special handling here!
             if send_fds is not None:
@@ -1532,6 +1596,8 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def _handle_socket_comms(self):
         while self._open_sockets:
             self._service_subprocess(1.0)
+            # Check for execution timeout in the background thread
+            self._check_task_timeout()
 
     @contextlib.contextmanager
     def _setup_subprocess_socket(self):

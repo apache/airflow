@@ -108,6 +108,7 @@ from airflow.sdk.execution_time.comms import (
     SentFDs,
     SetRenderedFields,
     SetRenderedMapIndex,
+    SetTaskExecutionTimeout,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
@@ -223,6 +224,51 @@ class TestSupervisor:
         with patch.dict(os.environ, local_dag_bundle_cfg(test_dags_dir, bundle_info.name)):
             with expectation:
                 supervise(**kw)
+
+    def test_supervisor_enforces_execution_timeout(self, captured_logs, client_with_ti_start):
+        """
+        Test that the supervisor enforces execution_timeout and kills the task.
+        """
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="task_with_timeout",
+            dag_id="timeout_test",
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        def subprocess_main():
+            comms = CommsDecoder()
+            comms._get_response()
+
+            comms.send(SetTaskExecutionTimeout(execution_timeout_seconds=1.0))
+
+            sleep(10)
+
+        start_time = time.time()
+
+        proc = ActivitySubprocess.start(
+            dag_rel_path=os.devnull,
+            bundle_info=FAKE_BUNDLE,
+            what=ti,
+            client=client_with_ti_start,
+            target=subprocess_main,
+        )
+
+        exit_code = proc.wait()
+        elapsed_time = time.time() - start_time
+
+        assert exit_code in (-9, -15), f"Expected exit code -9 (SIGKILL) or -15 (SIGTERM), got {exit_code}"
+
+        # We allow up to 15s to account for scheduling delays
+        assert elapsed_time < 15.0, (
+            f"Task ran for {elapsed_time}s but should have been killed (expected < 15s)"
+        )
+        # Task should run for at least the timeout duration (1s)
+        assert elapsed_time >= 1.0, (
+            f"Task killed too early: {elapsed_time}s (expected at least 1s for timeout)"
+        )
 
 
 @pytest.mark.usefixtures("disable_capturing")
@@ -2351,6 +2397,11 @@ REQUEST_TEST_CASES = [
             "type": "TaskBreadcrumbsResult",
         },
         test_id="get_task_breadcrumbs",
+    ),
+    RequestTestCase(
+        message=SetTaskExecutionTimeout(execution_timeout_seconds=10.0),
+        test_id="set_task_execution_timeout",
+        expected_body=None,
     ),
 ]
 

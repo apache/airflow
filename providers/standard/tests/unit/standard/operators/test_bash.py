@@ -28,7 +28,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -245,23 +245,60 @@ class TestBashOperator:
 
     @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):
+        import time as time_module
+
         import psutil
 
         sleep_time = f"100{os.getpid()}"
         with dag_maker(serialized=True):
             BashOperator(
                 task_id="test_bash_operator_kill",
-                execution_timeout=timedelta(microseconds=25),
+                execution_timeout=timedelta(seconds=2),  # Use 2 seconds for more reliable testing
                 bash_command=f"/bin/bash -c 'sleep {sleep_time}'",
             )
         dr = dag_maker.create_dagrun()
-        with pytest.raises(AirflowTaskTimeout):
+
+        # With supervisor-based timeout, the task is killed externally
+        # The task should complete (with failure state) without raising AirflowTaskTimeout
+        start = time_module.time()
+        try:
             dag_maker.run_ti("test_bash_operator_kill", dr)
-        sleep(2)
+        except Exception as e:
+            # Log any unexpected exceptions
+            print(f"Unexpected exception during run_ti: {type(e).__name__}: {e}")
+            raise
+        duration = time_module.time() - start
+
+        print(f"Task completed in {duration:.2f} seconds")
+
+        # Should complete within reasonable time (timeout + escalation)
+        # With 2s timeout and 2s escalation, should be < 10s
+        assert duration < 10, f"Task took {duration}s, expected < 10s"
+
+        # Verify the task failed due to timeout
+        ti = dr.get_task_instance("test_bash_operator_kill")
+        print(f"Task state: {ti.state}")
+        assert ti.state == State.FAILED, f"Expected task to be FAILED, but got {ti.state}"
+
+        # Give a moment for cleanup
+        sleep(1)
+
+        # Verify the subprocess was properly killed and is not still running
+        still_running = []
         for proc in psutil.process_iter():
-            if proc.cmdline() == ["sleep", sleep_time]:
-                os.kill(proc.pid, signal.SIGTERM)
-                pytest.fail("BashOperator's subprocess still running after stopping on timeout!")
+            try:
+                if proc.cmdline() == ["sleep", sleep_time]:
+                    still_running.append(proc.pid)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        if still_running:
+            for pid in still_running:
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            pytest.fail(f"BashOperator's subprocess(es) still running after timeout: {still_running}")
 
     @pytest.mark.db_test
     def test_templated_fields(self, create_task_instance_of_operator):

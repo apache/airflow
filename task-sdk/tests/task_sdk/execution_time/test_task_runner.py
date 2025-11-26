@@ -21,9 +21,10 @@ import contextlib
 import functools
 import json
 import os
+import signal
 import textwrap
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -41,7 +42,6 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
-    AirflowTaskTimeout,
     DownstreamTasksSkipped,
 )
 from airflow.listeners import hookimpl
@@ -117,7 +117,6 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
-    _execute_task,
     _push_xcom_if_needed,
     _xcom_push,
     finalize,
@@ -534,45 +533,32 @@ def test_run_raises_airflow_exception(time_machine, create_runtime_ti, mock_supe
     mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
 
 
-def test_run_task_timeout(time_machine, create_runtime_ti, mock_supervisor_comms):
-    """Test running a basic task that times out."""
-    from time import sleep
+def test_run_sigterm_handler_invokes_on_kill(create_runtime_ti, mock_supervisor_comms, monkeypatch):
+    """Verify that the SIGTERM handler registered by run() calls the task's on_kill hook."""
 
-    task = PythonOperator(
-        task_id="sleep",
-        execution_timeout=timedelta(milliseconds=10),
-        python_callable=lambda: sleep(2),
-    )
+    task = PythonOperator(task_id="sigterm_task", python_callable=lambda: None)
+    ti = create_runtime_ti(task=task, dag_id="sigterm_dag")
 
-    ti = create_runtime_ti(task=task, dag_id="basic_dag_time_out")
+    # Replace on_kill with a spy so we can assert it was triggered by the handler.
+    ti.task.on_kill = mock.Mock()
 
-    instant = timezone.datetime(2024, 12, 3, 10, 0)
-    time_machine.move_to(instant, tick=False)
+    captured_handlers: dict[int, Callable[[int, object | None], None]] = {}
+
+    def capture_signal(sig, handler):
+        captured_handlers[sig] = handler
+        return mock.Mock(name="previous_handler")
+
+    monkeypatch.setattr(signal, "signal", capture_signal)
 
     run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-    assert ti.state == TaskInstanceState.FAILED
+    assert signal.SIGTERM in captured_handlers, "SIGTERM handler was not registered"
 
-    # this state can only be reached if the try block passed down the exception to handler of AirflowTaskTimeout
-    mock_supervisor_comms.send.assert_called_with(TaskState(state=TaskInstanceState.FAILED, end_date=instant))
+    handler = captured_handlers[signal.SIGTERM]
 
-
-def test_execution_timeout(create_runtime_ti):
-    def sleep_and_catch_other_exceptions():
-        with contextlib.suppress(Exception):
-            # Catching Exception should NOT catch AirflowTaskTimeout
-            time.sleep(5)
-
-    op = PythonOperator(
-        task_id="test_timeout",
-        execution_timeout=timedelta(seconds=1),
-        python_callable=sleep_and_catch_other_exceptions,
-    )
-
-    ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
-
-    with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+    ti.task.on_kill.assert_not_called()
+    handler(signal.SIGTERM, None)
+    ti.task.on_kill.assert_called_once_with()
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
@@ -3302,7 +3288,6 @@ class TestTaskRunnerCallsCallbacks:
 
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
-        import time
 
         from airflow.exceptions import AirflowException
 

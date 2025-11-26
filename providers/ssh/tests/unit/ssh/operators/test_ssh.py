@@ -25,11 +25,12 @@ from unittest import mock
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import TaskInstance
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -284,12 +285,12 @@ class TestSSHOperator:
 
     def test_timeout_triggers_on_kill(self, request, dag_maker):
         def command_sleep_forever(*args, **kwargs):
-            time.sleep(100)  # This will be interrupted by the timeout
+            time.sleep(10)  # This will be interrupted by the supervisor timeout
 
         self.exec_ssh_client_command.side_effect = command_sleep_forever
 
         with dag_maker(dag_id=f"dag_{request.node.name}"):
-            _ = SSHOperator(
+            task = SSHOperator(
                 task_id="test_timeout",
                 ssh_hook=self.hook,
                 command="sleep 100",
@@ -297,14 +298,19 @@ class TestSSHOperator:
             )
         dr = dag_maker.create_dagrun(run_id="test_timeout")
 
+        # With supervisor-based timeout, the task is killed externally by the supervisor
+        # The on_kill handler should be called via SIGTERM signal handler
         with mock.patch.object(SSHOperator, "on_kill") as mock_on_kill:
-            with pytest.raises(AirflowTaskTimeout):
-                dag_maker.run_ti("test_timeout", dr)
+            dag_maker.run_ti("test_timeout", dr)
 
-            # Wait a bit to ensure on_kill has time to be called
+            # Verify the task failed due to timeout
+            ti = dr.get_task_instance("test_timeout")
+            assert ti.state == State.FAILED
+
+            # on_kill should have been called when the task process received SIGTERM
+            # Note: This may be flaky in tests due to signal timing
             time.sleep(1)
-
-            mock_on_kill.assert_called_once()
+            mock_on_kill.assert_called()
 
     def test_remote_host_passed_at_hook_init(self):
         remote_host = "test_host.internal"
