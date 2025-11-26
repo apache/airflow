@@ -88,6 +88,7 @@ def dagbag():
 @pytest.fixture
 def deadline_test_dag(session):
     """Fixture that creates and syncs a basic DAG with two tasks."""
+
     def _make_dag(deadline=None, on_success_callback=None):
         dag_kwargs = {"dag_id": "test_dag", "schedule": datetime.timedelta(days=1)}
         if deadline:
@@ -1313,7 +1314,9 @@ class TestDagRun:
 
     @mock.patch.object(Deadline, "prune_deadlines")
     @mock.patch.object(DeadlineAlertModel, "get_by_id")
-    def test_dagrun_success_prunes_dagrun_deadlines(self, mock_get_by_id, mock_prune, session, deadline_test_dag):
+    def test_dagrun_success_prunes_dagrun_deadlines(
+        self, mock_get_by_id, mock_prune, session, deadline_test_dag
+    ):
         mock_deadline_alert = mock.MagicMock()
         mock_deadline_alert.reference_class = ReferenceModels.FixedDatetimeDeadline
         mock_get_by_id.return_value = mock_deadline_alert
