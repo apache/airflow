@@ -872,6 +872,81 @@ class TestSchedulerJob:
             for executor in scheduler_job.executors:
                 executor.get_event_buffer.assert_called_once()
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_preserves_worker_external_executor_id(
+        self, mock_stats_incr, mock_task_callback, dag_maker, session
+    ):
+        """
+        Test that scheduler doesn't overwrite external_executor_id set by worker.
+        This is critical for issue #58570 fix - worker sets it via ti_run, scheduler should not overwrite.
+        """
+        dag_id = "test_external_executor_id_not_overwritten"
+        task_id = "dummy_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task = EmptyOperator(task_id=task_id)
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+
+        # Simulate worker already set external_executor_id via ti_run
+        ti.state = State.RUNNING
+        ti.external_executor_id = "worker-provided-id-12345"
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        # Scheduler's event buffer has a different ID (from when task was queued)
+        executor.event_buffer[ti.key] = State.RUNNING, "scheduler-event-buffer-id-67890"
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti.refresh_from_db(session=session)
+
+        # Verify scheduler didn't overwrite worker's value
+        assert ti.external_executor_id == "worker-provided-id-12345"
+        assert ti.state == State.RUNNING
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest", spec=TaskCallbackRequest)
+    @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
+    def test_process_executor_events_sets_external_executor_id_when_null(
+        self, mock_stats_incr, mock_task_callback, dag_maker
+    ):
+        """
+        Test that scheduler sets external_executor_id from event buffer when it's NULL.
+        This is the fallback for old workers or QUEUED state before worker starts.
+        """
+        dag_id = "test_external_executor_id_fallback"
+        task_id = "dummy_task"
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
+            task = EmptyOperator(task_id=task_id)
+        ti = dag_maker.create_dagrun().get_task_instance(task.task_id)
+
+        # Task is QUEUED, external_executor_id is NULL (worker hasn't started yet)
+        ti.state = State.QUEUED
+        ti.external_executor_id = None
+        session.merge(ti)
+        session.commit()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        # Event buffer has the executor ID (from when scheduler queued the task)
+        celery_task_id = "celery-task-abc123"
+        executor.event_buffer[ti.key] = State.QUEUED, celery_task_id
+
+        self.job_runner._process_executor_events(executor=executor, session=session)
+        ti.refresh_from_db(session=session)
+
+        # Verify scheduler set it from event buffer (fallback behavior)
+        assert ti.external_executor_id == celery_task_id
+        assert ti.state == State.QUEUED
+
     @patch("traceback.extract_stack")
     def test_executor_debug_dump(self, patch_traceback_extract_stack, mock_executors):
         scheduler_job = Job()

@@ -824,6 +824,96 @@ class TestTIRunState:
         assert dag_run["run_id"] == "test"
         assert dag_run["state"] == "running"
 
+    def test_ti_run_sets_external_executor_id(self, client, session, create_task_instance, time_machine):
+        """
+        Test that ti_run endpoint sets external_executor_id atomically with state change.
+        This is critical for preventing duplicate task execution on scheduler crash.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_sets_external_executor_id",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        # Verify external_executor_id is initially NULL
+        assert ti.external_executor_id is None
+
+        # Call ti_run with external_executor_id
+        celery_task_id = "celery-task-abc123"
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-unixname",
+                "pid": 12345,
+                "start_date": instant_str,
+                "external_executor_id": celery_task_id,
+            },
+        )
+
+        assert response.status_code == 200
+
+        # Refresh from database to get updated values
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+
+        # Verify external_executor_id was set atomically with state change
+        assert ti.state == TaskInstanceState.RUNNING
+        assert ti.external_executor_id == celery_task_id
+        assert ti.hostname == "test-hostname"
+        assert ti.pid == 12345
+
+    def test_ti_run_external_executor_id_optional(self, client, session, create_task_instance, time_machine):
+        """
+        Test that external_executor_id is optional (backward compatibility).
+        Old workers that don't send external_executor_id should still work.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_run_external_executor_id_optional",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+            start_date=instant,
+            dag_id=str(uuid4()),
+        )
+        session.commit()
+
+        # Call ti_run WITHOUT external_executor_id (old worker behavior)
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-unixname",
+                "pid": 12345,
+                "start_date": instant_str,
+                # external_executor_id intentionally omitted
+            },
+        )
+
+        assert response.status_code == 200
+
+        # Refresh from database
+        session.expire_all()
+        ti = session.get(TaskInstance, ti.id)
+
+        # Should succeed even without external_executor_id
+        assert ti.state == TaskInstanceState.RUNNING
+        assert ti.external_executor_id is None  # Still NULL, will be set by scheduler event buffer
+
 
 class TestTIUpdateState:
     def setup_method(self):
