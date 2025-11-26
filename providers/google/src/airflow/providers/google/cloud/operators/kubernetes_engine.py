@@ -662,7 +662,9 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         on_finish_action = self.on_finish_action

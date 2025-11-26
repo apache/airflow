@@ -868,7 +868,9 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self._config_dict = None
 
-    def invoke_defer_method(self, context: Context, last_log_time: DateTime | None = None) -> None:
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
         self.convert_config_file_to_dict()
 
@@ -910,7 +912,9 @@ class KubernetesPodOperator(BaseOperator):
 
         )
         container_state = trigger.define_container_state(self.pod)
-        if container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED:
+        if context and (
+            container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
+        ):
             self.log.info("Skipping deferral as pod is already in a terminal state")
             self.trigger_reentry(
                 context=context,
@@ -925,9 +929,8 @@ class KubernetesPodOperator(BaseOperator):
                     **(self.trigger_kwargs or {}),
                 },
             )
-            return
-
-        self.defer(trigger=trigger, method_name="trigger_reentry")
+        else:
+            self.defer(trigger=trigger, method_name="trigger_reentry")
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
