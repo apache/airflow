@@ -284,8 +284,8 @@ class AssetManager(LoggingMixin):
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
         if get_dialect_name(session) == "postgresql":
-            return cls._postgres_queue_dagruns(asset_id, dags_to_queue, session)
-        return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
+            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, dags_to_queue, session)
+        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, dags_to_queue, session)
 
     @classmethod
     def _queue_partitioned_dags(
@@ -368,7 +368,9 @@ class AssetManager(LoggingMixin):
         return apdr
 
     @classmethod
-    def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns_nonpartitioned_slow_path(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
@@ -385,7 +387,9 @@ class AssetManager(LoggingMixin):
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns_nonpartitioned_postgres(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
