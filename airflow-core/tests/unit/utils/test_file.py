@@ -154,6 +154,28 @@ class TestListPyFilesPath:
             f"actual_included_filenames: {pformat(actual_included_filenames)}\nexpected_included_filenames: {pformat(should_not_ignore)}"
         )
 
+    def test_find_path_from_directory_glob_negation(self, tmp_path):
+        (tmp_path / "subdir").mkdir()
+        (tmp_path / "dag.py").write_text("# root")
+        (tmp_path / "ignored.py").write_text("# ignored")
+        (tmp_path / "subdir" / "dag.py").write_text("# dag")
+        (tmp_path / "subdir" / "ignored.py").write_text("# other")
+
+        (tmp_path / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!dag.py",
+                    "!subdir/dag.py",
+                ]
+            )
+        )
+
+        found = list(find_path_from_directory(tmp_path, ".airflowignore", "glob"))
+        found_paths = {str(Path(f).relative_to(tmp_path)) for f in found}
+
+        assert found_paths == {"dag.py", "subdir/dag.py"}
+
     def test_find_path_from_directory_respects_symlinks_regexp_ignore(self, test_dir):
         ignore_list_file = ".airflowignore"
         found = list(find_path_from_directory(test_dir, ignore_list_file))
