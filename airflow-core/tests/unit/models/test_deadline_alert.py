@@ -179,6 +179,6 @@ class TestDeadlineAlert:
     def test_deadline_alert_get_by_id_not_found(self, session):
         from sqlalchemy.exc import NoResultFound
 
-        nonexistent_uuid = "00000000-0000-0000-0000-000000000000"
-        with pytest.raises(NoResultFound, match="No row was found"):
+        nonexistent_uuid = "00000000-0000-7000-8000-000000000000"
+        with pytest.raises(NoResultFound, match="No DeadlineAlert found"):
             DeadlineAlert.get_by_id(nonexistent_uuid, session=session)
