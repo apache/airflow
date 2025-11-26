@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { JobsService, LogsService, MonitorService, UiService, WorkerService } from "../requests/services.gen";
-import { MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
+import { EdgeWorkerState, MaintenanceRequest, PushLogsBody, TaskInstanceState, WorkerQueueUpdateBody, WorkerQueuesBody, WorkerStateBody } from "../requests/types.gen";
 import * as Common from "./common";
 export const useLogsServiceLogfilePath = <TData = Common.LogsServiceLogfilePathDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ authorization, dagId, mapIndex, runId, taskId, tryNumber }: {
   authorization: string;
@@ -13,7 +13,11 @@ export const useLogsServiceLogfilePath = <TData = Common.LogsServiceLogfilePathD
   tryNumber: number;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLogsServiceLogfilePathKeyFn({ authorization, dagId, mapIndex, runId, taskId, tryNumber }, queryKey), queryFn: () => LogsService.logfilePath({ authorization, dagId, mapIndex, runId, taskId, tryNumber }) as TData, ...options });
 export const useMonitorServiceHealth = <TData = Common.MonitorServiceHealthDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseMonitorServiceHealthKeyFn(queryKey), queryFn: () => MonitorService.health() as TData, ...options });
-export const useUiServiceWorker = <TData = Common.UiServiceWorkerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceWorkerKeyFn(queryKey), queryFn: () => UiService.worker() as TData, ...options });
+export const useUiServiceWorker = <TData = Common.UiServiceWorkerDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ queueNamePattern, state, workerNamePattern }: {
+  queueNamePattern?: string;
+  state?: EdgeWorkerState[];
+  workerNamePattern?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceWorkerKeyFn({ queueNamePattern, state, workerNamePattern }, queryKey), queryFn: () => UiService.worker({ queueNamePattern, state, workerNamePattern }) as TData, ...options });
 export const useUiServiceJobs = <TData = Common.UiServiceJobsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseUiServiceJobsKeyFn(queryKey), queryFn: () => UiService.jobs() as TData, ...options });
 export const useJobsServiceFetch = <TData = Common.JobsServiceFetchMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   authorization: string;

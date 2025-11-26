@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
@@ -401,7 +401,7 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
-        return select(XComModel.value).from_statement(stmt)
+        return cast("Select[tuple[Any]]", select(XComModel.value).from_statement(stmt))
 
     @staticmethod
     def _process_row(row: Row) -> Any:

@@ -20,7 +20,7 @@ import { useToken } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap, type Node as ReactFlowNode } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -60,9 +60,16 @@ const nodeColor = (
 
 export const Graph = () => {
   const { colorMode = "light" } = useColorMode();
-  const { dagId = "", runId = "", taskId } = useParams();
+  const { dagId = "", groupId, runId = "", taskId } = useParams();
+  const [searchParams] = useSearchParams();
 
   const selectedVersion = useSelectedVersion();
+
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
+
+  const hasActiveFilter = includeUpstream || includeDownstream;
 
   // corresponds to the "bg", "bg.emphasized", "border.inverted" semantic tokens
   const [oddLight, oddDark, evenLight, evenDark, selectedDarkColor, selectedLightColor] = useToken("colors", [
@@ -84,6 +91,9 @@ export const Graph = () => {
     {
       dagId,
       externalDependencies: dependencies === "immediate",
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
       versionNumber: selectedVersion,
     },
     undefined,
@@ -130,7 +140,7 @@ export const Graph = () => {
       ...node,
       data: {
         ...node.data,
-        isSelected: node.id === taskId || node.id === `dag:${dagId}`,
+        isSelected: node.id === taskId || node.id === groupId || node.id === `dag:${dagId}`,
         taskInstance,
       },
     };
@@ -145,6 +155,8 @@ export const Graph = () => {
         isSelected:
           taskId === edge.source ||
           taskId === edge.target ||
+          groupId === edge.source ||
+          groupId === edge.target ||
           edge.source === `dag:${dagId}` ||
           edge.target === `dag:${dagId}`,
       },

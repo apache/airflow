@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from airflow.configuration import conf
+from airflow.sdk.configuration import conf
 
 __all__ = ["Sentry"]
 

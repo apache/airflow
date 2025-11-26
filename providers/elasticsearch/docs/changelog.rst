@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+6.3.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Enable ruff PLW0120 rule (#57456)``
+
 6.3.4
 .....
 
@@ -233,8 +248,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 5.5.3
@@ -544,7 +557,8 @@ Misc
 
 * ``Fix Failing ES Remote Logging (#32438)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
    * ``Improve provider documentation and README structure (#32125)``
    * ``Remove spurious headers for provider changelogs (#32373)``

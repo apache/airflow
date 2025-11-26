@@ -191,7 +191,6 @@ class TaskMap(TaskInstanceDependencies):
             if task and task.is_mapped
             else None
         )
-
         all_expanded_tis: list[TaskInstance] = []
 
         if unmapped_ti:
@@ -281,8 +280,7 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -71,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
+    option_use_mprocs,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -120,13 +122,24 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
-    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
 CELERY_INTEGRATION = "celery"
+
+
+def is_wsl() -> bool:
+    """Detect if we are running inside WSL."""
+    if platform.system().lower() != "linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            version_info = f.read().lower()
+            return "microsoft" in version_info or "wsl" in version_info
+    except FileNotFoundError:
+        return False
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -476,6 +489,7 @@ def shell(
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    perform_environment_checks()
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -548,6 +562,7 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_mprocs
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -596,13 +611,14 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    use_mprocs: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in the tmux or mprocs session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -610,6 +626,13 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    # Automatically enable file polling for hot reloading under WSL
+    if dev_mode and is_wsl():
+        os.environ["CHOKIDAR_USEPOLLING"] = "true"
+        get_console().print(
+            "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
+        )
 
     if use_airflow_version is None and not skip_assets_compilation:
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
@@ -673,6 +696,7 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        use_mprocs=use_mprocs,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -821,34 +845,6 @@ def build_docs(
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
-
-
-@main.command(
-    name="compile-ui-assets",
-    help="Compiles ui assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_ui_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_prek_installed()
-    compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(name="down", help="Stop running breeze environment.")
