@@ -1,7 +1,7 @@
 Move task-level exception imports into the Task SDK
 
 Airflow now sources task-facing exceptions (``AirflowSkipException``, ``TaskDeferred``, etc.) from
-``airflow.sdk.exceptions``. ``airflow.exceptions`` still exposes the same symbols, but they are
+``airflow.sdk.exceptions``. ``airflow.exceptions`` still exposes the same exceptions, but they are
 proxies that emit ``DeprecatedImportWarning`` so Dag authors can migrate before the shim is removed.
 
 **What changed:**
@@ -27,7 +27,7 @@ proxies that emit ``DeprecatedImportWarning`` so Dag authors can migrate before 
 - ``AirflowDagCycleException`` and ``AirflowInactiveAssetInInletOrOutletException``
 - ``ParamValidationError``, ``DuplicateTaskIdFound``, ``TaskAlreadyInTaskGroup``, ``TaskNotFound``, ``XComNotFound``
 
-**Backwards compatibility:**
+**Backward compatibility:**
 
 - Existing Dags/operators that still import from ``airflow.exceptions`` continue to work, though
   they log warnings.

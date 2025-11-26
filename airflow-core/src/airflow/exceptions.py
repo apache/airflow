@@ -338,7 +338,7 @@ def __getattr__(name: str):
 
         target_path = _DEPRECATED_EXCEPTIONS[name]
         warnings.warn(
-            f"airflow.exceptions.{name} is deprecated. Use {target_path} instead.",
+            f"airflow.exceptions.{name} is deprecated and will be removed in a future version. Use {target_path} instead.",
             DeprecatedImportWarning,
             stacklevel=2,
         )
