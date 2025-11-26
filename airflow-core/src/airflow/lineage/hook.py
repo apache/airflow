@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import defaultdict
+from functools import cache
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attr
@@ -35,8 +36,6 @@ if TYPE_CHECKING:
 
     # Store context what sent lineage.
     LineageContext: TypeAlias = BaseHook | ObjectStoragePath
-
-_hook_lineage_collector: HookLineageCollector | None = None
 
 
 # Maximum number of assets input or output that can be collected in a single hook execution.
@@ -333,15 +332,12 @@ class HookLineageReader(LoggingMixin):
         return hook_lineage
 
 
+@cache
 def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
-    global _hook_lineage_collector
-    if not _hook_lineage_collector:
-        from airflow import plugins_manager
+    from airflow import plugins_manager
 
-        plugins_manager.initialize_hook_lineage_readers_plugins()
-        if plugins_manager.hook_lineage_reader_classes:
-            _hook_lineage_collector = HookLineageCollector()
-        else:
-            _hook_lineage_collector = NoOpCollector()
-    return _hook_lineage_collector
+    plugins_manager.initialize_hook_lineage_readers_plugins()
+    if plugins_manager.hook_lineage_reader_classes:
+        return HookLineageCollector()
+    return NoOpCollector()

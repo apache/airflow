@@ -139,7 +139,7 @@ class TestFileToGcsOperator:
             **self._config,
         )
         operator.execute(None)
-        object_names = ["test/" + os.path.basename(fp) for fp in glob("/tmp/fake*.csv")]
+        object_names = ["test/" + os.path.basename(fp) for fp in glob(f"{self.tmpdir_posix}/fake*.csv")]
         files_objects = zip(glob(f"{self.tmpdir_posix}/fake*.csv"), object_names)
         calls = [
             mock.call(

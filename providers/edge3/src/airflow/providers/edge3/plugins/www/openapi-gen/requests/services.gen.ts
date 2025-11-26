@@ -177,6 +177,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -207,6 +208,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -236,6 +238,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -265,6 +268,8 @@ export class UiService {
      * Return Edge Workers.
      * @param data The data for the request.
      * @param data.workerNamePattern
+     * @param data.queueNamePattern
+     * @param data.state
      * @returns WorkerCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -273,7 +278,9 @@ export class UiService {
             method: 'GET',
             url: '/edge_worker/ui/worker',
             query: {
-                worker_name_pattern: data.workerNamePattern
+                worker_name_pattern: data.workerNamePattern,
+                queue_name_pattern: data.queueNamePattern,
+                state: data.state
             },
             errors: {
                 422: 'Validation Error'

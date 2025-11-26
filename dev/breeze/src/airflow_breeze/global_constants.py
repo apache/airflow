@@ -221,7 +221,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.9"
+UV_VERSION = "0.9.12"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -243,6 +243,7 @@ class TarBallType(Enum):
     PROVIDERS = "apache_airflow_providers"
     TASK_SDK = "apache_airflow_task_sdk"
     AIRFLOW_CTL = "apache_airflow_ctl"
+    PYTHON_CLIENT = "apache_airflow_python_client"
     HELM_CHART = "helm-chart"
 
 
@@ -419,6 +420,7 @@ MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
+RABBITMQ_HOST_PORT = "25672"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
@@ -826,12 +828,6 @@ DEFAULT_EXTRAS = [
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
-        "airflow-version": "2.10.5",
-        "remove-providers": "common.messaging fab git keycloak",
-        "run-unit-tests": "true",
-    },
-    {
-        "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "common.messaging fab git keycloak",
         "run-unit-tests": "true",
@@ -844,7 +840,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.2",
+        "airflow-version": "3.1.3",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

@@ -49,7 +49,9 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
   };
 
   const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
-  const displayValue = config.options.find((option) => option.value === String(filter.value))?.label;
+  const displayValue = config.options.find(
+    (option) => option.value === (typeof filter.value === "string" ? filter.value : ""),
+  )?.label;
 
   return (
     <FilterPill
@@ -89,7 +91,7 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
           collection={createListCollection({ items: config.options })}
           h="full"
           onValueChange={handleValueChange}
-          value={hasValue ? [String(filter.value)] : []}
+          value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
         >
           <Select.Trigger triggerProps={{ border: "none" }}>
             <Select.ValueText placeholder={filter.config.placeholder} />
