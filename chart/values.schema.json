@@ -9301,6 +9301,49 @@
                     "type": "boolean",
                     "default": true
                 },
+                "global": {
+                    "description": "Global PostgreSQL settings.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "compatibility": {
+                            "description": "Compatibility adaptations for Kubernetes platforms",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "openshift": {
+                                    "description": "Enable compatibility adaptations for OpenShift",
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "adaptSecurityContext": {
+                                            "description": "Adapt the SecurityContext to make them compatible with OpenShift restricted-v2 SCC",
+                                            "type": "string",
+                                            "default": "auto",
+                                            "enum": [
+                                                "auto",
+                                                "force",
+                                                "disabled"
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount for PostgreSQL pods.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                },
                 "auth": {
                     "description": "PostgreSQL authentication values.",
                     "type": "object",
@@ -9334,6 +9377,25 @@
                                 "null"
                             ],
                             "default": ""
+                        }
+                    }
+                },
+                "primary": {
+                    "description": "Primary PostgreSQL settings.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "networkPolicy": {
+                            "description": "NetworkPolicy settings for primary PostgreSQL pod.",
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable NetworkPolicy for primary PostgreSQL pod.",
+                                    "type": "boolean",
+                                    "default": false
+                                }
+                            }
                         }
                     }
                 }

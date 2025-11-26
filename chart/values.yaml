@@ -2964,6 +2964,15 @@ databaseCleanup:
 # Not recommended for production - use external database instead
 postgresql:
   enabled: true
+
+  global:
+    compatibility:
+      openshift:
+        adaptSecurityContext: auto
+
+  serviceAccount:
+    create: false
+
   image:
     repository: postgres
     tag: "13"
@@ -2972,6 +2981,10 @@ postgresql:
     postgresPassword: postgres
     username: ""
     password: ""
+
+  primary:
+    networkPolicy:
+      enabled: false
 
 # Config settings to go into the mounted airflow.cfg
 #
