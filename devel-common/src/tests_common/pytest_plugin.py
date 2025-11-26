@@ -797,6 +797,30 @@ def frozen_sleep(monkeypatch):
         traveller.stop()
 
 
+@pytest.fixture
+def time_machine():
+    """
+    Provide a time_machine fixture for controlling time in tests.
+
+    time-machine 3.0 removed the built-in pytest fixture, so we provide our own.
+    This fixture returns a coordinator object with move_to() and shift() methods.
+
+    Usage:
+        def test_something(time_machine):
+            time_machine.move_to(datetime(2024, 1, 1))
+            # Test code here
+            time_machine.shift(10)  # Move forward 10 seconds
+    """
+    import time_machine as tm_module
+    
+    coordinator = tm_module.travel(datetime.now(tz=timezone.utc), tick=False)
+    coordinator.start()
+
+    yield coordinator
+
+    coordinator.stop()
+
+
 class DagMaker(Generic[Dag], Protocol):
     """
     Interface definition for dag_maker return value.
