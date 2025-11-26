@@ -129,7 +129,7 @@ class TestWorker:
         assert actual is None
 
     @pytest.mark.parametrize(
-        "logs_values, expect_sub_path",
+        ("logs_values", "expect_sub_path"),
         [
             ({"persistence": {"enabled": False}}, None),
             ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
@@ -145,10 +145,12 @@ class TestWorker:
         )
 
         mounts = jmespath.search(
-            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'][0].volumeMounts",
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].volumeMounts",
             docs[0],
         )
-        assert mounts is not None, "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        assert mounts is not None, (
+            "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        )
         assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
         if expect_sub_path is not None:
             assert any(
