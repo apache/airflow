@@ -916,8 +916,8 @@ class KubernetesPodOperator(BaseOperator):
                 context=context,
                 event={
                     "status": "success" if container_state == ContainerState.TERMINATED else "failed",
-                    "namespace": self.pod.metadata.namespace,
-                    "name": self.pod.metadata.name,
+                    "namespace": trigger.pod_namespace,
+                    "name": trigger.pod_name,
                     "message": "Container succeeded"
                     if container_state == ContainerState.TERMINATED
                     else "Container failed",
