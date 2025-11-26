@@ -85,6 +85,7 @@ class _GlobIgnoreRule(NamedTuple):
 
     wild_match_pattern: GitWildMatchPattern
     relative_to: Path | None = None
+    base_dir: Path | None = None
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
@@ -102,7 +103,7 @@ class _GlobIgnoreRule(NamedTuple):
             relative_to = definition_file.parent
 
         ignore_pattern = GitWildMatchPattern(pattern)
-        return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to)
+        return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to, base_dir=base_dir)
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
@@ -111,7 +112,15 @@ class _GlobIgnoreRule(NamedTuple):
         for rule in rules:
             if not isinstance(rule, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(rule)}")
-            rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
+            
+            if rule.relative_to:
+                rel_path_obj = path.relative_to(rule.relative_to)
+            else:
+                if rule.base_dir is None:
+                    rel_path_obj = path.name
+                else:
+                    rel_path_obj = path.relative_to(rule.base_dir)
+            rel_path = str(rel_path_obj).replace(os.sep, "/")
             if (
                 rule.wild_match_pattern.include is not None
                 and rule.wild_match_pattern.match_file(rel_path) is not None
