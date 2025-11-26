@@ -25,7 +25,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "shell",
         "exec",
         "run",
-        "compile-ui-assets",
         "cleanup",
         "generate-migration-file",
         "doctor",
@@ -192,15 +191,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--no-db-cleanup",
             ],
         },
-    ],
-    "breeze compile-ui-assets": [
-        {
-            "name": "Compile ui assets flag",
-            "options": [
-                "--dev",
-                "--force-clean",
-            ],
-        }
     ],
     "breeze start-airflow": [
         {

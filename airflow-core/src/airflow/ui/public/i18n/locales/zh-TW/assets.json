@@ -3,6 +3,7 @@
   "asset_many": "資源",
   "asset_one": "資源",
   "consumingDags": "消費者 Dags",
+  "consumingTasks": "消費者任務",
   "createEvent": {
     "button": "建立事件",
     "manual": {

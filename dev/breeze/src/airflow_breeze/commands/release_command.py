@@ -21,7 +21,7 @@ import os
 import click
 
 from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -265,7 +265,7 @@ def push_tag_for_final_version(version, release_candidate, task_sdk_version=None
         run_command(["git", "push", "origin", "tag", f"task-sdk/{task_sdk_version}"], check=True)
 
 
-@release_management.command(
+@release_management_group.command(
     name="start-release",
     short_help="Start Airflow release process",
     help="Start the process of releasing an Airflow version. "

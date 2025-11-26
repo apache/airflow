@@ -105,7 +105,7 @@ def test_get_long_package_name():
 def test_get_provider_requirements():
     # update me when asana dependencies change
     assert get_provider_requirements("asana") == [
-        "apache-airflow>=2.10.0",
+        "apache-airflow>=2.11.0",
         "apache-airflow-providers-common-compat>=1.8.0",
         "asana>=5.0.0",
     ]
@@ -255,7 +255,7 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     ("provider_id", "min_version"),
     [
-        ("amazon", "2.10.0"),
+        ("amazon", "2.11.0"),
         ("fab", "3.0.2"),
     ],
 )
@@ -402,22 +402,17 @@ AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / 
 
 
 @pytest.fixture
-def restore_version_files():
-    # save contents of all version files before test starts
-    version_files = [
-        AIRFLOW_CORE_INIT_PY,
-        TASK_SDK_INIT_PY,
-        AIRFLOWCTL_INIT_PY,
-    ]
-    original_contents = {f: f.read_text() for f in version_files if f.exists()}
+def lock_version_files():
+    from filelock import FileLock
 
-    yield
-
-    # restore original contents after test
-    for fp, content in original_contents.items():
-        fp.write_text(content)
+    lock_file = AIRFLOW_ROOT_PATH / ".version_files.lock"
+    with FileLock(lock_file):
+        yield
+    if lock_file.exists():
+        lock_file.unlink()
 
 
+@pytest.mark.usefixtures("lock_version_files")
 @pytest.mark.parametrize(
     ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
@@ -445,7 +440,6 @@ def restore_version_files():
     ],
 )
 def test_apply_version_suffix_to_non_provider_pyproject_tomls(
-    restore_version_files,
     distributions: tuple[str, ...],
     init_file_path: Path,
     version_suffix: str,

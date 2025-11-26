@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.connection import Connection
