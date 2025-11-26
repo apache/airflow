@@ -98,4 +98,4 @@ class DeadlineAlert(Base):
         :param deadline_alert_id: The UUID of the DeadlineAlert to retrieve
         :param session: Database session
         """
-        return session.execute(select(cls).filter_by(id=deadline_alert_id)).scalar_one()
+        return session.scalar(select(cls).where(id=deadline_alert_id))

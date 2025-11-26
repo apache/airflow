@@ -414,14 +414,12 @@ class SerializedDagModel(Base):
             # while doing manual testing. To avoid them, we fetch by dag_id and interval,
             # then use python's dict comparison instead of trying to match strings in SQL.
             candidates = (
-                session.execute(
+                session.scalars(
                     select(DeadlineAlertModel).filter(
                         DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
                         DeadlineAlertModel.interval == interval,
                     )
                 )
-                .scalars()
-                .all()
             )
 
             existing_alert = None
@@ -434,7 +432,7 @@ class SerializedDagModel(Base):
                 log.debug("Found existing DeadlineAlert: %s", existing_alert.id)
                 deadline_alert_ids.append(str(existing_alert.id))
             else:
-                log.warning("No existing alert found, creating... ")
+                log.warning("Creating DeadlineAlert... ")
                 new_alerts.append(
                     DeadlineAlertModel(
                         serialized_dag_id=serialized_dag_id,
@@ -705,14 +703,12 @@ class SerializedDagModel(Base):
         deadline_list = dag_deadline_data if isinstance(dag_deadline_data, list) else [dag_deadline_data]
         deadline_alerts_by_id = {
             str(alert.id): alert
-            for alert in session.execute(
+            for alert in session.scalars(
                 select(DeadlineAlertModel).filter(
                     DeadlineAlertModel.id.in_(deadline_list),
                     DeadlineAlertModel.serialized_dag_id == serialized_dag_id,
                 )
             )
-            .scalars()
-            .all()
         }
 
         reconstructed_deadlines = []
