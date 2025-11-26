@@ -34,6 +34,11 @@ Changelog
     This release of provider is only available for Airflow 2.11+ as explained in the
     Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
 
+Features
+~~~~~~~~
+
+* ``Add support for cancelling running queries via SQL API (#56164)``
+
 Misc
 ~~~~
 

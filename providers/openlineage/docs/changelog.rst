@@ -33,6 +33,12 @@ Changelog
     This release of provider is only available for Airflow 2.11+ as explained in the
     Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
 
+Features
+~~~~~~~~
+
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+
 Bug Fixes
 ~~~~~~~~~
 

@@ -36,6 +36,7 @@ Changelog
 Misc
 ~~~~
 
+* ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Remove the limitation for sagemaker for Python 3.13 (#58388)``
 * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``

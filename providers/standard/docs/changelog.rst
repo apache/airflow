@@ -45,11 +45,19 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
 * ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator deferral mode not working for Airflow 3 (#58497)``
 
 Misc
 ~~~~
 
+* ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
 

@@ -74,7 +74,17 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                   Extra
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
+
+Optional dependencies
+----------------------
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-standard/1.10.0/changelog.html>`_.

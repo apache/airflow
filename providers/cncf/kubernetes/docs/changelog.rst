@@ -48,6 +48,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 
 Doc-only

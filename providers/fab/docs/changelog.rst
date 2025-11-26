@@ -26,6 +26,7 @@ Changelog
 Misc
 ~~~~
 
+* ``Bump stylelint from 16.25.0 to 16.26.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58678)``
 * ``Remove deprecation warning in Fab provider (#58686)``
 * ``Fix mypy errors in providers (#58644)``
 * ``Bump webpack from 5.102.1 to 5.103.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58634)``

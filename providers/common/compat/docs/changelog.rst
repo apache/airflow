@@ -32,9 +32,15 @@ Changelog
     This release of provider is only available for Airflow 2.11+ as explained in the
     Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
 
+Features
+~~~~~~~~
+
+* ``Adjust compat HookLevelLineage for new add_extra method (#58057)``
+
 Misc
 ~~~~
 
+* ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 
 Doc-only
