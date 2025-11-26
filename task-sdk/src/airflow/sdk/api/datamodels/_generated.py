@@ -201,6 +201,7 @@ class TIEnterRunningPayload(BaseModel):
     unixname: Annotated[str, Field(title="Unixname")]
     pid: Annotated[int, Field(title="Pid")]
     start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    external_executor_id: Annotated[str | None, Field(title="External Executor Id")] = None
 
 
 class TIHeartbeatInfo(BaseModel):

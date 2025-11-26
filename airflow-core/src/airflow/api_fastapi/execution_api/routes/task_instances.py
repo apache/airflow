@@ -207,6 +207,7 @@ def ti_run(
         pid=ti_run_payload.pid,
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
+        external_executor_id=ti_run_payload.external_executor_id,
     )
 
     try:

@@ -979,8 +979,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             state, info = event_buffer.pop(buffer_key)
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
-                ti.external_executor_id = info
-                cls.logger().info("Setting external_executor_id for %s to %s", ti, info)
+                if ti.external_executor_id is None:
+                    # Fallback for old workers or edge cases
+                    ti.external_executor_id = info
+                    cls.logger().info(
+                        "Setting external_executor_id from event buffer for %s (state=%s, ti.state=%s)",
+                        ti,
+                        state,
+                        ti.state,
+                    )
+                elif ti.external_executor_id != info:
+                    # Mismatch detection
+                    cls.logger().error(
+                        "external_executor_id MISMATCH! DB has %s, event buffer has %s",
+                        ti.external_executor_id,
+                        info,
+                    )
+                else:
+                    cls.logger().debug("external_executor_id already set correctly by worker")
                 continue
 
             msg = (
@@ -2502,6 +2518,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         reset_tis_message.append(repr(ti))
                         ti.state = None
                         ti.queued_by_job_id = None
+                        ti.external_executor_id = None
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
