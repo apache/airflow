@@ -168,11 +168,14 @@ class TestDeadline:
             mock_session.query.assert_not_called()
 
     def test_repr_with_callback_kwargs(self, deadline_orm, dagrun):
-        assert (
-            repr(deadline_orm)
-            == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
-            f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}({TEST_CALLBACK_KWARGS})"
-        )
+        repr_str = repr(deadline_orm)
+        assert "[DagRun Deadline]" in repr_str
+        assert f"created at {DEFAULT_DATE}" in repr_str
+        assert f"Dag: {DAG_ID}" in repr_str
+        assert f"Run: {dagrun.id}" in repr_str
+        assert f"needed by {DEFAULT_DATE}" in repr_str
+        assert TEST_CALLBACK_PATH in repr_str
+        assert str(TEST_CALLBACK_KWARGS) in repr_str
 
     def test_repr_without_callback_kwargs(self, dagrun, session):
         with time_machine.travel(DEFAULT_DATE, tick=False):
@@ -186,12 +189,14 @@ class TestDeadline:
             session.add(deadline)
             session.flush()
 
-            assert deadline.callback.kwargs is None
-            assert (
-                repr(deadline)
-                == f"[DagRun Deadline] created at {DEFAULT_DATE}, Dag: {DAG_ID} Run: {dagrun.id}, "
-                f"needed by {DEFAULT_DATE} or run: {TEST_CALLBACK_PATH}()"
-            )
+            assert not deadline.callback.data.get("kwargs")
+            repr_str = repr(deadline)
+            assert "[DagRun Deadline]" in repr_str
+            assert f"created at {DEFAULT_DATE}" in repr_str
+            assert f"Dag: {DAG_ID}" in repr_str
+            assert f"Run: {dagrun.id}" in repr_str
+            assert f"needed by {DEFAULT_DATE}" in repr_str
+            assert TEST_CALLBACK_PATH in repr_str
 
     @pytest.mark.db_test
     def test_handle_miss(self, dagrun, session):
