@@ -114,11 +114,11 @@ logs_already_dumped = False
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
-def group_for_testing():
+def testing_group():
     pass
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="docker-compose-tests",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -596,7 +596,7 @@ option_skip_docker_compose_deletion = click.option(
 )
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="core-tests",
     help="Run all (default) or specified core unit tests.",
     context_settings=dict(
@@ -658,7 +658,7 @@ def core_tests(**kwargs):
     )
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="providers-tests",
     help="Run all (default) or specified Providers unit tests.",
     context_settings=dict(
@@ -716,7 +716,7 @@ def providers_tests(**kwargs):
     _run_test_command(test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="task-sdk-tests",
     help="Run task-sdk tests - all task SDK tests are non-DB bound tests.",
     context_settings=dict(
@@ -777,7 +777,7 @@ def task_sdk_tests(**kwargs):
     )
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="task-sdk-integration-tests",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -831,7 +831,7 @@ def task_sdk_integration_tests(
     sys.exit(return_code)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="airflow-ctl-integration-tests",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -887,7 +887,7 @@ def airflowctl_integration_tests(
     sys.exit(return_code)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="airflow-ctl-tests",
     help="Run airflow-ctl tests - all airflowctl tests are non-DB bound tests.",
     context_settings=dict(
@@ -921,7 +921,7 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
         sys.exit(result.returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="core-integration-tests",
     help="Run the specified integration tests.",
     context_settings=dict(
@@ -1002,7 +1002,7 @@ def core_integration_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="providers-integration-tests",
     help="Run the specified integration tests.",
     context_settings=dict(
@@ -1083,7 +1083,7 @@ def integration_providers_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="system-tests",
     help="Run the specified system tests.",
     context_settings=dict(
@@ -1186,7 +1186,7 @@ def system_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="helm-tests",
     help="Run Helm chart tests.",
     context_settings=dict(
@@ -1244,7 +1244,7 @@ def helm_tests(
     sys.exit(result.returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="python-api-client-tests",
     help="Run python api client tests.",
     context_settings=dict(
