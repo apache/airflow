@@ -21,6 +21,7 @@ import logging
 from unittest import mock
 
 import aiohttp
+import google.auth.transport
 import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
@@ -340,7 +341,9 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline(self, mock_request, hook):
         run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data=f'{{"runId":{run_id}}}')
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=f'{{"runId":{run_id}}}'
+        )
 
         result = hook.start_pipeline(
             pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
@@ -355,7 +358,9 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline_stream(self, mock_request, hook):
         run_id = "test-run-123"
-        mock_request.return_value = mock.MagicMock(status=200, data=f'{{"runId":"{run_id}"}}')
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=f'{{"runId":"{run_id}"}}'
+        )
 
         result = hook.start_pipeline(
             pipeline_name=PIPELINE_NAME,
@@ -405,7 +410,9 @@ class TestDataFusionHook:
     def test_start_pipeline_should_fail_if_no_run_id(self, mock_request, hook):
         """Test that start_pipeline fails gracefully when response doesn't contain runId."""
         error_response = '{"error": "Invalid runtime arguments"}'
-        mock_request.return_value = mock.MagicMock(status=200, data=error_response)
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=error_response
+        )
         with pytest.raises(
             AirflowException,
             match=r"Failed to start pipeline 'shrubberyPipeline'. "
