@@ -40,15 +40,47 @@ Sensitive field names
 When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
 task.
 
-It will also mask the value of a Variable, rendered template dictionaries, XCom dictionaries or the
-field of a Connection's extra JSON blob if the name is in the list of known-sensitive fields (i.e. 'access_token',
-'api_key', 'apikey', 'authorization', 'passphrase', 'passwd', 'password', 'private_key', 'secret' or 'token').
-This list can also be extended:
+It will also mask the value of an Airflow Variable, rendered template dictionaries, XCom dictionaries or the field of a Connection's extra JSON blob if the
+Variable name or field name contains any of the known-sensitive keywords.
+
+**Default Sensitive Keywords:**
+
+``access_token``, ``api_key``, ``apikey``, ``authorization``, ``passphrase``, ``passwd``, ``password``,
+``private_key``, ``secret``, ``token``, ``keyfile_dict``, ``service_account``.
+
+This list can also be extended using the environment variable ``AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES``:
 
 .. code-block:: ini
 
     [core]
     sensitive_var_conn_names = comma,separated,sensitive,names
+
+**Examples of Masking Behavior:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 25 20 35
+
+   * - Source
+     - Key / Variable Name
+     - Matching Keyword
+     - Masking Scope
+   * - Connection Extra
+     - google_keyfile_dict
+     - keyfile_dict
+     - Everywhere (Logs, Rendered Templates, UI)
+   * - Connection Extra
+     - hello
+     - None
+     - Not Masked
+   * - Variable
+     - service_account
+     - service_account
+     - Everywhere (Logs, Rendered Templates, UI)
+   * - Variable
+     - test_keyfile_dict
+     - keyfile_dict
+     - Variables UI Only
 
 Adding your own masks
 """""""""""""""""""""
