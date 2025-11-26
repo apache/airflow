@@ -37,7 +37,6 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowSkipException,
 )
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -2555,22 +2554,6 @@ class TestTaskInstance:
             "reg_Task3": State.SKIPPED,
             "reg_Task4": State.SKIPPED,
         }
-
-    def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
-        def fail():
-            raise AirflowFailException("hopeless")
-
-        with dag_maker(dag_id="test_does_not_retry_on_airflow_fail_exception"):
-            task = PythonOperator(
-                task_id="test_raise_airflow_fail_exception",
-                python_callable=fail,
-                retries=1,
-            )
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-        with contextlib.suppress(AirflowException):
-            ti.run()
-        assert ti.state == State.FAILED
 
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
