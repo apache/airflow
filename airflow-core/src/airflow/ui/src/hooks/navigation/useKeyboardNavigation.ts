@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { useDebouncedCallback } from "use-debounce";
 
 import type { ArrowKey, NavigationDirection } from "./types";
 
@@ -68,6 +69,10 @@ export const useKeyboardNavigation = ({ enabled = true, onCommit, onNavigate, on
 
   useHotkeys("space", () => onToggleGroup?.(), hotkeyOptions, [onToggleGroup]);
 
+  const debouncedCommit = useDebouncedCallback(() => {
+    onCommit?.();
+  }, 500);
+
   // Handle keyup: commit navigation (URL update)
   useEffect(() => {
     if (!enabled || !onCommit) {
@@ -77,7 +82,7 @@ export const useKeyboardNavigation = ({ enabled = true, onCommit, onNavigate, on
     const handleKeyUp = (event: KeyboardEvent) => {
       // Only commit when shift + arrow key is released
       if (isArrowKey(event.key)) {
-        onCommit();
+        debouncedCommit();
       }
     };
 
@@ -86,5 +91,5 @@ export const useKeyboardNavigation = ({ enabled = true, onCommit, onNavigate, on
     return () => {
       globalThis.removeEventListener("keyup", handleKeyUp);
     };
-  }, [enabled, onCommit]);
+  }, [enabled, onCommit, debouncedCommit]);
 };
