@@ -35,7 +35,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 
 import attrs
 
-from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
@@ -62,6 +61,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -109,9 +109,6 @@ __all__ = [
     "chain_linear",
     "cross_downstream",
 ]
-
-# TODO: Task-SDK
-AirflowException = RuntimeError
 
 
 class TriggerFailureReason(str, Enum):
@@ -176,7 +173,7 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+        raise RuntimeError(f"'retries' type must be int, not {type(retries).__name__}")
     return parsed_retries
 
 
@@ -407,7 +404,7 @@ class ExecutorSafeguard:
                 if not cls.test_mode and sentinel is not self:
                     message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
                     if not self.allow_nested_operators:
-                        raise AirflowException(message)
+                        raise RuntimeError(message)
                     self.log.warning(message)
 
                     # Now that we've logged, set sentinel so that `super()` calls don't log again
@@ -1607,13 +1604,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be None; otherwise, provide the name of the method that should be used when resuming execution in
         the task.
         """
-        from airflow.exceptions import TaskDeferred
+        from airflow.sdk.exceptions import TaskDeferred
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
-        from airflow.exceptions import TaskDeferralError, TaskDeferralTimeout
+        from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 
         if next_kwargs is None:
             next_kwargs = {}

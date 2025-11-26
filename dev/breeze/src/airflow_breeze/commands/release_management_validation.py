@@ -21,13 +21,13 @@ from pathlib import Path
 
 import click
 
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.utils.airflow_release_validator import AirflowReleaseValidator
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.release_validator import CheckType
 
 
-@release_management.command(
+@release_management_group.command(
     name="validate-rc-by-pmc",
     help="Validate release candidate for PMC voting",
 )
