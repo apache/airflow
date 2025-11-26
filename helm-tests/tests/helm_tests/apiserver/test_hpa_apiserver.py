@@ -136,4 +136,4 @@ class TestAPIServerHPA:
             },
             show_only=["templates/api-server/api-server-hpa.yaml"],
         )
-        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
+        assert jmespath.search("spec.metrics[0]", docs[0]) == expected_metrics
