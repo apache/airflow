@@ -25,6 +25,7 @@ from fastapi import FastAPI
 from starlette.routing import Mount
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
+from airflow.api_fastapi.common.db.indexes import init_metadata_indexes
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_error_handlers,
@@ -103,6 +104,8 @@ def create_app(apps: str = "all") -> FastAPI:
         init_middlewares(app)
 
     init_config(app)
+
+    init_metadata_indexes()
 
     return app
 

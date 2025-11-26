@@ -712,6 +712,20 @@ database:
       type: integer
       example: ~
       default: "10000"
+    metadata_indexes:
+      description: |
+        JSON list of additional indexes to create on the metadata database at API server startup.
+
+        Each item must be a string specifying the table and one or more columns:
+        - "table(column1, column2, ...)"
+
+        Existing indexes are detected and skipped. On PostgreSQL, indexes are created
+        CONCURRENTLY to avoid locking tables. Other databases attempt non-blocking creation
+        where supported, otherwise fallback to standard index creation.
+      version_added: 3.2.0
+      type: string
+      example: "task_instance(dag_id, task_id, run_id)|log(dttm)|dag_run(dag_id, run_id)"
+      default: ~
 logging:
   description: ~
   options:
