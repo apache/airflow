@@ -43,7 +43,7 @@ class DeadlineAlert(Base):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     serialized_dag_id: Mapped[str] = mapped_column(
-        UUIDType(binary=False), ForeignKey("serialized_dag.id"), nullable=False
+        UUIDType(binary=False), ForeignKey("serialized_dag.id", ondelete="CASCADE"), nullable=False
     )
 
     name: Mapped[str | None] = mapped_column(String(250), nullable=True)

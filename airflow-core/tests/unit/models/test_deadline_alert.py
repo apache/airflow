@@ -21,14 +21,15 @@ import time_machine
 
 from airflow.models.deadline import ReferenceModels
 from airflow.models.deadline_alert import DeadlineAlert
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.deadline import DeadlineReference
 
 from tests_common.test_utils import db
 from unit.models import DEFAULT_DATE
 
+DAG_ID = "test_deadline_alert_dag"
 DEADLINE_NAME = "Test Alert"
 DEADLINE_DESCRIPTION = "This is a test alert description"
-DEADLINE_REFERENCE = DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference()
 DEADLINE_INTERVAL = 60
 DEADLINE_CALLBACK = {"path": "test.callback"}
 SERIALIZED_DAG_ID = "serialized_dag_uuid"
@@ -39,15 +40,25 @@ def _clean_db():
 
 
 @pytest.fixture
-def deadline_alert_orm(session):
+def deadline_reference():
+    return DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference()
+
+
+@pytest.fixture
+def deadline_alert_orm(dag_maker, session, deadline_reference):
+    with dag_maker(DAG_ID, session=session):
+        pass
+
+    serialized_dag = session.query(SerializedDagModel).filter_by(dag_id=DAG_ID).one()
+
     with time_machine.travel(DEFAULT_DATE, tick=False):
         alert = DeadlineAlert(
-            serialized_dag_id=SERIALIZED_DAG_ID,
+            serialized_dag_id=serialized_dag.id,
             name=DEADLINE_NAME,
             description=DEADLINE_DESCRIPTION,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         session.add(alert)
         session.flush()
@@ -70,13 +81,18 @@ class TestDeadlineAlert:
         assert deadline_alert_orm.name == DEADLINE_NAME
         assert deadline_alert_orm.description == DEADLINE_DESCRIPTION
 
-    def test_minimal_deadline_alert_creation(self, session):
+    def test_minimal_deadline_alert_creation(self, dag_maker, session, deadline_reference):
+        with dag_maker(DAG_ID, session=session):
+            pass
+
+        serialized_dag = session.query(SerializedDagModel).filter_by(dag_id=DAG_ID).one()
+
         with time_machine.travel(DEFAULT_DATE, tick=False):
             deadline_alert = DeadlineAlert(
-                serialized_dag_id=SERIALIZED_DAG_ID,
-                reference=DEADLINE_REFERENCE,
+                serialized_dag_id=serialized_dag.id,
+                reference=deadline_reference,
                 interval=DEADLINE_INTERVAL,
-                callback=DEADLINE_CALLBACK,
+                callback_def=DEADLINE_CALLBACK,
             )
             session.add(deadline_alert)
             session.flush()
@@ -86,32 +102,28 @@ class TestDeadlineAlert:
             assert deadline_alert.name is None
             assert deadline_alert.description is None
 
-    def test_deadline_alert_repr(self, deadline_alert_orm):
-        assert all(
-            value in repr(deadline_alert_orm)
-            for value in [
-                "[DeadlineAlert]",
-                "id=",
-                f"created_at={DEFAULT_DATE}",
-                f"name={DEADLINE_NAME}",
-                f"reference={DEADLINE_REFERENCE}",
-                "interval=1m",
-                f"callback={DEADLINE_CALLBACK}",
-            ]
-        )
+    def test_deadline_alert_repr(self, deadline_alert_orm, deadline_reference):
+        repr_str = repr(deadline_alert_orm)
+        assert "[DeadlineAlert]" in repr_str
+        assert "id=" in repr_str
+        assert f"created_at={DEFAULT_DATE}" in repr_str
+        assert f"name={DEADLINE_NAME}" in repr_str
+        assert f"reference={deadline_reference}" in repr_str
+        assert "interval=1m" in repr_str
+        assert repr(deadline_alert_orm.callback_def) in repr_str
 
-    def test_deadline_alert_equality(self, session):
+    def test_deadline_alert_equality(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         alert2 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         assert alert1 == alert2
 
@@ -119,40 +131,40 @@ class TestDeadlineAlert:
             serialized_dag_id=SERIALIZED_DAG_ID,
             reference=DeadlineReference.DAGRUN_LOGICAL_DATE.serialize_reference(),
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         assert alert1 != different_ref
 
         different_interval = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=120,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         assert alert1 != different_interval
 
         different_callback = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback={"path": "different.callback"},
+            callback_def={"path": "different.callback"},
         )
         assert alert1 != different_callback
 
         assert alert1 != "not a deadline alert"
 
-    def test_deadline_alert_hash(self, session):
+    def test_deadline_alert_hash(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
         alert2 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
-            reference=DEADLINE_REFERENCE,
+            reference=deadline_reference,
             interval=DEADLINE_INTERVAL,
-            callback=DEADLINE_CALLBACK,
+            callback_def=DEADLINE_CALLBACK,
         )
 
         assert hash(alert1) == hash(alert2)
@@ -167,8 +179,6 @@ class TestDeadlineAlert:
     def test_deadline_alert_get_by_id_not_found(self, session):
         from sqlalchemy.exc import NoResultFound
 
+        nonexistent_uuid = "00000000-0000-0000-0000-000000000000"
         with pytest.raises(NoResultFound, match="No row was found"):
-            DeadlineAlert.get_by_id("nonexistent_uuid", session=session)
-
-
-id
+            DeadlineAlert.get_by_id(nonexistent_uuid, session=session)
