@@ -21,12 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 

@@ -23,9 +23,9 @@ import boto3
 import tenacity
 from tenacity import before_log, before_sleep_log
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+from airflow.providers.common.compat.sdk import AirflowSkipException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
