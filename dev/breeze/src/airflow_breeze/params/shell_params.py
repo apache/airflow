@@ -171,6 +171,7 @@ class ShellParams:
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
+    force_recreate_kind_cluster: bool = False
     force_sa_warnings: bool = True
     force_lowest_dependencies: bool = False
     forward_credentials: bool = False
@@ -185,6 +186,7 @@ class ShellParams:
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
+    k8s_namespace: str = "airflow"
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
