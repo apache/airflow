@@ -140,7 +140,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     trigger_timeout: timedelta | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
