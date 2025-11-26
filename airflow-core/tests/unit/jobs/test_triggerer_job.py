@@ -325,11 +325,14 @@ class TestTriggerRunner:
             1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+            asyncio.run(
+                trigger_runner.run_trigger(
+                    1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
+                )
+            )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
