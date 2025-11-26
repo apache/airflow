@@ -6609,6 +6609,18 @@ paths:
           title: Dag Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: state
         in: query
         required: false
@@ -7083,6 +7095,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8613,15 +8631,6 @@ paths:
       summary: Logout
       description: Logout the user.
       operationId: logout
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
       responses:
         '200':
           description: Successful Response
@@ -8629,17 +8638,11 @@ paths:
             application/json:
               schema: {}
         '307':
+          description: Temporary Redirect
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -9610,6 +9613,10 @@ components:
           description: (Experimental) Run on the latest bundle version of the dag
             after clearing the task instances.
           default: false
+        prevent_running_task:
+          type: boolean
+          title: Prevent Running Task
+          default: false
       additionalProperties: false
       type: object
       title: ClearTaskInstancesBody
@@ -10036,6 +10043,10 @@ components:
           type: boolean
           title: Is Favorite
           default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token
@@ -13054,6 +13065,12 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        team_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Team Id
       additionalProperties: false
       type: object
       required:
@@ -13093,12 +13110,19 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
+        team_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Team Id
       type: object
       required:
       - key
       - value
       - description
       - is_encrypted
+      - team_id
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:

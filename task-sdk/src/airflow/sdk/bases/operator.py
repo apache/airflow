@@ -421,7 +421,7 @@ class ExecutorSafeguard:
 
 if "airflow.configuration" in sys.modules:
     # Don't try and import it if it's not already loaded
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
@@ -1194,7 +1194,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
         # Ensure priority_weight is within the valid range
-        # Note: Cross-import from airflow.utils to be cleaned up later
         self.priority_weight = db_safe_priority(self.priority_weight)
 
     def __eq__(self, other):

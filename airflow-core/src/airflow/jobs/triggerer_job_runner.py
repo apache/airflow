@@ -1000,10 +1000,7 @@ class TriggerRunner:
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(
-                        trigger_id, trigger_instance, timeout_after=workload.timeout_after, context=context
-                    ),
-                    name=trigger_name,
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,

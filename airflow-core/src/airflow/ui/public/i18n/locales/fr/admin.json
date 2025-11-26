@@ -135,8 +135,6 @@
       "tooltip": "Supprimer les variables sélectionnées"
     },
     "edit": "Modifier la variable",
-    "export": "Exporter",
-    "exportTooltip": "Exporter les variables sélectionnées",
     "form": {
       "invalidJson": "JSON invalide",
       "keyMaxLength": "La clé peut contenir un maximum de 250 caractères",

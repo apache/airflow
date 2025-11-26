@@ -212,6 +212,58 @@ class TestWorkerFailure:
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
+class TestWorkerDuplicateHostnameCheck:
+    @classmethod
+    def setup_class(cls):
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    def test_worker_fails_when_hostname_already_exists(self, mock_inspect):
+        """Test that worker command fails when trying to start a worker with a duplicate hostname."""
+        args = self.parser.parse_args(["celery", "worker", "--celery-hostname", "existing_host"])
+
+        # Mock the inspect to return an active worker with the same hostname
+        mock_instance = MagicMock()
+        mock_instance.active_queues.return_value = {
+            "celery@existing_host": [{"name": "queue1"}],
+        }
+        mock_inspect.return_value = mock_instance
+
+        # Test that SystemExit is raised with appropriate error message
+        with pytest.raises(SystemExit) as exc_info:
+            celery_command.worker(args)
+
+        assert "existing_host" in str(exc_info.value)
+        assert "already running" in str(exc_info.value)
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app.control.inspect")
+    @mock.patch("airflow.providers.celery.cli.celery_command.Process")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    def test_worker_starts_when_hostname_is_unique(self, mock_celery_app, mock_popen, mock_inspect):
+        """Test that worker command succeeds when the hostname is unique."""
+        args = self.parser.parse_args(["celery", "worker", "--celery-hostname", "new_host"])
+
+        # Mock the inspect to return active workers without the new hostname
+        mock_instance = MagicMock()
+        mock_instance.active_queues.return_value = {
+            "celery@existing_host": [{"name": "queue1"}],
+        }
+        mock_inspect.return_value = mock_instance
+
+        # Worker should start successfully
+        celery_command.worker(args)
+
+        # Verify that worker_main was called
+        assert mock_celery_app.worker_main.called
+
+
+@pytest.mark.backend("mysql", "postgres")
+@pytest.mark.usefixtures("conf_stale_bundle_cleanup_disabled")
 class TestFlowerCommand:
     @classmethod
     def setup_class(cls):
