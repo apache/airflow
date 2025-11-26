@@ -32,8 +32,8 @@ from tests_common.test_utils.operators.run_deferrable import run_trigger
 
 class TestSQLExecuteQueryTrigger:
     @classmethod
-    def get_connection(cls, conn_id: str = None, records: list | None = None):
-        mock_connection = mock.MagicMock(spec=Connection)
+    def get_connection(cls, conn_id: str | None = None, records: list | None = None):
+        mock_connection = mock.MagicMock(spec=Connection, conn_id=conn_id)
         mock_hook = mock.MagicMock(spec=DbApiHook)
         if records:
             mock_hook.get_records.side_effect = lambda sql: records

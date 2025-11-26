@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
     from typing import Any
 
-    from airflow.providers.common.sql.version_compat import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class SQLExecuteQueryTrigger(BaseTrigger):
