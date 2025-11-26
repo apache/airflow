@@ -758,6 +758,11 @@ jobs:
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
+    if: |
+      always() &&
+      needs.build-info.outputs.prod-image-build == 'true' &&
+      !cancelled() &&
+      (needs.build-ci-images.result == 'success' || needs.build-ci-images.result == 'skipped')
 
   additional-prod-image-tests:
     name: "Additional PROD image tests"
