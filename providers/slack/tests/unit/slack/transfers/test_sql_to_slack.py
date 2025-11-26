@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowSkipException
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
 
 try:

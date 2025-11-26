@@ -25,7 +25,7 @@ from uuid import uuid4
 
 from flask import Response, request
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.edge3.worker_api.auth import (
     jwt_token_authorization,
     jwt_token_authorization_rpc,

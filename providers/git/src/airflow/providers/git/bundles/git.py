@@ -28,7 +28,7 @@ from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchP
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger(__name__)

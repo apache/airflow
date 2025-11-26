@@ -28,7 +28,7 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.bases.decorator import DecoratedOperator, task_decorator_factory
 else:
     from airflow.decorators.base import DecoratedOperator, task_decorator_factory  # type: ignore[no-redef]
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
 

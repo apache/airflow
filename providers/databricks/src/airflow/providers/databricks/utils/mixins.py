@@ -26,7 +26,7 @@ from typing import (
     Protocol,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
 

@@ -39,7 +39,7 @@ except ImportError:
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test

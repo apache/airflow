@@ -29,12 +29,6 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
 from google.cloud.exceptions import Conflict
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
 from airflow.providers.common.compat.openlineage.facet import (
     DocumentationDatasetFacet,
     ErrorMessageRunFacet,
@@ -46,6 +40,12 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
     SQLJobFacet,
+)
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    TaskDeferred,
 )
 from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (

@@ -24,8 +24,8 @@ import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 ADX_TEST_CONN_ID = "adx_test_connection_id"

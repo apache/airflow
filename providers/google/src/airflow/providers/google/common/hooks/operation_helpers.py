@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import GoogleAPICallError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation

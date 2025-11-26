@@ -27,11 +27,10 @@ import polars as pl
 import pytest
 from hmsclient import HMSClient
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 

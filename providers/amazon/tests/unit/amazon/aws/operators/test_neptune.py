@@ -24,12 +24,12 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

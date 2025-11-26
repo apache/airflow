@@ -22,12 +22,12 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterAvailableTrigger,
     NeptuneClusterInstancesAvailableTrigger,
     NeptuneClusterStoppedTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 CLUSTER_ID = "test-cluster"

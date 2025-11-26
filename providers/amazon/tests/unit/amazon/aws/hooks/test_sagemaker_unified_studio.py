@@ -21,11 +21,11 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from sagemaker_studio.models.execution import ExecutionClient
 
-from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
     SageMakerNotebookHook,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.session import create_session
 
 

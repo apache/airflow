@@ -29,7 +29,7 @@ else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_0_1:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
 pytestmark = pytest.mark.db_test
 

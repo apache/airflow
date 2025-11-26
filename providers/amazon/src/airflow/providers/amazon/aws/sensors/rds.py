@@ -19,11 +19,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -22,10 +22,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import state, timezone
 from airflow.utils.types import DagRunType
 

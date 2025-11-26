@@ -27,7 +27,6 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowException
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -41,6 +40,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.state import TaskInstanceState
 

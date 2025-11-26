@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestElastiCacheReplicationGroupHook:

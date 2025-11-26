@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.sensors.eks import (
     EksFargateProfileStateSensor,
     EksNodegroupStateSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 CLUSTER_NAME = "test_cluster"
 FARGATE_PROFILE_NAME = "test_profile"

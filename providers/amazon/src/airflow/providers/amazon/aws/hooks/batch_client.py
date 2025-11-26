@@ -37,8 +37,8 @@ import botocore.client
 import botocore.exceptions
 import botocore.waiter
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher

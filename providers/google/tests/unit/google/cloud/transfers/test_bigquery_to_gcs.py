@@ -24,7 +24,6 @@ import pytest
 from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.bigquery.table import Table
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
     Dataset,
@@ -37,6 +36,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 

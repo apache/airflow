@@ -30,9 +30,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,

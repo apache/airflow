@@ -26,9 +26,9 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook

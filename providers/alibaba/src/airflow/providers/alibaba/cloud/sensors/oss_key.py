@@ -24,9 +24,9 @@ from urllib.parse import urlsplit
 
 from deprecated.classic import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

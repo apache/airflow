@@ -21,8 +21,8 @@ import datetime
 
 import pytest
 
-from airflow.exceptions import AirflowFailException, AirflowSensorTimeout
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowFailException, AirflowSensorTimeout
 from airflow.providers.standard.sensors.bash import BashSensor
 
 

@@ -21,10 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestEmrContainerSensor:

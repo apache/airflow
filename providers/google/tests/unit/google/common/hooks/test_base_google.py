@@ -34,7 +34,7 @@ from google.auth.exceptions import GoogleAuthError, RefreshError
 from google.cloud.exceptions import Forbidden
 
 from airflow import version
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import _DEFAULT_SCOPES
 from airflow.providers.google.common.hooks import base_google as hook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, is_refresh_credentials_exception

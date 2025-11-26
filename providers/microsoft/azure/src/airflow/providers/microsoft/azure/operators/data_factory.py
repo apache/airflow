@@ -23,8 +23,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook, BaseOperator, BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseHook,
+    BaseOperator,
+    BaseOperatorLink,
+    XCom,
+)
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
