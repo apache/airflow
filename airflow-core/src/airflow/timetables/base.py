@@ -16,56 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
-from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
+from airflow.sdk.definitions.timetables.base import NullAsset  # TODO: Separate asset definitions.
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
-    from airflow.serialization.dag_dependency import DagDependency
+    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.utils.types import DagRunType
-
-
-class NullAsset(BaseAsset):
-    """
-    Sentinel type that represents "no assets".
-
-    This is only implemented to make typing easier in timetables, and not
-    expected to be used anywhere else.
-
-    :meta private:
-    """
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __or__(self, other: BaseAsset) -> BaseAsset:
-        return NotImplemented
-
-    def __and__(self, other: BaseAsset) -> BaseAsset:
-        return NotImplemented
-
-    def as_expression(self) -> Any:
-        return None
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return False
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        return iter(())
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        return iter(())
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        return iter(())
-
-    def iter_dag_dependencies(self, source, target) -> Iterator[DagDependency]:
-        return iter(())
 
 
 class DataInterval(NamedTuple):
