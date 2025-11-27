@@ -51,6 +51,7 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#58780)``
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Upgrade Edge TS dependencies (#58413)``
