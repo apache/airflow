@@ -22,90 +22,102 @@ import { FiGitCommit } from "react-icons/fi";
 
 import { Tooltip } from "src/components/ui";
 
-export const BundleVersionIndicator = ({ bundleVersion }: { readonly bundleVersion: string | null }) => {
+type BundleVersionIndicatorProps = {
+  readonly bundleVersion: string | null;
+};
+
+export const BundleVersionIndicator = ({ bundleVersion }: BundleVersionIndicatorProps) => {
   const { t: translate } = useTranslation("components");
 
   return (
     <Tooltip content={`${translate("versionDetails.bundleVersion")}: ${bundleVersion}`}>
-      <Box color="orange.fg" left={-2} position="absolute" top={93} zIndex={1}>
-        <FiGitCommit size="15px" />
+      <Box color="orange.focusRing" left={-2} position="absolute" top={93} zIndex={1}>
+        <FiGitCommit size={15} />
       </Box>
     </Tooltip>
   );
 };
 
+type DagVersionIndicatorProps = {
+  readonly dagVersionNumber: number | null;
+  readonly orientation?: "horizontal" | "vertical";
+};
+
 export const DagVersionIndicator = ({
   dagVersionNumber,
   orientation = "vertical",
-}: {
-  readonly dagVersionNumber: number | null;
-  readonly orientation?: "horizontal" | "vertical";
-}) => {
+}: DagVersionIndicatorProps) => {
   const isVertical = orientation === "vertical";
+
+  const containerStyles = {
+    horizontal: {
+      height: 0.5,
+      left: "50%",
+      top: 0,
+      transform: "translate(-50%, -50%)",
+      width: 4.5,
+    },
+    vertical: {
+      height: 104,
+      left: -1.25,
+      top: -1.5,
+      width: 0.5,
+    },
+  } as const;
+
+  const circleStyles = {
+    horizontal: {
+      height: 1.5,
+      left: "50%",
+      top: "50%",
+      transform: "translate(-50%, -50%)",
+      width: 1.5,
+    },
+    vertical: {
+      height: 1.5,
+      left: "50%",
+      top: -1,
+      transform: "translateX(-50%)",
+      width: 1.5,
+    },
+  } as const;
+
+  const currentContainerStyle = containerStyles[orientation];
+  const currentCircleStyle = circleStyles[orientation];
 
   return (
     <Box
       aria-label={`Version ${dagVersionNumber} indicator`}
       as="output"
-      height={isVertical ? 104 : 0.5}
-      left={isVertical ? -1.25 : 0}
       position="absolute"
-      top={isVertical ? -1.5 : -0.5}
-      width={isVertical ? 0.5 : 4.5}
       zIndex={1}
+      {...currentContainerStyle}
     >
-      {isVertical ? (
-        <>
-          <Box bg="orange.focusRing" height="full" position="absolute" width={0.5} />
+      <Box
+        bg="orange.focusRing"
+        height={isVertical ? "full" : 0.5}
+        position="absolute"
+        width={isVertical ? 0.5 : "full"}
+      />
 
-          <Tooltip
-            content={`v${dagVersionNumber ?? ""}`}
-            positioning={{
-              placement: "top",
-            }}
-          >
-            <Box
-              _hover={{
-                bg: "orange.emphasis",
-                cursor: "pointer",
-              }}
-              bg="orange.focusRing"
-              borderRadius="full"
-              height={2}
-              left="50%"
-              position="absolute"
-              top={-2}
-              transform="translateX(-50%)"
-              transition="all 0.2s"
-              width={2}
-            />
-          </Tooltip>
-        </>
-      ) : (
-        <Tooltip
-          content={`v${dagVersionNumber ?? ""}`}
-          positioning={{
-            placement: "right",
+      <Tooltip
+        content={`v${dagVersionNumber ?? ""}`}
+        positioning={{
+          placement: isVertical ? "top" : "right",
+        }}
+      >
+        <Box
+          _hover={{
+            cursor: "pointer",
+            transform: `${currentCircleStyle.transform} scale(1.2)`,
           }}
-        >
-          <Box
-            _hover={{
-              cursor: "pointer",
-            }}
-            alignItems="center"
-            color="orange.fg"
-            display="flex"
-            justifyContent="center"
-            left="50%"
-            position="absolute"
-            top={-1.5}
-            transform="translateX(-50%)"
-            transition="all 0.2s"
-          >
-            <FiGitCommit size="15px" />
-          </Box>
-        </Tooltip>
-      )}
+          bg="orange.focusRing"
+          borderRadius="full"
+          position="absolute"
+          transition="all 0.2s ease-in-out"
+          {...currentCircleStyle}
+        />
+      </Tooltip>
     </Box>
   );
 };
