@@ -124,7 +124,7 @@ def init_metadata_indexes() -> list[tuple[str, bool, str | None]]:
     """
     engine = get_engine()
     results: list[tuple[str, bool, str | None]] = []
-    specs = conf.getlist("database", "metadata_indexes", fallback=[], delimiter="|")
+    specs = conf.getlist("database", "metadata_indexes", fallback=None, delimiter="|")
 
     if not specs:
         return results
