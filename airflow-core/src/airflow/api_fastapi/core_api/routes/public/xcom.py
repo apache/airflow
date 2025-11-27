@@ -80,7 +80,6 @@ def get_xcom_entry(
     stringify: Annotated[bool, Query()] = False,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
-    # FastAPI decodes path params, use the value directly.
     xcom_query = XComModel.get_many(
         run_id=dag_run_id,
         key=xcom_key,
@@ -315,7 +314,6 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
-    # FastAPI decodes path params, use the value directly.
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
