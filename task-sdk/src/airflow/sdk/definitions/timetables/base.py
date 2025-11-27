@@ -86,7 +86,18 @@ class BaseTimetable:
     This is called during DAG initialization, and the return value is used as
     the DAG's default ``max_active_runs`` if not set on the DAG explicitly. This
     should generally return *None* (no limit), but some timetables may limit
-    parallelism, such as :class:`~airflow.timetable.simple.ContinuousTimetable`.
+    parallelism, such as ``ContinuousTimetable``.
     """
 
     assets: BaseAsset = NullAsset()
+
+    def validate(self) -> None:
+        """
+        Validate the timetable is correctly specified.
+
+        Override this method to provide run-time validation raised when a DAG
+        is put into a dagbag. The default implementation does nothing.
+
+        :raises: :class:`~airflow.sdk.exceptions.AirflowTimetableInvalid` on validation failure.
+        """
+        return
