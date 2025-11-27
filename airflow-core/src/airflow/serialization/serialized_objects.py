@@ -3382,7 +3382,9 @@ class SerializedDAG(BaseSerialization):
 
         # Get the serialized_dag ID for this DAG
         serialized_dag_id = session.scalar(
-            select(SerializedDagModel.id).where(SerializedDagModel.dag_id == self.dag_id).limit(1)
+            select(SerializedDagModel.id).where(
+                SerializedDagModel.dag_version_id == orm_dagrun.created_dag_version_id
+            )
         )
 
         if not serialized_dag_id:
