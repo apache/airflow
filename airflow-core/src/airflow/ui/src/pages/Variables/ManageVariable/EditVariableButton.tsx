@@ -36,6 +36,14 @@ type Props = {
 const EditVariableButton = ({ disabled, variable }: Props) => {
   const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
+  const formatValue = (value: string): string => {
+    try {
+      const parsed = JSON.parse(value);
+      return JSON.stringify(parsed, null, 2);
+    } catch {
+      return value;
+    }
+  };
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
     key: variable.key,
