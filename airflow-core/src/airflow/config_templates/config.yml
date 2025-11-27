@@ -2324,6 +2324,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    max_trigger_to_select_per_loop:
+      description: |
+        Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
+        to keep load balanced across triggerers in HA deployments.
+        Benchmarks show that two triggerers can still claim about 1,000 triggers within one second by default.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "10"
 kerberos:
   description: ~
   options:
