@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow._shared.observability.metrics.protocols import Timer
+from airflow.sdk._shared.observability.metrics.protocols import Timer
 
 if TYPE_CHECKING:
-    from airflow._shared.observability.metrics.protocols import DeltaType
+    from airflow.sdk._shared.observability.metrics.protocols import DeltaType
 
 
 class StatsLogger(Protocol):
