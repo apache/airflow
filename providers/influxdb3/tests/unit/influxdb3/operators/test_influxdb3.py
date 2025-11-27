@@ -38,12 +38,16 @@ class TestInfluxDB3Operator:
     @mock.patch("airflow.providers.influxdb3.operators.influxdb3.InfluxDB3Hook")
     def test_execute(self, mock_hook_class):
         """Test operator execution."""
+        import pandas as pd
+
         mock_hook = mock.Mock()
-        mock_hook.query.return_value = []
+        mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+        mock_hook.query.return_value = mock_df
         mock_hook_class.return_value = mock_hook
 
         result = self.operator.execute(context={})
 
         mock_hook_class.assert_called_once_with(conn_id="influxdb3_default")
         mock_hook.query.assert_called_once_with('SELECT "duration" FROM "pyexample"')
-        assert result == []
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
