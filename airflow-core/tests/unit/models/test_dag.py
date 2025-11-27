@@ -52,6 +52,7 @@ from airflow.models.dag import (
     DagTag,
     get_asset_triggered_next_run_info,
     get_next_data_interval,
+    get_run_data_interval,
 )
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -3378,3 +3379,36 @@ def test_disable_bundle_versioning(disable, bundle_version, expected, dag_maker,
 
     # but it only gets stamped on the dag run when bundle versioning not disabled
     assert dr.bundle_version == expected
+
+
+def test_get_run_data_interval():
+    with DAG("dag", schedule=None, start_date=DEFAULT_DATE) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    dr = _create_dagrun(
+        dag,
+        logical_date=timezone.utcnow(),
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        run_type=DagRunType.MANUAL,
+    )
+    assert get_run_data_interval(dag.timetable, dr) == DataInterval(start=DEFAULT_DATE, end=DEFAULT_DATE)
+
+
+def test_get_run_data_interval_pre_aip_39():
+    with DAG(
+        "dag",
+        schedule="0 0 * * *",
+        start_date=DEFAULT_DATE,
+    ) as dag:
+        EmptyOperator(task_id="empty_task")
+
+    current_ts = timezone.utcnow()
+    dr = _create_dagrun(
+        dag,
+        logical_date=current_ts,
+        data_interval=(None, None),
+        run_type=DagRunType.MANUAL,
+    )
+    ds_start = current_ts.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
+    ds_end = current_ts.replace(hour=0, minute=0, second=0, microsecond=0)
+    assert get_run_data_interval(dag.timetable, dr) == DataInterval(start=ds_start, end=ds_end)
