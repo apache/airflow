@@ -28,7 +28,6 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -64,11 +63,12 @@ except ImportError:
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-if __version__.startswith("2."):
-    LOGICAL_DATE_KEY = "execution_date"
-else:
+if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
+else:
+    LOGICAL_DATE_KEY = "execution_date"
 
 
 class TestAirflowKubernetesScheduler:
@@ -1438,6 +1438,11 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
+    def test_sentry_integration(self):
+        assert not KubernetesExecutor.sentry_integration
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow < 3.2")
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 

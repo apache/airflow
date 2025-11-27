@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Connection types <connections/openfaas>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/openfaas/index>

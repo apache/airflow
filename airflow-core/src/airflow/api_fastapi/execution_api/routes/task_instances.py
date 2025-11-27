@@ -31,6 +31,7 @@ from cadwyn import VersionedAPIRouter
 from fastapi import Body, HTTPException, Query, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
+from sqlalchemy.engine import CursorResult, Row
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import select
@@ -292,7 +293,7 @@ def ti_run(
 def _get_upstream_map_indexes(
     *,
     serialized_dag: SerializedDAG,
-    ti: TI,
+    ti: TI | Row,
     session: SessionDep,
 ) -> Iterator[tuple[str, int | list[int] | None]]:
     task = serialized_dag.get_task(ti.task_id)
@@ -758,6 +759,7 @@ def ti_patch_rendered_map_index(
     query = update(TI).where(TI.id == ti_id_str).values(rendered_map_index=rendered_map_index)
     result = session.execute(query)
 
+    result = cast("CursorResult[Any]", result)
     if result.rowcount == 0:
         log.error("Task Instance not found")
         raise HTTPException(

@@ -957,15 +957,28 @@ class ActivitySubprocess(WatchedSubprocess):
         client: Client,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
         proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
-        proc._on_child_started(ti=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info)
+        proc._on_child_started(
+            ti=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
         return proc
 
-    def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
@@ -987,6 +1000,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             ti_context=ti_context,
             start_date=start_date,
+            sentry_integration=sentry_integration,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -1075,6 +1089,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     self._process_exit_monotonic
                     and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
                 ):
+                    log.warning(
+                        "Process exited with open sockets; cleaning up after timeout",
+                        pid=self.pid,
+                        exit_code=self._exit_code,
+                        socket_types=list(self._open_sockets.values()),
+                        timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
+                    )
                     self._cleanup_open_sockets()
 
             if alive:
@@ -1936,6 +1957,7 @@ def supervise(
     log_path: str | None = None,
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
+    sentry_integration: str = "",
 ) -> int:
     """
     Run a single task execution to completion.
@@ -1949,6 +1971,8 @@ def supervise(
     :param log_path: Path to write logs, if required.
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :param sentry_integration: If the executor has a Sentry integration, import
+        path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
@@ -2022,6 +2046,7 @@ def supervise(
             logger=logger,
             bundle_info=bundle_info,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            sentry_integration=sentry_integration,
         )
 
         exit_code = process.wait()

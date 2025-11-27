@@ -1326,6 +1326,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 id="test map_index filter",
             ),
             pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_pattern": "TEST_DAG_"},
+                1,  # apart from the TIs in the fixture, we also get one from
+                # the create_task_instances method
+                3,
+                id="test run_id_pattern filter",
+            ),
+            pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
@@ -2704,6 +2716,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 },
                 4,
                 id="clear mapped tasks with and without map index",
+            ),
+            pytest.param(
+                "example_task_group_mapping",
+                [
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_group_mapping",
+                {
+                    "task_ids": [["op.mul_2", 0]],
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_upstream": True,
+                },
+                2,
+                id="clear tasks in mapped task group",
             ),
         ],
     )
