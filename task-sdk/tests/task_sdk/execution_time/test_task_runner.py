@@ -2663,9 +2663,15 @@ class TestEmailNotifications:
                 )
                 assert kwargs["from_email"] == self.FROM
 
+    @pytest.mark.enable_redact
     def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
         """Test that secrets registered with mask_secret() are redacted in rendered template fields."""
+        from unittest.mock import call
+
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
         from airflow.sdk.log import mask_secret
+
+        _secrets_masker().add_mask("admin_user_12345", None)
 
         class CustomOperator(BaseOperator):
             template_fields = ("username", "region")
@@ -2689,15 +2695,6 @@ class TestEmailNotifications:
         run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
         assert (
-            call(
-                msg=SetRenderedFields(
-                    rendered_fields={"username": "admin_user_12345", "region": "us-west-2"},
-                    type="SetRenderedFields",
-                )
-            )
-            in mock_supervisor_comms.send.mock_calls
-        )
-        assert (
             call(MaskSecret(value="admin_user_12345", name=None, type="MaskSecret"))
             in mock_supervisor_comms.send.mock_calls
         )
@@ -2705,6 +2702,16 @@ class TestEmailNotifications:
         assert (
             call(MaskSecret(value="us-west-2", name=None, type="MaskSecret"))
             not in mock_supervisor_comms.send.mock_calls
+        )
+
+        assert (
+            call(
+                msg=SetRenderedFields(
+                    rendered_fields={"username": "***", "region": "us-west-2"},
+                    type="SetRenderedFields",
+                )
+            )
+            in mock_supervisor_comms.send.mock_calls
         )
 
 
