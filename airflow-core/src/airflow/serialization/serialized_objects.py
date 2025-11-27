@@ -2435,7 +2435,7 @@ class SerializedDAG(BaseSerialization):
         except SerializationError:
             raise
         except Exception as e:
-            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}")
+            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}") from e
 
     @classmethod
     def deserialize_dag(

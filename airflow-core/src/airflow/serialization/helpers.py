@@ -105,7 +105,7 @@ def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetab
     plugins_manager.initialize_timetables_plugins()
     if plugins_manager.timetable_classes is not None:
         with contextlib.suppress(KeyError):
-            plugins_manager.timetable_classes[importable_string]
+            return plugins_manager.timetable_classes[importable_string]
     raise TimetableNotRegistered(importable_string)
 
 
