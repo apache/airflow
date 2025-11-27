@@ -55,7 +55,7 @@ class Param:
         self,
         default: Any = NOTSET,
         description: str | None = None,
-        source: Literal["Dag", "task"] | None = None,
+        source: Literal["dag", "task"] | None = None,
         **kwargs,
     ):
         if default is not NOTSET:
@@ -277,7 +277,7 @@ class ParamsDict(MutableMapping[str, Any]):
 
     def _fill_missing_param_source(
         self,
-        source: Literal["Dag", "task"] | None = None,
+        source: Literal["dag", "task"] | None = None,
     ) -> None:
         for key in self.__dict:
             if self.__dict[key].source is None:

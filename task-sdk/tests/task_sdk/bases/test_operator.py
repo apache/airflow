@@ -810,7 +810,7 @@ class TestBaseOperator:
             )
 
         for key, expected_source in (
-            ("param from Dag", "Dag"),
+            ("param from Dag", "dag"),
             ("overwritten by task", "task"),
             ("param from task", "task"),
         ):

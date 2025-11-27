@@ -138,7 +138,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
-    dag_params._fill_missing_param_source("Dag")
+    dag_params._fill_missing_param_source("dag")
     if task_group:
         if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
             raise TypeError("default_args must be a mapping")

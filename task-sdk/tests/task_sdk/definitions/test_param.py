@@ -312,8 +312,8 @@ class TestParamsDict:
         pd = ParamsDict({"key": Param("value", type="string")})
         assert repr(pd) == "{'key': 'value'}"
 
-    @pytest.mark.parametrize("source", ("Dag", "task"))
-    def test_fill_missing_param_source(self, source: Literal["Dag", "task"]):
+    @pytest.mark.parametrize("source", ("dag", "task"))
+    def test_fill_missing_param_source(self, source: Literal["dag", "task"]):
         pd = ParamsDict(
             {
                 "key": Param("value", type="string"),
@@ -327,7 +327,7 @@ class TestParamsDict:
     def test_fill_missing_param_source_not_overwrite_existing(self):
         pd = ParamsDict(
             {
-                "key": Param("value", type="string", source="Dag"),
+                "key": Param("value", type="string", source="dag"),
                 "key2": "value2",
                 "key3": "value3",
             }
@@ -343,7 +343,7 @@ class TestParamsDict:
     def test_filter_params_by_source(self):
         pd = ParamsDict(
             {
-                "key": Param("value", type="string", source="Dag"),
+                "key": Param("value", type="string", source="dag"),
                 "key2": Param("value", source="task"),
             }
         )

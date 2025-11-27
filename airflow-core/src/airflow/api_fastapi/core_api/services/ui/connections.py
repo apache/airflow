@@ -68,7 +68,7 @@ class HookMetaService:
             description: str = "",
             default: str | None = None,
             widget=None,
-            source: Literal["Dag", "task"] | None = None,
+            source: Literal["dag", "task"] | None = None,
         ):
             type: str | list[str] = [self.param_type, "null"]
             enum = {}

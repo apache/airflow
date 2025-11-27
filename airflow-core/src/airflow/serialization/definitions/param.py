@@ -35,7 +35,7 @@ class SerializedParam:
         self,
         default: Any = NOTSET,
         description: str | None = None,
-        source: Literal["Dag", "task"] | None = None,
+        source: Literal["dag", "task"] | None = None,
         **schema,
     ):
         # No validation needed - the SDK already validated the default.
