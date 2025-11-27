@@ -26,6 +26,7 @@ The OpenFaaS connection type provides connection to an OpenFaaS gateway.
 
 Configuring the Connection
 --------------------------
+
 Host (required)
     The OpenFaaS gateway URL (e.g., ``http://gateway.openfaas:8080``).
 
