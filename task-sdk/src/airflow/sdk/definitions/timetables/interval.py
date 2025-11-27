@@ -38,6 +38,8 @@ class CronDataIntervalTimetable(CronMixin, BaseTimetable):
     because croniter works only with naive timestamps, and cannot consider DST
     when determining the next/previous time.
 
+    Using this class is equivalent to supplying a cron expression dire
+
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 

@@ -51,7 +51,14 @@ def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
 
 @attrs.define(kw_only=True)
 class AssetOrTimeSchedule(AssetTriggeredTimetable):
-    """Combine time-based scheduling with event-based scheduling."""
+    """
+    Combine time-based scheduling with event-based scheduling.
+
+    :param assets: An asset of list of assets, in the same format as
+        ``DAG(schedule=...)`` when using event-driven scheduling. This is used
+        to evaluate event-based scheduling.
+    :param timetable: A timetable instance to evaluate time-based scheduling.
+    """
 
     assets: BaseAsset = attrs.field(converter=_coerce_assets)
     timetable: BaseTimetable
