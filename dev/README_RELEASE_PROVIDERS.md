@@ -661,10 +661,10 @@ Set expected release tag (the same as announced in the vote email):
 export RELEASE_DATE=2025-11-03
 ````
 
-Go to the directory where you have airflow checked out and set AIRFLOW_ROOT_PATH variable
+Go to the directory where you have airflow checked out and set AIRFLOW_REPO_ROOT variable
 
 ```shell
-export AIRFLOW_ROOT_PATH=$(pwd -P)
+export AIRFLOW_REPO_ROOT=$(pwd -P)
 ```
 
 ### SVN check
