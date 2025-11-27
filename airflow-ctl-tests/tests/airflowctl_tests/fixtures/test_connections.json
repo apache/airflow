@@ -5,7 +5,7 @@
     "login": "testuser",
     "password": "testpass",
     "port": 5432,
-    "extra": {},
+    "extra": "{}",
     "description": "Test connection for import"
   }
 }
