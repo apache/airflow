@@ -20,5 +20,9 @@
 from __future__ import annotations
 
 
+class AirflowConfigException(Exception):
+    """Raise when there is a configuration problem."""
+
+
 class InvalidStatsNameException(Exception):
     """Raise when name of the stats is invalid."""

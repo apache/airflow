@@ -22,7 +22,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
-from airflow._shared.configuration.exceptions import AirflowConfigException
+from airflow._shared.observability.exceptions import AirflowConfigException
 from airflow._shared.observability.metrics.protocols import Timer
 from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,

@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import logging
 import os
 import random
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING
 
+import pendulum
 from opentelemetry import trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -39,7 +41,6 @@ from airflow._shared.observability.traces.utils import (
     parse_traceparent,
     parse_tracestate,
 )
-from airflow._shared.timezones import timezone
 
 if TYPE_CHECKING:
     from opentelemetry.context.context import Context
@@ -259,7 +260,7 @@ class OtelTrace:
         tracer = self.get_tracer(component=component)
 
         if start_time is None:
-            start_time = timezone.utcnow()
+            start_time = datetime.datetime.now(tz=pendulum.UTC)
 
         if links is None:
             links = []
