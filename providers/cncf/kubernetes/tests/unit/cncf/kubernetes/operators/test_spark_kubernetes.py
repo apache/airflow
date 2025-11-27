@@ -23,7 +23,7 @@ import json
 from datetime import date
 from functools import cached_property
 from unittest import mock
-from unittest.mock import mock_open, patch
+from unittest.mock import MagicMock, mock_open, patch
 from uuid import uuid4
 
 import pendulum
@@ -979,6 +979,101 @@ class TestSparkKubernetesOperator:
             op.execute(context)
 
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
+
+    def test_trigger_reentry_deferrable_mode_launcher_missing(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """Test that trigger_reentry recreates launcher when missing in deferrable mode."""
+        task_name = "test_trigger_reentry_deferrable"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            deferrable=True,
+        )
+
+        # Simulate deferrable mode where launcher is not available
+        assert not hasattr(op, "launcher")
+
+        # Mock the CustomObjectLauncher creation
+        with patch(
+            "airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher"
+        ) as mock_launcher_class:
+            mock_launcher = MagicMock()
+            mock_launcher_class.return_value = mock_launcher
+
+            # Mock the parent's trigger_reentry method
+            with patch(
+                "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry"
+            ) as mock_parent_trigger_reentry:
+                mock_parent_trigger_reentry.return_value = "success"
+
+                # Create a mock event
+                event = {"name": "test-pod", "namespace": "default", "status": "success"}
+                context = {"ti": MagicMock()}
+
+                # This should recreate the launcher and call parent's trigger_reentry
+                op.trigger_reentry(context, event)
+
+                # Verify launcher was created
+                mock_launcher_class.assert_called_once()
+                # Verify parent's trigger_reentry was called
+                mock_parent_trigger_reentry.assert_called_once_with(context, event)
+                # Verify launcher is now available
+                assert hasattr(op, "launcher")
+                assert op.launcher == mock_launcher
+
+    def test_original_bug_reproduction_process_pod_deletion(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        """Test that reproduces the original AttributeError bug in process_pod_deletion."""
+        task_name = "test_original_bug"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            deferrable=True,
+        )
+
+        # Simulate deferrable mode where launcher is not available
+        assert not hasattr(op, "launcher")
+
+        # Create a mock pod
+        mock_pod = MagicMock()
+        mock_pod.metadata.name = "test-pod-driver"
+
+        # This should fail with AttributeError because launcher is not available
+        with pytest.raises(AttributeError) as exc_info:
+            op.process_pod_deletion(mock_pod)
+
+        # Verify the exact error message
+        assert "'SparkKubernetesOperator' object has no attribute 'launcher'" in str(exc_info.value)
 
 
 @pytest.mark.db_test
