@@ -129,9 +129,9 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 class JWTReissueMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        response: Response = await call_next(request)
-
         from airflow.configuration import conf
+
+        response: Response = await call_next(request)
 
         refreshed_token: str | None = None
         auth_header = request.headers.get("authorization")
@@ -239,6 +239,8 @@ def create_task_execution_api_app() -> FastAPI:
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
+
+    # Middleware for refresh token flow
     app.add_middleware(JWTReissueMiddleware)
 
     app.generate_and_include_versioned_routers(execution_api_router)
