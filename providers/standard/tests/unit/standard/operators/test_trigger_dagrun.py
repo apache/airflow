@@ -282,6 +282,20 @@ class TestDagRunOperator:
 
         assert operator.trigger_run_id == "run_id_1"
 
+    def test_trigger_dag_run_execute_complete_fails_with_dict_as_input_type(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+
+        with pytest.raises(ValueError, match="too many values to unpack"):
+            operator.execute_complete(
+                {}, {"dag_id": "dag_id", "run_ids": ["run_id_1"], "poll_interval": 15, "run_id_1": "success"}
+            )
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
         with pytest.raises(

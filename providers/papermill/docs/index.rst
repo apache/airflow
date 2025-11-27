@@ -77,7 +77,7 @@ apache-airflow-providers-papermill package
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.11.4
+Release: 3.12.0
 
 Provider package
 ----------------
@@ -95,12 +95,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
 ==========================================  =====================================
 PIP package                                 Version required
 ==========================================  =====================================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``papermill[all]``                          ``>=2.6.0``
 ``scrapbook[all]``                          ``>=0.5.0``
@@ -135,5 +135,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-papermill 3.11.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-papermill 3.11.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.11.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-papermill 3.12.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-papermill 3.12.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_papermill-3.12.0-py3-none-any.whl.sha512>`__)

@@ -15,15 +15,27 @@
     specific language governing permissions and limitations
     under the License.
 
-Contributor's Quick Start — Seasoned Developers
-=============================================
 
-.. admonition:: New to Airflow?
-   :class: note
 
-   If you want the **five-minute beginner path**, read
-   :doc:`03a_contributors_quick_start_beginners` instead.
-   The document below is intended for contributors who need a full
-   development environment, test suite, and advanced tooling.
+.. _howto/connection:openfaas:
 
-.. include:: 03_contributors_quick_start.rst
+OpenFaaS Connection
+===================
+
+The OpenFaaS connection type provides connection to an OpenFaaS gateway.
+
+Configuring the Connection
+--------------------------
+
+Host (required)
+    The OpenFaaS gateway URL (e.g., ``http://gateway.openfaas:8080``).
+
+Login (optional)
+    Username for basic authentication if your OpenFaaS gateway requires authentication.
+
+Password (optional)
+    Password for basic authentication if your OpenFaaS gateway requires authentication.
+
+Extra (optional)
+    Specify the extra parameters (as JSON dictionary) that can be used in the OpenFaaS
+    connection.

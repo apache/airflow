@@ -102,10 +102,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return [{"username": username, "role": role} for username, role in users]
 
     @staticmethod
-    def get_passwords(users: list[dict[str, str]]) -> dict[str, str]:
+    def get_passwords() -> dict[str, str]:
         password_file = SimpleAuthManager.get_generated_password_file()
         with open(password_file, "r+") as file:
-            return SimpleAuthManager._get_passwords(users=users, stream=file)[0]
+            return SimpleAuthManager._get_passwords(file)
 
     def init(self) -> None:
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
@@ -121,7 +121,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                     # Fastapi spins up N workers, so this method is called N times in N different processes
                     # This needs to be called only once so we use the file ``password_file`` as locking mechanism
                     fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    passwords, changed = self._get_passwords(users=users, stream=file)
+                    passwords = self._get_passwords(stream=file)
+                    changed = False
                     for user in users:
                         if user["username"] not in passwords:
                             # User does not exist in the file, adding it
@@ -359,7 +360,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return role.order >= allow_role.order
 
     @staticmethod
-    def _get_passwords(users: list[dict[str, str]], stream: TextIO) -> tuple[dict[str, str], bool]:
+    def _get_passwords(stream: TextIO) -> dict[str, str]:
         try:
             # Read passwords from file
             stream.seek(0)
@@ -369,15 +370,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             log.error("Error decoding JSON from file %s", stream.name)
             raise
 
-        usernames = {user["username"] for user in users}
-        changed = bool(user_passwords_from_file.keys() - usernames)
-        user_passwords_from_file = {
-            username: password
-            for username, password in user_passwords_from_file.items()
-            if username in usernames
-        }
-
-        return user_passwords_from_file, changed
+        return user_passwords_from_file
 
     @staticmethod
     def _generate_password() -> str:
