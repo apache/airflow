@@ -77,9 +77,6 @@ dependencies = [
     "packaging>=24.0",
     "typing-extensions>=4.14.1",
     # End of shared configuration dependencies
-    # Start of shared observability dependencies
-    "sqlalchemy>=1.4.36",
-    # End of shared observability dependencies
 ]
 
 [project.optional-dependencies]
