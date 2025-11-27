@@ -37,21 +37,23 @@ Prerequisites
 * `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
+
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
 * `uv <https://github.com/astral-sh/uv>`__, which is a fast, reliable package manager that you'll use to install other developer tools to make contributing to Airflow easier.
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    curl -LsSf https://astral.sh/uv/install.sh | sh
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+
 * `Prek <https://github.com/j178/prek>`__, which runs Airflow's required code-quality checks (formatting, linting, and bug-spotting) before you commit, helping save contributors and committers time during the pull request process.
 
-.. code-block:: bash
+  .. code-block:: bash
 
-    uv tool install prek
-    prek install -f
-    prek install -f --hook-type pre-push
+      uv tool install prek
+      prek install -f
+      prek install -f --hook-type pre-push
 
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
