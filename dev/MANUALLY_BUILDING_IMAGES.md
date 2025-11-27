@@ -46,7 +46,7 @@ directory. This can make the docker context very large when building images, bec
 is transferred to the docker daemon. In order to avoid this we have .dockerignore where we exclude certain
 paths from being treated as part of the context - similar to .gitignore that keeps them away from git.
 
-If your context gets large you see a long (minutes) preliminary step before dockeer build is run
+If your context gets large you see a long (minutes) preliminary step before docker build is run
 where the context is being transmitted.
 
 You can see all the context files by running:
@@ -86,7 +86,7 @@ However, emulation is very slow - more than 10x slower than hardware-backed buil
 > for instructions on how to install and upgrade the plugin.
 
 If you plan to build a number of images and have two hardware (AMD linux and ARM Mac for example available in
-the same network, you need t set up a hardware builder that will build them in parallel using both hardware
+the same network, you need to set up a hardware builder that will build them in parallel using both hardware
 options. This usually can be done with those two commands - providing that you have HOST:PORT of the
 remote hardware available to securely connect to.
 
