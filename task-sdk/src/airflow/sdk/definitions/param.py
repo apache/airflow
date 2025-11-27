@@ -284,7 +284,7 @@ class ParamsDict(MutableMapping[str, Any]):
                 self.__dict[key].source = source
 
     @staticmethod
-    def filter_params_by_source(params: ParamsDict, source: Literal["Dag", "task"]) -> ParamsDict:
+    def filter_params_by_source(params: ParamsDict, source: Literal["dag", "task"]) -> ParamsDict:
         return ParamsDict(
             {key: param for key, param in params.__dict.items() if param.source == source},
         )

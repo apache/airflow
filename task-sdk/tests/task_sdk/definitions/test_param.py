@@ -347,8 +347,8 @@ class TestParamsDict:
                 "key2": Param("value", source="task"),
             }
         )
-        assert ParamsDict.filter_params_by_source(pd, "Dag") == ParamsDict(
-            {"key": Param("value", type="string", source="Dag")},
+        assert ParamsDict.filter_params_by_source(pd, "dag") == ParamsDict(
+            {"key": Param("value", type="string", source="dag")},
         )
         assert ParamsDict.filter_params_by_source(pd, "task") == ParamsDict(
             {
