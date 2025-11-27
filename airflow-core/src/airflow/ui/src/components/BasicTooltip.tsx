@@ -26,7 +26,6 @@ type Props = {
 };
 
 const offset = 8;
-const zIndex = 1500;
 // Estimated tooltip height for viewport boundary detection
 const estimatedTooltipHeight = 100;
 
@@ -101,7 +100,7 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
           top={showOnTop ? `${rect.top + scrollY - offset}px` : `${rect.bottom + scrollY + offset}px`}
           transform={showOnTop ? "translate(-50%, -100%)" : "translateX(-50%)"}
           whiteSpace="nowrap"
-          zIndex={zIndex}
+          zIndex="popover"
         >
           <Box
             borderLeft="4px solid transparent"
