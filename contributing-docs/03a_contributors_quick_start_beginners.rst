@@ -57,7 +57,7 @@ For Breeze (local development):
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03b_contributors_quick_start_seasoned_developers.html#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
 
 Option A – Breeze on Your Laptop
 --------------------------------
