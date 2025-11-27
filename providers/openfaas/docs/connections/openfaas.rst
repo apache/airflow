@@ -21,6 +21,7 @@
 
 OpenFaaS Connection
 ===================
+
 The OpenFaaS connection type provides connection to an OpenFaaS gateway.
 
 Configuring the Connection
