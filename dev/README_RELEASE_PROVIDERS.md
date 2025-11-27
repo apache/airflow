@@ -384,7 +384,7 @@ mkdir -p ${RELEASE_DATE}
 mv ${AIRFLOW_REPO_ROOT}/dist/* "${RELEASE_DATE}"
 
 # Add and commit
-svn add ${RELEASE_DATA}
+svn add ${RELEASE_DATE}
 svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
