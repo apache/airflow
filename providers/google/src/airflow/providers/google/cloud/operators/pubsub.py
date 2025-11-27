@@ -680,6 +680,9 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         ordering_key in PubsubMessage will be delivered to the subscribers in the order
         in which they are received by the Pub/Sub system. Otherwise, they may be
         delivered in any order. Default is False.
+    :param enable_open_telemetry_tracing: If true, enables OpenTelemetry tracing for
+        published messages. This allows distributed tracing of messages as they flow
+        through Pub/Sub topics. Default is False.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -695,6 +698,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         "topic",
         "messages",
         "enable_message_ordering",
+        "enable_open_telemetry_tracing",
         "impersonation_chain",
     )
     ui_color = "#0273d4"
@@ -707,6 +711,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         enable_message_ordering: bool = False,
+        enable_open_telemetry_tracing: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -716,6 +721,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
         self.enable_message_ordering = enable_message_ordering
+        self.enable_open_telemetry_tracing = enable_open_telemetry_tracing
         self.impersonation_chain = impersonation_chain
 
     @cached_property
@@ -724,6 +730,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
             enable_message_ordering=self.enable_message_ordering,
+            enable_open_telemetry_tracing=self.enable_open_telemetry_tracing,
         )
 
     def execute(self, context: Context) -> None:
