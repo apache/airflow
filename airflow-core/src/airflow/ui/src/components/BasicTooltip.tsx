@@ -89,12 +89,13 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
       <Portal>
         <Box
           bg="bg.inverted"
-          borderRadius="4px"
-          boxShadow="0 2px 8px rgba(0, 0, 0, 0.15)"
+          borderRadius="md"
+          boxShadow="md"
           color="fg.inverted"
-          fontSize="14px"
+          fontSize="sm"
           left={`${rect.left + scrollX + rect.width / 2}px`}
-          padding="8px 12px"
+          paddingX="3"
+          paddingY="2"
           pointerEvents="none"
           position="absolute"
           top={showOnTop ? `${rect.top + scrollY - offset}px` : `${rect.bottom + scrollY + offset}px`}
