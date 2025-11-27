@@ -735,7 +735,10 @@ class TestStringifiedDAGs:
                         f"{dag.dag_id}.default_args[{k}] does not match"
                     )
 
-        assert _serializer.BUILTIN_TIMETABLES[type(dag.timetable)] == qualname(serialized_dag.timetable)
+        if (tt_type := type(dag.timetable)) in _serializer.BUILTIN_TIMETABLES:
+            assert _serializer.BUILTIN_TIMETABLES[tt_type] == qualname(serialized_dag.timetable)
+        else:
+            assert qualname(dag.timetable) == qualname(serialized_dag.timetable)
 
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))

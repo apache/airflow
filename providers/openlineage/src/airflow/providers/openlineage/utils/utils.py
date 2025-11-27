@@ -662,18 +662,30 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: SerializedDAG) -> str | None:
+    def timetable_summary(cls, dag: DAG | SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
         if summary := getattr(dag, "timetable_summary", None):
             return summary
-        if timetable := getattr(dag, "timetable", None):
-            return timetable.summary
+        if (timetable := getattr(dag, "timetable", None)) is None:
+            return None
+        if summary := getattr(timetable, "summary", None):
+            return summary
+        with suppress(ImportError):
+            from airflow.serialization.decoders import decode_timetable
+            from airflow.serialization.encoders import encode_timetable
+
+            return decode_timetable(encode_timetable(timetable)).summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: SerializedDAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: DAG | SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
-        serialized = dag.timetable.serialize() or {}
+        try:
+            serialized = dag.timetable.serialize() or {}  # type: ignore[union-attr]
+        except AttributeError:
+            from airflow.serialization.encoders import encode_timetable
+
+            serialized = encode_timetable(dag.timetable)["__var"]
 
         # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
         # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
@@ -914,7 +926,7 @@ def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
 
 def get_airflow_run_facet(
     dag_run: DagRun,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
