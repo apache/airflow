@@ -55,7 +55,7 @@ class Param:
         self,
         default: Any = NOTSET,
         description: str | None = None,
-        source: Literal["Dag", "task", "Dag run"] | None = None,
+        source: Literal["Dag", "task"] | None = None,
         **kwargs,
     ):
         if default is not NOTSET:

@@ -84,7 +84,7 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
-        if hasattr(self.params, "filter_params_by_source"):
+        if hasattr(ParamsDict, "filter_params_by_source"):
             # Params that exist only in Dag level does not make sense to appear in HITLOperator
             self.params = ParamsDict.filter_params_by_source(self.params, source="task")
 
