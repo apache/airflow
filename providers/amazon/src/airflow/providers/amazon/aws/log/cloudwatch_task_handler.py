@@ -173,11 +173,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, logs = self.stream(relative_path, ti)
-        str_logs: list[str] = []
-
-        for group in logs:
-            for msg in group:
-                str_logs.append(f"{msg}\n")
+        str_logs: list[str] = [f"{msg}\n" for group in logs for msg in group]
 
         return messages, str_logs
 
@@ -188,7 +184,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
         ]
         try:
             gen: RawLogStream = (
-                self._parse_cloudwatch_log_event(event)
+                self._parse_log_event_as_dumped_json(event)
                 for event in self.get_cloudwatch_logs(relative_path, ti)
             )
             logs = [gen]
@@ -221,7 +217,7 @@ class CloudWatchRemoteLogIO(LoggingMixin):  # noqa: D101
             end_time=end_time,
         )
 
-    def _parse_cloudwatch_log_event(self, event: CloudWatchLogEvent) -> str:
+    def _parse_log_event_as_dumped_json(self, event: CloudWatchLogEvent) -> str:
         event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc).isoformat()
         event_msg = event["message"]
         try:
