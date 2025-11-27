@@ -17,8 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.sdk.configuration import conf
 
 # Constants for resources (megabytes are the base unit)
 MB = 1
@@ -41,7 +40,7 @@ class Resource:
 
     def __init__(self, name, units_str, qty):
         if qty < 0:
-            raise AirflowException(
+            raise ValueError(
                 f"Received resource quantity {qty} for resource {name}, "
                 f"but resource quantity must be non-negative."
             )

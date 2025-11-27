@@ -2066,6 +2066,35 @@ class TestDagModel:
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == ["consumer"]
 
+    @pytest.mark.want_activate_assets
+    @pytest.mark.need_serialized_dag
+    def test_dags_needing_dagruns_checking_stale_adrq(self, dag_maker, session):
+        asset = Asset(name="1", uri="s3://bucket/assets/1")
+        dag_id_to_test = "test"
+
+        # Dag 'test' depends on an outlet in 'producer'.
+        with dag_maker(dag_id="producer", schedule=None, session=session):
+            op = EmptyOperator(task_id="op", outlets=asset)
+        dr = dag_maker.create_dagrun()
+        outlet_ti = dr.get_task_instance("op")
+        outlet_ti.refresh_from_task(op)
+        with dag_maker(dag_id=dag_id_to_test, schedule=asset, session=session):
+            pass
+
+        # An adrq should be created when the outlet task is run.
+        outlet_ti.run()
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert [dm.dag_id for dm in query] == [dag_id_to_test]
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == [dag_id_to_test]
+
+        # Now the dag is changed to NOT depend on 'producer'.
+        # Rerunning dags_needing_dagruns should clear up that adrq.
+        with dag_maker(dag_id=dag_id_to_test, schedule=None, session=session):
+            pass
+        query, _ = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == []
+
     def test_max_active_runs_not_none(self, testing_dag_bundle):
         dag = DAG(
             dag_id="test_max_active_runs_not_none",

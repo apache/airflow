@@ -28,28 +28,20 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pandas as pd
 import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    AirflowTaskTerminated,
-    AirflowTaskTimeout,
-    DownstreamTasksSkipped,
-)
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
     BaseOperator,
+    BaseOperatorLink,
     Connection,
     dag as dag_decorator,
     get_current_context,
@@ -69,7 +61,16 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+    AirflowTaskTimeout,
+    DownstreamTasksSkipped,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -163,6 +164,7 @@ def test_parse(test_dags_dir: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -209,6 +211,7 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -268,6 +271,7 @@ def test_parse_not_found(test_dags_dir: Path, make_ti_context, dag_id, task_id, 
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     log = mock.Mock()
@@ -322,6 +326,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     with patch.dict(
@@ -592,6 +597,7 @@ def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comm
         dag_rel_path="",
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
     ti = mocked_parse(what, "basic_templated_dag", task)
 
@@ -707,6 +713,7 @@ def test_startup_and_run_dag_with_rtif(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
     mocked_parse(what, "basic_dag", task)
 
@@ -754,6 +761,7 @@ def test_task_run_with_user_impersonation(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -801,6 +809,7 @@ def test_task_run_with_user_impersonation_default_user(
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -840,6 +849,7 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mocked_parse(what, "basic_dag", task)
@@ -961,6 +971,34 @@ def test_run_basic_failed(
     )
 
 
+@pytest.mark.parametrize("retries", [0, 1])
+def test_airflow_fail_exception_does_not_retry(
+    time_machine, create_runtime_ti, mock_supervisor_comms, retries
+):
+    """Test that AirflowFailException does not cause task to retry."""
+
+    def fail():
+        raise AirflowFailException("hopeless")
+
+    task = PythonOperator(
+        task_id="test_raise_airflow_fail_exception",
+        python_callable=fail,
+        retries=retries,
+    )
+
+    ti = create_runtime_ti(task=task, dag_id=f"test_airflow_fail_exception_no_retry_{retries}")
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TaskInstanceState.FAILED
+    mock_supervisor_comms.send.assert_called_with(
+        msg=TaskState(state=TaskInstanceState.FAILED, end_date=instant)
+    )
+
+
 def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch, test_dags_dir):
     """
     Test that the Dag parsing context is correctly set during the startup process.
@@ -979,6 +1017,7 @@ def test_dag_parsing_context(make_ti_context, mock_supervisor_comms, monkeypatch
         bundle_info=BundleInfo(name="my-bundle", version=None),
         ti_context=make_ti_context(dag_id=dag_id, run_id="c"),
         start_date=timezone.utcnow(),
+        sentry_integration="",
     )
 
     mock_supervisor_comms._get_response.return_value = what
@@ -1815,6 +1854,93 @@ class TestRuntimeTaskInstance:
                 run_id=runtime_ti.run_id,
                 map_index=runtime_ti.map_index,
             )
+
+    def test_task_failed_with_operator_extra_links(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
+    ):
+        """Test that operator extra links are pushed to xcoms even when task fails."""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (AirflowLink(),)
+
+            def execute(self, context):
+                raise ValueError("Task failed intentionally")
+
+        task = DummyTestOperator(task_id="task_with_operator_extra_links")
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        runtime_ti.start_date = instant
+        runtime_ti.end_date = instant
+
+        state, _, error = run(runtime_ti, context=context, log=mock.MagicMock())
+        assert state == TaskInstanceState.FAILED
+        assert error is not None
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.FAILED,
+                context=context,
+                error=error,
+            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
+
+    def test_operator_extra_links_exception_handling(
+        self, create_runtime_ti, mock_supervisor_comms, time_machine
+    ):
+        """Test that exceptions in get_link() don't prevent other links from being pushed."""
+        instant = timezone.datetime(2024, 12, 3, 10, 0)
+        time_machine.move_to(instant, tick=False)
+
+        class FailingLink(BaseOperatorLink):
+            """A link that raises an exception when get_link is called."""
+
+            name = "failing_link"
+
+            def get_link(self, operator, *, ti_key):
+                raise ValueError("Link generation failed")
+
+        class DummyTestOperator(BaseOperator):
+            operator_extra_links = (FailingLink(), AirflowLink())
+
+            def execute(self, context):
+                pass
+
+        task = DummyTestOperator(task_id="task_with_multiple_links")
+        runtime_ti = create_runtime_ti(task=task)
+        context = runtime_ti.get_template_context()
+        runtime_ti.start_date = instant
+        runtime_ti.end_date = instant
+
+        with mock.patch.object(XCom, "_set_xcom_in_db") as mock_xcom_set:
+            finalize(
+                runtime_ti,
+                log=mock.MagicMock(),
+                state=TaskInstanceState.SUCCESS,
+                context=context,
+            )
+            assert mock_xcom_set.mock_calls == [
+                call(
+                    key="_link_AirflowLink",
+                    value="https://airflow.apache.org",
+                    dag_id=runtime_ti.dag_id,
+                    task_id=runtime_ti.task_id,
+                    run_id=runtime_ti.run_id,
+                    map_index=runtime_ti.map_index,
+                )
+            ]
 
     @pytest.mark.parametrize(
         ("cmd", "rendered_cmd"),
@@ -2803,6 +2929,7 @@ class TestTaskRunnerCallsListeners:
             bundle_info=FAKE_BUNDLE,
             ti_context=make_ti_context(),
             start_date=timezone.utcnow(),
+            sentry_integration="",
         )
 
         mock_supervisor_comms._get_response.return_value = what
@@ -3010,7 +3137,7 @@ class TestTaskRunnerCallsCallbacks:
         self.results.append("execute success")
 
     def _execute_skipped(self, context):
-        from airflow.exceptions import AirflowSkipException
+        from airflow.sdk.exceptions import AirflowSkipException
 
         self.results.append("execute skipped")
         raise AirflowSkipException
@@ -3111,13 +3238,12 @@ class TestTaskRunnerCallsCallbacks:
         task = BaseOperator(task_id="test_task")
         runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run", try_number=0)
 
-        with patch("airflow.configuration.conf.get", return_value=base_url):
+        with conf_vars({("api", "base_url"): base_url}):
             log_url = runtime_ti.log_url
             assert log_url == expected_url
 
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
-        from airflow.exceptions import AirflowException
 
         def failure_callback(context):
             ti = context["task_instance"]
@@ -3176,8 +3302,6 @@ class TestTaskRunnerCallsCallbacks:
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
-
-        from airflow.exceptions import AirflowException
 
         success_data = {}
         failure_data = {}
