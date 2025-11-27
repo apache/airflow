@@ -689,4 +689,5 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
+    dest_asset_extra: dict[str, JsonValue]
     extra: dict[str, JsonValue]

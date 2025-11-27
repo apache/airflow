@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown } from "react-icons/md";
+import { MdCalendarToday, MdNumbers, MdTextFields, MdArrowDropDown, MdDateRange } from "react-icons/md";
 
 import type { FilterConfig } from "./types";
 
-export const defaultFilterIcons = {
+export const defaultFilterIcons: Record<FilterConfig["type"], React.ReactNode> = {
   date: <MdCalendarToday />,
+  daterange: <MdDateRange />,
   number: <MdNumbers />,
   select: <MdArrowDropDown />,
   text: <MdTextFields />,
 } as const;
 
-export const getDefaultFilterIcon = (type: FilterConfig["type"]) => defaultFilterIcons[type];
+export const getDefaultFilterIcon = (type: FilterConfig["type"]): React.ReactNode => defaultFilterIcons[type];

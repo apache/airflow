@@ -25,7 +25,6 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "shell",
         "exec",
         "run",
-        "compile-ui-assets",
         "cleanup",
         "generate-migration-file",
         "doctor",
@@ -193,15 +192,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze compile-ui-assets": [
-        {
-            "name": "Compile ui assets flag",
-            "options": [
-                "--dev",
-                "--force-clean",
-            ],
-        }
-    ],
     "breeze start-airflow": [
         {
             "name": "Execution mode",
@@ -210,6 +200,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
+                "--use-mprocs",
                 "--auth-manager",
                 "--load-example-dags",
                 "--load-default-connections",
