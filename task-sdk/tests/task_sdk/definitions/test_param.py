@@ -334,7 +334,7 @@ class TestParamsDict:
         )
         pd._fill_missing_param_source("task")
         for key, expected_source in (
-            ("key", "Dag"),
+            ("key", "dag"),
             ("key2", "task"),
             ("key3", "task"),
         ):
