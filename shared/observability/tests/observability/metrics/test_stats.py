@@ -28,7 +28,8 @@ import pytest
 import statsd
 
 import airflow.observability.stats
-from airflow._shared.observability.exceptions import AirflowConfigException, InvalidStatsNameException
+from airflow._shared.configuration import AirflowConfigException
+from airflow._shared.observability.exceptions import InvalidStatsNameException
 from airflow._shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow._shared.observability.metrics.statsd_logger import SafeStatsdLogger
 from airflow._shared.observability.metrics.validators import (

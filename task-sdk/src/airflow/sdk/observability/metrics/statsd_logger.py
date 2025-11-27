@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
+from airflow.sdk._shared.configuration import AirflowConfigException
 from airflow.sdk._shared.observability.metrics import statsd_logger
 from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.sdk._shared.observability.metrics.statsd_logger import SafeStatsdLogger
+
+log = logging.getLogger(__name__)
 
 
 def get_statsd_logger(cls) -> SafeStatsdLogger:
@@ -40,6 +44,21 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
 
     stat_name_handler = conf.getimport("metrics", "stat_name_handler")
     statsd_influxdb_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
+
+    # no need to check for the scheduler/statsd_on -> this method is only called when it is set
+    # and previously it would crash with None is callable if it was called without it.
+    from statsd import StatsClient
+
+    if stats_class:
+        if not issubclass(stats_class, StatsClient):
+            raise AirflowConfigException(
+                "Your custom StatsD client must extend the statsd.StatsClient in order to ensure "
+                "backwards compatibility."
+            )
+        log.info("Successfully loaded custom StatsD client")
+
+    else:
+        stats_class = StatsClient
 
     return statsd_logger.get_statsd_logger(
         cls,

@@ -22,7 +22,6 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
-from airflow._shared.observability.exceptions import AirflowConfigException
 from airflow._shared.observability.metrics.protocols import Timer
 from airflow._shared.observability.metrics.validators import (
     PatternAllowListValidator,
@@ -160,7 +159,7 @@ class SafeStatsdLogger:
 
 def get_statsd_logger(
     cls,
-    stats_class: Callable[[str], str] | None = None,
+    stats_class: Callable[[str], StatsClient],
     host: str | None = None,
     port: int | None = None,
     prefix: str | None = None,
@@ -173,21 +172,6 @@ def get_statsd_logger(
     statsd_influxdb_enabled: bool = False,
 ) -> SafeStatsdLogger:
     """Return logger for StatsD."""
-    # no need to check for the scheduler/statsd_on -> this method is only called when it is set
-    # and previously it would crash with None is callable if it was called without it.
-    from statsd import StatsClient
-
-    if stats_class:
-        if not issubclass(stats_class, StatsClient):
-            raise AirflowConfigException(
-                "Your custom StatsD client must extend the statsd.StatsClient in order to ensure "
-                "backwards compatibility."
-            )
-        log.info("Successfully loaded custom StatsD client")
-
-    else:
-        stats_class = StatsClient
-
     statsd = stats_class(host, port, prefix, ipv6)
 
     metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
