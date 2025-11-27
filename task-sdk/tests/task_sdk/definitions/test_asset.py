@@ -256,7 +256,7 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
         EmptyOperator(task_id="hello")
 
     # Verify assets are set up correctly
-    assert isinstance(dag.timetable.asset_condition, AssetAny), "Dag assets should be an instance of AssetAny"
+    assert isinstance(dag.timetable.assets, AssetAny), "Dag assets should be an instance of AssetAny"
 
     # Round-trip the Dag through serialization
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
@@ -265,7 +265,7 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
     assert isinstance(deserialized_dag.timetable.asset_condition, AssetAny), (
         "Deserialized assets should maintain type AssetAny"
     )
-    assert deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects, (
+    assert deserialized_dag.timetable.asset_condition.objects == dag.timetable.assets.objects, (
         "Deserialized assets should match original"
     )
 
