@@ -1070,7 +1070,13 @@ class EksPodOperator(KubernetesPodOperator):
             region_name=self.region,
         )
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
@@ -1089,7 +1095,13 @@ class EksPodOperator(KubernetesPodOperator):
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
         session = eks_hook.get_session()
-        credentials = session.get_credentials().get_frozen_credentials()
+        credentials_obj = session.get_credentials()
+        if credentials_obj is None:
+            raise AirflowException(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        credentials = credentials_obj.get_frozen_credentials()
         with eks_hook._secure_credential_context(
             credentials.access_key, credentials.secret_key, credentials.token
         ) as credentials_file:
