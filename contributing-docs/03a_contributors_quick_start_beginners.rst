@@ -37,6 +37,7 @@ Prerequisites
 * `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
+
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
