@@ -101,7 +101,7 @@ PIP package                                 Version required
 ``google-cloud-monitoring``                 ``>=2.18.0``
 ``google-cloud-orchestration-airflow``      ``>=1.10.0``
 ``google-cloud-os-login``                   ``>=2.9.1``
-``google-cloud-pubsub``                     ``>=2.21.3``
+``google-cloud-pubsub``                     ``>=2.24.0``
 ``google-cloud-redis``                      ``>=2.12.0``
 ``google-cloud-secret-manager``             ``>=2.16.0``
 ``google-cloud-spanner``                    ``>=3.50.0``
