@@ -88,6 +88,7 @@ if TYPE_CHECKING:
         AirflowTaskTimeout as AirflowTaskTimeout,
         ParamValidationError as ParamValidationError,
         TaskDeferred as TaskDeferred,
+        XComNotFound as XComNotFound,
     )
     from airflow.sdk.observability.stats import Stats  # noqa: F401
 
@@ -226,13 +227,14 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Note: AirflowException and AirflowNotFoundException are not deprecated, but exposing them
     # here keeps provider imports consistent across Airflow 2 and 3.
     "AirflowException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowNotFoundException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
-    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "XComNotFound": ("airflow.sdk.exceptions", "airflow.exceptions"),
     # ============================================================================
     # Observability
     # ============================================================================
