@@ -70,16 +70,20 @@ class TestInfluxDB3Hook:
 
     def test_query(self):
         """Test query with InfluxDB 3.x."""
+        import pandas as pd
+
         self.influxdb3_hook.get_conn = mock.Mock()
         self.influxdb3_hook.client = mock.Mock()
-        self.influxdb3_hook.client.query = mock.Mock(return_value=[])
+        mock_df = pd.DataFrame({"col1": [1, 2], "col2": [3, 4]})
+        self.influxdb3_hook.client.query = mock.Mock(return_value=mock_df)
 
         influxdb_query = 'SELECT "duration" FROM "pyexample"'
         result = self.influxdb3_hook.query(influxdb_query)
 
         self.influxdb3_hook.get_conn.assert_called()
         self.influxdb3_hook.client.query.assert_called_once_with(influxdb_query)
-        assert result == []
+        assert isinstance(result, pd.DataFrame)
+        assert len(result) == 2
 
     def test_write(self):
         """Test write with InfluxDB 3.x."""
@@ -110,3 +114,13 @@ class TestInfluxDB3Hook:
 
         with pytest.raises(ValueError, match="At least one field is required"):
             self.influxdb3_hook.write(measurement="test", tags={"tag": "value"}, fields=None)
+
+    @mock.patch("airflow.providers.influxdb3.hooks.influxdb3.INFLUXDB_CLIENT_3_AVAILABLE", False)
+    def test_get_client_missing_library(self):
+        """Test that ImportError is raised when influxdb3-python is not installed."""
+        self.influxdb3_hook.get_connection = mock.Mock()
+        self.influxdb3_hook.get_connection.return_value = self.connection
+        self.connection.extra_dejson = self.connection.extra_dejson
+
+        with pytest.raises(ImportError, match="influxdb3-python is required"):
+            self.influxdb3_hook.get_conn()
