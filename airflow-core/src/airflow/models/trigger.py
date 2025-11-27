@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -413,7 +413,7 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     from airflow.utils.state import TaskInstanceState
 
     # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
-    next_kwargs = task_instance.next_kwargs or {}
+    next_kwargs = cast("dict[str, Any]", task_instance.next_kwargs or {})
 
     # Add the event's payload into the kwargs for the task
     next_kwargs["event"] = event.payload
