@@ -28,7 +28,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.module_loading import import_string
 
 try:
-    from airflow.observability.stats import Stats
+    from airflow.sdk.stats import Stats
 except ImportError:
     from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
