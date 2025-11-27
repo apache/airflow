@@ -18,7 +18,7 @@
  */
 import { Box, Portal } from "@chakra-ui/react";
 import type { ReactElement, ReactNode } from "react";
-import { cloneElement, useCallback, useEffect, useRef, useState } from "react";
+import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
   readonly children: ReactElement;
@@ -26,11 +26,10 @@ type Props = {
 };
 
 const offset = 8;
-// Estimated tooltip height for viewport boundary detection
-const estimatedTooltipHeight = 100;
 
 export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const triggerRef = useRef<HTMLElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showOnTop, setShowOnTop] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
@@ -40,13 +39,6 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
-      // Check if tooltip would overflow viewport bottom
-      if (triggerRef.current) {
-        const triggerRect = triggerRef.current.getBoundingClientRect();
-        const wouldOverflow = triggerRect.bottom + offset + estimatedTooltipHeight > globalThis.innerHeight;
-
-        setShowOnTop(wouldOverflow);
-      }
       setIsOpen(true);
     }, 500);
   }, []);
@@ -58,6 +50,17 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
     }
     setIsOpen(false);
   }, []);
+
+  // Calculate position based on actual tooltip height before paint
+  useLayoutEffect(() => {
+    if (isOpen && triggerRef.current && tooltipRef.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const tooltipHeight = tooltipRef.current.clientHeight;
+      const wouldOverflow = triggerRect.bottom + offset + tooltipHeight > globalThis.innerHeight;
+
+      setShowOnTop(wouldOverflow);
+    }
+  }, [isOpen]);
 
   // Cleanup on unmount
   useEffect(
@@ -98,6 +101,7 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
           paddingY="2"
           pointerEvents="none"
           position="absolute"
+          ref={tooltipRef}
           top={showOnTop ? `${rect.top + scrollY - offset}px` : `${rect.bottom + scrollY + offset}px`}
           transform={showOnTop ? "translate(-50%, -100%)" : "translateX(-50%)"}
           whiteSpace="nowrap"
