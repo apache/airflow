@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import typing
 
+from airflow.exceptions import AirflowTimetableInvalid
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset  # TODO: Use serialized classes.
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
@@ -60,6 +61,12 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
             assets=decode_asset_condition(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
         )
+
+    def validate(self) -> None:
+        if isinstance(self.timetable, AssetTriggeredTimetable):
+            raise AirflowTimetableInvalid("cannot nest asset timetables")
+        if not isinstance(self.asset_condition, BaseAsset):
+            raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 
     def serialize(self) -> dict[str, typing.Any]:
         from airflow.serialization.encoders import encode_asset_condition, encode_timetable

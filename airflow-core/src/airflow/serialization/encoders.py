@@ -163,7 +163,7 @@ def _get_serialized_import_path(var: BaseTimetable | CoreTimetable) -> str:
         return importable_string
 
     # Find user-registered classes.
-    find_registered_custom_timetable()  # This raises if not found.
+    find_registered_custom_timetable(importable_string)  # This raises if not found.
     return importable_string
 
 

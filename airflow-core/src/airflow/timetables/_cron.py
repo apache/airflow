@@ -20,9 +20,10 @@ import datetime
 from typing import TYPE_CHECKING
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
-from croniter import CroniterBadCronError, croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 
 from airflow._shared.timezones.timezone import convert_to_utc, make_aware, make_naive, parse_timezone
+from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
 
 if TYPE_CHECKING:
@@ -133,6 +134,12 @@ class CronMixin:
     @property
     def summary(self) -> str:
         return self._expression
+
+    def validate(self) -> None:
+        try:
+            croniter(self._expression)
+        except (CroniterBadCronError, CroniterBadDateError) as e:
+            raise AirflowTimetableInvalid(str(e))
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
