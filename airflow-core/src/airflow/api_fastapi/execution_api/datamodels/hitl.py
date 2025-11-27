@@ -62,7 +62,7 @@ class HITLDetailResponse(BaseModel):
     responded_by_user: HITLUser | None = None
     responded_at: UtcDateTime | None
     # It's empty if the user has not yet responded.
-    chosen_options: Iterable[str] | None
+    chosen_options: dict[str, Any] | None = Field(default=None)
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
