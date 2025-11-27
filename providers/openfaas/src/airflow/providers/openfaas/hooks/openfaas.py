@@ -32,7 +32,7 @@ class OpenFaasHook(BaseHook):
     Interact with OpenFaaS to query, deploy, invoke and update function.
 
     :param function_name: Name of the function, Defaults to None
-    :param conn_id: OpenFaaS connection to use, Defaults to open_faas_default
+    :param conn_id: OpenFaaS connection to use, defaults to ``open_faas_default``
         for example host : http://openfaas.faas.com
     """
 
