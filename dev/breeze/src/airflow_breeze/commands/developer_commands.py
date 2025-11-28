@@ -95,6 +95,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_EXECUTORS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
@@ -126,6 +127,13 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
+from airflow_breeze.utils.kubernetes_utils import (
+    get_kind_cluster_name,
+    get_kubeconfig_file,
+    make_sure_kubernetes_tools_are_installed,
+    run_command_with_k8s_env,
+)
+from airflow_breeze.commands.kubernetes_commands import _create_cluster
 
 CELERY_INTEGRATION = "celery"
 
@@ -507,6 +515,42 @@ option_force_rebuild_cluster = click.option(
     is_flag=True,
     help="Force rebuild of the auto-created KinD cluster for KubernetesExecutor.",
 )
+
+
+
+def initialize_kind_cluster_for_executor(
+    python: str,
+    force_recreate_cluster: bool = False,
+    kubernetes_version: str = DEFAULT_KUBERNETES_VERSION,
+) -> tuple[str, Path]:
+    """
+    Initialize KinD cluster for KubernetesExecutor.
+    Returns the cluster name and kubeconfig path.
+    
+    This reuses the _create_cluster function from kubernetes_commands.py
+    to maintain consistency with breeze k8s commands.
+    """
+    # Make sure kubernetes tools are installed
+    make_sure_kubernetes_tools_are_installed()
+    
+    # Create or reuse the cluster using the existing _create_cluster function
+    returncode, message = _create_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+        num_tries=1,
+        force_recreate_cluster=force_recreate_cluster,
+    )
+    
+    if returncode != 0:
+        get_console().print(f"[error]Failed to initialize KinD cluster: {message}")
+        raise SystemExit(returncode)
+    
+    # Get the cluster name and kubeconfig path
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    kubeconfig_path = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    
+    return cluster_name, kubeconfig_path
 
 
 @main.command(name="start-airflow")
