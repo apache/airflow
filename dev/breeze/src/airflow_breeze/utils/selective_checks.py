@@ -945,6 +945,7 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
+            or self.run_task_sdk_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
