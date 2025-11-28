@@ -16,44 +16,5 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackendFromShared
-
-if TYPE_CHECKING:
-    from airflow.models.connection import Connection
-
-
-class BaseSecretsBackend(BaseSecretsBackendFromShared):
-    """Extends the shared base class by adding methods that work with Connection objects using the Connection class."""
-
-    def deserialize_connection(self, conn_id: str, value: str) -> Connection:
-        """
-        Given a serialized representation of the airflow Connection, return an instance.
-
-        Looks at first character to determine how to deserialize.
-
-        :param conn_id: connection id
-        :param value: the serialized representation of the Connection object
-        :return: the deserialized Connection
-        """
-        from airflow.models.connection import Connection
-
-        value = value.strip()
-        if value[0] == "{":
-            return Connection.from_json(conn_id=conn_id, value=value)
-        return Connection(conn_id=conn_id, uri=value)
-
-    def get_connection(self, conn_id: str) -> Connection | None:
-        """
-        Return connection object with a given ``conn_id``.
-
-        Tries ``get_conn_value`` first and if not implemented, tries ``get_conn_uri``
-
-        :param conn_id: connection id
-        """
-        value = self.get_conn_value(conn_id=conn_id)
-
-        if value:
-            return self.deserialize_connection(conn_id=conn_id, value=value)
-        return None
+# Re export for compat
+from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend

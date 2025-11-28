@@ -20,12 +20,7 @@ from abc import ABC
 
 
 class BaseSecretsBackend(ABC):
-    """
-    Abstract base class to retrieve Connection object given a conn_id or Variable given a key.
-
-    Note: get_connection() and deserialize_connection() are provided
-    by component wrappers (core/SDK) that handle Connection objects.
-    """
+    """Abstract base class to retrieve Connection object given a conn_id or Variable given a key."""
 
     @staticmethod
     def build_path(path_prefix: str, secret_id: str, sep: str = "/") -> str:
@@ -65,4 +60,55 @@ class BaseSecretsBackend(ABC):
         :param key: Config Key
         :return: Config Value
         """
+        return None
+
+    @staticmethod
+    def _get_connection_class():
+        """
+        Detect which Connection class to use based on execution context.
+
+        Returns SDK Connection in worker context, core Connection in server context.
+        """
+        import os
+
+        process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
+        if process_context == "client":
+            # Client context (worker, dag processor, triggerer)
+            from airflow.sdk.definitions.connection import Connection
+
+            return Connection
+
+        # Server context (scheduler, API server, etc.)
+        from airflow.models.connection import Connection
+
+        return Connection
+
+    def deserialize_connection(self, conn_id: str, value: str):
+        """
+        Given a serialized representation of the airflow Connection, return an instance.
+
+        Auto-detects which Connection class to use based on execution context.
+        Uses Connection.from_json() for JSON format, Connection(uri=...) for URI format.
+
+        :param conn_id: connection id
+        :param value: the serialized representation of the Connection object
+        :return: the deserialized Connection
+        """
+        conn_class = self._get_connection_class()
+
+        value = value.strip()
+        if value[0] == "{":
+            return conn_class.from_json(value=value, conn_id=conn_id)
+        return conn_class.from_uri(conn_id=conn_id, uri=value)
+
+    def get_connection(self, conn_id: str):
+        """
+        Return connection object with a given ``conn_id``.
+
+        :param conn_id: connection id
+        :return: Connection object or None
+        """
+        value = self.get_conn_value(conn_id=conn_id)
+        if value:
+            return self.deserialize_connection(conn_id=conn_id, value=value)
         return None
