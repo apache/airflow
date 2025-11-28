@@ -239,6 +239,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--celery-broker",
                 "--celery-flower",
                 "--force-rebuild-cluster",
+                "--skip-image-rebuild",
             ],
         },
         {

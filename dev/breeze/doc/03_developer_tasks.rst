@@ -415,6 +415,24 @@ You can also use it to start different executor.
 
     breeze start-airflow --executor CeleryExecutor
 
+For KubernetesExecutor, Breeze will automatically create and manage a KinD cluster:
+
+.. code-block:: bash
+
+    breeze start-airflow --executor KubernetesExecutor
+
+To force rebuild the KinD cluster (useful when configuration changes):
+
+.. code-block:: bash
+
+    breeze start-airflow --executor KubernetesExecutor --force-rebuild-cluster
+
+To skip rebuilding the worker image on restart (faster when no DAG changes):
+
+.. code-block:: bash
+
+    breeze start-airflow --executor KubernetesExecutor --skip-image-rebuild
+
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
 

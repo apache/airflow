@@ -738,6 +738,26 @@ def setup_kubernetes_executor_environment(
         params = BuildProdParams(python=python, use_uv=True)
         image_name = params.airflow_image_kubernetes
         tag = "latest"
+
+        # Check if the worker image exists before skipping rebuild
+        from airflow_breeze.utils.run_utils import run_command
+
+        result = run_command(
+            ["docker", "images", "-q", f"{image_name}:{tag}"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if not result.stdout.strip():
+            get_console().print(
+                f"[error]Worker image {image_name}:{tag} not found. "
+                f"Cannot use --skip-image-rebuild when image doesn't exist.[/]"
+            )
+            get_console().print(
+                "[info]Please run without --skip-image-rebuild flag to build the image first.[/]"
+            )
+            raise SystemExit(1)
+
         get_console().print("[info]Skipping worker image rebuild, using existing image[/]")
         get_console().print(f"[info]Worker image: {image_name}:{tag}[/]")
     else:

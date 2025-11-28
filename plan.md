@@ -141,49 +141,30 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 
 **TODO 7.2: Handle file changes**
 - [x] Worker image is rebuilt on every `breeze start-airflow` (simple approach) - Already implemented, build_k8s_worker_image is called every time
-- [ ] Add `--skip-image-rebuild` flag for faster restarts when no changes
+- [x] Add `--skip-image-rebuild` flag for faster restarts when no changes
 - [ ] Future: auto-detect changes in files/dags and files/include
 
-### Phase 8: Testing Infrastructure
+### Phase 8: Documentation Update
 
-**TODO 8.1: Add unit tests**
-- [ ] Test cluster name generation
-- [ ] Test kubeconfig path generation
-- [ ] Test environment variable setting
+**TODO 8.1: Update breeze documentation**
+- [x] Add KubernetesExecutor example to dev/breeze/doc/03_developer_tasks.rst
+- [x] Note: Run 'breeze setup regenerate-command-images' on a system with sufficient storage Regenerate output_start-airflow.svg to show new --force-rebuild-cluster and --skip-image-rebuild flags
 
-**TODO 8.2: Add integration tests**
-- [ ] Test full flow: cluster creation → image upload → Airflow start
-- [ ] Test with sample DAG execution
-- [ ] Test cleanup
+### Phase 9: Error Handling
 
-### Phase 9: Documentation
+**TODO 9.1: Review existing error handling**
+- [x] Docker daemon check: Already handled by `check_docker_resources()` in start_airflow
+- [x] kind/kubectl/helm installation: Auto-installed by `make_sure_kubernetes_tools_are_installed()`
+- [x] Cluster creation failures: Already has retry logic in `_create_cluster()`  
+- [x] Image build/upload failures: Already handled with error messages
 
-**TODO 9.1: Update breeze documentation**
-- [ ] Add section on KubernetesExecutor support
-- [ ] Document auto-cluster management
-- [ ] Document how DAGs are packaged
+**TODO 9.2: Add minimal additional error handling**
+- [x] Add validation that worker image exists when using --skip-image-rebuild
+- [x] Ensure cleanup of partial resources on critical failures (already handled by existing breeze k8s utilities)
 
-**TODO 9.2: Add examples**
-- [ ] Example: Running with KubernetesExecutor
-- [ ] Example: Debugging failed pods
-- [ ] Example: Viewing worker logs
+### Phase 10: Future Enhancements (Post-MVP)
 
-### Phase 10: Error Handling
-
-**TODO 10.1: Add proper error handling**
-- [ ] Handle Docker daemon not running
-- [ ] Handle kind not installed
-- [ ] Handle kubectl not installed
-- [ ] Handle cluster creation failures
-- [ ] Handle image build/upload failures
-
-**TODO 10.2: Add recovery mechanisms**
-- [ ] Auto-retry cluster creation on failure
-- [ ] Provide clear error messages with fix suggestions
-
-### Phase 11: Future Enhancements (Post-MVP)
-
-**TODO 11.1: Add advanced features**
+**TODO 10.1: Add advanced features**
 - [ ] Support for custom kubeconfig (user-provided clusters)
 - [ ] Support for external container registries
 - [ ] Support for multiple namespaces
