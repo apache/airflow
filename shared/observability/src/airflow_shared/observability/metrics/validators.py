@@ -29,7 +29,7 @@ from functools import partial, wraps
 from re import Pattern
 from typing import cast
 
-from airflow._shared.observability.exceptions import InvalidStatsNameException
+from ..exceptions import InvalidStatsNameException
 
 log = logging.getLogger(__name__)
 
