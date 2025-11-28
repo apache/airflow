@@ -734,13 +734,20 @@ def setup_kubernetes_executor_environment(
     )
     get_console().print(f"[success]Worker image ready: {image_name}:{tag}[/]")
 
-    # Step 3: Show helpful information
+    # Step 3: Show connection details and helpful information
     get_console().print("\n[info]KubernetesExecutor setup complete![/]")
-    get_console().print(f"[info]Cluster: {cluster_name}[/]")
-    get_console().print(f"[info]Kubeconfig: {kubeconfig_path}[/]")
-    get_console().print(f"[info]Namespace: airflow[/]")
-    get_console().print(f"[info]Worker Image: {image_name}:{tag}[/]")
-    get_console().print("\n[tip]You can check pods with: kubectl get pods -n airflow[/]")
+    get_console().print("\n[bold]Connection Details:[/bold]")
+    get_console().print(f"  Cluster Name:    {cluster_name}")
+    get_console().print(f"  Namespace:       airflow")
+    get_console().print(f"  Kubeconfig:      {kubeconfig_path}")
+    get_console().print(f"  Worker Image:    {image_name}:{tag}")
+
+    get_console().print("\n[bold]Environment Variables Set:[/bold]")
+    get_console().print(f"  AIRFLOW__CORE__EXECUTOR=KubernetesExecutor")
+    get_console().print(f"  AIRFLOW__KUBERNETES__NAMESPACE=airflow")
+    get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY={image_name.rsplit(':', 1)[0]}")
+    get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG={tag}")
+    get_console().print(f"  AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH={kubeconfig_path}")
 
     return cluster_name, kubeconfig_path
 

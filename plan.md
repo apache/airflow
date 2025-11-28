@@ -130,8 +130,7 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 **TODO 6.2: Add status reporting**
 - [x] Print cluster creation status
 - [x] Print image build/upload progress
-- [ ] Print connection details
-- [ ] Show kubectl commands for debugging (e.g., kubectl get pods -n airflow)
+- [x] Print connection details
 
 ### Phase 7: Cleanup and Lifecycle Management
 
