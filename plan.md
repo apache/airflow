@@ -114,21 +114,22 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 **TODO 5.2: Create namespace in cluster**
 - [x] Check if namespace "airflow" exists using kubectl
 - [x] Create namespace if it doesn't exist
-- [ ] Set KUBECONFIG environment variable to point to generated kubeconfig
+- [x] Set KUBECONFIG environment variable to point to generated kubeconfig (handled via AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH in TODO 5.1)
 
 ### Phase 6: Integration with start_airflow Command
 
 **TODO 6.1: Modify start_airflow command flow**
-- [ ] In `start_airflow()` function, detect if executor is KubernetesExecutor
-- [ ] Call `initialize_kind_cluster_for_executor()` to get cluster_name and kubeconfig_path
-- [ ] Call `build_k8s_worker_image()` with cluster_name to build and upload image
-- [ ] Set K8s configuration environment variables
-- [ ] Pass environment variables to the shell
-- [ ] Start Airflow with the configured environment
+- [x] In `start_airflow()` function, detect if executor is KubernetesExecutor
+- [x] Call `initialize_kind_cluster_for_executor()` to get cluster_name and kubeconfig_path
+- [x] Call `build_k8s_worker_image()` with cluster_name to build and upload image
+- [x] Created `setup_kubernetes_executor_environment()` function to keep start_airflow clean (refactored)
+- [x] Set K8s configuration environment variables (handled in ShellParams TODO 5.1)
+- [x] Pass environment variables to the shell (automatic via ShellParams)
+- [x] Start Airflow with the configured environment (existing flow continues)
 
 **TODO 6.2: Add status reporting**
-- [ ] Print cluster creation status
-- [ ] Print image build/upload progress
+- [x] Print cluster creation status
+- [x] Print image build/upload progress
 - [ ] Print connection details
 - [ ] Show kubectl commands for debugging (e.g., kubectl get pods -n airflow)
 
