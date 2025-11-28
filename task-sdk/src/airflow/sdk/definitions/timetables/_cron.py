@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import attrs
-from croniter import CroniterError, croniter
+from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 
@@ -36,6 +36,6 @@ class CronMixin:
 
     def validate(self) -> None:
         try:
-            croniter(self.expression)
-        except CroniterError as e:
+            croniter(self._expression)
+        except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
