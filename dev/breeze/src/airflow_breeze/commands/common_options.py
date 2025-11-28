@@ -581,7 +581,7 @@ option_browser = click.option(
     "--browser",
     help="Browser to use for e2e tests",
     type=BetterChoice(["chromium", "firefox", "webkit", "all"]),
-    default="chromium",
+    default="all",
     show_default=True,
 )
 

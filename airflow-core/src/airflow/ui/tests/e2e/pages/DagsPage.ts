@@ -19,6 +19,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
+import type { DAGRunResponse } from "openapi/requests/types.gen";
+
 /**
  * DAGs Page Object
  */
@@ -165,12 +167,9 @@ export class DagsPage extends BasePage {
     if (apiResponse) {
       try {
         const responseBody = await apiResponse.text();
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const responseJson = JSON.parse(responseBody);
+        const responseJson = JSON.parse(responseBody) as DAGRunResponse;
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         if (Boolean(responseJson.dag_run_id)) {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
           return responseJson.dag_run_id;
         }
       } catch {
