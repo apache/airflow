@@ -674,19 +674,35 @@ def build_k8s_worker_image(
     dags_path = Path("files/dags")
     include_path = Path("files/include")
 
+    # Create directories if they don't exist
+    dags_path.mkdir(parents=True, exist_ok=True)
+    include_path.mkdir(parents=True, exist_ok=True)
+
     # Build COPY commands for DAGs and include files if directories exist
     copy_dags_command = ""
     copy_include_command = ""
 
-    if dags_path.exists() and dags_path.is_dir():
+    # Check if dags directory has any files
+    dag_files = list(dags_path.rglob("*.py"))
+    if dag_files:
         copy_dags_command = "COPY --chown=airflow:0 files/dags/ /opt/airflow/dags/"
-        dag_files = list(dags_path.rglob("*.py"))
         get_console().print(f"[info]  • Including {len(dag_files)} DAG file(s) from {dags_path}[/]")
+    else:
+        get_console().print(f"[info]  • No DAG files found in {dags_path}[/]")
+        # Create empty dags directory in the image
+        copy_dags_command = "RUN mkdir -p /opt/airflow/dags"
 
-    if include_path.exists() and include_path.is_dir():
+    # Check if include directory has any files
+    include_files = list(include_path.rglob("*"))
+    # Filter out directories from include_files
+    include_files = [f for f in include_files if f.is_file()]
+    if include_files:
         copy_include_command = "COPY --chown=airflow:0 files/include/ /opt/airflow/include/"
-        include_files = list(include_path.rglob("*"))
         get_console().print(f"[info]  • Including {len(include_files)} file(s) from {include_path}[/]")
+    else:
+        get_console().print(f"[info]  • No include files found in {include_path}[/]")
+        # Create empty include directory in the image
+        copy_include_command = "RUN mkdir -p /opt/airflow/include"
 
     get_console().print("[info]  • Adding example DAGs and pod templates[/]")
 
