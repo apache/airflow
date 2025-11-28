@@ -72,7 +72,7 @@ dependencies = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
 "common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow-providers-common-compat>=1.9.0"  # use next version
 ]
 
 [dependency-groups]

@@ -31,6 +31,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
@@ -40,7 +41,6 @@ from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import mapped_column
 

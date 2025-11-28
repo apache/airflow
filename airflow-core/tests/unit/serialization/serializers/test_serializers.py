@@ -36,10 +36,10 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
+from airflow._shared.module_loading import qualname
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 

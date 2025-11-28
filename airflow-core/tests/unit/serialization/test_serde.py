@@ -29,6 +29,7 @@ import pytest
 from packaging import version
 from pydantic import BaseModel
 
+from airflow._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serde import (
     CLASSNAME,
@@ -43,7 +44,6 @@ from airflow.serialization.serde import (
     deserialize,
     serialize,
 )
-from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 from tests_common.test_utils.config import conf_vars
 
