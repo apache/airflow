@@ -534,6 +534,8 @@ def initialize_kind_cluster_for_executor(
     This reuses the _create_cluster function from kubernetes_commands.py
     to maintain consistency with breeze k8s commands.
     """
+    from airflow_breeze.commands.kubernetes_commands import HELM_AIRFLOW_NAMESPACE
+
     # Make sure kubernetes tools are installed
     make_sure_kubernetes_tools_are_installed()
 
@@ -550,6 +552,20 @@ def initialize_kind_cluster_for_executor(
         raise SystemExit(returncode)
 
     get_console().print(f"[info]Using KinD cluster '{cluster_name}' for KubernetesExecutor[/]")
+
+    # Ensure the airflow namespace exists
+    from airflow_breeze.utils.kubernetes_utils import ensure_kubernetes_namespace
+
+    result = ensure_kubernetes_namespace(
+        namespace=HELM_AIRFLOW_NAMESPACE,  # Use the same namespace as breeze k8s
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
     return cluster_name, kubeconfig_path
 
 

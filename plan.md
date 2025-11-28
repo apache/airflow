@@ -112,8 +112,8 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
   - [x] `AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE`: "False" (for debugging)
 
 **TODO 5.2: Create namespace in cluster**
-- [ ] Check if namespace "airflow" exists using kubectl
-- [ ] Create namespace if it doesn't exist
+- [x] Check if namespace "airflow" exists using kubectl
+- [x] Create namespace if it doesn't exist
 - [ ] Set KUBECONFIG environment variable to point to generated kubeconfig
 
 ### Phase 6: Integration with start_airflow Command

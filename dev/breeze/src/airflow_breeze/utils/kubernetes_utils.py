@@ -479,3 +479,45 @@ def get_kubernetes_python_combos(
     ]
     short_combo_titles = [combo[len("airflow-python-") :] for combo in combo_titles]
     return combo_titles, short_combo_titles, combos
+
+
+def ensure_kubernetes_namespace(
+    namespace: str,
+    python: str,
+    kubernetes_version: str,
+    output: Output | None = None,
+) -> RunCommandResult:
+    """
+    Ensure that a Kubernetes namespace exists. Creates it if it doesn't exist.
+
+    :param namespace: Name of the namespace to ensure exists
+    :param python: Python version
+    :param kubernetes_version: Kubernetes version
+    :param output: Output object for console output
+    :return: RunCommandResult with success/failure status
+    """
+    # Check if namespace exists
+    result = run_command_with_k8s_env(
+        ["kubectl", "get", "namespace", namespace],
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=output,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        # Namespace doesn't exist, create it
+        get_console(output=output).print(f"[info]Creating '{namespace}' namespace[/]")
+        result = run_command_with_k8s_env(
+            ["kubectl", "create", "namespace", namespace],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console(output=output).print(f"[error]Failed to create '{namespace}' namespace")
+    else:
+        get_console(output=output).print(f"[info]Using existing '{namespace}' namespace[/]")
+
+    return result
