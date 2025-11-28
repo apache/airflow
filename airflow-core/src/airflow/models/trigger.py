@@ -22,7 +22,7 @@ from collections.abc import Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -413,8 +413,19 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     from airflow.utils.state import TaskInstanceState
 
     # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
-    next_kwargs = cast("dict[str, Any]", task_instance.next_kwargs or {})
+    raw_next_kwargs = task_instance.next_kwargs
+    
+    if raw_next_kwargs is None:
+        next_kwargs: dict[str, Any] = {}
+    elif isinstance(raw_next_kwargs, str):
+        from airflow.serialization.serialized_objects import BaseSerialization
 
+        # BaseSerialization.deserialize will normalize it back to a dict.
+        next_kwargs = BaseSerialization.deserialize(raw_next_kwargs)
+    else:
+        # mypy now knows this is a dict[Any, Any]
+        next_kwargs = raw_next_kwargs
+        
     # Add the event's payload into the kwargs for the task
     next_kwargs["event"] = event.payload
 
