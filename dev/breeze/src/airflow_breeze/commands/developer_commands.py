@@ -525,7 +525,7 @@ def initialize_kind_cluster_for_executor(
 ) -> tuple[str, Path]:
     """
     Initialize KinD cluster for KubernetesExecutor.
-    Returns the cluster name and kubeconfig path.
+    Returns (cluster_name, kubeconfig_path).
     
     This reuses the _create_cluster function from kubernetes_commands.py
     to maintain consistency with breeze k8s commands.
@@ -533,8 +533,8 @@ def initialize_kind_cluster_for_executor(
     # Make sure kubernetes tools are installed
     make_sure_kubernetes_tools_are_installed()
     
-    # Create or reuse the cluster using the existing _create_cluster function
-    returncode, message = _create_cluster(
+    
+    returncode, message, cluster_name, kubeconfig_path = _create_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
         output=None,
@@ -546,10 +546,7 @@ def initialize_kind_cluster_for_executor(
         get_console().print(f"[error]Failed to initialize KinD cluster: {message}")
         raise SystemExit(returncode)
     
-    # Get the cluster name and kubeconfig path
-    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    kubeconfig_path = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-    
+    get_console().print(f"[info]Using KinD cluster '{cluster_name}' for KubernetesExecutor[/]")
     return cluster_name, kubeconfig_path
 
 

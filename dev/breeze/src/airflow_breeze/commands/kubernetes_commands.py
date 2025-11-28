@@ -250,7 +250,12 @@ def _create_cluster(
     output: Output | None,
     num_tries: int,
     force_recreate_cluster: bool,
-) -> tuple[int, str]:
+) -> tuple[int, str, str, Path]:
+    """
+    Create a KinD cluster for the given Python and Kubernetes versions.
+    
+    Returns: (returncode, message, cluster_name, kubeconfig_path)
+    """
     while True:
         if force_recreate_cluster:
             _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
@@ -287,10 +292,10 @@ def _create_cluster(
                 "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
             )
             get_console(output=output).print("\nbreeze k8s configure-cluster\n")
-            return result.returncode, f"K8S cluster {cluster_name}."
+            return result.returncode, f"K8S cluster {cluster_name}.", cluster_name, kubeconfig_file
         num_tries -= 1
         if num_tries == 0:
-            return result.returncode, f"K8S cluster {cluster_name}."
+            return result.returncode, f"K8S cluster {cluster_name}.", cluster_name, kubeconfig_file
         get_console(output=output).print(
             f"[warning]Failed to create KinD cluster {cluster_name}. "
             f"Retrying! There are {num_tries} tries left.\n"
@@ -358,7 +363,7 @@ def create_cluster(
                         },
                     )
                     for index, combo in enumerate(combos)
-                ]
+            ]
         check_async_run_results(
             results=results,
             success_message="All clusters created.",
@@ -367,7 +372,7 @@ def create_cluster(
             include_success_outputs=include_success_outputs,
         )
     else:
-        return_code, _ = _create_cluster(
+        return_code, _, _, _ = _create_cluster(
             python=python,
             kubernetes_version=kubernetes_version,
             output=None,
@@ -1616,7 +1621,7 @@ def _run_complete_tests(
     get_console(output=output).print(
         f"\n[info]Creating k8s cluster for Python {python}, Kubernetes {kubernetes_version}\n"
     )
-    returncode, message = _create_cluster(
+    returncode, message, _, _ = _create_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
         output=output,
