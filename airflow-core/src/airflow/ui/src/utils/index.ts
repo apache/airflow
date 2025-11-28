@@ -22,5 +22,4 @@ export { getDuration, renderDuration } from "./datetimeUtils";
 export { getMetaKey } from "./getMetaKey";
 export { useContainerWidth } from "./useContainerWidth";
 export { useFiltersHandler, type FilterableSearchParamsKeys } from "./useFiltersHandler";
-export { isHttpError } from "./httpErrors";
 export * from "./query";
