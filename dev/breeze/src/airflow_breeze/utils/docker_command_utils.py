@@ -857,8 +857,6 @@ def enter_shell(
     cmd.extend(["run", "--service-ports", "--rm"])
     if shell_params.tty == "disabled":
         cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
     cmd.append("airflow")
     cmd_added = shell_params.command_passed
     if cmd_added is not None:
