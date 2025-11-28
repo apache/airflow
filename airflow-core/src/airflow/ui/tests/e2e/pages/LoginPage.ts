@@ -18,8 +18,7 @@
  */
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
-
-import { BasePage } from "./BasePage.ts";
+import { BasePage } from "tests/e2e/pages/BasePage";
 
 /**
  * Login Page Object
@@ -40,7 +39,8 @@ export class LoginPage extends BasePage {
 
     this.usernameInput = page.locator('input[name="username"]');
     this.passwordInput = page.locator('input[name="password"]');
-    this.loginButton = page.locator('button[type="submit"]');
+    // Support both SimpleAuthManager and FabAuthManager login buttons
+    this.loginButton = page.locator('button[type="submit"], input[type="submit"]');
     this.errorMessage = page.locator('span:has-text("Invalid credentials")');
   }
 

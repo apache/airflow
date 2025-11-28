@@ -17,8 +17,7 @@
  * under the License.
  */
 import type { Locator, Page } from "@playwright/test";
-
-import { BasePage } from "./BasePage.ts";
+import { BasePage } from "tests/e2e/pages/BasePage";
 
 /**
  * DAGs Page Object

@@ -25,7 +25,7 @@ UI automation tests using Playwright for critical Airflow workflows.
 
 **Requires running Airflow with example DAGs:**
 
-- Airflow running on `http://localhost:28080` (default)
+- Airflow UI running on `http://localhost:28080` (default)
 - Admin user: `admin/admin`
 - Example DAGs loaded (uses `example_bash_operator`)
 
@@ -85,7 +85,7 @@ export TEST_DAG_ID=example_bash_operator
 breeze testing ui-e2e-tests --debug-e2e
 
 # View test report
-pnpm exec playwright show-report
+pnpm test:e2e:report
 ```
 
 Find test artifacts in `test-results/` and reports in `playwright-report/`.

@@ -17,10 +17,9 @@
  * under the License.
  */
 import { test } from "@playwright/test";
-
-import { testConfig } from "../../../playwright.config.ts";
-import { DagsPage } from "../pages/DagsPage.ts";
-import { LoginPage } from "../pages/LoginPage.ts";
+import { testConfig } from "playwright.config";
+import { DagsPage } from "tests/e2e/pages/DagsPage";
+import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 /**
  * DAG Trigger E2E Tests
@@ -36,10 +35,8 @@ test.describe("DAG Trigger Workflow", () => {
 
   const testDagId = testConfig.testDag.id;
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(({ page }) => {
     loginPage = new LoginPage(page);
-
     dagsPage = new DagsPage(page);
   });
 
@@ -52,8 +49,7 @@ test.describe("DAG Trigger Workflow", () => {
 
     const dagRunId = await dagsPage.triggerDag(testDagId);
 
-    // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
-    if (dagRunId) {
+    if (Boolean(dagRunId)) {
       await dagsPage.verifyDagRunStatus(testDagId, dagRunId);
     }
   });
