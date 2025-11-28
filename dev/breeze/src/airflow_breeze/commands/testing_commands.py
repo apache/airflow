@@ -30,19 +30,27 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_airflow_ui_base_url,
     option_allow_pre_releases,
     option_backend,
+    option_browser,
     option_clean_airflow_installation,
     option_core_integration,
     option_db_reset,
+    option_debug_e2e,
     option_debug_resources,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_e2e_reporter,
+    option_e2e_timeout,
+    option_e2e_workers,
     option_excluded_providers,
     option_force_lowest_dependencies,
+    option_force_reinstall_deps,
     option_forward_credentials,
     option_github_repository,
+    option_headed,
     option_image_name,
     option_include_success_outputs,
     option_install_airflow_with_constraints,
@@ -58,6 +66,10 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_skip_db_tests,
+    option_test_admin_password,
+    option_test_admin_username,
+    option_test_pattern,
+    option_ui_mode,
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
@@ -1414,6 +1426,129 @@ def airflow_e2e_tests(
         test_mode=e2e_test_mode,
     )
     sys.exit(return_code)
+
+
+@testing_group.command(
+    name="ui-e2e-tests",
+    help="Run UI End-to-End tests using Playwright.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_airflow_ui_base_url
+@option_browser
+@option_debug_e2e
+@option_dry_run
+@option_e2e_reporter
+@option_e2e_timeout
+@option_e2e_workers
+@option_force_reinstall_deps
+@option_headed
+@option_test_admin_password
+@option_test_admin_username
+@option_test_pattern
+@option_ui_mode
+@option_verbose
+@click.argument("extra_playwright_args", nargs=-1, type=click.Path(path_type=str))
+def ui_e2e_tests(
+    airflow_ui_base_url: str,
+    browser: str,
+    debug_e2e: bool,
+    reporter: str,
+    timeout: int,
+    workers: int,
+    force_reinstall_deps: bool,
+    headed: bool,
+    test_admin_password: str,
+    test_admin_username: str,
+    test_pattern: str,
+    ui_mode: bool,
+    extra_playwright_args: tuple,
+):
+    """Run UI end-to-end tests using Playwright."""
+    import sys
+    from pathlib import Path
+
+    from airflow_breeze.utils.console import get_console
+    from airflow_breeze.utils.run_utils import run_command
+    from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+    perform_environment_checks()
+
+    airflow_root = Path(__file__).resolve().parents[5]
+    ui_dir = airflow_root / "airflow-core" / "src" / "airflow" / "ui"
+
+    if not ui_dir.exists():
+        get_console().print(f"[error]UI directory not found: {ui_dir}[/]")
+        sys.exit(1)
+
+    env_vars = {
+        "AIRFLOW_UI_BASE_URL": airflow_ui_base_url,
+        "TEST_USERNAME": test_admin_username,
+        "TEST_PASSWORD": test_admin_password,
+        "TEST_DAG_ID": "example_bash_operator",
+    }
+
+    if force_reinstall_deps:
+        clean_cmd = ["pnpm", "install", "--force"]
+        if not get_dry_run():
+            run_command(clean_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+    else:
+        install_cmd = ["pnpm", "install"]
+        if not get_dry_run():
+            run_command(install_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+    install_browsers_cmd = ["pnpm", "exec", "playwright", "install"]
+    if browser != "all":
+        install_browsers_cmd.append(browser)
+
+    if not get_dry_run():
+        run_command(install_browsers_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+    get_console().print(f"[info]Using Airflow at: {airflow_ui_base_url}[/]")
+
+    playwright_cmd = ["pnpm", "exec", "playwright", "test"]
+
+    if browser != "all":
+        playwright_cmd.extend(["--project", browser])
+    if headed:
+        playwright_cmd.append("--headed")
+    if debug_e2e:
+        playwright_cmd.append("--debug")
+    if ui_mode:
+        playwright_cmd.append("--ui")
+    if workers > 1:
+        playwright_cmd.extend(["--workers", str(workers)])
+    if timeout != 60000:
+        playwright_cmd.extend(["--timeout", str(timeout)])
+    if reporter != "html":
+        playwright_cmd.extend(["--reporter", reporter])
+    if test_pattern:
+        playwright_cmd.append(test_pattern)
+    if extra_playwright_args:
+        playwright_cmd.extend(extra_playwright_args)
+
+    get_console().print(f"[info]Running: {' '.join(playwright_cmd)}[/]")
+
+    if get_dry_run():
+        return
+
+    try:
+        result = run_command(
+            playwright_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose(), check=False
+        )
+
+        report_path = ui_dir / "playwright-report" / "index.html"
+        if report_path.exists():
+            get_console().print(f"[info]Report: file://{report_path}[/]")
+
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    except Exception as e:
+        get_console().print(f"[error]{str(e)}[/]")
+        sys.exit(1)
 
 
 class TimeoutHandler:

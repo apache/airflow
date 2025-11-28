@@ -373,6 +373,43 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
 
+Running Airflow UI E2E tests
+.............................
+
+You can use Breeze to run the Airflow UI End-to-End tests using Playwright. These tests validate
+critical user workflows in the Airflow web interface across multiple browsers (Chromium, Firefox, WebKit).
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests
+
+For example, to run a specific test pattern in headed mode:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts" --headed
+
+You can also run tests in different browsers:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --browser firefox --headed
+
+Or run tests in Playwright's UI mode for debugging:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --ui-mode
+
+.. image:: ./images/output_testing_ui-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_ui-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing ui-e2e-tests
+
+The tests use Page Object Model pattern and are located in ``airflow-core/src/airflow/ui/tests/e2e/`` folder.
+The tests require a running Airflow instance (typically ``http://localhost:28080``) and will install
+Playwright browsers automatically if needed.
+
 Running Kubernetes tests
 ------------------------
 

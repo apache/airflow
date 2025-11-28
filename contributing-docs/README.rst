@@ -32,8 +32,12 @@ New Contributor
 ...............
 
 If you are a new contributor, please follow the `Contributors Quick Start <03a_contributors_quick_start_beginners.rst>`__
-guide for a step-by-step introduction to setting up the development environment and making your
-first contribution.
+guide for a step-by-step introduction to setting up the development environment and making your first
+contribution (5-minute path).
+
+If you need a full development environment, test suite, and advanced tooling, please see the
+`Seasoned Developers Guide <03_contributors_quick_start.rst>`__.
+
 We also suggest you to check out `Contribution Workflow <18_contribution_workflow.rst>`__ in order to get an overview of how to
 contribute to Airflow.
 
