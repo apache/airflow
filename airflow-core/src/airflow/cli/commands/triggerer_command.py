@@ -64,6 +64,7 @@ def triggerer_run(
 @providers_configuration_loaded
 def triggerer(args):
     """Start Airflow Triggerer."""
+    # TODO: Decide what to do with Triggerer
     from airflow.sdk._shared.secrets_masker import SecretsMasker
 
     SecretsMasker.enable_log_masking()
