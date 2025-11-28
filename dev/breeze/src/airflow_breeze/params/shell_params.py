@@ -81,6 +81,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
+from airflow_breeze.utils.kubernetes_utils import get_kubeconfig_file
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     BUILD_CACHE_PATH,
@@ -91,7 +92,6 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
-from airflow_breeze.utils.kubernetes_utils import get_kubeconfig_file
 
 DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 

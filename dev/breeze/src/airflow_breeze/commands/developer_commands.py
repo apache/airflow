@@ -109,6 +109,7 @@ from airflow_breeze.global_constants import (
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
@@ -742,15 +743,11 @@ def setup_kubernetes_executor_environment(
     # Step 2: Build and upload worker image
     if skip_image_rebuild:
         # Use existing worker image
-        from airflow_breeze.params.build_prod_params import BuildProdParams
-
         params = BuildProdParams(python=python, use_uv=True)
         image_name = params.airflow_image_kubernetes
         tag = "latest"
 
         # Check if the worker image exists before skipping rebuild
-        from airflow_breeze.utils.run_utils import run_command
-
         result = run_command(
             ["docker", "images", "-q", f"{image_name}:{tag}"],
             capture_output=True,
@@ -782,8 +779,6 @@ def setup_kubernetes_executor_environment(
             get_console().print(f"[error]Failed to build worker image: {message}")
             raise SystemExit(returncode)
         # Extract image name and tag
-        from airflow_breeze.params.build_prod_params import BuildProdParams
-
         params = BuildProdParams(python=python, use_uv=True)
         image_name = params.airflow_image_kubernetes
         tag = "latest"
