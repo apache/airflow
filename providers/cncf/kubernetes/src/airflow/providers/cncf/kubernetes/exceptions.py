@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import (
-    AirflowException,
-)
+from airflow.exceptions import AirflowException
 
 
 class PodMutationHookException(AirflowException):
