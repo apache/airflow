@@ -550,12 +550,43 @@ def initialize_kind_cluster_for_executor(
     to maintain consistency with breeze k8s commands.
     """
     from airflow_breeze.commands.kubernetes_commands import HELM_AIRFLOW_NAMESPACE
+    from airflow_breeze.utils.kubernetes_utils import (
+        check_kind_cluster_exists,
+        ensure_kubernetes_namespace,
+        get_kubeconfig_file,
+    )
 
     # Make sure kubernetes tools are installed
     make_sure_kubernetes_tools_are_installed()
 
     # Print cluster creation status
     get_console().print("[info]Initializing KinD cluster for KubernetesExecutor...[/]")
+
+    cluster_name = f"airflow-python-{python}-{kubernetes_version}"
+
+    # Check if cluster already exists
+    cluster_exists = check_kind_cluster_exists(python=python, kubernetes_version=kubernetes_version)
+
+    if cluster_exists and not force_recreate_cluster:
+        # Cluster already exists, just return its info
+        get_console().print(f"[info]Using existing KinD cluster '{cluster_name}'[/]")
+        kubeconfig_path = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+
+        # Ensure the airflow namespace exists even for existing cluster
+
+        result = ensure_kubernetes_namespace(
+            namespace=HELM_AIRFLOW_NAMESPACE,
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=None,
+        )
+        if result.returncode != 0:
+            get_console().print(f"[warning]Failed to ensure namespace, but continuing...[/]")
+
+        get_console().print(f"[success]✓ KinD cluster '{cluster_name}' ready[/]")
+        get_console().print(f"[info]  Kubeconfig: {kubeconfig_path}[/]")
+        return cluster_name, kubeconfig_path
+
     if force_recreate_cluster:
         get_console().print("[warning]Force recreating existing cluster[/]")
     get_console().print(f"[info]Python version: {python}[/]")
@@ -577,7 +608,6 @@ def initialize_kind_cluster_for_executor(
     get_console().print(f"[info]  Kubeconfig: {kubeconfig_path}[/]")
 
     # Ensure the airflow namespace exists
-    from airflow_breeze.utils.kubernetes_utils import ensure_kubernetes_namespace
 
     result = ensure_kubernetes_namespace(
         namespace=HELM_AIRFLOW_NAMESPACE,  # Use the same namespace as breeze k8s
@@ -610,10 +640,9 @@ def build_k8s_worker_image(
     """
     from pathlib import Path
 
-    from airflow_breeze.commands.ci_image_commands import run_build_production_image
+    from airflow_breeze.commands.production_image_commands import run_build_production_image
     from airflow_breeze.params.build_prod_params import BuildProdParams
-    from airflow_breeze.utils.docker_command_utils import check_if_image_exists
-    from airflow_breeze.utils.run_utils import run_command
+    from airflow_breeze.utils.run_utils import check_if_image_exists, run_command
 
     params = BuildProdParams(python=python, use_uv=True)
 

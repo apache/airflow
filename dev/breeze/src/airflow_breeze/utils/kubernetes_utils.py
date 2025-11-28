@@ -521,3 +521,34 @@ def ensure_kubernetes_namespace(
         get_console(output=output).print(f"[info]Using existing '{namespace}' namespace[/]")
 
     return result
+
+
+def check_kind_cluster_exists(
+    python: str,
+    kubernetes_version: str,
+) -> bool:
+    """
+    Check if a KinD cluster exists for the given Python and Kubernetes versions.
+
+    :param python: Python version
+    :param kubernetes_version: Kubernetes version
+    :return: True if the cluster exists, False otherwise
+    """
+    from airflow_breeze.utils.run_utils import run_command
+
+    cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+
+    # Get list of existing clusters
+    result = run_command(
+        ["kind", "get", "clusters"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        # kind command failed, assume cluster doesn't exist
+        return False
+
+    # Check if our cluster name is in the list
+    return cluster_name in result.stdout
