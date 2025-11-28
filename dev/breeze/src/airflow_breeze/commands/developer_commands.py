@@ -133,7 +133,11 @@ from airflow_breeze.utils.kubernetes_utils import (
     make_sure_kubernetes_tools_are_installed,
     run_command_with_k8s_env,
 )
-from airflow_breeze.commands.kubernetes_commands import _create_cluster
+from airflow_breeze.commands.kubernetes_commands import (
+    _create_cluster,
+    _rebuild_k8s_image,
+    _upload_k8s_image,
+)
 
 CELERY_INTEGRATION = "celery"
 
