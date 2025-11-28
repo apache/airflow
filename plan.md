@@ -73,10 +73,12 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 **TODO 3.1: Create cluster initialization function**
 - [x] Function: `initialize_kind_cluster_for_executor(python, force_recreate_cluster)`
 - [x] Make kubernetes_version configurable as parameter (defaults to DEFAULT_KUBERNETES_VERSION)
-- [ ] Check if cluster exists (reuse from kubernetes_commands.py)
-- [ ] Create if needed (reuse `_create_cluster` from kubernetes_commands.py)
-- [ ] Use cluster name: `airflow-python-{python}-breeze`
-- [ ] Handle `--force-recreate-kind-cluster` flag
+- [x] Create cluster using `_create_cluster` from kubernetes_commands.py
+- [x] Use cluster name format: `airflow-python-{python}-{kubernetes_version}` (via get_kind_cluster_name)
+- [x] Handle `--force-recreate-kind-cluster` flag (passes through to _create_cluster)
+- [x] Refactored `_create_cluster` to return (returncode, message, cluster_name, kubeconfig_path)
+- [x] Updated all callers of `_create_cluster` (2 places in kubernetes_commands.py)
+- [x] Return tuple: (cluster_name, kubeconfig_path) - now directly from _create_cluster
 
 **TODO 3.2: Generate kubeconfig path**
 - [ ] Use `get_kubeconfig_file()` from kubernetes_utils

@@ -550,6 +550,103 @@ def initialize_kind_cluster_for_executor(
     return cluster_name, kubeconfig_path
 
 
+def build_k8s_worker_image(
+    python: str,
+    kubernetes_version: str,
+    rebuild_base_image: bool = False,
+) -> tuple[int, str]:
+    """
+    Build the K8s worker image with DAGs and include files.
+    
+    This function builds a worker image that includes:
+    - Base Airflow image
+    - Contents of files/dags/ copied to /opt/airflow/dags/
+    - Contents of files/include/ copied to /opt/airflow/include/
+    
+    Returns: (returncode, message)
+    """
+    from pathlib import Path
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.utils.run_utils import run_command
+    from airflow_breeze.utils.docker_command_utils import check_if_image_exists
+    from airflow_breeze.commands.ci_image_commands import run_build_production_image
+    
+    params = BuildProdParams(python=python, use_uv=True)
+    
+    # Build or check base image
+    if rebuild_base_image:
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=None,
+        )
+    else:
+        if not check_if_image_exists(image=params.airflow_image_name):
+            get_console().print(
+                f"[error]The base PROD image {params.airflow_image_name} does not exist locally.\n"
+            )
+            get_console().print(
+                "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
+            )
+            get_console().print(f"breeze prod-image build --python {python}\n")
+            return 1, "Base image not found"
+    
+    get_console().print(
+        f"[info]Building the K8S worker image for Python {python} with DAGs and include files\n"
+    )
+    
+    # Check if files/dags and files/include directories exist
+    dags_path = Path("files/dags")
+    include_path = Path("files/include")
+    
+    # Build COPY commands for DAGs and include files if directories exist
+    copy_dags_command = ""
+    copy_include_command = ""
+    
+    if dags_path.exists() and dags_path.is_dir():
+        copy_dags_command = "COPY --chown=airflow:0 files/dags/ /opt/airflow/dags/"
+        get_console().print(f"[info]Including DAGs from {dags_path}")
+    
+    if include_path.exists() and include_path.is_dir():
+        copy_include_command = "COPY --chown=airflow:0 files/include/ /opt/airflow/include/"
+        get_console().print(f"[info]Including files from {include_path}")
+    
+    # Create Dockerfile for K8s worker image
+    docker_image_for_k8s_worker = f"""
+FROM {params.airflow_image_name}
+
+USER airflow
+
+# Copy DAGs if they exist
+{copy_dags_command}
+
+# Copy include files if they exist
+{copy_include_command}
+
+# Copy example DAGs and pod templates (same as _rebuild_k8s_image)
+COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
+COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+
+ENV GUNICORN_CMD_ARGS='--preload'
+"""
+    
+    image = f"{params.airflow_image_kubernetes}:latest"
+    docker_build_result = run_command(
+        ["docker", "build", "--tag", image, ".", "-f", "-"],
+        input=docker_image_for_k8s_worker,
+        text=True,
+        check=False,
+        output=None,
+    )
+    
+    if docker_build_result.returncode != 0:
+        get_console().print("[error]Error when building the K8s worker image.")
+        return docker_build_result.returncode, f"K8S worker image for Python {python}"
+    
+    get_console().print("[success]K8s worker image built successfully")
+    return 0, f"K8S worker image for Python {python}"
+
+
 @main.command(name="start-airflow")
 @click.option(
     "--skip-assets-compilation",
