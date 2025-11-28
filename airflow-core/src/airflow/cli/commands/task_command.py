@@ -364,6 +364,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
 
+    # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
     from airflow.sdk._shared.secrets_masker import SecretsMasker
 
     SecretsMasker.enable_log_masking()

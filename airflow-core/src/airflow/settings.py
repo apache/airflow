@@ -644,6 +644,7 @@ def _configure_secrets_masker():
     core_masker.sensitive_variables_fields = list(sensitive_fields)
     core_masker.secret_mask_adapter = secret_mask_adapter
 
+    # TODO: this should be moved out when settings are moved to `shared`
     from airflow.sdk._shared.secrets_masker import _secrets_masker as sdk_secrets_masker
 
     sdk_masker = sdk_secrets_masker()
