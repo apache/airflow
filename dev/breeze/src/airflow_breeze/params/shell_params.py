@@ -46,6 +46,7 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_KUBERNETES_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
@@ -90,6 +91,7 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
+from airflow_breeze.utils.kubernetes_utils import get_kubeconfig_file
 
 DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 
@@ -584,6 +586,14 @@ class ShellParams:
             # Set KubernetesExecutor specific environment variables
             _set_var(_env, "AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
             _set_var(_env, "AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY", "airflow-k8s-worker-prod")
+            _set_var(_env, "AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG", "latest")
+            _set_var(_env, "AIRFLOW__KUBERNETES__DELETE_WORKER_PODS", "True")
+            _set_var(_env, "AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE", "False")
+            # Set kubeconfig path for the auto-created KinD cluster
+            kubeconfig_path = get_kubeconfig_file(
+                python=self.python, kubernetes_version=DEFAULT_KUBERNETES_VERSION
+            )
+            _set_var(_env, "AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH", str(kubeconfig_path))
 
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)

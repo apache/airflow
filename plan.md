@@ -102,14 +102,14 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 ### Phase 5: Airflow Configuration
 
 **TODO 5.1: Set KubernetesExecutor configuration**
-- [ ] Set environment variables:
-  - `AIRFLOW__CORE__EXECUTOR`: "KubernetesExecutor"
-  - `AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH`: Path to auto-generated kubeconfig
+- [x] Set environment variables:
+  - [x] `AIRFLOW__CORE__EXECUTOR`: "KubernetesExecutor"
+  - [x] `AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH`: Path to auto-generated kubeconfig
   - [x] `AIRFLOW__KUBERNETES__NAMESPACE`: "airflow"
   - [x] `AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY`: airflow-k8s-worker-prod  
-  - `AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG`: latest
-  - `AIRFLOW__KUBERNETES__DELETE_WORKER_PODS`: "True"
-  - `AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE`: "False" (for debugging)
+  - [x] `AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG`: latest
+  - [x] `AIRFLOW__KUBERNETES__DELETE_WORKER_PODS`: "True"
+  - [x] `AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE`: "False" (for debugging)
 
 **TODO 5.2: Create namespace in cluster**
 - [ ] Check if namespace "airflow" exists using kubectl
