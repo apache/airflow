@@ -27,9 +27,9 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.module_loading import qualname
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker

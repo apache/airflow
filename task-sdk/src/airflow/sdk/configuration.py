@@ -195,7 +195,7 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
-    from airflow.sdk.module_loading import import_string
+    from airflow.sdk._shared.module_loading import import_string
 
     backend_list = []
     worker_mode = False

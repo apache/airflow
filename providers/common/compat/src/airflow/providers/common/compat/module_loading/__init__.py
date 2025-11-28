@@ -15,3 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
+try:
+    from airflow.utils.module_loading import (
+        import_string,
+        iter_namespace,
+        qualname,
+    )
+except ImportError:
+    from airflow.sdk.module_loading import import_string, iter_namespace, qualname
+
+# This function was not available in Airflow 3.0/3.1 in module_loading, but it's good to keep it in the
+# same shared module - good for reuse
+from airflow.sdk._shared.module_loading import is_valid_dotpath
+
+__all__ = [
+    "import_string",
+    "qualname",
+    "iter_namespace",
+    "is_valid_dotpath",
+]

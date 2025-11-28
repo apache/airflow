@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 import attrs
 import pendulum
 
+from airflow._shared.module_loading import qualname
 from airflow.sdk import (
     Asset,
     AssetAlias,
@@ -46,7 +47,6 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
 from airflow.timetables.base import Timetable as CoreTimetable
 from airflow.utils.docs import get_docs_url
-from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
