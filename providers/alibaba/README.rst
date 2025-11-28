@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-alibaba``
 
-Release: ``3.2.5``
+Release: ``3.3.0``
 
 
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``alibaba`` provider. All classes for this provid
 are in ``airflow.providers.alibaba`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-alibaba/3.2.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-alibaba/3.3.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``oss2``                                    ``>=2.14.0``
 ``alibabacloud_adb20211201``                ``>=1.0.0``
@@ -81,4 +81,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-alibaba/3.2.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-alibaba/3.3.0/changelog.html>`_.

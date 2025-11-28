@@ -19,10 +19,12 @@
 Integration tests for Asset operations.
 
 These tests validate the Execution API endpoints for Asset operations:
-- get(): Get asset by name
+- get(): Get asset by name or URI
 """
 
 from __future__ import annotations
+
+import pytest
 
 from airflow.sdk.api.datamodels._generated import AssetResponse
 from airflow.sdk.execution_time.comms import ErrorResponse
@@ -63,3 +65,27 @@ def test_asset_get_by_name_not_found(sdk_client_for_assets):
     assert isinstance(response, ErrorResponse)
     assert str(response.error).endswith("ASSET_NOT_FOUND")
     console.print("[green]Asset get by name (not found) test passed!")
+
+
+@pytest.mark.skip(reason="TODO: Implement Asset get_by_uri test")
+def test_asset_get_by_uri(sdk_client_for_assets, asset_test_setup):
+    """
+    Test getting asset by URI.
+
+    Expected: AssetResponse with asset details
+    Endpoint: GET /execution/assets/by-uri?uri={uri}
+    """
+    console.print("[yellow]TODO: Implement test_asset_get_by_uri")
+    raise NotImplementedError("test_asset_get_by_uri not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement Asset get_by_uri (not found) test")
+def test_asset_get_by_uri_not_found(sdk_client_for_assets):
+    """
+    Test getting non-existent asset by URI.
+
+    Expected: ErrorResponse with ASSET_NOT_FOUND error
+    Endpoint: GET /execution/assets/by-uri?uri={uri}
+    """
+    console.print("[yellow]TODO: Implement test_asset_get_by_uri_not_found")
+    raise NotImplementedError("test_asset_get_by_uri_not_found not implemented")

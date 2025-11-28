@@ -30,8 +30,8 @@ from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerDAGRunTrigger,

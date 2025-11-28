@@ -945,6 +945,7 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
+            or self.run_task_sdk_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
@@ -1616,7 +1617,7 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
         )
-        if not pyproject_files or not self._commit_ref:
+        if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
             return False
 
         try:
