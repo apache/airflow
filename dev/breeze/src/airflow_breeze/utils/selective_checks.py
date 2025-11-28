@@ -1536,7 +1536,7 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
         )
-        if not pyproject_files or not self._commit_ref:
+        if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
             return False
 
         try:
