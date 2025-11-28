@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-28T09:41:51.432264
+# This constraints file was automatically generated on 2025-11-28T18:28:31.562743
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -282,7 +282,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.5
+huggingface_hub==1.1.6
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -340,6 +340,7 @@ kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
+librt==0.6.2
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
@@ -375,7 +376,7 @@ mypy-boto3-appflow==1.41.0
 mypy-boto3-rds==1.41.2
 mypy-boto3-redshift-data==1.41.1
 mypy-boto3-s3==1.41.1
-mypy==1.18.2
+mypy==1.19.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
 mysqlclient==2.2.7
@@ -584,7 +585,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==2.0.0
-sphinxcontrib-spelling==8.0.1
+sphinxcontrib-spelling==8.0.2
 spython==0.3.14
 sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.1

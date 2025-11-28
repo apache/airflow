@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-28T09:45:12.822697
+# This constraints file was automatically generated on 2025-11-28T18:31:46.428198
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -369,7 +369,7 @@ httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.5
+huggingface_hub==1.1.6
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
