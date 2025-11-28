@@ -57,7 +57,7 @@ section ol li p:last-child, section ul li p:last-child {
   margin-bottom: 0 !important;
 }
 
-/* === Fix for broken permalink icon (Issue #46170) === */
+/* Fix for broken permalink icon */
 
 /* Remove the "[link]" text pseudo-element produced by legacy code */
 a.headerlink::after {
