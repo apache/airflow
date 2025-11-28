@@ -1264,7 +1264,7 @@ function handle_mount_sources() {
 
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST}" != "true" ]]; then
+    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST=}" != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -1331,7 +1331,7 @@ function check_boto_upgrade() {
 function check_upgrade_sqlalchemy() {
     # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
     # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
         return
     fi
     echo
@@ -1695,7 +1695,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.12
+ARG AIRFLOW_UV_VERSION=0.9.13
 ARG AIRFLOW_PREK_VERSION="0.2.19"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
