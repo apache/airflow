@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+from unittest.mock import Mock, patch
 
 import pytest
 from rich.console import Console
@@ -30,6 +31,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PUBLIC_AMD_RUNNERS,
     GithubEvents,
 )
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -210,7 +212,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1160,7 +1162,7 @@ def test_expected_output_pull_request_main(
     reason="This test should not run if .git folder is missing (for example by default in breeze container)",
 )
 @pytest.mark.parametrize(
-    "files, commit_ref, expected_outputs",
+    ("files", "commit_ref", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1225,7 +1227,7 @@ def test_excluded_providers():
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs",
+    ("files", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1276,7 +1278,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         (
             pytest.param(
@@ -1571,7 +1573,7 @@ def test_expected_output_full_tests_needed(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1689,7 +1691,7 @@ def test_expected_output_pull_request_v2_7(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    ("files", "pr_labels", "default_branch", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -1776,7 +1778,7 @@ def test_expected_output_push(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("INTHEWILD.md",),
@@ -2045,7 +2047,7 @@ def test_files_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels, commit_ref",
+    ("files", "expected_outputs", "pr_labels", "commit_ref"),
     [
         pytest.param(
             ("airflow-core/src/airflow/models/dag.py",),
@@ -2093,7 +2095,7 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/google/docs/some_file.rst",),
@@ -2206,7 +2208,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("helm-tests/tests/helm_tests/random_helm_test.py",),
@@ -2231,7 +2233,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    ("files", "expected_outputs"),
     [
         pytest.param(
             ("providers/amazon/provider.yaml",),
@@ -2285,7 +2287,7 @@ def test_provider_yaml_or_pyproject_toml_changes_trigger_ci_build(
 
 
 @pytest.mark.parametrize(
-    "files, has_migrations",
+    ("files", "has_migrations"),
     [
         pytest.param(
             ("airflow-core/src/airflow/test.py",),
@@ -2312,7 +2314,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
-    "labels, expected_outputs,",
+    ("labels", "expected_outputs"),
     [
         pytest.param(
             (),
@@ -2346,7 +2348,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, default_branch, pr_labels",
+    ("files", "expected_outputs", "default_branch", "pr_labels"),
     [
         pytest.param(
             ("README.md",),
@@ -2423,6 +2425,7 @@ def test_mypy_matches(
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
+@patch("airflow_breeze.utils.selective_checks.FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED", True)
 def test_ui_english_translation_changed_fail_on_change():
     translation_file = "airflow-core/src/airflow/ui/public/i18n/locales/en/some_file.json"
     with pytest.raises(SystemExit):
@@ -2457,3 +2460,455 @@ def test_ui_english_translation_changed_allowed_with_label():
         default_branch="main",
     )
     assert selective_checks.ui_english_translation_changed is True
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == "ubuntu-22.04"
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_not_found(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests (ubuntu-22.04)", "labels": []},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result is None
+
+
+def test_runner_type_pr():
+    selective_checks = SelectiveChecks(github_event=GithubEvents.PULL_REQUEST)
+
+    result = selective_checks.runner_type
+
+    assert result == PUBLIC_AMD_RUNNERS
+
+
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_runner_type_schedule(mock_get):
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.SCHEDULE,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+
+    jobs_response = Mock()
+    jobs_response.json.return_value = {
+        "jobs": [
+            {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},
+            {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+            {"name": "Other job", "labels": ["ubuntu-22.04"]},
+        ]
+    }
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.runner_type
+
+    assert result == '["ubuntu-22.04-arm"]'
+
+
+@pytest.mark.parametrize(
+    ("integration", "runner_type", "expected_result"),
+    [
+        pytest.param(
+            "mssql",
+            PUBLIC_AMD_RUNNERS,
+            True,
+            id="mssql_disabled_on_amd",
+        ),
+        # Test integrations disabled only for ARM runners
+        pytest.param(
+            "kerberos",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="kerberos_disabled_on_arm",
+        ),
+        pytest.param(
+            "drill",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="drill_disabled_on_arm",
+        ),
+        pytest.param(
+            "tinkerpop",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="tinkerpop_disabled_on_arm",
+        ),
+        pytest.param(
+            "pinot",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="pinot_disabled_on_arm",
+        ),
+        pytest.param(
+            "trino",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="trino_disabled_on_arm",
+        ),
+        pytest.param(
+            "ydb",
+            '["ubuntu-22.04-arm"]',
+            True,
+            id="ydb_disabled_on_arm",
+        ),
+        # Test integrations that are NOT disabled on AMD runners
+        pytest.param(
+            "kerberos",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="kerberos_enabled_on_amd",
+        ),
+        pytest.param(
+            "drill",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="drill_enabled_on_amd",
+        ),
+        pytest.param(
+            "tinkerpop",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="tinkerpop_enabled_on_amd",
+        ),
+        # Test an integration that is not in any disabled list
+        pytest.param(
+            "postgres",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="postgres_enabled_on_amd",
+        ),
+        pytest.param(
+            "postgres",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="postgres_enabled_on_arm",
+        ),
+        pytest.param(
+            "redis",
+            PUBLIC_AMD_RUNNERS,
+            False,
+            id="redis_enabled_on_amd",
+        ),
+        pytest.param(
+            "redis",
+            '["ubuntu-22.04-arm"]',
+            False,
+            id="redis_enabled_on_arm",
+        ),
+    ],
+)
+def test_is_disabled_integration(integration: str, runner_type: str, expected_result: bool):
+    """Test that _is_disabled_integration correctly identifies disabled integrations."""
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    # Mock the runner_type property
+    with patch.object(
+        SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: runner_type)
+    ):
+        result = selective_checks._is_disabled_integration(integration)
+        assert result == expected_result
+
+
+def test_testable_core_integrations_excludes_disabled():
+    """Test that testable_core_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS",
+        ["postgres", "kerberos"],
+    ):
+        # Test with AMD runner - should exclude elasticsearch (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" in result
+
+
+def test_testable_core_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_core_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_CORE_INTEGRATIONS", ["postgres", "kerberos", "drill"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("airflow-core/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_core_integrations
+            assert "postgres" in result
+            assert "kerberos" not in result
+            assert "drill" not in result
+
+
+def test_testable_providers_integrations_excludes_disabled():
+    """Test that testable_providers_integrations excludes disabled integrations."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS",
+        ["postgres", "mssql", "trino"],
+    ):
+        # Test with AMD runner - should exclude mssql (disabled for all CI)
+        selective_checks_amd = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.PULL_REQUEST,
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: PUBLIC_AMD_RUNNERS)
+        ):
+            result = selective_checks_amd.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" in result
+            assert "mssql" not in result
+
+
+def test_testable_providers_integrations_excludes_arm_disabled_on_arm():
+    """Test that testable_providers_integrations excludes ARM-disabled integrations on ARM runners."""
+    with patch(
+        "airflow_breeze.utils.selective_checks.TESTABLE_PROVIDERS_INTEGRATIONS", ["postgres", "trino", "ydb"]
+    ):
+        selective_checks_arm = SelectiveChecks(
+            files=("providers/tests/test_example.py",),
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=GithubEvents.SCHEDULE,
+            github_context_dict={"ref_name": "main"},
+        )
+        with patch.object(
+            SelectiveChecks, "runner_type", new_callable=lambda: property(lambda self: '["ubuntu-22.04-arm"]')
+        ):
+            result = selective_checks_arm.testable_providers_integrations
+            assert "postgres" in result
+            assert "trino" not in result
+            assert "ydb" not in result
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_no_changes(mock_run_command):
+    """Test that provider dependency bump check passes when no pyproject.toml files are changed."""
+    selective_checks = SelectiveChecks(
+        files=("some_other_file.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_fails_on_provider_version_bump(mock_run_command):
+    """Test that provider dependency bump check fails when provider version is bumped without label."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_with_label(mock_run_command):
+    """Test that provider dependency bump check passes when label is set."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("allow provider dependency bump",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is True
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_passes_on_non_provider_dependency_changes(mock_run_command):
+    """Test that provider dependency bump check passes when non-provider dependencies change."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.37.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.10.0",
+    "boto3>=1.38.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.provider_dependency_bump
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_in_optional_dependencies(mock_run_command):
+    """Test that provider dependency bump check works for optional-dependencies section."""
+    old_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.0.0",
+]
+"""
+    new_toml = """
+[project.optional-dependencies]
+"cncf.kubernetes" = [
+    "apache-airflow-providers-cncf-kubernetes>=7.2.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=("providers/amazon/pyproject.toml",),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).provider_dependency_bump

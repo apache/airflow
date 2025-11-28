@@ -33,7 +33,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
 
   const isRTL = i18n.dir() === "rtl";
 
-  const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
+  const { data, error, isLoading } = useImportErrorServiceGetImportErrors({ limit: 1 });
   const importErrorsCount = data?.total_entries ?? 0;
 
   if (isLoading) {
@@ -55,7 +55,7 @@ export const DAGImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
           onClick={onOpen}
           title={translate("importErrors.dagImportError", { count: importErrorsCount })}
         >
-          <LuFileWarning size="0.5rem" />
+          <LuFileWarning size={8} />
           {importErrorsCount}
         </StateBadge>
       ) : (

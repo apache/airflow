@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -105,7 +105,6 @@ def _determine_init_py_action(need_path_extension: bool, root_path: Path):
 
 
 def check_dir_init_test_folders(folders: list[Path]) -> None:
-    global should_fail
     folders = list(folders)
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension
@@ -121,7 +120,6 @@ def check_dir_init_test_folders(folders: list[Path]) -> None:
 
 
 def check_dir_init_src_folders(folders: list[Path]) -> None:
-    global should_fail
     folders = list(folders)
     for root_distribution_path in folders:
         # We need init folders for all folders and for the common ones we need path extension

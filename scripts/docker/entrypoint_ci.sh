@@ -184,6 +184,27 @@ function environment_initialization() {
         ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
     fi
 
+    if [[ ${INTEGRATION_LOCALSTACK:-"false"} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Configuring LocalStack integration${COLOR_RESET}"
+        echo
+
+        # Define LocalStack AWS configuration
+        declare -A localstack_config=(
+            ["AWS_ENDPOINT_URL"]="http://localstack:4566"
+            ["AWS_ACCESS_KEY_ID"]="test"
+            ["AWS_SECRET_ACCESS_KEY"]="test"
+            ["AWS_DEFAULT_REGION"]="us-east-1"
+        )
+
+        # Export each configuration variable and log it
+        for key in "${!localstack_config[@]}"; do
+            export "$key"="${localstack_config[$key]}"
+            echo "  * ${COLOR_BLUE}${key}:${COLOR_RESET} ${localstack_config[$key]}"
+        done
+        echo
+    fi
+
     cd "${AIRFLOW_SOURCES}"
 
     # Temporarily add /opt/airflow/providers/standard/tests to PYTHONPATH in order to see example dags
@@ -193,10 +214,18 @@ function environment_initialization() {
     fi
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
+            export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
+        fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
-        # shellcheck source=scripts/in_container/bin/run_tmux
-        exec run_tmux
+        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+            # shellcheck source=scripts/in_container/bin/run_mprocs
+            exec run_mprocs
+        else
+            # shellcheck source=scripts/in_container/bin/run_tmux
+            exec run_tmux
+        fi
     fi
 }
 

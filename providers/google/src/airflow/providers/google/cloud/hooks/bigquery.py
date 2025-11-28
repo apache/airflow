@@ -786,7 +786,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if return_iterator:
             # The iterator returned by list_datasets() is a HTTPIterator but annotated
             # as Iterator
-            return iterator  #  type: ignore
+            return iterator  # type: ignore
 
         datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
@@ -1802,15 +1802,14 @@ class BigQueryCursor(BigQueryBaseCursor):
                             "must be a dict with {'projectId':'', "
                             "'datasetId':'', 'tableId':''}"
                         )
-                else:
-                    configuration["query"].update(
-                        {
-                            "allowLargeResults": allow_large_results,
-                            "flattenResults": flatten_results,
-                            "writeDisposition": write_disposition,
-                            "createDisposition": create_disposition,
-                        }
-                    )
+                configuration["query"].update(
+                    {
+                        "allowLargeResults": allow_large_results,
+                        "flattenResults": flatten_results,
+                        "writeDisposition": write_disposition,
+                        "createDisposition": create_disposition,
+                    }
+                )
 
         if (
             "useLegacySql" in configuration["query"]

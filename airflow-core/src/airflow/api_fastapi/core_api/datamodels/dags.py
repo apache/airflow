@@ -157,6 +157,7 @@ class DAGDetailsResponse(DAGResponse):
     last_parsed: datetime | None
     default_args: abc.Mapping | None
     owner_links: dict[str, str] | None = None
+    is_favorite: bool = False
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -198,7 +199,9 @@ class DAGDetailsResponse(DAGResponse):
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
+        latest_dag_version = DagVersion.get_latest_version(
+            self.dag_id, load_dag_model=True, load_bundle_model=True
+        )
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

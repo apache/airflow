@@ -31,6 +31,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
@@ -440,7 +441,8 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
-        response = test_client.get("/dags", params=query_params)
+        with assert_queries_count(4):
+            response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200
         body = response.json()
 
@@ -483,6 +485,21 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == expected_total_entries
         assert sorted([dag["dag_id"] for dag in body["dags"]]) == sorted(expected_ids)
 
+    def test_get_dags_filter_non_favorites(self, session, test_client):
+        """Test filtering DAGs by is_favorite=false."""
+        # Mark DAG1 as favorite
+        session.add(DagFavorite(user_id="test", dag_id=DAG1_ID))
+        session.commit()
+
+        response = test_client.get("/dags", params={"is_favorite": False})
+
+        assert response.status_code == 200
+        body = response.json()
+
+        # Should return only non-favorite DAGs (DAG2)
+        assert body["total_entries"] == 1
+        assert [dag["dag_id"] for dag in body["dags"]] == [DAG2_ID]
+
     def test_get_dags_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/dags")
         assert response.status_code == 401
@@ -508,6 +525,71 @@ class TestGetDags(TestDagEndpoint):
         body = response.json()
         assert body["total_entries"] == 1
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+    def test_get_dags_no_n_plus_one_queries(self, session, test_client):
+        """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
+        num_dags = 5
+        for i in range(num_dags):
+            dag_id = f"test_dag_queries_{i}"
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="dag_maker",
+                fileloc=f"/tmp/{dag_id}.py",
+                is_stale=False,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            for j in range(3):
+                tag = DagTag(name=f"tag_{i}_{j}", dag_id=dag_id)
+                session.add(tag)
+
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result:
+            response = test_client.get("/dags", params={"limit": 10})
+
+        assert response.status_code == 200
+        body = response.json()
+        dags_with_our_prefix = [d for d in body["dags"] if d["dag_id"].startswith("test_dag_queries_")]
+        assert len(dags_with_our_prefix) == num_dags
+        for dag in dags_with_our_prefix:
+            assert len(dag["tags"]) == 3
+
+        first_query_count = sum(result.values())
+
+        # Add more DAGs and verify query count doesn't scale linearly
+        for i in range(num_dags, num_dags + 3):
+            dag_id = f"test_dag_queries_{i}"
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="dag_maker",
+                fileloc=f"/tmp/{dag_id}.py",
+                is_stale=False,
+            )
+            session.add(dag_model)
+            session.flush()
+
+            for j in range(3):
+                tag = DagTag(name=f"tag_{i}_{j}", dag_id=dag_id)
+                session.add(tag)
+
+        session.commit()
+        session.expire_all()
+
+        with count_queries() as result2:
+            response = test_client.get("/dags", params={"limit": 15})
+
+        assert response.status_code == 200
+        second_query_count = sum(result2.values())
+
+        # With n+1, adding 3 DAGs would add ~3 tag queries
+        # Without n+1, query count should remain nearly identical
+        assert second_query_count - first_query_count < 3, (
+            f"Added 3 DAGs but query count increased by {second_query_count - first_query_count} "
+            f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
+        )
 
 
 class TestPatchDag(TestDagEndpoint):
@@ -825,7 +907,7 @@ class TestDagDetails(TestDagEndpoint):
             "is_paused_upon_creation": None,
             "latest_dag_version": {
                 "bundle_name": "dag_maker",
-                "bundle_url": None,
+                "bundle_url": "http://test_host.github.com/tree/None/dags",
                 "bundle_version": None,
                 "created_at": mock.ANY,
                 "dag_id": "test_dag2",
@@ -862,6 +944,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
+            "is_favorite": False,
         }
         assert res_json == expected
 
@@ -957,6 +1040,7 @@ class TestDagDetails(TestDagEndpoint):
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
+            "is_favorite": False,
         }
         assert res_json == expected
 
@@ -967,6 +1051,30 @@ class TestDagDetails(TestDagEndpoint):
     def test_dag_details_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get(f"/dags/{DAG1_ID}/details")
         assert response.status_code == 403
+
+    def test_dag_details_includes_is_favorite_field(self, session, test_client):
+        """Test that DAG details include the is_favorite field."""
+        # Mark DAG2 as favorite
+        session.add(DagFavorite(user_id="test", dag_id=DAG2_ID))
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify is_favorite field is present and correct
+        assert "is_favorite" in body
+        assert isinstance(body["is_favorite"], bool)
+        assert body["is_favorite"] is True
+
+        # Test with non-favorite DAG
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "is_favorite" in body
+        assert isinstance(body["is_favorite"], bool)
+        assert body["is_favorite"] is False
 
 
 class TestGetDag(TestDagEndpoint):

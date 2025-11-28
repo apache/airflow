@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING
 
 import git
 import rich_click as click
-from github import Github
+from github import Auth, Github
 from packaging import version
 from rich.console import Console
 from rich.progress import Progress
@@ -299,9 +299,7 @@ def cli():
     " searching for few commits to find the cherry-picked commits",
 )
 @click.option("--unmerged", "show_uncherrypicked_only", help="Show unmerged PRs only", is_flag=True)
-
 @click.option("--show-commits", help="Show commit SHAs (default: on, off when --unmerged)", is_flag=True, default=None)
-
 def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False, show_commits=None):
     # Set smart defaults
     if show_commits is None:
@@ -309,7 +307,7 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 
     repo = git.Repo(".", search_parent_directories=True)
 
-    github_handler = Github(github_token)
+    github_handler = Github(auth=Auth.Token(github_token))
 
     # Fetch PRs and Issues separately, with merged PRs identified upfront
     merged_prs: list[Issue] = list(
@@ -469,7 +467,7 @@ def changelog(previous_version, target_version, github_token, disable_progress_b
     if disable_progress_bar:
         print(f"Processing {len(log)} commits")
 
-    gh = Github(github_token)
+    gh = Github(auth=Auth.Token(github_token))
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
     with open("RELEASE_NOTES.rst") as file:
@@ -509,7 +507,7 @@ def needs_categorization(previous_version, target_version, show_skipped, show_fi
     repo = git.Repo(".", search_parent_directories=True)
     log = get_commits_between(repo, previous_version, target_version)
 
-    gh = Github(github_token)
+    gh = Github(auth=Auth.Token(github_token))
     gh_repo = gh.get_repo("apache/airflow")
     for commit in log:
         tickets = pr_title_re.findall(commit["subject"])

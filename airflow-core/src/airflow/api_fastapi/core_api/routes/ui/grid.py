@@ -161,14 +161,18 @@ def get_dag_structure(
 
     serdags = session.scalars(
         select(SerializedDagModel).where(
+            # Even though dag_id is filtered in base_query,
+            # adding this line here can improve the performance of this endpoint
+            SerializedDagModel.dag_id == dag_id,
+            SerializedDagModel.id != latest_serdag.id,
             SerializedDagModel.dag_version_id.in_(
                 select(TaskInstance.dag_version_id)
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.id.in_(run_ids),
-                    SerializedDagModel.id != latest_serdag.id,
                 )
-            )
+                .distinct()
+            ),
         )
     )
     merged_nodes: list[dict[str, Any]] = []

@@ -37,11 +37,16 @@ version = "0.0.1"
 
 dependencies = [
     "apache-airflow-devel-common",
-    "python-on-whales>=0.70.0",
 ]
 
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+[tool.pytest]
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
 norecursedirs = [
     ".eggs",
 ]

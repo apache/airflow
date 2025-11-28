@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 from uuid import uuid4
 
@@ -25,16 +26,18 @@ import pytest
 import uuid6
 from sqlalchemy import select, update
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, TaskGroup, task, task_group
+from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
 from tests_common.test_utils.db import (
@@ -44,6 +47,11 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+
+if TYPE_CHECKING:
+    from airflow.sdk.api.client import Client
+
+    from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
 
@@ -189,6 +197,7 @@ class TestTIRunState:
                 "end_date": None,
                 "run_type": "manual",
                 "conf": {},
+                "triggering_user_name": None,
                 "consumed_asset_events": [],
             },
             "task_reschedule_count": 0,
@@ -376,7 +385,7 @@ class TestTIRunState:
                 f"but got {upstream_map_indexes}"
             )
 
-    def test_dynamic_task_mapping_with_xcom(self, client, dag_maker, create_task_instance, session, run_task):
+    def test_dynamic_task_mapping_with_xcom(self, client: Client, dag_maker: DagMaker, session: Session):
         """
         Test that the Task Instance upstream_map_indexes is correctly fetched when to running the Task Instances with xcom
         """
@@ -408,7 +417,6 @@ class TestTIRunState:
 
         # Simulate task_1 execution to produce TaskMap.
         (ti_1,) = decision.schedulable_tis
-        # ti_1 = dr.get_task_instance(task_id="task_1")
         ti_1.state = TaskInstanceState.SUCCESS
         session.add(TaskMap.from_task_instance_xcom(ti_1, [0, 1]))
         session.flush()
@@ -434,6 +442,128 @@ class TestTIRunState:
             },
         )
         assert response.json()["upstream_map_indexes"] == {"tg.task_2": [0, 1, 2, 3, 4, 5]}
+
+    def test_dynamic_task_mapping_with_all_success_trigger_rule(self, dag_maker: DagMaker, session: Session):
+        """
+        Test that the Task Instance upstream_map_indexes is not populuated but
+        the downstream task should not be run.
+        """
+
+        with dag_maker(session=session, serialized=True):
+
+            @task
+            def task_1():
+                raise AirflowSkipException()
+
+            @task_group
+            def tg(x):
+                @task
+                def task_2():
+                    raise AirflowSkipException()
+
+                task_2()
+
+            @task(trigger_rule=TriggerRule.ALL_SUCCESS)
+            def task_3():
+                pass
+
+            @task
+            def task_4():
+                pass
+
+            tg.expand(x=task_1()) >> [task_3(), task_4()]
+
+        dr = dag_maker.create_dagrun()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        # Simulate task_1 skipped
+        (ti_1,) = decision.schedulable_tis
+        ti_1.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        # Now task_2 in mapped task group is not expanded and also skipped.
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert decision.schedulable_tis == []
+
+    @pytest.mark.parametrize(
+        "trigger_rule",
+        [
+            TriggerRule.ALL_DONE,
+            TriggerRule.ALL_DONE_SETUP_SUCCESS,
+            TriggerRule.NONE_FAILED,
+            TriggerRule.ALL_SKIPPED,
+        ],
+    )
+    def test_dynamic_task_mapping_with_non_all_success_trigger_rule(
+        self, client: Client, dag_maker: DagMaker, session: Session, trigger_rule: TriggerRule
+    ):
+        """
+        Test that the Task Instance upstream_map_indexes is not populuated but
+        the downstream task should still be run due to trigger rule.
+        """
+
+        with dag_maker(session=session, serialized=True):
+
+            @task
+            def task_1():
+                raise AirflowSkipException()
+
+            @task_group
+            def tg(x):
+                @task
+                def task_2():
+                    raise AirflowSkipException()
+
+                task_2()
+
+            @task(trigger_rule=trigger_rule)
+            def task_3():
+                pass
+
+            @task
+            def task_4():
+                pass
+
+            tg.expand(x=task_1()) >> [task_3(), task_4()]
+
+        dr = dag_maker.create_dagrun()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        # Simulate task_1 skipped
+        (ti_1,) = decision.schedulable_tis
+        ti_1.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        # Now task_2 in mapped tagk group is not expanded and also skipped..
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.state = TaskInstanceState.SKIPPED
+        session.flush()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        # only task_3 is schedulable
+        (task_3_ti,) = decision.schedulable_tis
+        assert task_3_ti.task_id == "task_3"
+        task_3_ti.set_state(State.QUEUED)
+
+        response = client.patch(
+            f"/execution/task-instances/{task_3_ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "random-hostname",
+                "unixname": "random-unixname",
+                "pid": 100,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+        assert response.json()["upstream_map_indexes"] == {"tg.task_2": None}
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
         instant_str = "2024-09-30T12:00:00Z"
@@ -636,6 +766,62 @@ class TestTIRunState:
 
         assert response.status_code == 200
         assert ti.xcom_pull(task_ids="test_xcom_not_cleared_for_deferral", key="key") == "value"
+
+    def test_ti_run_with_triggering_user_name(
+        self,
+        client,
+        session,
+        dag_maker,
+        time_machine,
+    ):
+        """
+        Test that the triggering_user_name field is correctly returned when it has a non-None value.
+        """
+        instant_str = "2024-09-30T12:00:00Z"
+        instant = timezone.parse(instant_str)
+        time_machine.move_to(instant, tick=False)
+
+        with dag_maker(dag_id=str(uuid4()), session=session):
+            EmptyOperator(task_id="test_ti_run_with_triggering_user_name")
+
+        # Create DagRun with triggering_user_name set to a specific value
+        dr = dag_maker.create_dagrun(
+            run_id="test",
+            logical_date=instant,
+            state=DagRunState.RUNNING,
+            start_date=instant,
+            triggering_user_name="test_user",
+        )
+
+        ti = dr.get_task_instance(task_id="test_ti_run_with_triggering_user_name")
+        ti.set_state(State.QUEUED)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "test-hostname",
+                "unixname": "test-unixname",
+                "pid": 12345,
+                "start_date": instant_str,
+            },
+        )
+
+        assert response.status_code == 200
+        json_response = response.json()
+
+        # Verify the dag_run is present
+        assert "dag_run" in json_response
+        dag_run = json_response["dag_run"]
+
+        # The triggering_user_name field should be present with the correct value
+        assert dag_run["triggering_user_name"] == "test_user"
+
+        # Verify other expected fields are still present
+        assert dag_run["dag_id"] == ti.dag_id
+        assert dag_run["run_id"] == "test"
+        assert dag_run["state"] == "running"
 
 
 class TestTIUpdateState:
@@ -2330,3 +2516,30 @@ class TestInvactiveInletsAndOutlets:
         response = client.get(f"/execution/task-instances/{task1_ti.id}/validate-inlets-and-outlets")
         assert response.status_code == 200
         assert response.json() == {"inactive_assets": []}
+
+    def test_ti_run_with_null_conf(self, client, session, create_task_instance):
+        """Test that task instances can start when dag_run.conf is NULL."""
+        ti = create_task_instance(
+            task_id="test_ti_run_with_null_conf",
+            state=State.QUEUED,
+            dagrun_state=DagRunState.RUNNING,
+            session=session,
+        )
+        # Set conf to NULL to simulate Airflow 2.x upgrade or offline migration
+        ti.dag_run.conf = None
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "pid": 100,
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "start_date": timezone.utcnow().isoformat(),
+            },
+        )
+
+        assert response.status_code == 200, f"Response: {response.text}"
+        context = response.json()
+        assert context["dag_run"]["conf"] is None

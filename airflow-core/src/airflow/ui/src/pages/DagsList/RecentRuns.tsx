@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { renderDuration } from "src/utils";
@@ -48,7 +49,7 @@ export const RecentRuns = ({
   );
 
   return (
-    <Flex alignItems="flex-end" flexDirection="row-reverse" pb={1}>
+    <Flex alignItems="flex-end" flexDirection="row-reverse" gap={[0.5, 0.5, 0.5, 1]} pb={1}>
       {latestRuns.map((run) => (
         <Tooltip
           content={
@@ -74,7 +75,7 @@ export const RecentRuns = ({
               </Text>
             </Box>
           }
-          key={run.dag_run_id}
+          key={run.run_id}
           positioning={{
             offset: {
               crossAxis: 5,
@@ -83,16 +84,20 @@ export const RecentRuns = ({
             placement: "bottom-start",
           }}
         >
-          <Link to={`/dags/${run.dag_id}/runs/${run.dag_run_id}/`}>
-            <Box px={1}>
-              <Box
-                bg={`${run.state}.solid`}
-                borderRadius="4px"
-                height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
-                minHeight={1}
-                width="4px"
-              />
-            </Box>
+          <Link to={`/dags/${run.dag_id}/runs/${run.run_id}/`}>
+            <Flex
+              alignItems="center"
+              bg={`${run.state}.solid`}
+              borderRadius="4px"
+              flexDir="column"
+              fontSize="12px"
+              height={`${run.duration === null ? 1 : (run.duration / max) * BAR_HEIGHT}px`}
+              justifyContent="flex-end"
+              minHeight="12px"
+              width="12px"
+            >
+              <StateIcon color="white" state={run.state} />
+            </Flex>
           </Link>
         </Tooltip>
       ))}

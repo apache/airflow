@@ -39,10 +39,10 @@ COMMANDS = [
     "",  # for `airflowctl -h`, main help
     "assets",
     "auth",
-    "backfills",
+    "backfill",
     "config",
     "connections",
-    "dag",
+    "dags",
     "dagrun",
     "jobs",
     "pools",

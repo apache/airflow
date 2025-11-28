@@ -589,6 +589,14 @@ class AirflowConfigParser(ConfigParser):
                 value = "\n# ".join(value_lines)
                 file.write(f"# {option} = {value}\n")
             else:
+                if "\n" in value:
+                    try:
+                        value = json.dumps(json.loads(value), indent=4)
+                        value = value.replace(
+                            "\n", "\n    "
+                        )  # indent multi-line JSON to satisfy configparser format
+                    except JSONDecodeError:
+                        pass
                 file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
@@ -1717,8 +1725,7 @@ class AirflowConfigParser(ConfigParser):
                     deprecated_section_array = config.items(section=deprecated_section, raw=True)
                     if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-        else:
-            return False
+        return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
@@ -1845,7 +1852,7 @@ class AirflowConfigParser(ConfigParser):
         """
         # We need those globals before we run "get_all_expansion_variables" because this is where
         # the variables are expanded from in the configuration
-        global FERNET_KEY, AIRFLOW_HOME, JWT_SECRET_KEY
+        global FERNET_KEY, JWT_SECRET_KEY
         from cryptography.fernet import Fernet
 
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"

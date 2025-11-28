@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import logging.config
 from unittest import mock
 
 import pytest

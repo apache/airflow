@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -160,6 +162,21 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
+    accessorKey: "queue",
+    enableSorting: false,
+    header: translate("taskInstance.queue"),
+  },
+  {
+    accessorKey: "executor",
+    enableSorting: false,
+    header: translate("taskInstance.executor"),
+  },
+  {
+    accessorKey: "hostname",
+    enableSorting: false,
+    header: translate("taskInstance.hostname"),
+  },
+  {
     accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
@@ -196,7 +213,16 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    columnVisibility: {
+      dag_version: false,
+      end_date: false,
+      executor: false,
+      hostname: false,
+      pool: false,
+      queue: false,
+    },
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
@@ -235,6 +261,17 @@ export const TaskInstances = () => {
     },
   );
 
+  const columns = useMemo(
+    () =>
+      taskInstanceColumns({
+        dagId,
+        runId,
+        taskId: Boolean(groupId) ? undefined : taskId,
+        translate,
+      }),
+    [dagId, runId, groupId, taskId, translate],
+  );
+
   return (
     <>
       <TaskInstancesFilter
@@ -242,12 +279,7 @@ export const TaskInstances = () => {
         taskDisplayNamePattern={taskDisplayNamePattern}
       />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

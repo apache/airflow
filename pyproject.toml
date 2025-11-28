@@ -33,7 +33,8 @@ build-backend = "hatchling.build"
 name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
@@ -54,22 +55,19 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
-    "Topic :: System :: Monitoring",
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek
-version = "3.1.1"
+version = "3.1.3"
 
 dependencies = [
     "apache-airflow-task-sdk>=1.1.1",
-    "apache-airflow-core==3.1.1",
-    "natsort>=8.4.0",
+    "apache-airflow-core==3.1.3",
 ]
 
 packages = []
@@ -588,6 +586,26 @@ extend-select = [
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
+    # Warning (PLW) re-implemented in ruff from Pylint
+    "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
+    "PLW0127", # Self-assignment of variable
+    "PLW0128", # Redeclared variable {name} in assignment
+    "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0131", # Named expression used without context
+    "PLW0133", # Missing raise statement on exception
+    "PLW0177", # Comparing against a NaN value; use math.isnan instead
+    "PLW0211", # First argument of a static method should not be named {argument_name}
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0604", # global at module level is redundant
+    "PLW0642", # Reassigned {} variable in {method_type} method
+    "PLW0711", # Exception to catch is the result of a binary and operation
+    "PLW1501", # {mode} is not a valid mode for open
+    "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
+    "PLW1508", # Invalid type for environment variable default; expected str or None
+    "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -879,7 +897,7 @@ mark-parentheses = false
 fixture-parentheses = false
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -1008,6 +1026,7 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/task-sdk/tests",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
@@ -1264,6 +1283,7 @@ dev = [
     "apache-airflow-kubernetes-tests",
     "apache-airflow-task-sdk",
     "apache-airflow-ctl",
+    "apache-airflow-ctl-tests",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1305,6 +1325,7 @@ apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
+apache-airflow-ctl-tests = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
@@ -1422,6 +1443,7 @@ members = [
     "airflow-core",
     "dev/breeze",
     "airflow-ctl",
+    "airflow-ctl-tests",
     "dev",
     "devel-common",
     "docker-tests",

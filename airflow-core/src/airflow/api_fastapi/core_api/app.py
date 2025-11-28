@@ -47,7 +47,7 @@ def init_views(app: FastAPI) -> None:
     app.include_router(ui_router)
     app.include_router(public_router)
 
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+    dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
 
     directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 
@@ -179,6 +179,12 @@ def init_error_handlers(app: FastAPI) -> None:
 
     for handler in ERROR_HANDLERS:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
+
+
+def init_middlewares(app: FastAPI) -> None:
+    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+
+    app.add_middleware(JWTRefreshMiddleware)
 
 
 def init_ui_plugins(app: FastAPI) -> None:

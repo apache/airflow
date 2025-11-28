@@ -8466,15 +8466,6 @@ paths:
       summary: Logout
       description: Logout the user.
       operationId: logout
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
       responses:
         '200':
           description: Successful Response
@@ -8482,51 +8473,11 @@ paths:
             application/json:
               schema: {}
         '307':
+          description: Temporary Redirect
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/auth/refresh:
-    get:
-      tags:
-      - Login
-      summary: Refresh
-      description: Refresh the authentication token.
-      operationId: refresh
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '307':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -8666,7 +8617,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8722,7 +8674,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -9395,6 +9348,9 @@ components:
             type: array
           - type: 'null'
           title: Task Ids
+          description: A list of `task_id` or [`task_id`, `map_index`]. If only the
+            `task_id` is provided for a mapped task, all of its map indices will be
+            targeted.
         dag_run_id:
           anyOf:
           - type: string
@@ -9839,6 +9795,10 @@ components:
             type: object
           - type: 'null'
           title: Owner Links
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+          default: false
         file_token:
           type: string
           title: File Token
@@ -10708,7 +10668,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -10834,6 +10793,11 @@ components:
           - type: string
           - type: 'null'
           title: Dag Display Name
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
       type: object
       required:
       - event_log_id
@@ -11550,7 +11514,6 @@ components:
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots

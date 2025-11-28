@@ -64,7 +64,7 @@ export type AssetEventResponse = {
     name?: string | null;
     group?: string | null;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     source_task_id?: string | null;
     source_dag_id?: string | null;
@@ -83,7 +83,7 @@ export type AssetResponse = {
     uri: string;
     group: string;
     extra?: {
-    [key: string]: unknown;
+    [key: string]: JsonValue;
 } | null;
     created_at: string;
     updated_at: string;
@@ -380,6 +380,9 @@ export type ClearTaskInstancesBody = {
     only_failed?: boolean;
     only_running?: boolean;
     reset_dag_runs?: boolean;
+    /**
+     * A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.
+     */
     task_ids?: Array<(string | [
     string,
     number
@@ -536,6 +539,7 @@ export type DAGDetailsResponse = {
     owner_links?: {
     [key: string]: (string);
 } | null;
+    is_favorite?: boolean;
     /**
      * Return file token.
      */
@@ -823,7 +827,7 @@ export type DagVersionResponse = {
     bundle_version: string | null;
     created_at: string;
     dag_display_name: string;
-    readonly bundle_url: string | null;
+    bundle_url: string | null;
 };
 
 /**
@@ -873,6 +877,7 @@ export type EventLogResponse = {
     owner: string | null;
     extra: string | null;
     dag_display_name?: string | null;
+    task_display_name?: string | null;
 };
 
 /**
@@ -1152,7 +1157,7 @@ export type PoolPatchBody = {
 export type PoolResponse = {
     name: string;
     slots: number;
-    description: string | null;
+    description?: string | null;
     include_deferred: boolean;
     occupied_slots: number;
     running_slots: number;
@@ -1738,6 +1743,7 @@ export type DAGRunLightResponse = {
     start_date: string | null;
     end_date: string | null;
     state: DagRunState;
+    readonly duration: number | null;
 };
 
 /**
@@ -1800,8 +1806,9 @@ export type DAGWithLatestDagRunsResponse = {
     asset_expression: {
     [key: string]: unknown;
 } | null;
-    latest_dag_runs: Array<DAGRunResponse>;
+    latest_dag_runs: Array<DAGRunLightResponse>;
     pending_actions: Array<HITLDetail>;
+    is_favorite: boolean;
     /**
      * Return file token.
      */
@@ -3199,17 +3206,7 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
-export type LogoutData = {
-    next?: string | null;
-};
-
 export type LogoutResponse = unknown;
-
-export type RefreshData = {
-    next?: string | null;
-};
-
-export type RefreshResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
 
@@ -6269,7 +6266,6 @@ export type $OpenApiTs = {
     };
     '/api/v2/auth/logout': {
         get: {
-            req: LogoutData;
             res: {
                 /**
                  * Successful Response
@@ -6279,29 +6275,6 @@ export type $OpenApiTs = {
                  * Temporary Redirect
                  */
                 307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/auth/refresh': {
-        get: {
-            req: RefreshData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: unknown;
-                /**
-                 * Temporary Redirect
-                 */
-                307: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
             };
         };
     };

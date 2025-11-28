@@ -21,9 +21,7 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { createElement } from "react-syntax-highlighter";
 
 import {
   useDagServiceGetDagDetails,
@@ -41,8 +39,7 @@ import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
-
-SyntaxHighlighter.registerLanguage("python", python);
+import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common"]);
@@ -156,7 +153,7 @@ export const Code = () => {
       <Box
         css={{
           "& *::selection": {
-            bg: "gray.emphasized",
+            bg: "blue.emphasized",
           },
         }}
         fontSize="14px"

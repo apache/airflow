@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from importlib.metadata import PackageNotFoundError, metadata
-from unittest import SkipTest, mock
+from unittest import mock
 
 import pytest
 
@@ -27,6 +27,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -217,7 +218,10 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/connections", params=query_params)
+
+        with assert_queries_count(3):
+            response = test_client.get("/connections", params=query_params)
+
         assert response.status_code == 200
 
         body = response.json()
@@ -855,7 +859,7 @@ class TestConnection(TestConnectionEndpoint):
         try:
             metadata("apache-airflow-providers-sqlite")
         except PackageNotFoundError:
-            raise SkipTest("The SQlite distribution package is not installed.")
+            pytest.skip("The SQlite distribution package is not installed.")
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(

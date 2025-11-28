@@ -270,7 +270,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``add lowerbount to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
+* ``add lower bound to requests-toolbelt and replace requests_toolbelt with requests-toolbelt (#43020)``
 * ``Set lower bound to asgiref>=2.3.0 (#43001)``
 
 
@@ -569,7 +569,7 @@ Misc
 Features
 ~~~~~~~~
 
-* ``Add non login-password auth support for SimpleHttpOpeator (#29206)``
+* ``Add non login-password auth support for SimpleHttpOperator (#29206)``
 
 4.2.0
 .....

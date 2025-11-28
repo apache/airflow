@@ -461,7 +461,10 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.sync_running_jobs()
         for i in range(2):
-            assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+                in caplog.text
+            )
 
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
     def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):

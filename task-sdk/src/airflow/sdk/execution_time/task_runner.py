@@ -131,6 +131,9 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
+    _context: Context | None = None
+    """The Task Instance context."""
+
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
 
@@ -173,7 +176,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         validated_params = process_params(self.task.dag, self.task, dag_run_conf, suppress_exception=False)
 
-        context: Context = {
+        # Cache the context object, which ensures that all calls to get_template_context
+        # are operating on the same context object.
+        self._context: Context = self._context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -213,7 +218,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            context.update(context_from_server)
+            self._context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -224,7 +229,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                context.update(
+                self._context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -251,7 +256,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return context
+        return self._context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -689,20 +694,15 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # in response to us sending a request.
     log = structlog.get_logger(logger_name="task")
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and os.environ.get("_AIRFLOW__STARTUP_MSG"):
+    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1" and (
+        msgjson := os.environ.get("_AIRFLOW__STARTUP_MSG")
+    ):
         # Clear any Kerberos replace cache if there is one, so new process can't reuse it.
         os.environ.pop("KRB5CCNAME", None)
         # entrypoint of re-exec process
-        msg = TypeAdapter(StartupDetails).validate_json(os.environ["_AIRFLOW__STARTUP_MSG"])
 
-        logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
-        if isinstance(logs, SentFDs):
-            from airflow.sdk.log import configure_logging
-
-            log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
-            configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
-        else:
-            print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
+        msg: StartupDetails = TypeAdapter(StartupDetails).validate_json(msgjson)
+        reinit_supervisor_comms()
 
         # We delay this message until _after_ we've got the logging re-configured, otherwise it will show up
         # on stdout
@@ -711,8 +711,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         # normal entry point
         msg = SUPERVISOR_COMMS._get_response()  # type: ignore[assignment]
 
-    if not isinstance(msg, StartupDetails):
-        raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+        if not isinstance(msg, StartupDetails):
+            raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
+
     # setproctitle causes issue on Mac OS: https://github.com/benoitc/gunicorn/issues/3021
     os_type = sys.platform
     if os_type == "darwin":
@@ -766,9 +767,19 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     # TODO: Port one of the following to Task SDK
     #   airflow.serialization.helpers.serialize_template_field or
     #   airflow.models.renderedtifields.get_serialized_template_fields
+    from airflow.sdk._shared.secrets_masker import redact
     from airflow.serialization.helpers import serialize_template_field
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    rendered_fields = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        rendered_fields[field] = redact(serialized, field)
+
+    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -784,7 +795,7 @@ def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
             yield AssetProfile(name=obj.name, type=AssetAlias.__name__)
 
 
-def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, JsonValue]]:
     if TYPE_CHECKING:
         assert isinstance(events, OutletEventAccessors)
     # We just collect everything the user recorded in the accessors.
@@ -799,6 +810,9 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
+    # Since context is now cached, and calling `ti.get_template_context` will return the same dict, we want to
+    # update the value of the task that is sent from there
+    context["task"] = ti.task
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
@@ -1097,7 +1111,11 @@ def _handle_trigger_dag_run(
             trigger=DagStateTrigger(
                 dag_id=drte.trigger_dag_id,
                 states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                execution_dates=[drte.logical_date] if drte.logical_date else None,
+                # Don't filter by execution_dates when run_ids is provided.
+                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                # drte.logical_date might be a newly calculated value that doesn't match
+                # the persisted logical_date in the database, causing the trigger to never find the run.
+                execution_dates=None,
                 run_ids=[drte.dag_run_id],
                 poll_interval=drte.poke_interval,
             ),
@@ -1387,9 +1405,17 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-        _xcom_push_to_db(ti, key=xcom_key, value=link)
+        try:
+            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+            _xcom_push_to_db(ti, key=xcom_key, value=link)
+        except Exception:
+            log.exception(
+                "Failed to push an xcom for task operator extra link",
+                link_name=oe.name,
+                xcom_key=oe.xcom_key,
+                ti=ti,
+            )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
@@ -1435,7 +1461,6 @@ def finalize(
 
 
 def main():
-    # TODO: add an exception here, it causes an oof of a stack trace if it happens to early!
     log = structlog.get_logger(logger_name="task")
 
     global SUPERVISOR_COMMS
@@ -1462,6 +1487,34 @@ def main():
         if SUPERVISOR_COMMS and SUPERVISOR_COMMS.socket:
             with suppress(Exception):
                 SUPERVISOR_COMMS.socket.close()
+
+
+def reinit_supervisor_comms() -> None:
+    """
+    Re-initialize supervisor comms and logging channel in subprocess.
+
+    This is not needed for most cases, but is used when either we re-launch the process via sudo for
+    run_as_user, or from inside the python code in a virtualenv (et al.) operator to re-connect so those tasks
+    can continue to access variables etc.
+    """
+    import socket
+
+    if "SUPERVISOR_COMMS" not in globals():
+        global SUPERVISOR_COMMS
+        log = structlog.get_logger(logger_name="task")
+
+        fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
+
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
+
+    logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
+    if isinstance(logs, SentFDs):
+        from airflow.sdk.log import configure_logging
+
+        log_io = os.fdopen(logs.fds[0], "wb", buffering=0)
+        configure_logging(json_output=True, output=log_io, sending_to_supervisor=True)
+    else:
+        print("Unable to re-configure logging after sudo, we didn't get an FD", file=sys.stderr)
 
 
 if __name__ == "__main__":

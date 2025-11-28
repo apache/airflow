@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -189,8 +190,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_TI_and_TIH_for_validation())
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -317,8 +317,7 @@ def get_task_instance_tries(
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
             )
-            .options(joinedload(orm_object.dag_version))
-            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
+            .options(*eager_load_TI_and_TIH_for_validation(orm_object))
         )
         return query
 
@@ -458,11 +457,7 @@ def get_task_instances(
     """
     dag_run = None
     query = (
-        select(TI)
-        .join(TI.dag_run)
-        .outerjoin(TI.dag_version)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
     )
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -587,7 +582,9 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = select(TI)
+    query = (
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+    )
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -734,16 +731,25 @@ def post_clear_task_instances(
 
     task_ids = body.task_ids
     if task_ids is not None:
-        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
-        dag = dag.partial_subset(
-            task_ids=task_id,
-            include_downstream=downstream,
-            include_upstream=upstream,
-        )
+        tasks = set(task_ids)
+        mapped_tasks_tuples = set(t for t in tasks if isinstance(t, tuple))
+        # Unmapped tasks are expressed in their task_ids (without map_indexes)
+        unmapped_task_ids = set(t for t in tasks if not isinstance(t, tuple))
 
-        if len(dag.task_dict) > 1:
-            # If we had upstream/downstream etc then also include those!
-            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+        if upstream or downstream:
+            mapped_task_ids = set(tid for tid, _ in mapped_tasks_tuples)
+            relatives = dag.partial_subset(
+                task_ids=unmapped_task_ids | mapped_task_ids,
+                include_downstream=downstream,
+                include_upstream=upstream,
+                exclude_original=True,
+            )
+            unmapped_task_ids = unmapped_task_ids | set(relatives.task_dict.keys())
+
+        mapped_tasks_list = [
+            (tid, map_id) for tid, map_id in mapped_tasks_tuples if tid not in unmapped_task_ids
+        ]
+        task_ids = mapped_tasks_list + list(unmapped_task_ids)
 
     # Prepare common parameters
     common_params = {
@@ -900,11 +906,23 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
+            # Create BulkTaskInstanceBody object with map_index field
+            bulk_ti_body = BulkTaskInstanceBody(
+                task_id=task_id,
+                map_index=map_index,
+                new_state=body.new_state,
+                note=body.note,
+                include_upstream=body.include_upstream,
+                include_downstream=body.include_downstream,
+                include_future=body.include_future,
+                include_past=body.include_past,
+            )
+
             _patch_task_instance_state(
                 task_id=task_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
-                task_instance_body=body,
+                task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
             )

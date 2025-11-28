@@ -128,7 +128,7 @@ def _eager_load_dag_run_for_validation() -> tuple[Load, Load]:
         query = select(TI).options(asset_loader).options(alias_loader)
     """
     # Traverse TI → dag_run → consumed_asset_events once, then branch to asset/aliases
-    base = selectinload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
+    base = joinedload(TI.dag_run).selectinload(DagRun.consumed_asset_events)
     return (
         base.selectinload(AssetEvent.asset),
         base.selectinload(AssetEvent.source_aliases),
@@ -831,7 +831,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        asset_loader, alias_loader = _eager_load_dag_run_for_validation()
+        asset_loader, _ = _eager_load_dag_run_for_validation()
         query = (
             select(TI)
             .where(filter_for_tis)
@@ -1850,8 +1850,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         run_id,
                     )
                     continue
-            elif dag.max_active_runs:
-                if active_runs >= dag.max_active_runs:
+            elif dag_run.max_active_runs:
+                # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
+                # against the most recent changes on the dag and not using stale serialized dag
+                if active_runs >= dag_run.max_active_runs:
                     # todo: delete all candidate dag runs for this dag from list right now
                     self.log.info(
                         "dag cannot be started due to dag max_active_runs constraint; "

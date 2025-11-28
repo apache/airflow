@@ -25,6 +25,7 @@ from pydantic import (
     AwareDatetime,
     Discriminator,
     Field,
+    JsonValue,
     Tag,
     TypeAdapter,
     WithJsonSchema,
@@ -258,7 +259,7 @@ class AssetReferenceAssetEventDagRun(StrictBaseModel):
 
     name: str
     uri: str
-    extra: dict
+    extra: dict[str, JsonValue]
 
 
 class AssetAliasReferenceAssetEventDagRun(StrictBaseModel):
@@ -271,7 +272,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     """Schema for AssetEvent model used in DagRun."""
 
     asset: AssetReferenceAssetEventDagRun
-    extra: dict
+    extra: dict[str, JsonValue]
     source_task_id: str | None
     source_dag_id: str | None
     source_run_id: str | None
@@ -298,7 +299,8 @@ class DagRun(StrictBaseModel):
     clear_number: int = 0
     run_type: DagRunType
     state: DagRunState
-    conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    conf: dict[str, Any] | None = None
+    triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
 
 

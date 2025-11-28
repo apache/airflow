@@ -103,7 +103,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
-      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="100px">
+      <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
       <Box position="relative">

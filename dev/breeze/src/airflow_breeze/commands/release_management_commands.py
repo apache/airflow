@@ -32,7 +32,7 @@ import time
 from collections import defaultdict
 from collections.abc import Generator, Iterable
 from copy import deepcopy
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from multiprocessing import Pool
@@ -88,8 +88,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_candidate_command import create_tarball_release
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
@@ -228,12 +227,6 @@ option_use_local_hatch = click.option(
     envvar="USE_LOCAL_HATCH",
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
-option_tag = click.option(
-    "--tag",
-    type=str,
-    help="Tag to use for the release processes",
-    default=None,
-)
 
 MY_DIR_PATH = os.path.dirname(__file__)
 SOURCE_DIR_PATH = os.path.abspath(
@@ -282,7 +275,7 @@ AIRFLOW_DOCKERIGNORE_PATH = AIRFLOW_ROOT_PATH / ".dockerignore"
 
 
 class DistributionBuildType(Enum):
-    """Type of the build"""
+    """Type of the Python distribution to build."""
 
     AIRFLOW = "airflow"
     PROVIDERS = "providers"
@@ -538,37 +531,19 @@ def _check_sdist_to_wheel(python_path: Path, dist_info: DistributionPackageInfo,
     return returncode
 
 
-def create_tarball_from_tag(
-    version_suffix: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
-    tag: str | None,
-):
-    if tag is not None:
-        get_console().print(f"Tag Used for source tarball creation: {tag}")
-        create_tarball_release(
-            version=version_suffix,
-            distribution_name=distribution_name,
-            tag=tag,
-        )
-    else:
-        get_console().print("No tag provided, skipping source tarball creation.")
-
-
-@release_management.command(
+@release_management_group.command(
     name="prepare-airflow-distributions",
     help="Prepare sdist/whl package of Airflow.",
 )
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -599,13 +574,6 @@ def prepare_airflow_distributions(
             version_suffix=version_suffix,
         )
     get_console().print("[success]Successfully prepared Airflow packages")
-
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="airflow",
-        tag=tag,
-    )
 
 
 def _prepare_non_core_distributions(
@@ -725,21 +693,19 @@ def _prepare_non_core_distributions(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-task-sdk-distributions",
     help="Prepare sdist/whl distributions of Airflow Task SDK.",
 )
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_task_sdk_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -754,29 +720,20 @@ def prepare_task_sdk_distributions(
         distribution_pretty_name="Task SDK",
     )
 
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="task-sdk",
-        tag=tag,
-    )
 
-
-@release_management.command(
+@release_management_group.command(
     name="prepare-airflow-ctl-distributions",
     help="Prepare sdist/whl distributions of airflowctl.",
 )
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
-@option_tag
 @option_verbose
 @option_dry_run
 def prepare_airflow_ctl_distributions(
     distribution_format: str,
     version_suffix: str,
     use_local_hatch: bool,
-    tag: str | None = None,
 ):
     _prepare_non_core_distributions(
         # Argument parameters
@@ -792,13 +749,6 @@ def prepare_airflow_ctl_distributions(
         full_distribution_pretty_name="airflowctl",
     )
 
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="airflowctl",
-        tag=tag,
-    )
-
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
     if packages:
@@ -807,7 +757,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
         get_console().print()
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-provider-documentation",
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
@@ -826,8 +776,6 @@ def provider_action_summary(description: str, message_type: MessageType, package
 )
 @option_github_repository
 @argument_provider_distributions
-@option_answer
-@option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
@@ -858,6 +806,8 @@ def provider_action_summary(description: str, message_type: MessageType, package
     help="Skip readme generation. This is used in prek that updates build-files only.",
 )
 @option_verbose
+@option_answer
+@option_dry_run
 def prepare_provider_documentation(
     base_branch: str,
     github_repository: str,
@@ -1048,7 +998,7 @@ def _build_provider_distributions(
         )
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-provider-distributions",
     help="Prepare sdist/whl distributions of Airflow Providers.",
 )
@@ -1092,7 +1042,6 @@ def _build_provider_distributions(
 @option_include_not_ready_providers
 @option_include_removed_providers
 @argument_provider_distributions
-@option_tag
 @option_verbose
 def prepare_provider_distributions(
     clean_dist: bool,
@@ -1106,7 +1055,6 @@ def prepare_provider_distributions(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix: str,
-    tag: str | None = None,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -1192,13 +1140,6 @@ def prepare_provider_distributions(
         get_console().print(str(dist_info))
     get_console().print()
 
-    # Create the tarball if tag is provided
-    create_tarball_from_tag(
-        version_suffix=version_suffix,
-        distribution_name="providers",
-        tag=tag,
-    )
-
 
 def run_generate_constraints(
     shell_params: ShellParams,
@@ -1274,7 +1215,7 @@ def run_generate_constraints_in_parallel(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="tag-providers",
     help="Generates tags for airflow provider releases.",
 )
@@ -1308,6 +1249,8 @@ def tag_providers(
         except subprocess.CalledProcessError:
             pass
 
+    release_date = datetime.now().strftime("%Y-%m-%d")
+
     if found_remote is None:
         raise ValueError("Could not find remote configured to push to apache/airflow")
 
@@ -1319,15 +1262,26 @@ def tag_providers(
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
                 try:
+                    get_console().print(f"[info]Creating tag: {tag}")
                     run_command(
-                        ["git", "tag", tag, "-m", f"Release {date.today()} of providers"],
+                        ["git", "tag", tag, "-m", f"Release {release_date} of providers"],
                         check=True,
                     )
                     tags.append(tag)
-                except subprocess.CalledProcessError:
+                except subprocess.CalledProcessError as e:
+                    get_console().print(f"[warning]Failed to create {tag}: {e}")
                     pass
-
+    providers_date_tag = f"providers/{release_date}"
     if tags:
+        run_command(
+            ["git", "tag", providers_date_tag, "-m", f"Release {release_date} of providers"],
+            check=True,
+        )
+        get_console().print()
+        get_console().print("\n[info]The providers release have been tagged with:[/]")
+        get_console().print(providers_date_tag)
+        get_console().print()
+        tags.append(providers_date_tag)
         try:
             push_result = run_command(
                 ["git", "push", found_remote, *tags],
@@ -1348,7 +1302,7 @@ def tag_providers(
                 )
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-constraints",
     help="Generates pinned constraint files with all extras from pyproject.toml in parallel.",
 )
@@ -1502,7 +1456,7 @@ def _run_command_for_providers(
 SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*|  Created wheel.*"
 
 
-@release_management.command(
+@release_management_group.command(
     name="install-provider-distributions",
     help="Installs provider distributiobs that can be found in dist.",
 )
@@ -1654,7 +1608,7 @@ def install_provider_distributions(
         sys.exit(result_command.returncode)
 
 
-@release_management.command(
+@release_management_group.command(
     name="verify-provider-distributions",
     help="Verifies if all provider code is following expectations for providers.",
 )
@@ -1768,9 +1722,7 @@ def run_publish_docs_in_parallel(
     distributions_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
-    include_success_outputs: bool,
     parallelism: int,
-    skip_cleanup: bool,
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
@@ -1824,7 +1776,7 @@ def run_publish_docs_in_parallel(
             get_console().print(f"[warning]{entry}")
 
 
-@release_management.command(
+@release_management_group.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
 )
@@ -1834,7 +1786,6 @@ def run_publish_docs_in_parallel(
 @option_dry_run
 @option_include_not_ready_providers
 @option_include_removed_providers
-@option_include_success_outputs
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
@@ -1854,13 +1805,11 @@ def run_publish_docs_in_parallel(
 )
 @option_parallelism
 @option_run_in_parallel
-@option_skip_cleanup
 @option_verbose
 def publish_docs(
     airflow_site_directory: str,
     debug_resources: bool,
     doc_packages: tuple[str, ...],
-    include_success_outputs: bool,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     override_versioned: bool,
@@ -1868,7 +1817,6 @@ def publish_docs(
     distributions_list: str,
     parallelism: int,
     run_in_parallel: bool,
-    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -1906,9 +1854,7 @@ def publish_docs(
         run_publish_docs_in_parallel(
             distributions_list=current_packages,
             parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
@@ -1938,7 +1884,7 @@ def publish_docs(
                 get_console().print(f"[warning]{entry}")
 
 
-@release_management.command(
+@release_management_group.command(
     name="add-back-references",
     help="Command to add back references for documentation to make it backward compatible.",
 )
@@ -2004,7 +1950,7 @@ def add_back_references(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="clean-old-provider-artifacts",
     help="Cleans the old provider artifacts",
 )
@@ -2015,7 +1961,7 @@ def clean_old_provider_artifacts(
     directory: str,
 ):
     """Cleans up the old airflow providers artifacts in order to maintain
-    only one provider version in the release SVN folder"""
+    only one provider version in the release SVN folder and one -source artifact."""
     cleanup_suffixes = [
         ".tar.gz",
         ".tar.gz.sha512",
@@ -2031,7 +1977,10 @@ def clean_old_provider_artifacts(
         os.chdir(directory)
 
         for file in glob.glob(f"*{suffix}"):
-            versioned_file = split_version_and_suffix(file, suffix)
+            if "-source.tar.gz" in file:
+                versioned_file = split_date_version_and_suffix(file, "-source" + suffix)
+            else:
+                versioned_file = split_version_and_suffix(file, suffix)
             package_types_dicts[versioned_file.type].append(versioned_file)
 
         for package_types in package_types_dicts.values():
@@ -2114,7 +2063,7 @@ def check_skip_latest(airflow_version, skip_latest):
     return skip_latest
 
 
-@release_management.command(
+@release_management_group.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -2272,7 +2221,7 @@ def release_prod_images(
         alias_images(airflow_version, dockerhub_repo, python_versions, image_prefix, skip_latest)
 
 
-@release_management.command(
+@release_management_group.command(
     name="merge-prod-images",
     help="Merge production images in DockerHub based on digest files (needs DockerHub permissions).",
 )
@@ -2440,7 +2389,7 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
 )
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
@@ -2757,7 +2706,7 @@ def print_issue_content(
     print(content)
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-helm-chart",
     help="Generates content for issue to test the helm chart release.",
 )
@@ -2809,7 +2758,7 @@ def generate_issue_content_helm_chart(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="generate-issue-content-core", help="Generates content for issue to test the core release."
 )
 @click.option(
@@ -2860,7 +2809,9 @@ def generate_issue_content_core(
     )
 
 
-@release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
+@release_management_group.command(
+    name="generate-providers-metadata", help="Generates metadata for providers."
+)
 @click.option(
     "--refresh-constraints-and-airflow-releases",
     is_flag=True,
@@ -3066,7 +3017,7 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="update-constraints", help="Update released constraints with manual changes."
 )
 @click.option(
@@ -3165,6 +3116,43 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
     )
 
 
+def split_date_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
+    """Split file name with date-based version (YYYY-MM-DD format) and suffix.
+
+    Example: apache_airflow_providers-2025-11-18-source.tar.gz
+    """
+    from packaging.version import Version
+
+    no_suffix_file = file_name[: -len(suffix)]
+    # Date format is YYYY-MM-DD, so we need to extract last 3 parts
+    parts = no_suffix_file.rsplit("-", 3)
+    if len(parts) != 4:
+        raise ValueError(f"Invalid date-versioned file name format: {file_name}")
+
+    no_version_file = parts[0]
+    date_version = f"{parts[1]}-{parts[2]}-{parts[3]}"
+
+    # Validate date format
+    try:
+        datetime.strptime(date_version, "%Y-%m-%d")
+    except ValueError as e:
+        raise ValueError(f"Invalid date format in file name {file_name}: {e}")
+
+    no_version_file = no_version_file.replace("_", "-")
+
+    # Convert date to a comparable version format (YYYYMMDD as integer-like version)
+    comparable_date_str = date_version.replace("-", ".")
+
+    return VersionedFile(
+        base=no_version_file + "-",
+        version=date_version,
+        suffix=suffix,
+        type=no_version_file + "-" + suffix,
+        comparable_version=Version(comparable_date_str),
+        file_name=file_name,
+    )
+
+
 PYTHON_CLIENT_DIR_PATH = AIRFLOW_ROOT_PATH / "clients" / "python"
 PYTHON_CLIENT_DIST_DIR_PATH = PYTHON_CLIENT_DIR_PATH / "dist"
 PYTHON_CLIENT_TMP_DIR = PYTHON_CLIENT_DIR_PATH / "tmp"
@@ -3196,7 +3184,7 @@ FILES_TO_COPY_TO_CLIENT_REPO = [
 ]
 
 
-def _get_python_client_version(version_suffix):
+def _get_python_client_version(version_suffix=None):
     from packaging.version import Version
 
     python_client_version = VERSION_FILE.read_text().strip()
@@ -3210,7 +3198,8 @@ def _get_python_client_version(version_suffix):
                     f"suffix in the version ({version})[/]"
                 )
                 sys.exit(1)
-    return version.base_version + version_suffix
+        return version.base_version + version_suffix
+    return python_client_version
 
 
 def _generate_python_client_sources(python_client_version: str) -> None:
@@ -3343,7 +3332,7 @@ def _build_client_packages_with_docker(source_date_epoch: int, distribution_form
     run_command(["docker", "rm", "--force", container_id], check=False, stdout=DEVNULL, stderr=DEVNULL)
 
 
-@release_management.command(name="prepare-python-client", help="Prepares python client packages.")
+@release_management_group.command(name="prepare-python-client", help="Prepares python client packages.")
 @option_distribution_format
 @option_version_suffix
 @option_use_local_hatch
@@ -3429,7 +3418,6 @@ def prepare_python_client(
     for scheme in security_schemes.split(","):
         security.append({scheme: []})
     openapi_yaml["security"] = security
-    python_client_version = _get_python_client_version(version_suffix)
     TARGET_API_YAML_PATH.write_text(yaml.dump(openapi_yaml))
 
     def patch_trigger_dag_run_post_body():
@@ -3451,6 +3439,21 @@ def prepare_python_client(
         - Locates the `_dict = self.model_dump(...)` line in `to_dict()`
         - Inserts a conditional to add `"logical_date": None` if it's missing
         """
+        current_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        if current_python_version != DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            get_console().print(
+                f"[error]Python version mismatch: current version is {current_python_version}, "
+                f"but default version is {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} - this might cause "
+                f"reproducibility problems with prepared package.[/]"
+            )
+            get_console().print(
+                f"[info]Please reinstall breeze with uv using Python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:[/]"
+            )
+            get_console().print(
+                f"\nuv tool install --python {DEFAULT_PYTHON_MAJOR_MINOR_VERSION} -e ./dev/breeze --force\n"
+            )
+            sys.exit(1)
+
         TRIGGER_MODEL_PATH = PYTHON_CLIENT_TMP_DIR / Path(
             "airflow_client/client/models/trigger_dag_run_post_body.py"
         )
@@ -3483,7 +3486,7 @@ def prepare_python_client(
         ast.fix_missing_locations(tree)
         TRIGGER_MODEL_PATH.write_text(ast.unparse(tree), encoding="utf-8")
 
-    _generate_python_client_sources(python_client_version=python_client_version)
+    _generate_python_client_sources(python_client_version=_get_python_client_version())
 
     # Call this after codegen and before packaging
     try:
@@ -3572,7 +3575,7 @@ CHART_YAML_FILE = CHART_DIR / "Chart.yaml"
 VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 
 
-@release_management.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
+@release_management_group.command(name="prepare-helm-chart-tarball", help="Prepares helm chart tarball.")
 @click.option(
     "--version",
     help="Version used for helm chart. This version has to be set and has to match the version in "
@@ -3751,7 +3754,7 @@ def prepare_helm_chart_tarball(
     get_console().print(f"[success]Tarball created in {final_archive}")
 
 
-@release_management.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
+@release_management_group.command(name="prepare-helm-chart-package", help="Prepares helm chart package.")
 @click.option(
     "--sign-email",
     help="Email associated with the key used to sign the package.",
@@ -3938,7 +3941,7 @@ def generate_issue_content(
     print_issue_content(current, pull_requests, linked_issues, users, is_helm_chart)
 
 
-@release_management.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
+@release_management_group.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
 @click.option(
     "--source-dir-path",
     help="Path to the directory with the generated documentation.",
@@ -4027,7 +4030,7 @@ def publish_docs_to_s3(
         sys.exit(1)
 
 
-@release_management.command(
+@release_management_group.command(
     name="constraints-version-check", help="Check constraints against released versions of packages."
 )
 @option_builder
@@ -4086,3 +4089,138 @@ def version_check(
         github_token=github_token,
         github_repository=github_repository,
     )
+
+
+@release_management_group.command(
+    name="check-release-files",
+    help="Verify that all expected packages are present in Apache Airflow svn.",
+)
+@click.option(
+    "--path-to-airflow-svn",
+    "-p",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True, path_type=Path),
+    envvar="PATH_TO_AIRFLOW_SVN",
+    help="Path to directory where release files are checked out from SVN (e.g., ~/code/asf-dist/dev/airflow)",
+)
+@click.option(
+    "--version",
+    type=str,
+    help="Version of package to verify (e.g., 2.8.1rc2, 1.0.0rc1). "
+    "Required for airflow, task-sdk, airflow-ctl, and python-client.",
+)
+@click.option(
+    "--release-date",
+    type=str,
+    help="Date of the release in YYYY-MM-DD format. Required for providers.",
+)
+@click.option(
+    "--packages-file",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, path_type=Path),
+    default="packages.txt",
+    show_default=True,
+    help="File containing list of packages to check (for providers only).",
+)
+@click.argument(
+    "release_type",
+    type=BetterChoice(["airflow", "task-sdk", "airflow-ctl", "python-client", "providers"]),
+    required=True,
+)
+@option_verbose
+@option_dry_run
+def check_release_files(
+    path: Path,
+    version: str | None,
+    release_date: str | None,
+    packages_file: Path,
+    release_type: str,
+):
+    """
+    Verify that all expected packages are present in Apache Airflow svn.
+
+    In case of providers, it will generate Dockerfile.pmc that you can use
+    to verify that all packages are installable.
+
+    In case of providers, you should update `packages.txt` file with list of packages
+    that you expect to find (copy-paste the list from VOTE thread).
+
+    """
+    from airflow_breeze.utils.check_release_files import (
+        AIRFLOW_CTL_DOCKER,
+        AIRFLOW_DOCKER,
+        PROVIDERS_DOCKER,
+        PYTHON_CLIENT_DOCKER,
+        TASK_SDK_DOCKER,
+        check_airflow_ctl_release,
+        check_airflow_release,
+        check_providers,
+        check_python_client_release,
+        check_task_sdk_release,
+        create_docker,
+        get_packages,
+        warn_of_missing_files,
+    )
+
+    console = get_console()
+
+    # Validate required parameters based on release type
+    if release_type == "providers":
+        if not release_date:
+            console.print("[error]--release-date is required for providers[/]")
+            sys.exit(1)
+        directory = path / "providers" / release_date
+    else:
+        if not version:
+            console.print(f"[error]--version is required for {release_type}[/]")
+            sys.exit(1)
+
+        # Determine directory based on release type
+        if release_type == "airflow":
+            directory = path / version
+        elif release_type == "task-sdk":
+            directory = path / version
+        elif release_type == "airflow-ctl":
+            directory = path / "airflow-ctl" / version
+        elif release_type == "python-client":
+            directory = path / "clients" / "python" / version
+        else:
+            console.print(f"[error]Unknown release type: {release_type}[/]")
+            sys.exit(1)
+
+    if not directory.exists():
+        console.print(f"[error]Directory does not exist: {directory}[/]")
+        sys.exit(1)
+
+    files = os.listdir(directory)
+    dockerfile_path = AIRFLOW_ROOT_PATH / "Dockerfile.pmc"
+
+    # Check files based on release type
+    missing_files = []
+
+    if release_type == "providers":
+        packages = get_packages(packages_file)
+        missing_files = check_providers(files, release_date, packages)
+        pips = [f"{name}=={ver}" for name, ver in packages]
+        create_docker(
+            PROVIDERS_DOCKER.format("RUN uv pip install --pre --system " + " ".join(f"'{p}'" for p in pips)),
+            dockerfile_path,
+        )
+    elif release_type == "airflow":
+        missing_files = check_airflow_release(files, version)
+        create_docker(AIRFLOW_DOCKER.format(version), dockerfile_path)
+    elif release_type == "task-sdk":
+        missing_files = check_task_sdk_release(files, version)
+        create_docker(TASK_SDK_DOCKER.format(version), dockerfile_path)
+    elif release_type == "airflow-ctl":
+        missing_files = check_airflow_ctl_release(files, version)
+        create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
+    elif release_type == "python-client":
+        missing_files = check_python_client_release(files, version)
+        create_docker(PYTHON_CLIENT_DOCKER.format(version), dockerfile_path)
+
+    if missing_files:
+        warn_of_missing_files(missing_files, str(directory))
+        sys.exit(1)
+    else:
+        console.print("\n[success]All expected files are present![/]")
+        sys.exit(0)

@@ -37,6 +37,7 @@ import attrs
 
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -1050,7 +1051,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
             )
         validate_key(self.task_id)
 
@@ -1108,7 +1109,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         if sla is not None:
             warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                "The SLA feature is removed in Airflow 3.0, replaced with Deadline Alerts in >=3.1",
                 stacklevel=2,
             )
 

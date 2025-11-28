@@ -27,6 +27,7 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
+from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -649,7 +650,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             if new_trigger_orm.task_instance:
                 log_path = render_log_fname(ti=new_trigger_orm.task_instance)
-
+                if not new_trigger_orm.task_instance.dag_version_id:
+                    # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
+                    log.warning(
+                        "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
+                        ti_id=new_trigger_orm.task_instance.id,
+                    )
+                    continue
                 ser_ti = workloads.TaskInstance.model_validate(
                     new_trigger_orm.task_instance, from_attributes=True
                 )
@@ -956,7 +963,7 @@ class TriggerRunner:
             )
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1091,7 +1098,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id: int, trigger: BaseTrigger, timeout_after: datetime | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
@@ -1112,7 +1119,7 @@ class TriggerRunner:
         except asyncio.CancelledError:
             # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
             # message about it
-            if timeout := trigger.timeout_after:
+            if timeout := timeout_after:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     await self.log.aerror("Trigger cancelled due to timeout")

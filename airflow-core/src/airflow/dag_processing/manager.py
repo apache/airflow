@@ -250,6 +250,16 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
+        # The manager needs MetastoreBackend to retrieve connections from the database
+        # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
+        # This marks the manager as "server" context so ensure_secrets_backend_loaded() provides
+        # MetastoreBackend instead of falling back to EnvironmentVariablesBackend only.
+        # Child parser processes explicitly override this by setting _AIRFLOW_PROCESS_CONTEXT=client
+        # in _parse_file_entrypoint() to prevent inheriting server privileges.
+        # Related: https://github.com/apache/airflow/pull/57459
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -450,6 +460,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
+            bundle_names = [bundle.name for bundle in self._dag_bundles]
             query = select(DbCallbackRequest)
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
@@ -457,8 +468,11 @@ class DagFileProcessorManager(LoggingMixin):
             query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
+                req = callback.get_callback_request()
+                if req.bundle_name not in bundle_names:
+                    continue
                 try:
-                    callback_queue.append(callback.get_callback_request())
+                    callback_queue.append(req)
                     session.delete(callback)
                 except Exception as e:
                     self.log.warning("Error adding callback for execution: %s, %s", callback, e)

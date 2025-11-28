@@ -21,7 +21,7 @@
       "paused": "Wstrzymane"
     },
     "runIdPatternFilter": "Szukaj Wykonań Dagów",
-    "triggeringUserNameFilter": "Szukaj według użytkownika wywołującego"
+    "triggeringUserNameFilter": "Szukaj według użytkownika wyzwalającego"
   },
   "ownerLink": "Link do właściciela {{owner}}",
   "runAndTaskActions": {

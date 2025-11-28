@@ -28,6 +28,7 @@ import itertools
 import logging
 import math
 import re
+import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
 from functools import cached_property, lru_cache
@@ -397,6 +398,8 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
                 dest_asset_key=AssetUniqueKey(
                     name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
                 ),
+                # fallback for backward compatibility
+                dest_asset_extra=e.get("dest_asset_extra", {}),
                 extra=e["extra"],
             )
             for e in asset_alias_events
@@ -922,8 +925,13 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return from_timestamp(var)
         elif type_ == DAT.POD:
-            if not _has_kubernetes():
-                raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
+            # Attempt to import kubernetes for deserialization. Using attempt_import=True allows
+            # lazy loading of kubernetes libraries only when actually needed for POD deserialization.
+            if not _has_kubernetes(attempt_import=True):
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries. "
+                    "Please install the cncf.kubernetes provider."
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
@@ -1230,6 +1238,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1338,6 +1348,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return self.task_type == other.task_type and all(
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
+
+    def __hash__(self):
+        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
 
     def __repr__(self) -> str:
         return f"<SerializedTask({self.task_type}): {self.task_id}>"
@@ -1705,6 +1718,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
+    def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
+        if (schema_loader := cls._json_schema) is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const")
+        }
+
+    @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
     def get_operator_optional_fields_from_schema(cls) -> set[str]:
         schema_loader = cls._json_schema
@@ -1859,10 +1888,39 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        # Use class-level cache for optimisation
+        if cls._const_fields is None:
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
+                # If it also matches client_defaults, exclude (optimization)
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
+                            return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
                 return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
@@ -2506,6 +2564,23 @@ class SerializedDAG(BaseSerialization):
                 serialized_dag["has_on_success_callback"] = True
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
+
+            # TODO: Move this logic to a better place -- ideally before serializing contents of default_args.
+            #   There is some duplication with this and SerializedBaseOperator.partial_kwargs serialization.
+            #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
+            if serialized_dag.get("default_args", {}):
+                default_args_dict = serialized_dag["default_args"][Encoding.VAR]
+                callbacks_to_remove = []
+                for k, v in list(default_args_dict.items()):
+                    if k in [
+                        f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
+                    ]:
+                        if bool(v):
+                            default_args_dict[f"has_{k}"] = True
+                        callbacks_to_remove.append(k)
+                for k in callbacks_to_remove:
+                    del default_args_dict[k]
+
             return serialized_dag
         except SerializationError:
             raise
@@ -2930,6 +3005,7 @@ class SerializedDAG(BaseSerialization):
         include_downstream: bool = False,
         include_upstream: bool = True,
         include_direct_upstream: bool = False,
+        exclude_original: bool = False,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 
@@ -2980,6 +3056,8 @@ class SerializedDAG(BaseSerialization):
             return copy.deepcopy(t, memo)
 
         # Compiling the unique list of tasks that made the cut
+        if exclude_original:
+            matched_tasks = []
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
@@ -3805,10 +3883,22 @@ class SerializedAssetWatcher(AssetWatcher):
     trigger: dict
 
 
-def _has_kubernetes() -> bool:
+def _has_kubernetes(attempt_import: bool = False) -> bool:
+    """
+    Check if kubernetes libraries are available.
+
+    :param attempt_import: If true, attempt to import kubernetes libraries if not already loaded. If
+        False, only check if already in sys.modules (avoids expensive import).
+    :return: True if kubernetes libraries are available, False otherwise.
+    """
     global HAS_KUBERNETES
     if "HAS_KUBERNETES" in globals():
         return HAS_KUBERNETES
+
+    # Check if kubernetes is already imported before triggering expensive import
+    if "kubernetes.client" not in sys.modules and not attempt_import:
+        HAS_KUBERNETES = False
+        return False
 
     # Loading kube modules is expensive, so delay it until the last moment
 

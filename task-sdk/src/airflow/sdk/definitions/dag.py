@@ -460,6 +460,7 @@ class DAG:
         ),
     )
 
+    sla_miss_callback: None = attrs.field(default=None)
     catchup: bool = attrs.field(
         factory=_config_bool_factory("scheduler", "catchup_by_default"),
     )
@@ -531,6 +532,13 @@ class DAG:
                 "The airflow.security.permissions module is deprecated; please see https://airflow.apache.org/docs/apache-airflow/stable/security/deprecated_permissions.html",
                 RemovedInAirflow4Warning,
                 stacklevel=2,
+            )
+        if (
+            active_runs_limit := self.timetable.active_runs_limit
+        ) is not None and active_runs_limit < self.max_active_runs:
+            raise ValueError(
+                f"Invalid max_active_runs: {type(self.timetable)} "
+                f"requires max_active_runs <= {active_runs_limit}"
             )
 
     @params.validator
@@ -613,6 +621,15 @@ class DAG:
     @has_on_failure_callback.default
     def _has_on_failure_callback(self) -> bool:
         return self.on_failure_callback is not None
+
+    @sla_miss_callback.validator
+    def _validate_sla_miss_callback(self, _, value):
+        if value is not None:
+            warnings.warn(
+                "The SLA feature is removed in Airflow 3.0, and replaced with a Deadline Alerts in >=3.1",
+                stacklevel=2,
+            )
+        return value
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"

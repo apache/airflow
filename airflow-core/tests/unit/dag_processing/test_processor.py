@@ -21,6 +21,7 @@ import inspect
 import pathlib
 import sys
 import textwrap
+import typing
 import uuid
 from collections.abc import Callable
 from socket import socketpair
@@ -52,6 +53,8 @@ from airflow.dag_processing.processor import (
     DagFileParseRequest,
     DagFileParsingResult,
     DagFileProcessorProcess,
+    ToDagProcessor,
+    ToManager,
     _execute_dag_callbacks,
     _execute_email_callbacks,
     _execute_task_callbacks,
@@ -70,6 +73,8 @@ from airflow.sdk.execution_time.comms import (
     GetXComSequenceSlice,
     TaskStatesResult,
     TICount,
+    ToSupervisor,
+    ToTask,
     XComResult,
     XComSequenceSliceResult,
 )
@@ -904,6 +909,25 @@ class TestExecuteDagCallbacks:
         # Should log warning about no callback found
         log.warning.assert_called_once_with("Callback requested, but dag didn't have any", dag_id="test_dag")
 
+    def test_execute_dag_callbacks_missing_dag(self):
+        """Test _execute_dag_callbacks raises ValueError for missing DAG"""
+        dagbag = DagBag()
+
+        request = DagCallbackRequest(
+            filepath="test.py",
+            dag_id="missing_dag",
+            run_id="test_run",
+            bundle_name="testing",
+            bundle_version=None,
+            is_failure_callback=True,
+            msg="Test failure message",
+        )
+
+        log = structlog.get_logger()
+
+        with pytest.raises(ValueError, match="DAG 'missing_dag' not found in DagBag"):
+            _execute_dag_callbacks(dagbag, request, log)
+
     @pytest.mark.parametrize(
         "xcom_operation,expected_message_type,expected_message,mock_response",
         [
@@ -1372,6 +1396,58 @@ class TestExecuteTaskCallbacks:
 
         assert call_count == 2
 
+    @pytest.mark.parametrize(
+        "dag_exists,task_exists,expected_error",
+        [
+            (False, False, "DAG 'missing_dag' not found in DagBag"),
+            (True, False, "Task 'missing_task' not found in DAG 'test_dag'"),
+        ],
+    )
+    def test_execute_task_callbacks_missing_dag_or_task(
+        self, spy_agency, dag_exists, task_exists, expected_error
+    ):
+        """Test _execute_task_callbacks raises ValueError for missing DAG or task"""
+        if dag_exists:
+            with DAG(dag_id="test_dag") as dag:
+                BaseOperator(task_id="existing_task")
+
+            def fake_collect_dags(self, *args, **kwargs):
+                self.dags[dag.dag_id] = dag
+
+            spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+            dagbag = DagBag()
+            dagbag.collect_dags()
+            dag_id = "test_dag"
+            task_id = "missing_task"
+        else:
+            dagbag = DagBag()
+            dag_id = "missing_dag"
+            task_id = "test_task"
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        request = TaskCallbackRequest(
+            filepath="test.py",
+            msg="Task failed",
+            ti=ti_data,
+            bundle_name="testing",
+            bundle_version=None,
+            task_callback_type=TaskInstanceState.FAILED,
+        )
+
+        log = structlog.get_logger()
+
+        with pytest.raises(ValueError, match=expected_error):
+            _execute_task_callbacks(dagbag, request, log)
+
 
 class TestExecuteEmailCallbacks:
     """Test the email callback execution functionality."""
@@ -1611,3 +1687,151 @@ class TestExecuteEmailCallbacks:
         log.info.assert_called_once()
         info_call = log.info.call_args[0][0]
         assert "Email not sent - task configured with email_on_" in info_call
+
+
+class TestDagProcessingMessageTypes:
+    def test_message_types_in_dag_processor(self):
+        """
+        Test that ToSupervisor is a superset of ToManager and ToTask is a superset of ToDagProcessor.
+
+        This test ensures that when new message types are added to ToSupervisor or ToTask,
+        they are also properly handled in ToManager and ToDagProcessor.
+        """
+
+        def get_type_names(union_type):
+            union_args = typing.get_args(union_type.__args__[0])
+            return {arg.__name__ for arg in union_args}
+
+        supervisor_types = get_type_names(ToSupervisor)
+        task_types = get_type_names(ToTask)
+
+        manager_types = get_type_names(ToManager)
+        dag_processor_types = get_type_names(ToDagProcessor)
+
+        in_supervisor_but_not_in_manager = {
+            "DeferTask",
+            "DeleteXCom",
+            "GetAssetByName",
+            "GetAssetByUri",
+            "GetAssetEventByAsset",
+            "GetAssetEventByAssetAlias",
+            "GetDagRunState",
+            "GetDRCount",
+            "GetTaskRescheduleStartDate",
+            "GetTICount",
+            "GetTaskStates",
+            "RescheduleTask",
+            "RetryTask",
+            "SetRenderedFields",
+            "SetXCom",
+            "SkipDownstreamTasks",
+            "SucceedTask",
+            "ValidateInletsAndOutlets",
+            "TaskState",
+            "TriggerDagRun",
+            "ResendLoggingFD",
+            "CreateHITLDetailPayload",
+            "UpdateHITLDetail",
+            "GetHITLDetailResponse",
+        }
+
+        in_task_runner_but_not_in_dag_processing_process = {
+            "AssetResult",
+            "AssetEventsResult",
+            "DagRunStateResult",
+            "DRCount",
+            "SentFDs",
+            "StartupDetails",
+            "TaskRescheduleStartDate",
+            "TICount",
+            "TaskStatesResult",
+            "InactiveAssetsResult",
+            "CreateHITLDetailPayload",
+            "HITLDetailRequestResult",
+        }
+
+        supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager
+        task_diff = task_types - dag_processor_types - in_task_runner_but_not_in_dag_processing_process
+
+        assert not supervisor_diff, (
+            f"New message types in ToSupervisor not handled in ToManager: "
+            f"{len(supervisor_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(supervisor_diff))
+            + "\n\nEither handle these types in ToManager or update in_supervisor_but_not_in_manager list."
+        )
+
+        assert not task_diff, (
+            f"New message types in ToTask not handled in ToDagProcessor: "
+            f"{len(task_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(task_diff))
+            + "\n\nEither handle these types in ToDagProcessor or update in_task_runner_but_not_in_dag_processing_process list."
+        )
+
+    @pytest.mark.parametrize(
+        "dag_exists,task_exists,expected_error",
+        [
+            (False, False, "DAG 'missing_dag' not found in DagBag"),
+            (True, False, "Task 'missing_task' not found in DAG 'test_dag'"),
+        ],
+    )
+    def test_execute_email_callbacks_missing_dag_or_task(
+        self, spy_agency, dag_exists, task_exists, expected_error
+    ):
+        """Test _execute_email_callbacks raises ValueError for missing DAG or task"""
+        if dag_exists:
+            with DAG(dag_id="test_dag") as dag:
+                BaseOperator(task_id="existing_task", email="test@example.com")
+
+            def fake_collect_dags(self, *args, **kwargs):
+                self.dags[dag.dag_id] = dag
+
+            spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+
+            dagbag = DagBag()
+            dagbag.collect_dags()
+            dag_id = "test_dag"
+            task_id = "missing_task"
+        else:
+            dagbag = DagBag()
+            dag_id = "missing_dag"
+            task_id = "test_task"
+
+        ti_data = TIDataModel(
+            id=uuid.uuid4(),
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        )
+
+        current_time = timezone.utcnow()
+        request = EmailRequest(
+            filepath="test.py",
+            bundle_name="testing",
+            bundle_version=None,
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id=dag_id,
+                    run_id="test_run",
+                    logical_date=current_time,
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+            msg="Task failed",
+        )
+
+        log = structlog.get_logger()
+
+        with pytest.raises(ValueError, match=expected_error):
+            _execute_email_callbacks(dagbag, request, log)

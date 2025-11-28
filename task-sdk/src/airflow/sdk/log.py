@@ -248,8 +248,10 @@ def reset_logging():
     from airflow.sdk._shared.logging.structlog import structlog_processors
 
     global _warnings_showwarning
-    warnings.showwarning = _warnings_showwarning
-    _warnings_showwarning = None
+    if _warnings_showwarning is not None:
+        warnings.showwarning = _warnings_showwarning
+        _warnings_showwarning = None
+
     structlog_processors.cache_clear()
     logging_processors.cache_clear()
 

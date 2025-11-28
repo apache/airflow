@@ -29,6 +29,7 @@ from airflow.api_fastapi.core_api.app import (
     init_config,
     init_error_handlers,
     init_flask_plugins,
+    init_middlewares,
     init_ui_plugins,
     init_views,
 )
@@ -47,6 +48,9 @@ API_ROOT_PATH = urlsplit(API_BASE_URL).path
 
 # Define the full path on which the potential auth manager fastapi is mounted
 AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
+
+# Fast API apps mounted under these prefixes are not allowed
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
 log = logging.getLogger(__name__)
 
@@ -96,6 +100,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_ui_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
+        init_middlewares(app)
 
     init_config(app)
 
@@ -156,8 +161,6 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    global auth_manager
-
     if auth_manager is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "
@@ -182,6 +185,12 @@ def init_plugins(app: FastAPI) -> None:
         url_prefix = subapp_dict.get("url_prefix")
         if url_prefix is None:
             log.error("'url_prefix' key is missing for the fastapi app: %s", name)
+            continue
+        if url_prefix == "":
+            log.error("'url_prefix' key is empty string for the fastapi app: %s", name)
+            continue
+        if any(url_prefix.startswith(prefix) for prefix in RESERVED_URL_PREFIXES):
+            log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
             continue
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)

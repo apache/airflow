@@ -19,6 +19,7 @@ from __future__ import annotations
 from fastapi import HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import is_safe_url
@@ -48,31 +49,19 @@ def login(request: Request, next: None | str = None) -> RedirectResponse:
     "/logout",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
-def logout(request: Request, next: None | str = None) -> RedirectResponse:
+def logout(request: Request) -> RedirectResponse:
     """Logout the user."""
-    logout_url = request.app.state.auth_manager.get_url_logout()
+    auth_manager = request.app.state.auth_manager
+    logout_url = auth_manager.get_url_logout()
+    if logout_url:
+        return RedirectResponse(logout_url)
 
-    if not logout_url:
-        logout_url = request.app.state.auth_manager.get_url_login()
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    response = RedirectResponse(auth_manager.get_url_login())
+    response.delete_cookie(
+        key=COOKIE_NAME_JWT_TOKEN,
+        secure=secure,
+        httponly=True,
+    )
 
-    return RedirectResponse(logout_url)
-
-
-@auth_router.get(
-    "/refresh",
-    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
-)
-def refresh(request: Request, next: None | str = None) -> RedirectResponse:
-    """Refresh the authentication token."""
-    refresh_url = request.app.state.auth_manager.get_url_refresh()
-
-    if not refresh_url:
-        return RedirectResponse(f"{conf.get('api', 'base_url', fallback='/')}auth/logout")
-
-    if next and not is_safe_url(next, request=request):
-        raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
-
-    if next:
-        refresh_url += f"?next={next}"
-
-    return RedirectResponse(refresh_url)
+    return response
