@@ -135,9 +135,14 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
-    data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
-    if data_interval is not None:
+    if (
+        data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+    ) is not None:
         return data_interval
+
+    if (data_interval := timetable.infer_manual_data_interval(run_after=run.run_after)) is not None:
+        return data_interval
+
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
     return infer_automated_data_interval(timetable, run.logical_date)
