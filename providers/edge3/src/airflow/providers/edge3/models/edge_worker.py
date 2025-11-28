@@ -28,17 +28,12 @@ from sqlalchemy.orm import Mapped
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-try:
-    from airflow.observability.stats import Stats
-except ImportError:
-    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

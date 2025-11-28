@@ -37,12 +37,11 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import Stats
 
 try:
-    from airflow.observability.stats import Stats
     from airflow.sdk import timezone
 except ImportError:
-    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 

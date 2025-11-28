@@ -30,7 +30,6 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
-from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
@@ -71,14 +70,10 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
-
-try:
-    from airflow.observability.stats import Stats
-except ImportError:
-    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     import argparse

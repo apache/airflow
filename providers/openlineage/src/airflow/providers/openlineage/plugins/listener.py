@@ -30,7 +30,7 @@ from openlineage.client.serde import Serde
 from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import timeout, timezone
+from airflow.providers.common.compat.sdk import Stats, timeout, timezone
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
@@ -53,11 +53,6 @@ from airflow.providers.openlineage.utils.utils import (
 )
 from airflow.settings import configure_orm
 from airflow.utils.state import TaskInstanceState
-
-try:
-    from airflow.observability.stats import Stats
-except ImportError:
-    from airflow.stats import Stats  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

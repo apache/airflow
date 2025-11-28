@@ -99,6 +99,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
+    from airflow.sdk.observability.stats import Stats
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 
@@ -224,6 +225,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    # ============================================================================
+    # Observability
+    # ============================================================================
+    "Stats": ("airflow.sdk.observability.stats", "airflow.stats"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
