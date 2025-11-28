@@ -18,8 +18,11 @@
 """Operator for executing SQL queries in InfluxDB 3.x."""
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
+
+import pandas as pd
 
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.influxdb3.hooks.influxdb3 import InfluxDB3Hook
@@ -61,5 +64,8 @@ class InfluxDB3Operator(BaseOperator):
         self.log.info("Executing SQL query: %s", self.sql)
         hook = InfluxDB3Hook(conn_id=self.influxdb3_conn_id)
         result = hook.query(self.sql)
+        
         self.log.info("Query executed successfully. Rows returned: %d", len(result))
-        return result
+        
+        json_str = result.to_json(orient='records', date_format='iso')
+        return json.loads(json_str)

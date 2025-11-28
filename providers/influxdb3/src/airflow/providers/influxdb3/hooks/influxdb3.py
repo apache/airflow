@@ -40,9 +40,9 @@ except ImportError:
 
 from airflow.providers.common.compat.sdk import BaseHook
 
-if TYPE_CHECKING:
-    import pandas as pd
+import pandas as pd
 
+if TYPE_CHECKING:
     from airflow.models import Connection
 
 
@@ -111,7 +111,27 @@ class InfluxDB3Hook(BaseHook):
     def get_uri(self, conn: Connection) -> str:
         """Build URI from connection parameters."""
         conn_scheme = "https" if conn.schema is None else conn.schema
-        conn_port = 8086 if conn.port is None else conn.port
+        
+        # Use appropriate default port based on scheme
+        if conn.port is None:
+            conn_port = 443 if conn_scheme == "https" else 8086
+        else:
+            conn_port = conn.port
+        
+        # For InfluxDB Cloud Dedicated, if host ends with .influxdb.io and using HTTPS,
+        # default to port 443 if port is 8086 (common misconfiguration)
+        if (
+            conn_scheme == "https"
+            and conn.host
+            and ".influxdb.io" in conn.host.lower()
+            and conn_port == 8086
+        ):
+            self.log.warning(
+                "InfluxDB Cloud Dedicated detected with HTTPS but port 8086. "
+                "Switching to port 443. If this is incorrect, explicitly set the port in connection."
+            )
+            conn_port = 443
+        
         return f"{conn_scheme}://{conn.host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient3:
@@ -152,7 +172,15 @@ class InfluxDB3Hook(BaseHook):
         :return: pandas DataFrame with query results
         """
         client = self.get_conn()
-        return client.query(query)
+        result = client.query(query=query, language="sql", mode="pandas")
+        
+        if not isinstance(result, pd.DataFrame):
+            raise ValueError(
+                f"Query did not return a DataFrame. "
+                f"Result type: {type(result).__module__}.{type(result).__name__}"
+            )
+        
+        return result
 
     def write(
         self,

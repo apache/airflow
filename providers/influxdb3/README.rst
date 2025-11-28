@@ -56,7 +56,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``influxdb3-python``                        ``>=0.7.0``
 ``requests``                                ``>=2.32.0,<3``

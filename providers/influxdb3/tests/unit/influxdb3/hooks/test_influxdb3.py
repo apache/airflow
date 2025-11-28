@@ -81,7 +81,9 @@ class TestInfluxDB3Hook:
         result = self.influxdb3_hook.query(influxdb_query)
 
         self.influxdb3_hook.get_conn.assert_called()
-        self.influxdb3_hook.client.query.assert_called_once_with(influxdb_query)
+        self.influxdb3_hook.client.query.assert_called_once_with(
+            query=influxdb_query, language="sql", mode="pandas"
+        )
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 2
 
