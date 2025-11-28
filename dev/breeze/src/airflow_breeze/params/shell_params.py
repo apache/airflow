@@ -599,7 +599,7 @@ class ShellParams:
             )
 
             port = 8080
-        _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
+            _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
 
         if self.executor == KUBERNETES_EXECUTOR:
             # Set KubernetesExecutor specific environment variables
