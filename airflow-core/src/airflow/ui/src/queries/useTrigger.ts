@@ -31,7 +31,6 @@ import {
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
-import { isHttpError } from "src/utils";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -64,21 +63,11 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   };
 
   const onError = (_error: Error) => {
-    // Check if error is a 403 (Forbidden) status
-    if (isHttpError(_error, 403)) {
-      toaster.create({
-        description: _error.message,
-        title: translate("triggerDag.toaster.error.forbidden.title", "Trigger DAG Permission Denied"),
-        type: "error",
-      });
-    } else {
-      // Generic error handling for other status codes
-      toaster.create({
-        description: _error.message,
-        title: translate("triggerDag.toaster.error.generic.title", "Failed to Trigger DAG"),
-        type: "error",
-      });
-    }
+    toaster.create({
+      description: _error.message,
+      title: translate("triggerDag.toaster.error.generic.title"),
+      type: "error",
+    });
     setError(_error);
   };
 

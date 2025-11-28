@@ -122,9 +122,6 @@
     "title": "Trigger Dag",
     "toaster": {
       "error": {
-        "forbidden": {
-          "title": "Trigger DAG Permission Denied"
-        },
         "generic": {
           "title": "Failed to Trigger DAG"
         }
