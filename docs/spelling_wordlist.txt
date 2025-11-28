@@ -699,6 +699,7 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore

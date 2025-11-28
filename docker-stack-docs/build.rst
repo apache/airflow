@@ -864,6 +864,30 @@ vetted by the security teams. It is also the most complex way of building the im
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
 
+.. _image-build-fips:
+
+Build images in FIPS-compliant environments
+...........................................
+
+If you are building images in a FIPS-compliant environment, you might encounter issues with the default
+build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
+building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
+during compilation, and MD5 is blocked in FIPS mode.
+
+In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
+and set it to ``false``.
+
+.. code-block:: bash
+
+    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+
+.. note::
+
+   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
+   (for example usage of non-FIPS compliant algorithms in the software installed in the image).
+   You should verify the compliance of the image yourself.
+
 This builds below builds the production image  with packages and constraints used from the local
 ``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client
 installation as it is using external installation method.
