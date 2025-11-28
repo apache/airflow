@@ -433,6 +433,12 @@ To skip rebuilding the worker image on restart (faster when no DAG changes):
 
     breeze start-airflow --executor KubernetesExecutor --skip-image-rebuild
 
+To use a specific Kubernetes version for the KinD cluster:
+
+.. code-block:: bash
+
+    breeze start-airflow --executor KubernetesExecutor --kubernetes-version v1.29.0
+
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
 

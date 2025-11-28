@@ -190,6 +190,7 @@ class ShellParams:
     integration: tuple[str, ...] = ()
     issue_id: str = ""
     k8s_namespace: str = "airflow"
+    kubernetes_version: str = ""
     keep_env_variables: bool = False
     load_default_connections: bool = False
     load_example_dags: bool = False
@@ -591,7 +592,7 @@ class ShellParams:
             _set_var(_env, "AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE", "False")
             # Set kubeconfig path for the auto-created KinD cluster
             kubeconfig_path = get_kubeconfig_file(
-                python=self.python, kubernetes_version=DEFAULT_KUBERNETES_VERSION
+                python=self.python, kubernetes_version=self.kubernetes_version or DEFAULT_KUBERNETES_VERSION
             )
             _set_var(_env, "AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH", str(kubeconfig_path))
 

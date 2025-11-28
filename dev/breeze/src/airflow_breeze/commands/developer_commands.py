@@ -87,12 +87,17 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
+from airflow_breeze.commands.kubernetes_commands import (
+    _create_cluster,
+    _upload_k8s_image,
+)
 from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
+    ALLOWED_KUBERNETES_VERSIONS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_KUBERNETES_VERSION,
@@ -108,6 +113,7 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -115,6 +121,9 @@ from airflow_breeze.utils.docker_command_utils import (
     execute_command_in_shell,
     fix_ownership_using_docker,
     perform_environment_checks,
+)
+from airflow_breeze.utils.kubernetes_utils import (
+    make_sure_kubernetes_tools_are_installed,
 )
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
@@ -128,17 +137,6 @@ from airflow_breeze.utils.run_utils import (
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
-from airflow_breeze.utils.kubernetes_utils import (
-    get_kind_cluster_name,
-    get_kubeconfig_file,
-    make_sure_kubernetes_tools_are_installed,
-    run_command_with_k8s_env,
-)
-from airflow_breeze.commands.kubernetes_commands import (
-    _create_cluster,
-    _rebuild_k8s_image,
-    _upload_k8s_image,
-)
 
 CELERY_INTEGRATION = "celery"
 
@@ -527,6 +525,16 @@ option_skip_image_rebuild = click.option(
 )
 
 
+option_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version used to create the KinD cluster.",
+    type=CacheableChoice(ALLOWED_KUBERNETES_VERSIONS),
+    show_default=True,
+    default=CacheableDefault(ALLOWED_KUBERNETES_VERSIONS[0]),
+    envvar="KUBERNETES_VERSION",
+)
+
+
 def initialize_kind_cluster_for_executor(
     python: str,
     force_recreate_cluster: bool = False,
@@ -599,10 +607,11 @@ def build_k8s_worker_image(
     Returns: (returncode, message)
     """
     from pathlib import Path
-    from airflow_breeze.params.build_prod_params import BuildProdParams
-    from airflow_breeze.utils.run_utils import run_command
-    from airflow_breeze.utils.docker_command_utils import check_if_image_exists
+
     from airflow_breeze.commands.ci_image_commands import run_build_production_image
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.utils.docker_command_utils import check_if_image_exists
+    from airflow_breeze.utils.run_utils import run_command
 
     params = BuildProdParams(python=python, use_uv=True)
 
@@ -784,13 +793,13 @@ def setup_kubernetes_executor_environment(
     get_console().print("\n[info]KubernetesExecutor setup complete![/]")
     get_console().print("\n[bold]Connection Details:[/bold]")
     get_console().print(f"  Cluster Name:    {cluster_name}")
-    get_console().print(f"  Namespace:       airflow")
+    get_console().print("  Namespace:       airflow")
     get_console().print(f"  Kubeconfig:      {kubeconfig_path}")
     get_console().print(f"  Worker Image:    {image_name}:{tag}")
 
     get_console().print("\n[bold]Environment Variables Set:[/bold]")
-    get_console().print(f"  AIRFLOW__CORE__EXECUTOR=KubernetesExecutor")
-    get_console().print(f"  AIRFLOW__KUBERNETES__NAMESPACE=airflow")
+    get_console().print("  AIRFLOW__CORE__EXECUTOR=KubernetesExecutor")
+    get_console().print("  AIRFLOW__KUBERNETES__NAMESPACE=airflow")
     get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY={image_name.rsplit(':', 1)[0]}")
     get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG={tag}")
     get_console().print(f"  AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH={kubeconfig_path}")
@@ -837,6 +846,7 @@ def setup_kubernetes_executor_environment(
 @option_executor_start_airflow
 @option_force_rebuild_cluster
 @option_skip_image_rebuild
+@option_kubernetes_version
 @option_force_build
 @option_forward_credentials
 @option_github_repository
@@ -886,6 +896,7 @@ def start_airflow(
     executor: str | None,
     force_rebuild_cluster: bool,
     skip_image_rebuild: bool,
+    kubernetes_version: str,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -988,6 +999,7 @@ def start_airflow(
         providers_skip_constraints=providers_skip_constraints,
         python=python,
         force_recreate_kind_cluster=force_rebuild_cluster,
+        kubernetes_version=kubernetes_version,
         restart=restart,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
@@ -1003,7 +1015,7 @@ def start_airflow(
             python=python,
             force_recreate_cluster=force_rebuild_cluster,
             skip_image_rebuild=skip_image_rebuild,
-            kubernetes_version=DEFAULT_KUBERNETES_VERSION,
+            kubernetes_version=kubernetes_version or DEFAULT_KUBERNETES_VERSION,
         )
 
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)

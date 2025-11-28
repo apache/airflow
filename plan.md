@@ -198,11 +198,13 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 ## Future Enhancements (After Basic Feature Ships)
 
 **TODO: Add --kubernetes-version option to start_airflow command**
-- [ ] Add `--kubernetes-version` option to `start_airflow` command (similar to `breeze k8s` commands)
-- [ ] Add `kubernetes_version: str` field to ShellParams class
-- [ ] Pass kubernetes_version from command line through to ShellParams
-- [ ] Use the specified kubernetes_version instead of DEFAULT_KUBERNETES_VERSION in:
-  - `initialize_kind_cluster_for_executor()` function calls
-  - `build_k8s_worker_image()` function calls  
-  - ShellParams environment variable setup for AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH
-- [ ] Add validation to ensure the specified kubernetes_version is supported
+- [x] Add `--kubernetes-version` option to `start_airflow` command (similar to `breeze k8s` commands)
+- [x] Add `--kubernetes-version` to developer_commands_config.py
+- [x] Document `--kubernetes-version` option in breeze documentation
+- [x] Add `kubernetes_version: str` field to ShellParams class
+- [x] Pass kubernetes_version from command line through to ShellParams
+- [x] Use the specified kubernetes_version instead of DEFAULT_KUBERNETES_VERSION in:
+  - `initialize_kind_cluster_for_executor()` function calls (already using it)
+  - `build_k8s_worker_image()` function calls (already using it)
+  - ShellParams environment variable setup for AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH (updated)
+- [x] Add validation to ensure the specified kubernetes_version is supported (already validated by CacheableChoice)
