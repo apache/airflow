@@ -135,12 +135,12 @@ This plan outlines the implementation of Kubernetes Executor support in Breeze's
 ### Phase 7: Cleanup and Lifecycle Management
 
 **TODO 7.1: Handle breeze stop**
-- [ ] KinD cluster persists by default (similar to breeze k8s behavior)
-- [ ] Cluster is only deleted when --force-rebuild-cluster is used on next start
-- [ ] Or explicitly deleted using `breeze k8s delete-cluster`
+- [x] KinD cluster persists by default (similar to breeze k8s behavior) - Already implemented via _create_cluster
+- [x] Cluster is only deleted when --force-rebuild-cluster is used on next start - Already implemented via force_recreate_cluster flag
+- [x] Or explicitly deleted using `breeze k8s delete-cluster` - Already works with the same cluster name format
 
 **TODO 7.2: Handle file changes**
-- [ ] Worker image is rebuilt on every `breeze start-airflow` (simple approach)
+- [x] Worker image is rebuilt on every `breeze start-airflow` (simple approach) - Already implemented, build_k8s_worker_image is called every time
 - [ ] Add `--skip-image-rebuild` flag for faster restarts when no changes
 - [ ] Future: auto-detect changes in files/dags and files/include
 

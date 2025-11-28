@@ -520,6 +520,11 @@ option_force_rebuild_cluster = click.option(
     is_flag=True,
     help="Force rebuild of the auto-created KinD cluster for KubernetesExecutor.",
 )
+option_skip_image_rebuild = click.option(
+    "--skip-image-rebuild",
+    is_flag=True,
+    help="Skip rebuilding the K8s worker image (use existing image for faster restarts).",
+)
 
 
 def initialize_kind_cluster_for_executor(
@@ -699,6 +704,7 @@ ENV GUNICORN_CMD_ARGS='--preload'
 def setup_kubernetes_executor_environment(
     python: str,
     force_recreate_cluster: bool = False,
+    skip_image_rebuild: bool = False,
     kubernetes_version: str = DEFAULT_KUBERNETES_VERSION,
 ) -> tuple[str, Path]:
     """
@@ -725,14 +731,34 @@ def setup_kubernetes_executor_environment(
     get_console().print(f"[info]Kubernetes cluster initialized: {cluster_name}[/]")
 
     # Step 2: Build and upload worker image
-    get_console().print("[info]Building Kubernetes worker image[/]")
-    image_name, tag = build_k8s_worker_image(
-        python=python,
-        kubernetes_version=kubernetes_version,
-        rebuild_base_image=force_recreate_cluster,
-        cluster_name=cluster_name,
-    )
-    get_console().print(f"[success]Worker image ready: {image_name}:{tag}[/]")
+    if skip_image_rebuild:
+        # Use existing worker image
+        from airflow_breeze.params.build_prod_params import BuildProdParams
+
+        params = BuildProdParams(python=python, use_uv=True)
+        image_name = params.airflow_image_kubernetes
+        tag = "latest"
+        get_console().print("[info]Skipping worker image rebuild, using existing image[/]")
+        get_console().print(f"[info]Worker image: {image_name}:{tag}[/]")
+    else:
+        # Build and upload worker image
+        get_console().print("[info]Building Kubernetes worker image[/]")
+        returncode, message = build_k8s_worker_image(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            rebuild_base_image=force_recreate_cluster,
+            cluster_name=cluster_name,
+        )
+        if returncode != 0:
+            get_console().print(f"[error]Failed to build worker image: {message}")
+            raise SystemExit(returncode)
+        # Extract image name and tag
+        from airflow_breeze.params.build_prod_params import BuildProdParams
+
+        params = BuildProdParams(python=python, use_uv=True)
+        image_name = params.airflow_image_kubernetes
+        tag = "latest"
+        get_console().print(f"[success]Worker image ready: {image_name}:{tag}[/]")
 
     # Step 3: Show connection details and helpful information
     get_console().print("\n[info]KubernetesExecutor setup complete![/]")
@@ -790,6 +816,7 @@ def setup_kubernetes_executor_environment(
 @option_dry_run
 @option_executor_start_airflow
 @option_force_rebuild_cluster
+@option_skip_image_rebuild
 @option_force_build
 @option_forward_credentials
 @option_github_repository
@@ -838,6 +865,7 @@ def start_airflow(
     docker_host: str | None,
     executor: str | None,
     force_rebuild_cluster: bool,
+    skip_image_rebuild: bool,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -954,6 +982,7 @@ def start_airflow(
         setup_kubernetes_executor_environment(
             python=python,
             force_recreate_cluster=force_rebuild_cluster,
+            skip_image_rebuild=skip_image_rebuild,
             kubernetes_version=DEFAULT_KUBERNETES_VERSION,
         )
 
