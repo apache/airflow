@@ -135,7 +135,14 @@ class InfluxDB3Hook(BaseHook):
         return f"{conn_scheme}://{conn.host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient3:
-        """Initiate a new InfluxDB 3.x connection with token and database."""
+        """
+        Initiate a new InfluxDB 3.x connection with token and database.
+        
+        Reads connection parameters from:
+        - Custom form fields (token, database, org) - automatically stored in extras
+        - Connection password field (as fallback for token)
+        - Connection extras JSON (for manual configuration)
+        """
         self.connection = self.get_connection(self.influxdb3_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
@@ -145,20 +152,29 @@ class InfluxDB3Hook(BaseHook):
         if self.client is not None:
             return self.client
 
-        # Add token from connection password if not in extras
-        if "token" not in self.extras:
+        # Token: prefer extras (from form widget), fallback to password field
+        if "token" not in self.extras or not self.extras.get("token"):
             token = getattr(self.connection, "password", None)
             if token:
                 self.extras["token"] = token
+            elif not self.extras.get("token"):
+                raise ValueError(
+                    "token is required for InfluxDB 3.x. "
+                    "Set it in the 'Token' field of the connection form or in connection extras."
+                )
 
-        # Database is required for InfluxDB 3.x
+        # Database: required for InfluxDB 3.x (from form widget or extras)
         database = self.extras.get("database") or self.extras.get("db")
         if not database:
             raise ValueError(
-                "database parameter is required in connection extras for InfluxDB 3.x. "
-                "Set it in the connection form or extras."
+                "database is required for InfluxDB 3.x. "
+                "Set it in the 'Database' field of the connection form or in connection extras."
             )
         self.extras["database"] = database
+
+        # Org: optional (from form widget or extras)
+        if "org" not in self.extras:
+            self.extras["org"] = ""
 
         self.client = self.get_client(self.uri, self.extras)
 
