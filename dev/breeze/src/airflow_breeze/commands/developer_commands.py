@@ -98,6 +98,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     GITHUB_REPO_BRANCH_PATTERN,
+    KUBERNETES_EXECUTOR,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
@@ -521,7 +522,6 @@ option_force_rebuild_cluster = click.option(
 )
 
 
-
 def initialize_kind_cluster_for_executor(
     python: str,
     force_recreate_cluster: bool = False,
@@ -530,14 +530,13 @@ def initialize_kind_cluster_for_executor(
     """
     Initialize KinD cluster for KubernetesExecutor.
     Returns (cluster_name, kubeconfig_path).
-    
+
     This reuses the _create_cluster function from kubernetes_commands.py
     to maintain consistency with breeze k8s commands.
     """
     # Make sure kubernetes tools are installed
     make_sure_kubernetes_tools_are_installed()
-    
-    
+
     returncode, message, cluster_name, kubeconfig_path = _create_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
@@ -545,11 +544,11 @@ def initialize_kind_cluster_for_executor(
         num_tries=1,
         force_recreate_cluster=force_recreate_cluster,
     )
-    
+
     if returncode != 0:
         get_console().print(f"[error]Failed to initialize KinD cluster: {message}")
         raise SystemExit(returncode)
-    
+
     get_console().print(f"[info]Using KinD cluster '{cluster_name}' for KubernetesExecutor[/]")
     return cluster_name, kubeconfig_path
 
@@ -558,15 +557,16 @@ def build_k8s_worker_image(
     python: str,
     kubernetes_version: str,
     rebuild_base_image: bool = False,
+    cluster_name: str | None = None,
 ) -> tuple[int, str]:
     """
     Build the K8s worker image with DAGs and include files.
-    
+
     This function builds a worker image that includes:
     - Base Airflow image
     - Contents of files/dags/ copied to /opt/airflow/dags/
     - Contents of files/include/ copied to /opt/airflow/include/
-    
+
     Returns: (returncode, message)
     """
     from pathlib import Path
@@ -574,9 +574,9 @@ def build_k8s_worker_image(
     from airflow_breeze.utils.run_utils import run_command
     from airflow_breeze.utils.docker_command_utils import check_if_image_exists
     from airflow_breeze.commands.ci_image_commands import run_build_production_image
-    
+
     params = BuildProdParams(python=python, use_uv=True)
-    
+
     # Build or check base image
     if rebuild_base_image:
         run_build_production_image(
@@ -594,27 +594,27 @@ def build_k8s_worker_image(
             )
             get_console().print(f"breeze prod-image build --python {python}\n")
             return 1, "Base image not found"
-    
+
     get_console().print(
         f"[info]Building the K8S worker image for Python {python} with DAGs and include files\n"
     )
-    
+
     # Check if files/dags and files/include directories exist
     dags_path = Path("files/dags")
     include_path = Path("files/include")
-    
+
     # Build COPY commands for DAGs and include files if directories exist
     copy_dags_command = ""
     copy_include_command = ""
-    
+
     if dags_path.exists() and dags_path.is_dir():
         copy_dags_command = "COPY --chown=airflow:0 files/dags/ /opt/airflow/dags/"
         get_console().print(f"[info]Including DAGs from {dags_path}")
-    
+
     if include_path.exists() and include_path.is_dir():
         copy_include_command = "COPY --chown=airflow:0 files/include/ /opt/airflow/include/"
         get_console().print(f"[info]Including files from {include_path}")
-    
+
     # Create Dockerfile for K8s worker image
     docker_image_for_k8s_worker = f"""
 FROM {params.airflow_image_name}
@@ -633,7 +633,7 @@ COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kube
 
 ENV GUNICORN_CMD_ARGS='--preload'
 """
-    
+
     image = f"{params.airflow_image_kubernetes}:latest"
     docker_build_result = run_command(
         ["docker", "build", "--tag", image, ".", "-f", "-"],
@@ -642,11 +642,24 @@ ENV GUNICORN_CMD_ARGS='--preload'
         check=False,
         output=None,
     )
-    
+
     if docker_build_result.returncode != 0:
         get_console().print("[error]Error when building the K8s worker image.")
         return docker_build_result.returncode, f"K8S worker image for Python {python}"
-    
+
+    # Upload image to KinD cluster if cluster name provided
+    if cluster_name:
+        get_console().print(f"[info]Uploading K8s worker image to KinD cluster: {cluster_name}")
+        upload_returncode, upload_message = _upload_k8s_image(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=None,
+        )
+        if upload_returncode != 0:
+            get_console().print(f"[error]Failed to upload K8s worker image: {upload_message}")
+            return upload_returncode, upload_message
+        get_console().print("[success]K8s worker image uploaded to KinD cluster")
+
     get_console().print("[success]K8s worker image built successfully")
     return 0, f"K8S worker image for Python {python}"
 

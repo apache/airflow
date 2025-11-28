@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,
     GREMLIN_HOST_PORT,
     KEYCLOAK_INTEGRATION,
+    KUBERNETES_EXECUTOR,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
     MOUNT_REMOVE,
@@ -577,7 +578,13 @@ class ShellParams:
             )
 
             port = 8080
-            _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
+        _set_var(_env, "AIRFLOW__EDGE__API_URL", f"http://localhost:{port}/edge_worker/v1/rpcapi")
+
+        if self.executor == KUBERNETES_EXECUTOR:
+            # Set KubernetesExecutor specific environment variables
+            _set_var(_env, "AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
+            _set_var(_env, "AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY", "airflow-k8s-worker-prod")
+
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
         _set_var(_env, "BACKEND", self.backend)
