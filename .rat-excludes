@@ -291,6 +291,7 @@ www-hash.txt
 **/rtd-deprecation/404.html
 **/.env
 **/*.jsonl
+**/tdload_src_file.txt
 
 # API files
 **/_api/**
