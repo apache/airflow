@@ -20,8 +20,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sdk.bases.decorator import Task, _TaskDecorator
+from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
     from typing import TypeAlias

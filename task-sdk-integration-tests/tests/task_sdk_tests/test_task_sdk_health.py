@@ -21,10 +21,8 @@ from task_sdk_tests import console
 
 def test_task_sdk_health(sdk_client, task_sdk_api_version):
     """Test Task SDK health check using session setup."""
-    client = sdk_client
-
     console.print("[yellow]Making health check request...")
-    response = client.get("health/ping", headers={"Airflow-API-Version": task_sdk_api_version})
+    response = sdk_client.get("health/ping")
 
     console.print(" Health Check Response ".center(72, "="))
     console.print(f"[bright_blue]Status Code:[/] {response.status_code}")

@@ -42,6 +42,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
         "prepare-provider-documentation",
+        "update-providers-next-version",
         "prepare-provider-distributions",
         "install-provider-distributions",
         "verify-provider-distributions",
@@ -75,6 +76,8 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "generate-constraints",
         "update-constraints",
         "publish-docs-to-s3",
+        "validate-rc-by-pmc",
+        "check-release-files",
     ],
 }
 
@@ -249,6 +252,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Documentation generation mode",
             "options": [
+                "--release-date",
                 "--incremental-update",
                 "--only-min-version-update",
                 "--reapply-templates-only",
@@ -278,6 +282,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze release-management update-providers-next-version": [],
     "breeze release-management prepare-python-client": [
         {
             "name": "Python client preparation flags",
@@ -519,5 +524,28 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--builder",
             ],
         },
+    ],
+    "breeze release-management validate-rc-by-pmc": [
+        {
+            "name": "Validation options",
+            "options": [
+                "--distribution",
+                "--version",
+                "--task-sdk-version",
+                "--path-to-airflow-svn",
+                "--checks",
+            ],
+        },
+    ],
+    "breeze release-management check-release-files": [
+        {
+            "name": "Check release files flags",
+            "options": [
+                "--path-to-airflow-svn",
+                "--version",
+                "--release-date",
+                "--packages-file",
+            ],
+        }
     ],
 }

@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+9.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.5.0
 .....
 
@@ -40,11 +56,15 @@ Misc
 
 * ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
 * ``Migrate slack provider to ''common.compat'' (#57110)``
+* ``Add 'use-next-version' comment in providers that will need rc2 (#58390)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Delete all unnecessary LICENSE Files (#58191)``
    * ``Enable PT006 rule to slack Provider test (#57963)``
+   * ``Updates to release process of providers (#58316)``
+   * ``Update documentation for providers 14 Nov 2025 (#58284)``
 
 9.4.0
 .....

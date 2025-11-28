@@ -280,6 +280,7 @@ class StartupDetails(BaseModel):
     bundle_info: BundleInfo
     start_date: datetime
     ti_context: TIRunContext
+    sentry_integration: str
     type: Literal["StartupDetails"] = "StartupDetails"
 
 

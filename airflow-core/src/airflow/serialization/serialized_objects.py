@@ -63,7 +63,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializationError,
     SerializationError,
-    TaskDeferred,
     TaskNotFound,
 )
 from airflow.models.connection import Connection
@@ -399,6 +398,8 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
                 dest_asset_key=AssetUniqueKey(
                     name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
                 ),
+                # fallback for backward compatibility
+                dest_asset_extra=e.get("dest_asset_extra", {}),
                 extra=e["extra"],
             )
             for e in asset_alias_events
@@ -737,6 +738,7 @@ class BaseSerialization:
         :meta private:
         """
         from airflow.sdk.definitions._internal.types import is_arg_set
+        from airflow.sdk.exceptions import TaskDeferred
 
         if not is_arg_set(var):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)
@@ -1035,6 +1037,7 @@ class BaseSerialization:
             "default": cls.serialize(param.value),
             "description": cls.serialize(param.description),
             "schema": cls.serialize(param.schema),
+            "source": cls.serialize(getattr(param, "source", None)),
         }
 
     @classmethod
@@ -1046,7 +1049,7 @@ class BaseSerialization:
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
-        attrs = ("default", "description", "schema")
+        attrs = ("default", "description", "schema", "source")
         kwargs = {}
 
         def is_serialized(val):
@@ -1066,6 +1069,7 @@ class BaseSerialization:
         return SerializedParam(
             default=kwargs.get("default"),
             description=kwargs.get("description"),
+            source=kwargs.get("source", None),
             **(kwargs.get("schema") or {}),
         )
 
@@ -1241,6 +1245,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1303,7 +1309,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     run_as_user: str | None = None
 
     start_date: datetime.datetime | None = None
@@ -1637,6 +1643,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             elif k == "weight_rule":
                 k = "_weight_rule"
                 v = decode_priority_weight_strategy(v)
+            elif k == "retry_exponential_backoff":
+                if isinstance(v, bool):
+                    v = 2.0 if v else 0
+                else:
+                    v = float(v)
             else:
                 # Apply centralized deserialization for all other fields
                 v = cls._deserialize_field_value(k, v)
@@ -1710,6 +1721,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         for task_id in task.downstream_task_ids:
             # Bypass set_upstream etc here - it does more than we want
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+
+    @classmethod
+    def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
+        if (schema_loader := cls._json_schema) is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const")
+        }
 
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
@@ -1866,10 +1893,39 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        # Use class-level cache for optimisation
+        if cls._const_fields is None:
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
+                # If it also matches client_defaults, exclude (optimization)
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
+                            return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
                 return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:

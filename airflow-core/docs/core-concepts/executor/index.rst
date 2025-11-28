@@ -308,12 +308,10 @@ Compatibility Attributes
 The ``BaseExecutor`` class interface contains a set of attributes that Airflow core code uses to check the features that your executor is compatible with. When writing your own Airflow executor be sure to set these correctly for your use case. Each attribute is simply a boolean to enable/disable a feature or indicate that a feature is supported/unsupported by the executor:
 
 * ``supports_pickling``: Whether or not the executor supports reading pickled Dags from the Database before execution (rather than reading the Dag definition from the file system).
-* ``supports_sentry``: Whether or not the executor supports `Sentry <https://sentry.io>`_.
-
+* ``sentry_integration``: If the executor supports `Sentry <https://sentry.io>`_, this should be a import path to a callable that creates the integration. For example, ``CeleryExecutor`` sets this to ``"sentry_sdk.integrations.celery.CeleryIntegration"``.
 * ``is_local``: Whether or not the executor is remote or local. See the `Executor Types`_ section above.
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
-
 * ``serve_logs``: Whether or not the executor supports serving logs, see :doc:`/administration-and-deployment/logging-monitoring/logging-tasks`.
 
 CLI
