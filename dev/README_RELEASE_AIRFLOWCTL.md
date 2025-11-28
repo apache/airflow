@@ -383,10 +383,10 @@ The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apach
 
 The "apache-airflow-ctl" packages are:
 
-   - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
+   - *apache_airflow_ctl-${VERSION}-source.tar.gz* is a source release that comes
      with INSTALL instructions.
-   - *apache_airfow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
-   - *apache_airfow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+   - *apache_airflow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airflow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
 

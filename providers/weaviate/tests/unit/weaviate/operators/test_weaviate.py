@@ -20,8 +20,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.utils.task_instance_session import set_current_task_instance_session
-
 pytest.importorskip("weaviate")
 
 from airflow.providers.weaviate.operators.weaviate import (
@@ -87,10 +85,9 @@ class TestWeaviateIngestOperator:
 
         dr = dag_maker.create_dagrun()
         tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                ti.render_templates()
-                assert ti.task.hook_params == {"baz": "biz"}
+        for ti in tis:
+            ti.render_templates()
+            assert ti.task.hook_params == {"baz": "biz"}
 
 
 class TestWeaviateDocumentIngestOperator:
@@ -147,7 +144,6 @@ class TestWeaviateDocumentIngestOperator:
 
         dr = dag_maker.create_dagrun()
         tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                ti.render_templates()
-                assert ti.task.hook_params == {"baz": "biz"}
+        for ti in tis:
+            ti.render_templates()
+            assert ti.task.hook_params == {"baz": "biz"}

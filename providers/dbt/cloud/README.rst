@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-dbt-cloud``
 
-Release: ``4.5.0``
+Release: ``4.6.0``
 
 
 `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``dbt.cloud`` provider. All classes for this prov
 are in ``airflow.providers.dbt.cloud`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.6.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-http``
 ``asgiref``                                 ``>=2.3.0``
@@ -92,4 +92,4 @@ Extra            Dependencies
 ===============  ===============================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.6.0/changelog.html>`_.
