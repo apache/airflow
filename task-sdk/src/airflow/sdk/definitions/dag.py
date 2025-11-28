@@ -36,6 +36,7 @@ from uuid import UUID
 
 import attrs
 import jinja2
+import pendulum
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
@@ -692,10 +693,42 @@ class DAG:
         """
         self.timetable.validate()
         self.validate_setup_teardown()
+        self._validate_dates()
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
         self._validate_owner_links(None, self.owner_links)
+
+    def _validate_dates(self):
+        """
+        Validate that start_date and end_date are datetime objects, not strings (templates).
+
+        This prevents broken DAGs with Jinja-templated dates from being loaded and causing scheduler crashes.
+        """
+        if self.start_date is not None and not isinstance(self.start_date, (datetime, pendulum.DateTime)):
+            raise ValueError(
+                f"DAG {self.dag_id!r} start_date must be a datetime object but got {type(self.start_date).__name__!r}. "
+                "Templated dates like {{ ds }} are not allowed in start_date field."
+            )
+        if self.end_date is not None and not isinstance(self.end_date, (datetime, pendulum.DateTime)):
+            raise ValueError(
+                f"DAG {self.dag_id!r} end_date must be a datetime object but got {type(self.end_date).__name__!r}. "
+                "Templated dates like {{ ds }} are not allowed in end_date field."
+            )
+
+        for task in self.tasks:
+            tsd = getattr(task, "start_date", None)
+            ted = getattr(task, "end_date", None)
+            if tsd is not None and not isinstance(tsd, (datetime, pendulum.DateTime)):
+                raise ValueError(
+                    f"Task {task.task_id!r} in DAG {self.dag_id!r} start_date must be a datetime object but got {type(tsd).__name__!r}. "
+                    "Templated dates like {{ ds }} are not allowed in start_date field."
+                )
+            if ted is not None and not isinstance(ted, (datetime, pendulum.DateTime)):
+                raise ValueError(
+                    f"Task {task.task_id!r} in DAG {self.dag_id!r} end_date must be a datetime object but got {type(ted).__name__!r}. "
+                    "Templated dates like {{ ds }} are not allowed in end_date field."
+                )
 
     def validate_setup_teardown(self):
         """

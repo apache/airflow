@@ -402,7 +402,8 @@ class TestDagBag:
 
     def test_process_file_duplicated_dag_id(self, tmp_path):
         """Loading a DAG with ID that already existed in a DAG bag should result in an import error."""
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
         def create_dag():
             from airflow.sdk import dag
@@ -877,7 +878,8 @@ with airflow.DAG(
         dag_id = "test_missing_owner"
         err_cls_name = "AirflowClusterPolicyViolation"
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
@@ -899,7 +901,8 @@ with airflow.DAG(
         dag_id = "test_nonstring_owner"
         err_cls_name = "AirflowClusterPolicyViolation"
 
-        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+        with conf_vars({("core", "dagbag_import_error_tracebacks"): "False"}):
+            dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
