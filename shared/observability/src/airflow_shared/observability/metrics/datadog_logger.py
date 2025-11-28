@@ -22,8 +22,8 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow._shared.observability.metrics.protocols import Timer
-from airflow._shared.observability.metrics.validators import (
+from .protocols import Timer
+from .validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
@@ -33,10 +33,8 @@ from airflow._shared.observability.metrics.validators import (
 if TYPE_CHECKING:
     from datadog import DogStatsd
 
-    from airflow._shared.observability.metrics.protocols import DeltaType
-    from airflow._shared.observability.metrics.validators import (
-        ListValidator,
-    )
+    from .protocols import DeltaType
+    from .validators import ListValidator
 
 log = logging.getLogger(__name__)
 

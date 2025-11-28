@@ -29,14 +29,14 @@ log = structlog.getLogger(__name__)
 
 def gen_context(trace_id, span_id):
     """Generate span context from trace_id and span_id."""
-    from airflow._shared.observability.traces.otel_tracer import gen_context as otel_gen_context
+    from .otel_tracer import gen_context as otel_gen_context
 
     return otel_gen_context(trace_id, span_id)
 
 
 def gen_links_from_kv_list(list):
     """Generate links from kv list of {trace_id:int, span_id:int}."""
-    from airflow._shared.observability.traces.otel_tracer import gen_links_from_kv_list
+    from .otel_tracer import gen_links_from_kv_list
 
     return gen_links_from_kv_list(list)
 

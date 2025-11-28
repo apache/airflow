@@ -22,8 +22,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, TypeVar, cast
 
-from airflow._shared.observability.metrics.protocols import Timer
-from airflow._shared.observability.metrics.validators import (
+from .protocols import Timer
+from .validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
@@ -33,10 +33,8 @@ from airflow._shared.observability.metrics.validators import (
 if TYPE_CHECKING:
     from statsd import StatsClient
 
-    from airflow._shared.observability.metrics.protocols import DeltaType
-    from airflow._shared.observability.metrics.validators import (
-        ListValidator,
-    )
+    from .protocols import DeltaType
+    from .validators import ListValidator
 
 T = TypeVar("T", bound=Callable)
 
