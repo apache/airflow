@@ -1419,12 +1419,16 @@ class TestEcsExecutorConfig:
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value_raw in CONFIG_DEFAULTS.items():
-            # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
-            # but are not expected to appear in the task_kwargs.
+            # conn_id, max_run_task_attempts, check_health_on_startup, and cloudwatch_logs_* are used
+            # by the executor internally, but are not expected to appear in the task_kwargs.
             if expected_key in [
                 AllEcsConfigKeys.AWS_CONN_ID,
                 AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
                 AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+                AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED,
+                AllEcsConfigKeys.CLOUDWATCH_LOGS_GROUP,
+                AllEcsConfigKeys.CLOUDWATCH_LOGS_STREAM_PREFIX,
+                AllEcsConfigKeys.CLOUDWATCH_LOGS_REGION,
             ]:
                 assert expected_key not in found_keys.keys()
             else:
@@ -1888,3 +1892,180 @@ class TestEcsExecutorConfig:
         from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor as AwsEcsExecutorShortPath
 
         assert AwsEcsExecutor is AwsEcsExecutorShortPath
+
+
+class TestCloudWatchLogFetching:
+    """Tests for CloudWatch log fetching functionality in ECS Executor."""
+
+    @pytest.fixture
+    def set_env_vars_with_cloudwatch(self):
+        """Set up env vars including CloudWatch log configuration."""
+        overrides: dict[tuple[str, str], str] = {
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME): "us-west-1",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER): "some-cluster",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME): "container-name",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.TASK_DEFINITION): "some-task-def",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.LAUNCH_TYPE): "FARGATE",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.PLATFORM_VERSION): "LATEST",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.ASSIGN_PUBLIC_IP): "False",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.SUBNETS): "sub1,sub2",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS): "3",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED): "True",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_GROUP): "/ecs/airflow-tasks",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_STREAM_PREFIX): "ecs",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_REGION): "us-west-1",
+        }
+        with conf_vars(overrides):
+            yield
+
+    @pytest.fixture
+    def mock_executor_with_cloudwatch(self, set_env_vars_with_cloudwatch) -> AwsEcsExecutor:
+        """Mock ECS executor with CloudWatch log configuration."""
+        executor = AwsEcsExecutor()
+        executor.IS_BOTO_CONNECTION_HEALTHY = True
+
+        # Replace boto3 ECS client with mock
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
+        ecs_mock.run_task.return_value = run_task_ret_val
+        executor.ecs = ecs_mock
+
+        return executor
+
+    def test_aws_logs_enabled_all_configured(self, mock_executor_with_cloudwatch):
+        """Test _aws_logs_enabled returns True when all config is present."""
+        assert mock_executor_with_cloudwatch._aws_logs_enabled() is True
+
+    def test_aws_logs_enabled_missing_enabled_flag(self, set_env_vars):
+        """Test _aws_logs_enabled returns False when enabled flag is False."""
+        executor = AwsEcsExecutor()
+        executor.IS_BOTO_CONNECTION_HEALTHY = True
+        # Default is False, so this should return False
+        assert executor._aws_logs_enabled() is False
+
+    def test_aws_logs_enabled_missing_log_group(self, set_env_vars):
+        """Test _aws_logs_enabled returns False when log group is missing."""
+        overrides = {
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED): "True",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_STREAM_PREFIX): "ecs",
+        }
+        with conf_vars(overrides):
+            executor = AwsEcsExecutor()
+            executor.IS_BOTO_CONNECTION_HEALTHY = True
+            assert executor._aws_logs_enabled() is False
+
+    def test_aws_logs_enabled_missing_stream_prefix(self, set_env_vars):
+        """Test _aws_logs_enabled returns False when stream prefix is missing."""
+        overrides = {
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED): "True",
+            (CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_GROUP): "/ecs/airflow",
+        }
+        with conf_vars(overrides):
+            executor = AwsEcsExecutor()
+            executor.IS_BOTO_CONNECTION_HEALTHY = True
+            assert executor._aws_logs_enabled() is False
+
+    def test_get_ecs_task_id_extracts_correctly(self):
+        """Test extracting task ID from various ARN formats."""
+        # Standard ARN format
+        arn1 = "arn:aws:ecs:us-west-2:123456789012:task/my-cluster/abc123def456"
+        assert AwsEcsExecutor._get_ecs_task_id(arn1) == "abc123def456"
+
+        # Different region and account
+        arn2 = "arn:aws:ecs:eu-west-1:987654321098:task/prod-cluster/task-id-789"
+        assert AwsEcsExecutor._get_ecs_task_id(arn2) == "task-id-789"
+
+    def test_get_log_stream_name_format(self, mock_executor_with_cloudwatch):
+        """Test log stream name follows ECS awslogs pattern."""
+        task_arn = "arn:aws:ecs:us-west-2:123456789012:task/my-cluster/abc123def456"
+        expected = "ecs/container-name/abc123def456"
+        assert mock_executor_with_cloudwatch._get_log_stream_name(task_arn) == expected
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook")
+    def test_get_task_log_returns_cloudwatch_logs(self, mock_logs_hook, mock_executor_with_cloudwatch):
+        """Test get_task_log fetches and formats CloudWatch logs."""
+        # Setup mock TaskInstance
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_ti.external_executor_id = "arn:aws:ecs:us-west-2:123456789012:task/cluster/task123"
+
+        # Setup mock log events
+        mock_hook_instance = mock_logs_hook.return_value
+        mock_hook_instance.get_log_events.return_value = iter([
+            {"timestamp": 1700000000000, "message": "Starting task"},
+            {"timestamp": 1700000001000, "message": "Task running"},
+        ])
+
+        messages, logs = mock_executor_with_cloudwatch.get_task_log(mock_ti, try_number=1)
+
+        # Verify messages
+        assert len(messages) == 1
+        assert "Fetching logs from CloudWatch" in messages[0]
+        assert "/ecs/airflow-tasks" in messages[0]
+
+        # Verify logs were fetched
+        assert len(logs) == 1
+        assert "Starting task" in logs[0]
+        assert "Task running" in logs[0]
+
+        # Verify hook was called with correct parameters
+        mock_logs_hook.assert_called_once()
+        mock_hook_instance.get_log_events.assert_called_once()
+
+    def test_get_task_log_disabled_returns_empty(self, set_env_vars):
+        """Test get_task_log returns empty when CloudWatch not configured."""
+        executor = AwsEcsExecutor()
+        executor.IS_BOTO_CONNECTION_HEALTHY = True
+
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_ti.external_executor_id = "arn:aws:ecs:us-west-2:123:task/cluster/task123"
+
+        messages, logs = executor.get_task_log(mock_ti, try_number=1)
+
+        assert messages == []
+        assert logs == []
+
+    def test_get_task_log_no_task_arn(self, mock_executor_with_cloudwatch):
+        """Test get_task_log handles missing task ARN gracefully."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_ti.external_executor_id = None
+
+        messages, logs = mock_executor_with_cloudwatch.get_task_log(mock_ti, try_number=1)
+
+        assert len(messages) == 1
+        assert "No ECS task ARN found" in messages[0]
+        assert logs == []
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook")
+    def test_get_task_log_cloudwatch_error(self, mock_logs_hook, mock_executor_with_cloudwatch):
+        """Test get_task_log handles CloudWatch errors gracefully."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_ti.external_executor_id = "arn:aws:ecs:us-west-2:123:task/cluster/task123"
+
+        # Setup mock to raise an exception
+        mock_hook_instance = mock_logs_hook.return_value
+        mock_hook_instance.get_log_events.side_effect = Exception("CloudWatch API Error")
+
+        messages, logs = mock_executor_with_cloudwatch.get_task_log(mock_ti, try_number=1)
+
+        # Should have error message but not crash
+        assert len(messages) == 2  # Fetching message + error message
+        assert "Error fetching ECS task logs" in messages[1]
+        assert "CloudWatch API Error" in messages[1]
+        assert logs == []
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.logs.AwsLogsHook")
+    def test_get_task_log_no_logs_yet(self, mock_logs_hook, mock_executor_with_cloudwatch):
+        """Test get_task_log handles case when no logs exist yet."""
+        mock_ti = mock.Mock(spec=TaskInstance)
+        mock_ti.external_executor_id = "arn:aws:ecs:us-west-2:123:task/cluster/task123"
+
+        # Return empty iterator
+        mock_hook_instance = mock_logs_hook.return_value
+        mock_hook_instance.get_log_events.return_value = iter([])
+
+        messages, logs = mock_executor_with_cloudwatch.get_task_log(mock_ti, try_number=1)
+
+        assert len(messages) == 2
+        assert "No logs found yet" in messages[1]
+        assert logs == []

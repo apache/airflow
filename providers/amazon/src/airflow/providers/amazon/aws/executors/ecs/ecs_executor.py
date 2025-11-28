@@ -136,6 +136,27 @@ class AwsEcsExecutor(BaseExecutor):
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
         )
 
+        # CloudWatch log fetching configuration
+        self._cloudwatch_logs_enabled = self.conf.getboolean(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.CLOUDWATCH_LOGS_ENABLED],
+        )
+        self._cloudwatch_logs_group = self.conf.get(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_GROUP, fallback=None
+        )
+        self._cloudwatch_logs_stream_prefix = self.conf.get(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_STREAM_PREFIX, fallback=None
+        )
+        self._cloudwatch_logs_region = self.conf.get(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CLOUDWATCH_LOGS_REGION, fallback=None
+        )
+        self._cloudwatch_logs_conn_id = self.conf.get(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.AWS_CONN_ID,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
+        )
+
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
 
@@ -621,3 +642,75 @@ class AwsEcsExecutor(BaseExecutor):
                 extra=extra,
                 ti_key=ti_key,
             )
+
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """Return logs from CloudWatch for running ECS tasks."""
+        messages: list[str] = []
+        logs: list[str] = []
+
+        if not self._aws_logs_enabled():
+            return messages, logs
+
+        task_arn = ti.external_executor_id
+        if not task_arn:
+            messages.append("No ECS task ARN found for this task instance")
+            return messages, logs
+
+        try:
+            log_stream_name = self._get_log_stream_name(task_arn)
+            messages.append(
+                f"Fetching logs from CloudWatch log_group: {self._cloudwatch_logs_group} "
+                f"log_stream: {log_stream_name}"
+            )
+
+            log_content = self._fetch_cloudwatch_logs(log_stream_name)
+            if log_content:
+                logs.append(log_content)
+            else:
+                messages.append("No logs found yet in CloudWatch")
+
+        except Exception as e:
+            messages.append(f"Error fetching ECS task logs: {e}")
+
+        return messages, logs
+
+    def _aws_logs_enabled(self) -> bool:
+        """Check if CloudWatch log fetching is properly configured."""
+        return bool(
+            self._cloudwatch_logs_enabled
+            and self._cloudwatch_logs_group
+            and self._cloudwatch_logs_stream_prefix
+        )
+
+    @staticmethod
+    def _get_ecs_task_id(task_arn: str) -> str:
+        """Extract task ID from ECS task ARN."""
+        # ARN format: arn:aws:ecs:region:account:task/cluster/task-id
+        return task_arn.split("/")[-1]
+
+    def _get_log_stream_name(self, task_arn: str) -> str:
+        """Construct CloudWatch log stream name for an ECS task."""
+        task_id = self._get_ecs_task_id(task_arn)
+        # ECS awslogs driver format: {prefix}/{container_name}/{task_id}
+        return f"{self._cloudwatch_logs_stream_prefix}/{self.container_name}/{task_id}"
+
+    def _fetch_cloudwatch_logs(self, log_stream_name: str) -> str:
+        """Fetch logs from CloudWatch for the given log stream."""
+        from datetime import datetime, timezone
+
+        from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+
+        hook = AwsLogsHook(
+            aws_conn_id=self._cloudwatch_logs_conn_id, region_name=self._cloudwatch_logs_region
+        )
+
+        log_lines = []
+        for event in hook.get_log_events(
+            log_group=self._cloudwatch_logs_group,
+            log_stream_name=log_stream_name,
+        ):
+            event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
+            formatted_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
+            log_lines.append(f"[{formatted_dt}] {event['message']}")
+
+        return "\n".join(log_lines)

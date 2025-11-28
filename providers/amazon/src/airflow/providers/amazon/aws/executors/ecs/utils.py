@@ -52,6 +52,7 @@ CONFIG_DEFAULTS = {
     "assign_public_ip": "False",
     "platform_version": "LATEST",
     "check_health_on_startup": "True",
+    "cloudwatch_logs_enabled": "False",
 }
 
 
@@ -98,6 +99,12 @@ class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     REGION_NAME = "region_name"
     RUN_TASK_KWARGS = "run_task_kwargs"
+
+    # CloudWatch log fetching configuration
+    CLOUDWATCH_LOGS_ENABLED = "cloudwatch_logs_enabled"
+    CLOUDWATCH_LOGS_GROUP = "cloudwatch_logs_group"
+    CLOUDWATCH_LOGS_STREAM_PREFIX = "cloudwatch_logs_stream_prefix"
+    CLOUDWATCH_LOGS_REGION = "cloudwatch_logs_region"
 
 
 class EcsExecutorException(Exception):
