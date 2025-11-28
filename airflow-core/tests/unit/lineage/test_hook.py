@@ -872,8 +872,8 @@ class FakePlugin(plugins_manager.AirflowPlugin):
     ],
 )
 def test_get_hook_lineage_collector(has_readers, expected_class):
-    # reset global variable
-    hook._hook_lineage_collector = None
+    # reset cached instance
+    hook.get_hook_lineage_collector.cache_clear()
     plugins = [FakePlugin()] if has_readers else []
     with mock_plugin_manager(plugins=plugins):
         assert isinstance(get_hook_lineage_collector(), expected_class)

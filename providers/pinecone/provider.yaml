@@ -24,13 +24,14 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 state: ready
-source-date-epoch: 1763070147
+source-date-epoch: 1764110509
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.4.0
   - 2.3.5
   - 2.3.4
   - 2.3.3

@@ -149,6 +149,16 @@ class OracleHook(DbApiHook):
               that you are connecting to (CONNECT_DATA part of TNS)
         :param sid: Oracle System ID that identifies a particular
               database on a system
+        :param wallet_location: Specify the directory where the wallet can be found.
+        :param wallet_password: the password to use to decrypt the wallet, if it is encrypted.
+            For Oracle Autonomous Database this is the password created when downloading the wallet.
+        :param ssl_server_cert_dn: Specify the distinguished name (DN) which should be matched
+            with the server. This value is ignored if the ``ssl_server_dn_match`` parameter is not
+            set to the value True.
+        :param ssl_server_dn_match: Specify whether the server certificate distinguished name
+            (DN) should be matched in addition to the regular certificate verification that is performed.
+        :param cclass:  the connection class to use for Database Resident Connection Pooling (DRCP).
+        :param pool_name: the name of the DRCP pool when using multi-pool DRCP with Oracle Database 23.4, or higher.
 
         You can set these parameters in the extra fields of your connection
         as in
@@ -221,6 +231,8 @@ class OracleHook(DbApiHook):
         if "events" in conn.extra_dejson:
             conn_config["events"] = conn.extra_dejson.get("events")
 
+        # TODO: Replace mapping with oracledb.AuthMode enum once python-oracledb>=2.3
+        # mode = getattr(oracledb.AuthMode, conn.extra_dejson.get("mode", "").upper(), None)
         mode = conn.extra_dejson.get("mode", "").lower()
         if mode == "sysdba":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
@@ -237,6 +249,8 @@ class OracleHook(DbApiHook):
         elif mode == "sysrac":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
 
+        # TODO: Replace mapping with oracledb.Purity enum once python-oracledb>=2.3
+        # purity = getattr(oracledb.Purity, conn.extra_dejson.get("purity", "").upper(), None)
         purity = conn.extra_dejson.get("purity", "").lower()
         if purity == "new":
             conn_config["purity"] = oracledb.PURITY_NEW
@@ -248,6 +262,18 @@ class OracleHook(DbApiHook):
         expire_time = conn.extra_dejson.get("expire_time")
         if expire_time:
             conn_config["expire_time"] = expire_time
+
+        for name in [
+            "wallet_location",
+            "wallet_password",
+            "ssl_server_cert_dn",
+            "ssl_server_dn_match",
+            "cclass",
+            "pool_name",
+        ]:
+            value = conn.extra_dejson.get(name)
+            if value is not None:
+                conn_config[name] = value
 
         oracle_conn = oracledb.connect(**conn_config)
         if mod is not None:

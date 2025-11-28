@@ -602,12 +602,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "ci-image-build": "true",
-                    "prod-image-build": "false",
+                    "prod-image-build": "true",
                     "run-api-tests": "false",
                     "run-helm-tests": "false",
                     "run-kubernetes-tests": "false",
                     "run-unit-tests": "true",
                     "run-task-sdk-tests": "true",
+                    "run-task-sdk-integration-tests": "true",
                     "docs-build": "true",
                     "full-tests-needed": "false",
                     "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
@@ -619,6 +620,34 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-providers', 'mypy-task-sdk']",
                 },
                 id="Task SDK source file changed - Task SDK, Core and provider tests should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("task-sdk-integration-tests/tests/airflow/sdk/random.py",),
+                {
+                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-api-tests": "false",
+                    "run-helm-tests": "false",
+                    "run-kubernetes-tests": "false",
+                    "run-unit-tests": "false",
+                    "run-task-sdk-tests": "false",
+                    "run-task-sdk-integration-tests": "true",
+                    "docs-build": "false",
+                    "full-tests-needed": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-providers-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "run-mypy": "false",
+                    "mypy-checks": "[]",
+                },
+                id="Task SDK integration tests files changed - "
+                "Task SDK integration tests and prod image build should run but no other tests",
             )
         ),
         (
@@ -1852,7 +1881,7 @@ def test_expected_output_push(
                 "selected-providers-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql "
                 "facebook google hashicorp http microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
@@ -1864,7 +1893,7 @@ def test_expected_output_push(
                 "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
                 "apache.kafka cncf.kubernetes common.compat common.sql facebook google hashicorp http microsoft.azure "
                 "microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce samba sftp ssh trino",
+                "presto salesforce samba sftp ssh standard trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_UI,
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -1874,12 +1903,13 @@ def test_expected_output_push(
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [
                         {
-                            "description": "amazon...google",
+                            "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[apache.beam,apache.cassandra,"
                             "apache.kafka,cncf.kubernetes,common.compat,common.sql,facebook,"
                             "hashicorp,http,microsoft.azure,microsoft.mssql,mysql,"
                             "openlineage,oracle,postgres,presto,salesforce,samba,sftp,ssh,trino] "
-                            "Providers[google]",
+                            "Providers[google] "
+                            "Providers[standard]",
                         }
                     ]
                 ),
@@ -1940,7 +1970,7 @@ def test_expected_output_push(
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage oracle postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake standard trino",
                 "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                 "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                 "ci-image-build": "true",
@@ -1951,7 +1981,7 @@ def test_expected_output_push(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow task-sdk amazon common.compat common.io common.sql "
                 "databricks dbt.cloud ftp google microsoft.mssql mysql "
-                "openlineage oracle postgres sftp snowflake trino",
+                "openlineage oracle postgres sftp snowflake standard trino",
                 "skip-prek-hooks": ALL_SKIPPED_COMMITS_ON_NO_CI_IMAGE,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -1959,10 +1989,10 @@ def test_expected_output_push(
                 "providers-test-types-list-as-strings-in-json": json.dumps(
                     [
                         {
-                            "description": "amazon...google",
+                            "description": "amazon...standard",
                             "test_types": "Providers[amazon] Providers[common.compat,common.io,common.sql,"
                             "databricks,dbt.cloud,ftp,microsoft.mssql,mysql,openlineage,oracle,"
-                            "postgres,sftp,snowflake,trino] Providers[google]",
+                            "postgres,sftp,snowflake,trino] Providers[google] Providers[standard]",
                         }
                     ]
                 ),
@@ -2122,7 +2152,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "amazon apache.beam apache.cassandra apache.kafka "
                 "cncf.kubernetes common.compat common.sql facebook google hashicorp http "
                 "microsoft.azure microsoft.mssql mysql openlineage oracle "
-                "postgres presto salesforce samba sftp ssh trino",
+                "postgres presto salesforce samba sftp ssh standard trino",
             },
             id="Google provider docs changed",
         ),
@@ -2876,14 +2906,14 @@ def test_provider_dependency_bump_check_passes_on_non_provider_dependency_change
     old_toml = """
 [project]
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "boto3>=1.37.0",
 ]
 """
     new_toml = """
 [project]
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "boto3>=1.38.0",
 ]
 """

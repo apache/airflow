@@ -34,6 +34,10 @@
       "error": "Fehler beim Zurücksetzen von {{type}}",
       "title": "{{type}} bereinigen und neu planen"
     },
+    "confirmationDialog": {
+      "description": "Der Task befindet sich derzeit in dem Zustand {{state}}, ausgelöst durch den Benutzer {{user}} um {{time}}. \nDer Task kann nicht zurückgesetzt werden, bevor er abgeschlossen ist, oder ein Benutzer im Zurücksetz-Dialog die Option \"Zurücksetzen von laufenden Tasks verhindern\" deaktiviert.",
+      "title": "Task-Instanz kann nicht zurückgesetzt werden"
+    },
     "delete": {
       "button": "{{type}} löschen",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Zukünftige",
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",
       "past": "Vergangene",
+      "preventRunningTasks": "Zurücksetzen von laufenden Tasks verhindern",
       "queueNew": "Neue Tasks einplanen",
       "runOnLatestVersion": "Mit neuester Bundle-Version ausführen",
       "upstream": "Vorangegangene"

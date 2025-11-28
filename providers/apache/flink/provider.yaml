@@ -22,12 +22,13 @@ description: |
     `Apache Flink <https://flink.apache.org/>`__
 
 state: ready
-source-date-epoch: 1763068371
+source-date-epoch: 1764109485
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.8.0
   - 1.7.4
   - 1.7.3
   - 1.7.2

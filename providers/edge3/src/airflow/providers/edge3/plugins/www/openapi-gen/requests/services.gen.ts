@@ -177,6 +177,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -207,6 +208,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -236,6 +238,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });

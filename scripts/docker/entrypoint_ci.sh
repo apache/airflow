@@ -214,10 +214,18 @@ function environment_initialization() {
     fi
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
+            export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
+        fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
-        # shellcheck source=scripts/in_container/bin/run_tmux
-        exec run_tmux
+        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+            # shellcheck source=scripts/in_container/bin/run_mprocs
+            exec run_mprocs
+        else
+            # shellcheck source=scripts/in_container/bin/run_tmux
+            exec run_tmux
+        fi
     fi
 }
 

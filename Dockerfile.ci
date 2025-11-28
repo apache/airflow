@@ -1214,10 +1214,18 @@ function environment_initialization() {
     fi
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
+            export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
+        fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
-        # shellcheck source=scripts/in_container/bin/run_tmux
-        exec run_tmux
+        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+            # shellcheck source=scripts/in_container/bin/run_mprocs
+            exec run_mprocs
+        else
+            # shellcheck source=scripts/in_container/bin/run_tmux
+            exec run_tmux
+        fi
     fi
 }
 
@@ -1571,6 +1579,16 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && curl --silent --location "${HELM_URL}" | tar -xz -O "${SYSTEM}-${PLATFORM}/helm" > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
 
+# Install mprocs - a modern process manager for managing multiple Airflow components
+ARG MPROCS_VERSION="0.7.3"
+
+RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
+    && PLATFORM="$(uname -m)" \
+    && MPROCS_URL="https://github.com/pvolok/mprocs/releases/download/v${MPROCS_VERSION}/mprocs-${MPROCS_VERSION}-${SYSTEM}-${PLATFORM}-musl.tar.gz" \
+    && echo "Downloading mprocs from ${MPROCS_URL}" \
+    && curl --silent --location "${MPROCS_URL}" | tar -xz -C /usr/local/bin/ mprocs \
+    && chmod +x /usr/local/bin/mprocs
+
 WORKDIR ${AIRFLOW_SOURCES}
 
 RUN mkdir -pv ${AIRFLOW_HOME} && \
@@ -1653,7 +1671,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.11
+ARG AIRFLOW_UV_VERSION=0.9.12
 ARG AIRFLOW_PREK_VERSION="0.2.18"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
