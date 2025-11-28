@@ -22,9 +22,9 @@ from __future__ import annotations
 # [START example_dynamic_task_mapping]
 from datetime import datetime
 
-from airflow.sdk import DAG, task
+from airflow.sdk import DAG, task, task_group
 
-with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=datetime(2022, 3, 4)) as dag:
+with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=datetime(2022, 3, 4)):
 
     @task
     def add_one(x: int):
@@ -39,8 +39,11 @@ with DAG(dag_id="example_dynamic_task_mapping", schedule=None, start_date=dateti
     sum_it(added_values)
 
 with DAG(
-    dag_id="example_task_mapping_second_order", schedule=None, catchup=False, start_date=datetime(2022, 3, 4)
-) as dag2:
+    dag_id="example_task_mapping_second_order",
+    schedule=None,
+    catchup=False,
+    start_date=datetime(2022, 3, 4),
+):
 
     @task
     def get_nums():
@@ -57,5 +60,26 @@ with DAG(
     _get_nums = get_nums()
     _times_2 = times_2.expand(num=_get_nums)
     add_10.expand(num=_times_2)
+
+with DAG(
+    dag_id="example_task_group_mapping",
+    schedule=None,
+    catchup=False,
+    start_date=datetime(2022, 3, 4),
+):
+
+    @task_group
+    def op(num):
+        @task
+        def add_1(num):
+            return num + 1
+
+        @task
+        def mul_2(num):
+            return num * 2
+
+        return mul_2(add_1(num))
+
+    op.expand(num=[1, 2, 3])
 
 # [END example_dynamic_task_mapping]

@@ -128,8 +128,6 @@
       "tooltip": "Eliminar variables seleccionades"
     },
     "edit": "Editar Variable",
-    "export": "Exportar",
-    "exportTooltip": "Exportar les variables seleccionades",
     "form": {
       "invalidJson": "JSON no vàlid",
       "keyMaxLength": "La clau pot contenir un màxim de 250 caràcters",

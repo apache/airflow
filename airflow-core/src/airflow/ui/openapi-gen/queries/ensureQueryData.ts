@@ -926,6 +926,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @param data.durationLt
 * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+* @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
 * @param data.state
 * @param data.pool
 * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -943,7 +944,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskInstanceServiceGetTaskInstancesData = (queryClient: QueryClient, { dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
+export const ensureUseTaskInstanceServiceGetTaskInstancesData = (queryClient: QueryClient, { dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }: {
   dagId: string;
   dagIdPattern?: string;
   dagRunId: string;
@@ -974,6 +975,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstancesData = (queryClient: Qu
   runAfterGte?: string;
   runAfterLt?: string;
   runAfterLte?: string;
+  runIdPattern?: string;
   startDateGt?: string;
   startDateGte?: string;
   startDateLt?: string;
@@ -987,7 +989,7 @@ export const ensureUseTaskInstanceServiceGetTaskInstancesData = (queryClient: Qu
   updatedAtLt?: string;
   updatedAtLte?: string;
   versionNumber?: number[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }), queryFn: () => TaskInstanceService.getTaskInstances({ dagId, dagIdPattern, dagRunId, durationGt, durationGte, durationLt, durationLte, endDateGt, endDateGte, endDateLt, endDateLte, executor, limit, logicalDateGt, logicalDateGte, logicalDateLt, logicalDateLte, mapIndex, offset, operator, operatorNamePattern, orderBy, pool, poolNamePattern, queue, queueNamePattern, runAfterGt, runAfterGte, runAfterLt, runAfterLte, runIdPattern, startDateGt, startDateGte, startDateLt, startDateLte, state, taskDisplayNamePattern, taskId, tryNumber, updatedAtGt, updatedAtGte, updatedAtLt, updatedAtLte, versionNumber }) });
 /**
 * Get Task Instance Try Details
 * Get task instance details by try number.
@@ -1454,20 +1456,23 @@ export const ensureUseLoginServiceLoginData = (queryClient: QueryClient, { next 
 /**
 * Logout
 * Logout the user.
-* @param data The data for the request.
-* @param data.next
 * @returns unknown Successful Response
 * @throws ApiError
 */
-export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient, { next }: {
-  next?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLogoutKeyFn({ next }), queryFn: () => LoginService.logout({ next }) });
+export const ensureUseLoginServiceLogoutData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLogoutKeyFn(), queryFn: () => LoginService.logout() });
 /**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
 * @throws ApiError
 */
 export const ensureUseAuthLinksServiceGetAuthMenusData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
+/**
+* Get Current User Info
+* Convienently get the current authenticated user information.
+* @returns AuthenticatedMeResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAuthLinksServiceGetCurrentUserInfoData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseAuthLinksServiceGetCurrentUserInfoKeyFn(), queryFn: () => AuthLinksService.getCurrentUserInfo() });
 /**
 * Get Dependencies
 * Dependencies graph.

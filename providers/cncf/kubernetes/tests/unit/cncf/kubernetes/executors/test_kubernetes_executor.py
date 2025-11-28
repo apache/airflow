@@ -28,7 +28,6 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -64,11 +63,12 @@ except ImportError:
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-if __version__.startswith("2."):
-    LOGICAL_DATE_KEY = "execution_date"
-else:
+if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
+else:
+    LOGICAL_DATE_KEY = "execution_date"
 
 
 class TestAirflowKubernetesScheduler:
@@ -407,6 +407,26 @@ class TestKubernetesExecutor:
                 State.FAILED,
                 id="429 Too Many Requests (empty body)",
             ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "Internal error occurred: failed calling webhook \\"mutation.azure-workload-identity.io\\": failed to call webhook: Post \\"https://azure-wi-webhook-webhook-service.kube-system.svc:443/mutate-v1-pod?timeout=10s\\""}',
+                    status=500,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="500 Internal Server Error (webhook failure)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "Internal error occurred: failed calling webhook"}',
+                    status=500,
+                ),
+                1,
+                True,
+                State.FAILED,
+                id="500 Internal Server Error (webhook failure) (retry failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
@@ -439,6 +459,9 @@ class TestKubernetesExecutor:
             - your requested namespace doesn't exists
         - 422 Unprocessable Entity will returns in scenarios like
             - your request parameters are valid but unsupported e.g. limits lower than requests.
+        - 500 Internal Server Error will returns in scenarios like
+            - failed calling webhook - typically transient API server or webhook service issues
+            - should be retried if task_publish_max_retries > 0
 
         """
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
@@ -1415,6 +1438,11 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
+    def test_sentry_integration(self):
+        assert not KubernetesExecutor.sentry_integration
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow < 3.2")
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 

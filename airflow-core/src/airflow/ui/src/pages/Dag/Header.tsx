@@ -50,11 +50,9 @@ type LatestRunInfo = {
 
 export const Header = ({
   dag,
-  isRefreshing,
   latestRunInfo,
 }: {
   readonly dag?: DAGDetailsResponse;
-  readonly isRefreshing?: boolean;
   readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -100,6 +98,13 @@ export const Header = ({
           runAfter={dag?.next_dagrun_run_after as string}
         />
       ) : undefined,
+    },
+    {
+      label: translate("dagDetails.maxActiveRuns"),
+      value:
+        dag?.max_active_runs === undefined
+          ? undefined
+          : `${dag.active_runs_count ?? 0} of ${dag.max_active_runs}`,
     },
     {
       label: translate("dagDetails.owner"),
@@ -156,7 +161,6 @@ export const Header = ({
         )
       }
       icon={<DagIcon />}
-      isRefreshing={isRefreshing}
       stats={stats}
       subTitle={
         dag !== undefined && (

@@ -41,11 +41,6 @@ from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    TaskDeferred,
-)
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -82,12 +77,13 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -935,6 +931,8 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
+            if self.do_xcom_push:
+                return xcom_sidecar_output
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
@@ -1180,6 +1178,7 @@ class KubernetesPodOperator(BaseOperator):
             **self.labels,
             **self._get_ti_pod_labels(context, include_try_number=False),
         }
+        labels = _normalize_labels_dict(labels)
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
@@ -1252,7 +1251,7 @@ class KubernetesPodOperator(BaseOperator):
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
                 namespace=self.namespace,
-                labels=self.labels,
+                labels=_normalize_labels_dict(self.labels),
                 name=self.name,
                 annotations=self.annotations,
             ),
@@ -1409,3 +1408,8 @@ class _optionally_suppress(AbstractContextManager):
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
         return True
+
+
+def _normalize_labels_dict(labels: dict) -> dict:
+    """Return a copy of the labels dict with all None values replaced by empty strings."""
+    return {k: ("" if v is None else v) for k, v in labels.items()}

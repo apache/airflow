@@ -64,5 +64,6 @@ More information
 """"""""""""""""
 
 See Google Compute Engine API documentation and Cloud OS Login API documentation
+
 * `Google Cloud API Documentation <https://cloud.google.com/compute/docs/reference/rest/v1/>`__
 * `Google Cloud OS Login API Documentation <https://cloud.google.com/compute/docs/oslogin/rest>`_.

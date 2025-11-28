@@ -20,6 +20,33 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.5.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+
 1.5.3
 .....
 

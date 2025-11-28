@@ -26,6 +26,36 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+3.1.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate 'apache/druid' provider to 'common.compat' (#57072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+
 3.1.3
 .....
 
@@ -159,8 +189,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 2.8.1
@@ -413,7 +441,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 2.2.0

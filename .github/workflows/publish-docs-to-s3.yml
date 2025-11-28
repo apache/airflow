@@ -372,4 +372,4 @@ jobs:
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS} --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+          --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
