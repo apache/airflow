@@ -15,7 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "rich>=13.6.0",
+#   "PyYAML>=6.0",
+# ]
+# ///
 """Generate mprocs configuration dynamically based on environment variables."""
 
 from __future__ import annotations

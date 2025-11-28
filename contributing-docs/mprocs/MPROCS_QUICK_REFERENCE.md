@@ -25,6 +25,11 @@
 breeze start-airflow --use-mprocs
 ```
 
+Breeze will start Airflow components using mprocs to manage multiple processes in a single terminal window.
+It will generate dynamically the required configuration based on the selected executor and options and use it,
+the generated configuration file is stored in a `files` folder inside the container, so that you can also
+use it outside of Breeze if needed.
+
 ## Common Usage Patterns
 
 | Command                                                       | Description                     |
@@ -38,16 +43,15 @@ breeze start-airflow --use-mprocs
 
 ## mprocs Keyboard Shortcuts
 
-| Key     | Action                       |
-|---------|------------------------------|
-| `↑↓`    | Navigate between processes   |
-| `Space` | Show/hide process output     |
-| `r`     | Restart selected process     |
-| `k`     | Kill selected process        |
-| `s`     | Start selected process       |
-| `a`     | Toggle showing all processes |
-| `q`     | Quit mprocs                  |
-| `?`     | Show help                    |
+| Key  | Action                     |
+|------|----------------------------|
+| `↑↓` | Navigate between processes |
+| `r`  | Restart selected process   |
+| `x`  | Stop selected process      |
+| `s`  | Start selected process     |
+| `a`  | Add new process            |
+| `q`  | Quit mprocs                |
+| `?`  | Show help                  |
 
 ## Components Managed
 
@@ -97,3 +101,32 @@ curl -L "https://github.com/pvolok/mprocs/releases/download/v${MPROCS_VERSION}/m
   | tar -xz -C /usr/local/bin/ mprocs
 chmod +x /usr/local/bin/mprocs
 ```
+
+## Mac OS X and iTerm2
+
+There are some known issues with mprocs and iTerm2 (which is often used as terminal by
+developers using MacOS) with default settings, but they have solutions and workarounds:
+
+* Mouse clicks are not captured correctly by default
+
+**Solution:** you need to configure "Enable Mouse reporting":
+
+![Enable mouse reporting](../images/iterm2-enable-mouse-reporting.png)
+
+* Ctrl-a does not work correctly when in breeze Docker container (issue https://github.com/pvolok/mprocs/issues/179)
+
+**Workaround**: You need to use `Cmd - <-` to change focus instead of Ctrl-a. Also you can switch
+between process list and output with mouse click providing that you applied the solution above.
+
+## Standalone execution
+
+You can run mprocs outside of Breeze for custom setups. Create a `mprocs.yaml` configuration
+file defining your processes, then start mprocs:
+
+```bash
+mprocs -f mprocs.yaml
+```
+
+An example [mprocs.yaml](mprocs.yaml) file for Airflow components can be found in this directory - it has
+default configurations for all major Airflow components, but you can customize it as needed by copying it
+elsewhere and modifying the process definitions, uncommenting the commented or adding new processes.
