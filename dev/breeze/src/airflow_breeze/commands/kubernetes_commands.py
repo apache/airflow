@@ -253,7 +253,7 @@ def _create_cluster(
 ) -> tuple[int, str, str, Path]:
     """
     Create a KinD cluster for the given Python and Kubernetes versions.
-    
+
     Returns: (returncode, message, cluster_name, kubeconfig_path)
     """
     while True:
@@ -363,7 +363,7 @@ def create_cluster(
                         },
                     )
                     for index, combo in enumerate(combos)
-            ]
+                ]
         check_async_run_results(
             results=results,
             success_message="All clusters created.",
