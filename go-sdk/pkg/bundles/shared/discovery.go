@@ -25,10 +25,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/spf13/viper"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1"
 	"github.com/apache/airflow/go-sdk/bundle/bundlev1/bundlev1client"
@@ -147,60 +150,66 @@ func (d *Discovery) DiscoverBundles(ctx context.Context) error {
 	if err != nil {
 		self = ""
 	}
+	maxProcesses := runtime.GOMAXPROCS(0)
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxProcesses)
+	var mu sync.Mutex
 
 	for _, file := range files {
-		if ctx.Err() != nil {
-			// Check if we are done.
-			return ctx.Err()
-		}
+		g.Go(func() error {
+			if ctx.Err() != nil {
+				// Check if we are done.
+				return ctx.Err()
+			}
 
-		// Check if file is executable
-		if !isExecutable(file) {
-			continue
-		}
+			// Check if file is executable
+			if !isExecutable(file) {
+				return nil
+			}
 
-		abs, err := filepath.Abs(file)
-		if err != nil {
-			d.logger.Warn("Unable to load resolve file path", "file", file, "err", err)
-			continue
-		}
-		if self != "" && self == abs {
-			d.logger.Warn("Not trying to load ourselves as a plugin", "file", file)
-			continue
-		}
+			abs, err := filepath.Abs(file)
+			if err != nil {
+				d.logger.Warn("Unable to load resolve file path", "file", file, "err", err)
+				return nil
+			}
+			if self != "" && self == abs {
+				d.logger.Warn("Not trying to load ourselves as a plugin", "file", file)
+				return nil
+			}
 
-		d.logger.Debug("Found potential bundle", slog.String("path", file))
+			d.logger.Debug("Found potential bundle", slog.String("path", file))
 
-		// TODO: Use a sync.WaitGroup to parallelize running multiple procs without blowing concurrency up and fork-bombing
-		// the host
-		bundle, err := d.getBundleVersionInfo(file)
-		if err != nil {
-			d.logger.Warn("Unable to load BundleMetadata", "file", file, "err", err)
-			continue
-		}
+			bundle, err := d.getBundleVersionInfo(file)
+			if err != nil {
+				d.logger.Warn("Unable to load BundleMetadata", "file", file, "err", err)
+				return nil
+			}
+			mu.Lock()
+			versions, exists := d.bundles[bundle.Name]
+			if !exists {
+				versions = make(map[string]string)
+				d.bundles[bundle.Name] = versions
+			}
 
-		versions, exists := d.bundles[bundle.Name]
-		if !exists {
-			versions = make(map[string]string)
-			d.bundles[bundle.Name] = versions
-		}
-
-		var key string
-		logAs := bundle.Name
-		if bundle.Version != nil {
-			key = *bundle.Version
-			logAs = fmt.Sprintf("%s@%s", bundle.Name, key)
-		}
-		d.logger.Info(
-			"Discovered bundle",
-			"key",
-			logAs,
-			"file",
-			file,
-		)
-		versions[key] = file
+			var key string
+			logAs := bundle.Name
+			if bundle.Version != nil {
+				key = *bundle.Version
+				logAs = fmt.Sprintf("%s@%s", bundle.Name, key)
+			}
+			d.logger.Info(
+				"Discovered bundle",
+				"key",
+				logAs,
+				"file",
+				file,
+			)
+			versions[key] = file
+			mu.Unlock()
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (d *Discovery) makeClient(binaryPath string) *plugin.Client {
