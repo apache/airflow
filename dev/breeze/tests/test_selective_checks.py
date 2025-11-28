@@ -563,8 +563,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-checks": "['mypy-providers']",
                     "skip-providers-tests": "false",
                 },
-                id="Selected Providers and docs should run when both system "
-                "tests and tests are modified for more than one provider",
+                id="Selected Providers and docs should run when both system tests and tests are modified for more than one provider",
             )
         ),
         (
@@ -2797,6 +2796,41 @@ dependencies = [
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
         ).provider_dependency_bump
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_check_works_on_provider_version_bump_when_pushed(mock_run_command):
+    """Test that provider dependency bump check fails when provider version is bumped without label."""
+    old_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.0.0",
+]
+"""
+    new_toml = """
+[project]
+dependencies = [
+    "apache-airflow-providers-common-sql>=1.1.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        if "^:" in args[0][2]:
+            result.stdout = old_toml
+        else:
+            result.stdout = new_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+    assert not SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+    ).provider_dependency_bump
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")
