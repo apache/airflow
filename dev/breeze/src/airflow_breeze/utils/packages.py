@@ -37,7 +37,6 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
-    get_provider_dependencies,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -47,7 +46,6 @@ from airflow_breeze.utils.path_utils import (
     BREEZE_SOURCES_PATH,
     DOCS_ROOT,
     PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH,
-    PROVIDER_DEPENDENCIES_JSON_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
     PROVIDER_DATA_SCHEMA_PATH,
@@ -317,7 +315,10 @@ def get_available_distributions(
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
+    provider_dependencies = get_provider_dependencies()
 
     valid_states = set()
     if include_not_ready:
@@ -657,6 +658,10 @@ def convert_optional_dependencies_to_table(
 def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     if provider_id in get_removed_provider_ids():
         return []
+
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
     return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
@@ -859,6 +864,9 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
 def regenerate_pyproject_toml(
     context: dict[str, Any], provider_details: ProviderPackageDetails, version_suffix: str | None
 ):
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
     get_pyproject_toml_path = provider_details.root_provider_path / "pyproject.toml"
     # we want to preserve comments in dependencies - both required and additional,
     # so we should not really parse the toml file but extract dependencies "as is" in text form and pass
