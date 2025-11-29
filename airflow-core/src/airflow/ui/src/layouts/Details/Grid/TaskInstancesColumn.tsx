@@ -63,7 +63,7 @@ export const TaskInstancesColumn = ({
       idx > 0
     ) {
       const prevNode = nodes[idx - 1];
-      const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : null;
+      const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : undefined;
 
       hasVersionChangeFlag = Boolean(
         prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
@@ -74,10 +74,10 @@ export const TaskInstancesColumn = ({
       <Box key={node.id} position="relative">
         {hasVersionChangeFlag ? (
           <DagVersionIndicator
-            dagVersionNumber={taskInstance.dag_version_number ?? null}
+            dagVersionNumber={taskInstance.dag_version_number ?? undefined}
             orientation="horizontal"
           />
-        ) : null}
+        ) : undefined}
         <GridTI
           dagId={dagId}
           instance={taskInstance}

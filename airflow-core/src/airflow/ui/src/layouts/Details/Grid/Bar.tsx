@@ -81,13 +81,13 @@ export const Bar = ({
       {isBundleVersionChange === true &&
       (showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
         showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
-        <BundleVersionIndicator bundleVersion={bundleVersion ?? null} />
-      ) : null}
+        <BundleVersionIndicator bundleVersion={bundleVersion} />
+      ) : undefined}
       {isDagVersionChange === true &&
       (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
         showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
-        <DagVersionIndicator dagVersionNumber={dagVersionNumber ?? null} orientation="vertical" />
-      ) : null}
+        <DagVersionIndicator dagVersionNumber={dagVersionNumber} orientation="vertical" />
+      ) : undefined}
 
       <Flex
         alignItems="flex-end"

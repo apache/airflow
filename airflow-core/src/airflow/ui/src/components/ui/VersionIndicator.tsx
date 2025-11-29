@@ -23,7 +23,7 @@ import { FiGitCommit } from "react-icons/fi";
 import { Tooltip } from "src/components/ui";
 
 type BundleVersionIndicatorProps = {
-  readonly bundleVersion: string | null;
+  readonly bundleVersion: string | undefined;
 };
 
 export const BundleVersionIndicator = ({ bundleVersion }: BundleVersionIndicatorProps) => {
@@ -39,7 +39,7 @@ export const BundleVersionIndicator = ({ bundleVersion }: BundleVersionIndicator
 };
 
 type DagVersionIndicatorProps = {
-  readonly dagVersionNumber: number | null;
+  readonly dagVersionNumber: number | undefined;
   readonly orientation?: "horizontal" | "vertical";
 };
 
