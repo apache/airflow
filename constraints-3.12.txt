@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-28T18:30:56.414844
+# This constraints file was automatically generated on 2025-11-29T10:22:47.437362
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,7 +92,7 @@ aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.11.0
+anyio==4.12.0
 apache-airflow-providers-airbyte==5.2.5
 apache-airflow-providers-alibaba==3.2.5
 apache-airflow-providers-amazon==9.17.0

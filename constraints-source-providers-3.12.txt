@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-28T18:27:36.822347
+# This constraints file was automatically generated on 2025-11-29T10:19:50.912919
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -76,7 +76,7 @@ aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.11.0
+anyio==4.12.0
 apache-beam==2.69.0
 apispec==6.8.4
 apprise==1.9.5
@@ -568,7 +568,7 @@ rpds-py==0.29.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
-ruff==0.14.6
+ruff==0.14.7
 s3fs==2025.10.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.23
