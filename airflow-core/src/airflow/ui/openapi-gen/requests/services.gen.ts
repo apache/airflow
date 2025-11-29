@@ -1382,6 +1382,7 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
+     * @param data.isScheduled
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.dagRunStartDateGte
@@ -1416,6 +1417,7 @@ export class DagService {
                 last_dag_run_state: data.lastDagRunState,
                 bundle_name: data.bundleName,
                 bundle_version: data.bundleVersion,
+                is_scheduled: data.isScheduled,
                 has_asset_schedule: data.hasAssetSchedule,
                 asset_dependency: data.assetDependency,
                 dag_run_start_date_gte: data.dagRunStartDateGte,
@@ -1688,6 +1690,7 @@ export class DagService {
      * @param data.bundleVersion
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
+     * @param data.isScheduled
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
      * @param data.hasPendingActions
@@ -1716,6 +1719,7 @@ export class DagService {
                 bundle_version: data.bundleVersion,
                 order_by: data.orderBy,
                 is_favorite: data.isFavorite,
+                is_scheduled: data.isScheduled,
                 has_asset_schedule: data.hasAssetSchedule,
                 asset_dependency: data.assetDependency,
                 has_pending_actions: data.hasPendingActions
