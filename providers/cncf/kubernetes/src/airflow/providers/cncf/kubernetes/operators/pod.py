@@ -81,11 +81,11 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook, BaseOperator
+    from airflow.sdk import BaseOperator
 else:
-    from airflow.hooks.base import BaseHook
     from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
+from airflow.sdk import BaseHook
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
