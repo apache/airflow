@@ -269,8 +269,8 @@ def test_commands(login_command, date_param):
         # DAG Run commands
         f"dagrun trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
-        f"dagrun get --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
-        f"dagrun delete --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
+        f'dagrun get --dag-id=example_bash_operator --dagrun-id="manual__{date_param}"',
+        f'dagrun delete --dag-id=example_bash_operator --dagrun-id="manual__{date_param}"',
         # Jobs commands
         "jobs list",
         # Pools commands
