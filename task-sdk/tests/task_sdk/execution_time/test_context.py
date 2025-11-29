@@ -53,6 +53,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     InletEventsAccessors,
+    MacrosAccessor,
     OutletEventAccessor,
     OutletEventAccessors,
     TriggeringAssetEventsAccessor,
@@ -266,6 +267,15 @@ class TestConnectionAccessor:
             "Failed to deserialize extra property `extra`, returning empty dictionary"
         )
 
+    def test_iter_raises_type_error(self):
+        """Test that iterating over ConnectionAccessor raises TypeError.
+
+        This prevents debuggers from hanging when introspecting context objects.
+        """
+        accessor = ConnectionAccessor()
+        with pytest.raises(TypeError, match="'ConnectionAccessor' object is not iterable"):
+            iter(accessor)
+
 
 class TestVariableAccessor:
     def test_getattr_variable(self, mock_supervisor_comms):
@@ -304,6 +314,26 @@ class TestVariableAccessor:
 
         val = accessor.get("nonexistent_var_key", default="default_value")
         assert val == "default_value"
+
+    def test_iter_raises_type_error(self):
+        """Test that iterating over VariableAccessor raises TypeError.
+
+        This prevents debuggers from hanging when introspecting context objects.
+        """
+        accessor = VariableAccessor(deserialize_json=False)
+        with pytest.raises(TypeError, match="'VariableAccessor' object is not iterable"):
+            iter(accessor)
+
+
+class TestMacrosAccessor:
+    def test_iter_raises_type_error(self):
+        """Test that iterating over MacrosAccessor raises TypeError.
+
+        This prevents debuggers from hanging when introspecting context objects.
+        """
+        accessor = MacrosAccessor()
+        with pytest.raises(TypeError, match="'MacrosAccessor' object is not iterable"):
+            iter(accessor)
 
 
 class TestCurrentContext:
