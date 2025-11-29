@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from typing import Any
 
@@ -29,7 +29,7 @@ from airflow.utils.state import TaskInstanceState
 class ListenerState:
     started_component: Any = None
     stopped_component: Any = None
-    state: list[Any] = []
+    state: list[Any] = field(default_factory=list)
 
 
 @cache
