@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.14.6",
+    "ruff==0.14.7",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     # limited due to changes needed https://github.com/apache/airflow/issues/58470
