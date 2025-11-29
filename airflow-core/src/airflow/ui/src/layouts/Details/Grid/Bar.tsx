@@ -32,18 +32,32 @@ import type { GridTask } from "./utils";
 const BAR_HEIGHT = 100;
 
 type Props = {
+  readonly bundleVersion?: string;
+  readonly dagVersionNumber?: number;
+  readonly hasMixedVersions?: boolean;
+  readonly isBundleVersionChange?: boolean;
+  readonly isDagVersionChange?: boolean;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
-  readonly run: {
-    isBundleVersionChange?: boolean;
-    isDagVersionChange?: boolean;
-  } & GridRunsResponse;
+  readonly run: GridRunsResponse;
   readonly showVersionIndicatorMode?: string;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIndicatorMode }: Props) => {
+export const Bar = ({
+  bundleVersion,
+  dagVersionNumber,
+  hasMixedVersions,
+  isBundleVersionChange,
+  isDagVersionChange,
+  max,
+  nodes,
+  onCellClick,
+  onColumnClick,
+  run,
+  showVersionIndicatorMode,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -55,6 +69,8 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIn
     state: run.state,
   });
 
+  const taskInstances = gridTISummaries?.task_instances ?? [];
+
   return (
     <Box
       _hover={{ bg: "brand.subtle" }}
@@ -62,16 +78,16 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIn
       position="relative"
       transition="background-color 0.2s"
     >
-      {Boolean(
-        run.isBundleVersionChange &&
-          (showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
-            showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL),
-      ) && <BundleVersionIndicator bundleVersion={run.bundle_version ?? null} />}
-      {Boolean(
-        run.isDagVersionChange &&
-          (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
-            showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL),
-      ) && <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? null} orientation="vertical" />}
+      {isBundleVersionChange === true &&
+      (showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
+        showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
+        <BundleVersionIndicator bundleVersion={bundleVersion ?? null} />
+      ) : null}
+      {isDagVersionChange === true &&
+      (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+        showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
+        <DagVersionIndicator dagVersionNumber={dagVersionNumber ?? null} orientation="vertical" />
+      ) : null}
 
       <Flex
         alignItems="flex-end"
@@ -102,12 +118,12 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIn
       </Flex>
 
       <TaskInstancesColumn
-        hasMixedVersions={run.has_mixed_versions}
+        hasMixedVersions={hasMixedVersions}
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}
         showVersionIndicatorMode={showVersionIndicatorMode}
-        taskInstances={gridTISummaries?.task_instances ?? []}
+        taskInstances={taskInstances}
       />
     </Box>
   );

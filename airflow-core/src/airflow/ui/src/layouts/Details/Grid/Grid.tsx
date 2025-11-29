@@ -37,6 +37,7 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
+import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -144,6 +145,13 @@ export const Grid = ({
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
+  // Fetch version info and calculate version change flags
+  const runsWithVersionFlags = useGridRunsWithVersionFlags({
+    dagId,
+    gridRuns,
+    showVersionIndicatorMode,
+  });
+
   const { flatNodes } = useMemo(() => {
     const nodes = flattenNodes(dagStructure, openGroupIds);
 
@@ -163,22 +171,6 @@ export const Grid = ({
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
-
-  const processedRuns = useMemo(
-    () =>
-      gridRuns?.map((dr, index) => {
-        const prevRun = gridRuns[index + 1];
-        const isDagVersionChange = Boolean(prevRun && prevRun.dag_version_number !== dr.dag_version_number);
-        const isBundleVersionChange = Boolean(prevRun && prevRun.bundle_version !== dr.bundle_version);
-
-        return {
-          ...dr,
-          isBundleVersionChange,
-          isDagVersionChange,
-        };
-      }) ?? [],
-    [gridRuns],
-  );
 
   return (
     <Flex
@@ -208,8 +200,13 @@ export const Grid = ({
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {processedRuns.map((dr) => (
+            {runsWithVersionFlags?.map((dr) => (
               <Bar
+                bundleVersion={dr.bundleVersion}
+                dagVersionNumber={dr.dagVersionNumber}
+                hasMixedVersions={dr.hasMixedVersions}
+                isBundleVersionChange={dr.isBundleVersionChange}
+                isDagVersionChange={dr.isDagVersionChange}
                 key={dr.run_id}
                 max={max}
                 nodes={flatNodes}
