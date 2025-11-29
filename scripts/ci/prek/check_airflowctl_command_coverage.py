@@ -50,10 +50,6 @@ EXCLUDED_METHODS = {
 }
 
 # Commands intentionally not tested - grouped by reason:
-# - Assets: require specific asset state, DAG dependencies, or queued events
-# - Backfill: require inter-command data passing (IDs from create)
-# - DAGs: destructive (delete) or require specific error/warning/version state
-# - Connections: create_defaults may conflict with test environment
 EXCLUDED_COMMANDS = {
     # Assets - require asset state/dependencies
     "assets materialize",
@@ -92,7 +88,6 @@ EXCLUDED_COMMANDS = {
 
 
 def parse_operations() -> dict[str, list[str]]:
-    """Parse operations.py to extract CLI commands grouped by operation class."""
     commands: dict[str, list[str]] = {}
 
     with open(OPERATIONS_FILE) as f:
@@ -118,13 +113,12 @@ def parse_operations() -> dict[str, list[str]]:
 
 
 def parse_tested_commands() -> set[str]:
-    """Parse conftest.py to extract tested commands from test_commands fixture."""
     tested: set[str] = set()
 
     with open(CONFTEST_FILE) as f:
         content = f.read()
 
-    # Match command patterns like "assets list", "connections create --..."
+    # Match command patterns like "assets list", "connections create --..."", etc.
     pattern = r'"([a-z]+(?:-[a-z]+)?\s+[a-z]+(?:-[a-z]+)?)'
     for match in re.findall(pattern, content):
         parts = match.split()
@@ -151,8 +145,8 @@ def main():
             console.print(f"  [red]- {cmd}[/]")
         console.print()
         console.print("[yellow]Fix by either:[/]")
-        console.print("  1. Add test to airflow-ctl-tests/tests/airflowctl_tests/conftest.py")
-        console.print("  2. Add to EXCLUDED_COMMANDS in scripts/ci/prek/check_airflowctl_command_coverage.py")
+        console.print("1. Add test to airflow-ctl-tests/tests/airflowctl_tests/conftest.py")
+        console.print("2. Add to EXCLUDED_COMMANDS in scripts/ci/prek/check_airflowctl_command_coverage.py")
         sys.exit(1)
 
     total = sum(len(cmds) for cmds in available.values())
