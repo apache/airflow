@@ -114,6 +114,7 @@ class TestKubernetesPodTrigger:
             "pod_namespace": NAMESPACE,
             "base_container_name": BASE_CONTAINER_NAME,
             "kubernetes_conn_id": CONN_ID,
+            "connection_extras": None,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "config_dict": CONFIG_DICT,
@@ -128,6 +129,52 @@ class TestKubernetesPodTrigger:
             "logging_interval": None,
             "trigger_kwargs": {},
         }
+
+    def test_serialize_with_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["connection_extras"] == extras
+
+    def test_hook_uses_provided_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        assert trigger.hook._extras == extras
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")

@@ -81,8 +81,9 @@ from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseOperator
+    from airflow.sdk import BaseHook, BaseOperator
 else:
+    from airflow.hooks.base import BaseHook
     from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
 from airflow.settings import pod_mutation_hook
@@ -856,6 +857,20 @@ class KubernetesPodOperator(BaseOperator):
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
         self.convert_config_file_to_dict()
+
+        conn_extras = None
+        if self.kubernetes_conn_id:
+            try:
+                conn = BaseHook.get_connection(self.kubernetes_conn_id)
+                conn_extras = conn.extra_dejson
+                self.log.info("Successfully resolved connection extras for deferral.")
+            except Exception as e:
+                self.log.warning(
+                    "Could not resolve connection extras for deferral: %s. "
+                    "Triggerer will try to resolve it from its own environment.",
+                    e,
+                )
+
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
@@ -863,6 +878,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
+                connection_extras=conn_extras,
                 cluster_context=self.cluster_context,
                 config_dict=self._config_dict,
                 in_cluster=self.in_cluster,
