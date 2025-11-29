@@ -778,7 +778,11 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 
-# All of the modules which have an extra license header (i.e. that we copy from another project) need to
+# Shared distributions SHOULD use relative imports when referencing each other
+# This one disables 'ban-relative-imports'.
+"shared/*/src/**" = ["TID252"]
+
+# All the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
 "scripts/ci/prek/*.py" = [ "E402" ]
 "airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]

@@ -58,7 +58,7 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
-    "duration": 0,
+    "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
@@ -69,7 +69,7 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
-    "duration": 0,
+    "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
@@ -528,7 +528,7 @@ class TestGetGridDataEndpoint:
         assert response.json() == [
             {
                 "dag_id": "test_dag",
-                "duration": 0,
+                "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_1",
@@ -538,7 +538,7 @@ class TestGetGridDataEndpoint:
             },
             {
                 "dag_id": "test_dag",
-                "duration": 0,
+                "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_2",

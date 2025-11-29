@@ -241,19 +241,61 @@ def test_commands(login_command, date_param):
     # Define test commands to run with actual running API server
     return [
         login_command,
+        # Assets commands
+        "assets list",
+        # Backfill commands
         "backfill list",
+        # Config commands
         "config get --section core --option executor",
+        "config list",
+        "config lint",
+        # Connections commands
         "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
         "connections list",
         "connections list -o yaml",
-        "connections list -o tabledags list",
+        "connections list -o table",
+        "connections get --conn-id=test_con",
+        "connections get --conn-id=test_con -o json",
+        "connections update --connection-id=test_con --conn-type=postgres",
+        "connections import tests/airflowctl_tests/fixtures/test_connections.json",
+        "connections delete --conn-id=test_con",
+        "connections delete --conn-id=test_import_conn",
+        # DAGs commands
+        "dags list",
+        "dags get --dag-id=example_bash_operator",
+        "dags pause --dag-id=example_bash_operator",
+        "dags unpause --dag-id=example_bash_operator",
+        "dags update --dag-id=example_bash_operator --is-paused=false",
+        # DAG Run commands
         f"dagrun trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
+        f"dagrun get --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
+        f"dagrun delete --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
+        # Jobs commands
         "jobs list",
+        # Pools commands
         "pools create --name=test_pool --slots=5",
         "pools list",
+        "pools get --pool-name=test_pool",
+        "pools get --pool-name=test_pool -o yaml",
+        "pools update --pool=test_pool --slots=10",
+        "pools import tests/airflowctl_tests/fixtures/test_pools.json",
+        "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
+        "pools delete --pool=test_pool",
+        "pools delete --pool=test_import_pool",
+        # Providers commands
         "providers list",
+        # Variables commands
         "variables create --key=test_key --value=test_value",
         "variables list",
+        "variables get --variable-key=test_key",
+        "variables get --variable-key=test_key -o table",
+        "variables update --key=test_key --value=updated_value",
+        "variables import tests/airflowctl_tests/fixtures/test_variables.json",
+        "variables export tests/airflowctl_tests/fixtures/variables_export.json",
+        "variables delete --variable-key=test_key",
+        "variables delete --variable-key=test_import_var",
+        "variables delete --variable-key=test_import_var_with_desc",
+        # Version command
         "version --remote",
     ]
