@@ -636,8 +636,10 @@ class RangeFilter(BaseParam[Range]):
             or self.value.upper_bound_lt is not None
         )
 
+
 class _IsDagScheduledFilter(BaseParam[bool]):
-    """Filter DAGs by whether they are scheduled.
+    """
+    Filter DAGs by whether they are scheduled.
 
     - True  => DAGs that *are* scheduled (timetable_description does NOT start with 'Never')
     - False => DAGs that are *not* scheduled (timetable_description starts with 'Never')
@@ -655,8 +657,9 @@ class _IsDagScheduledFilter(BaseParam[bool]):
             return select.where(is_null_timetable)
 
     @classmethod
-    def depends(cls, is_scheduled: bool | None = Query(None)) -> "_IsDagScheduledFilter":
+    def depends(cls, is_scheduled: bool | None = Query(None)) -> _IsDagScheduledFilter:
         return cls().set_value(is_scheduled)
+
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
@@ -749,6 +752,7 @@ QueryDagIdPatternSearchWithNone = Annotated[
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter.depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter.depends)]
 QueryIsDagScheduledFilter = Annotated[_IsDagScheduledFilter, Depends(_IsDagScheduledFilter.depends)]
+
 
 class _HasAssetScheduleFilter(BaseParam[bool]):
     """Filter Dags that have asset-based scheduling."""
