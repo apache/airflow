@@ -348,6 +348,9 @@ class ConnectionAccessor:
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
 
+    def __iter__(self):
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
+
     def __eq__(self, other):
         if not isinstance(other, ConnectionAccessor):
             return False
@@ -386,6 +389,9 @@ class VariableAccessor:
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
 
+    def __iter__(self):
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
+
     def __getattr__(self, key: str) -> Any:
         return _get_variable(key, self._deserialize_json)
 
@@ -413,6 +419,9 @@ class MacrosAccessor:
 
     def __repr__(self) -> str:
         return "<MacrosAccessor (dynamic access to macros)>"
+
+    def __iter__(self):
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MacrosAccessor):
