@@ -1340,7 +1340,8 @@ class TestDagRun:
         assert session.query(dag_run1_deadline).scalar()
         assert session.query(dag_run2_deadline).scalar()
 
-        dag_run1.update_state(session=session)
+        session.add(dag_run1)
+        dag_run1.update_state()
 
         assert not session.query(dag_run1_deadline).scalar()
         assert session.query(dag_run2_deadline).scalar()
