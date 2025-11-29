@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
@@ -51,15 +51,27 @@ class Param:
 
     CLASS_IDENTIFIER = "__class"
 
-    def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
+    def __init__(
+        self,
+        default: Any = NOTSET,
+        description: str | None = None,
+        source: Literal["dag", "task"] | None = None,
+        **kwargs,
+    ):
         if default is not NOTSET:
             self._check_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
+        self.source = source
 
     def __copy__(self) -> Param:
-        return Param(self.value, self.description, schema=self.schema)
+        return Param(
+            self.value,
+            self.description,
+            schema=self.schema,
+            source=self.source,
+        )
 
     @staticmethod
     def _check_json(value):
@@ -119,14 +131,24 @@ class Param:
         return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
-        return {"value": self.value, "description": self.description, "schema": self.schema}
+        return {
+            "value": self.value,
+            "description": self.description,
+            "schema": self.schema,
+            "source": self.source,
+        }
 
     @staticmethod
     def deserialize(data: dict[str, Any], version: int) -> Param:
         if version > Param.__version__:
             raise TypeError("serialized version > class version")
 
-        return Param(default=data["value"], description=data["description"], schema=data["schema"])
+        return Param(
+            default=data["value"],
+            description=data["description"],
+            schema=data["schema"],
+            source=data.get("source", None),
+        )
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -252,6 +274,20 @@ class ParamsDict(MutableMapping[str, Any]):
             raise TypeError("serialized version > class version")
 
         return ParamsDict(data)
+
+    def _fill_missing_param_source(
+        self,
+        source: Literal["dag", "task"] | None = None,
+    ) -> None:
+        for key in self.__dict:
+            if self.__dict[key].source is None:
+                self.__dict[key].source = source
+
+    @staticmethod
+    def filter_params_by_source(params: ParamsDict, source: Literal["dag", "task"]) -> ParamsDict:
+        return ParamsDict(
+            {key: param for key, param in params.__dict.items() if param.source == source},
+        )
 
 
 class DagParam(ResolveMixin):

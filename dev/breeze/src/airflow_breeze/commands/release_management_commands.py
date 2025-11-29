@@ -254,12 +254,12 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.12"
+AIRFLOW_UV_VERSION = "0.9.13"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.18"
-HATCH_VERSION = "1.15.1"
+PREK_VERSION = "0.2.19"
+HATCH_VERSION = "1.16.1"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -4332,7 +4332,7 @@ def version_check(
 @option_verbose
 @option_dry_run
 def check_release_files(
-    path: Path,
+    path_to_airflow_svn: Path,
     version: str | None,
     release_date: str | None,
     packages_file: Path,
@@ -4371,7 +4371,7 @@ def check_release_files(
         if not release_date:
             console.print("[error]--release-date is required for providers[/]")
             sys.exit(1)
-        directory = path / "providers" / release_date
+        directory = path_to_airflow_svn / "providers" / release_date
     else:
         if not version:
             console.print(f"[error]--version is required for {release_type}[/]")
@@ -4379,13 +4379,13 @@ def check_release_files(
 
         # Determine directory based on release type
         if release_type == "airflow":
-            directory = path / version
+            directory = path_to_airflow_svn / version
         elif release_type == "task-sdk":
-            directory = path / version
+            directory = path_to_airflow_svn / version
         elif release_type == "airflow-ctl":
-            directory = path / "airflow-ctl" / version
+            directory = path_to_airflow_svn / "airflow-ctl" / version
         elif release_type == "python-client":
-            directory = path / "clients" / "python" / version
+            directory = path_to_airflow_svn / "clients" / "python" / version
         else:
             console.print(f"[error]Unknown release type: {release_type}[/]")
             sys.exit(1)

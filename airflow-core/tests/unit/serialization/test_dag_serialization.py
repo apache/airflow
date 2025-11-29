@@ -1193,6 +1193,7 @@ class TestStringifiedDAGs:
             "value": None if param.value is NOTSET else param.value,
             "schema": param.schema,
             "description": param.description,
+            "source": None,
         }
 
     @pytest.mark.parametrize(
