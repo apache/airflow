@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import platform
 from enum import Enum
+from pathlib import Path
 
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
@@ -648,7 +649,7 @@ def get_airflow_extras():
 # Initialize integrations
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
 
-ALL_PYPROJECT_TOML_FILES = []
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
 
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
