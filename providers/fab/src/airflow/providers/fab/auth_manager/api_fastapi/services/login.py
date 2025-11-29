@@ -18,9 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from fastapi import HTTPException, status
 from flask_appbuilder.const import AUTH_LDAP
-from starlette import status
-from starlette.exceptions import HTTPException
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf

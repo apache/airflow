@@ -26,10 +26,10 @@ from urllib.parse import urljoin
 import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
+from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
-from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow import __version__ as airflow_version
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX

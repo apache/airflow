@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from starlette import status
-from starlette.requests import Request  # noqa: TC002
-from starlette.responses import RedirectResponse
+from fastapi import Request, status
+from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
