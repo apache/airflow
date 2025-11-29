@@ -37,6 +37,8 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_PYPROJECT_TOML_FILE_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
+    PROVIDER_DEPENDENCIES_JSON_HASH_PATH,
+    PROVIDER_DEPENDENCIES_JSON_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
@@ -654,10 +656,6 @@ def get_airflow_extras():
 
 # Initialize integrations
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
-    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
-)
 
 ALL_PYPROJECT_TOML_FILES = []
 
@@ -716,27 +714,24 @@ def _calculate_provider_deps_hash():
 
 @cache
 def get_provider_dependencies() -> dict:
-    if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
+    if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-        AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash)
         # We use regular print there as rich console might not be initialized yet here
         print("Regenerating provider dependencies file")
         regenerate_provider_dependencies_once()
-    return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
+    return json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
 
 
 def generate_provider_dependencies_if_needed():
-    if (
-        not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
-        or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
-    ):
+    if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
         get_provider_dependencies.cache_clear()
         get_provider_dependencies()
     else:
         calculated_hash = _calculate_provider_deps_hash()
-        if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
+        if calculated_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
             # Force re-generation
-            AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.unlink(missing_ok=True)
+            PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
             get_provider_dependencies.cache_clear()
             get_provider_dependencies()
 
