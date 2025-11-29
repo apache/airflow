@@ -1395,6 +1395,7 @@ export class DagService {
      * @param data.dagRunState
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
+     * @param data.timetableType
      * @returns DAGCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1428,7 +1429,8 @@ export class DagService {
                 dag_run_end_date_lt: data.dagRunEndDateLt,
                 dag_run_state: data.dagRunState,
                 order_by: data.orderBy,
-                is_favorite: data.isFavorite
+                is_favorite: data.isFavorite,
+                timetable_type: data.timetableType
             },
             errors: {
                 401: 'Unauthorized',

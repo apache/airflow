@@ -238,6 +238,19 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
+    @property
+    def type_name(self) -> str:
+        """
+        This is primarily intended for filtering dags based on timetable type.
+
+        This provides an unambiguous identifier for the timetable
+        implementation by including both the module and class name.
+        For example:
+        ``"airflow.timetables.simple.AssetTriggeredTimetable"`` or
+        ``"airflow.timetables.simple.NullTimetable"`` and other timetable types.
+        """
+        return f"{self.__class__.__module__}.{self.__class__.__name__}"
+
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """
         When a DAG run is manually triggered, infer a data interval for it.
