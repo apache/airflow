@@ -64,9 +64,11 @@ def test_airflowctl_commands(login_command, login_output, test_commands):
         # Please ensure it is aligning with airflowctl.api.client.get_json_error
         airflowctl_client_server_response_error = "Server error"
         airflowctl_command_error = "command error: argument GROUP_OR_COMMAND: invalid choice"
+        airflowctl_argument_error = "unrecognized arguments"
         if (
             airflowctl_client_server_response_error in stdout_result
             or airflowctl_command_error in stdout_result
+            or airflowctl_argument_error in stdout_result
         ):
             console.print(f"[red]❌ Output contained unexpected text for command '{command_from_config}'")
             console.print(f"[red]Did not expect to find:\n{airflowctl_client_server_response_error}\n")
