@@ -179,18 +179,3 @@ class DAGRunsBatchBody(StrictBaseModel):
     duration_lt: float | None = None
 
     conf_contains: str | None = None
-
-
-class RecentConfigurationResponse(BaseModel):
-    """Response model for recent DAG run configurations."""
-    
-    run_id: str = Field(description="The run ID of the DAG run")
-    conf: dict | None = Field(description="The configuration used for this DAG run")
-    logical_date: AwareDatetime | None = Field(description="The logical date of the DAG run")
-    start_date: AwareDatetime | None = Field(description="The start date of the DAG run")
-
-
-class RecentConfigurationsResponse(BaseModel):
-    """Response model for recent DAG run configurations collection."""
-    
-    configurations: list[RecentConfigurationResponse] = Field(description="List of recent configurations")
