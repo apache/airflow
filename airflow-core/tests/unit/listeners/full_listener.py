@@ -63,7 +63,7 @@ def on_task_instance_failed(previous_state, task_instance, error: None | str | B
 
 
 def clear():
-    state = get_listener_state()
-    state.started_component = None
-    state.stopped_component = None
-    state.state = []
+    listener_state = get_listener_state()
+    listener_state.started_component = None
+    listener_state.stopped_component = None
+    listener_state.state = []
