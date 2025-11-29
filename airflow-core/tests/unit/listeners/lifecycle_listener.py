@@ -46,6 +46,6 @@ def before_stopping(component):
 
 
 def clear():
-    state = get_listener_state()
-    state.started_component = None
-    state.stopped_component = None
+    listener_state = get_listener_state()
+    listener_state.started_component = None
+    listener_state.stopped_component = None
