@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -268,42 +268,16 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    dag_version_summary = (
-        select(
-            TaskInstance.run_id,
-            func.count(func.distinct(TaskInstance.dag_version_id)).label("version_count"),
-            func.max(DagVersion.version_number).label("latest_version_number"),
-        )
-        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
-        .join(DagRun, TaskInstance.run_id == DagRun.run_id)
-        .where(TaskInstance.dag_id == dag_id, DagRun.bundle_version.is_(None))
-        .group_by(TaskInstance.run_id)
-        .subquery("dag_version_summary")
-    )
-
-    base_query = (
-        select(
-            DagRun.dag_id,
-            DagRun.run_id,
-            DagRun.queued_at,
-            DagRun.start_date,
-            DagRun.end_date,
-            DagRun.run_after,
-            DagRun.state,
-            DagRun.run_type,
-            DagRun.bundle_version,
-            func.coalesce(dag_version_summary.c.latest_version_number, DagVersion.version_number).label(
-                "dag_version_number"
-            ),
-            func.coalesce(dag_version_summary.c.version_count > 1, False).label("has_mixed_versions"),
-        )
-        .select_from(
-            DagRun.__table__.outerjoin(
-                dag_version_summary, DagRun.run_id == dag_version_summary.c.run_id
-            ).outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
-        )
-        .where(DagRun.dag_id == dag_id)
-    )
+    base_query = select(
+        DagRun.dag_id,
+        DagRun.run_id,
+        DagRun.queued_at,
+        DagRun.start_date,
+        DagRun.end_date,
+        DagRun.run_after,
+        DagRun.state,
+        DagRun.run_type,
+    ).where(DagRun.dag_id == dag_id)
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
