@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-sendgrid``
 
-Release: ``4.1.3``
+Release: ``4.2.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Sendgrid <https://sendgrid.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``sendgrid`` provider. All classes for this provi
 are in ``airflow.providers.sendgrid`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.1.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-sendgrid``
 
@@ -51,14 +50,34 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==================  =============================================
-PIP package         Version required
-==================  =============================================
-``apache-airflow``  ``>=2.10.0``
-``sendgrid``        ``>=6.12.3; python_version < "3.12"``
-``sendgrid``        ``>=6.0.0,<6.12.3; python_version >= "3.12"``
-``werkzeug``        ``>=2.2,<4; python_version >= "3.12"``
-==================  =============================================
+==========================================  =============================================
+PIP package                                 Version required
+==========================================  =============================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``sendgrid``                                ``>=6.12.3; python_version < "3.12"``
+``sendgrid``                                ``>=6.0.0,<6.12.3; python_version >= "3.12"``
+``werkzeug``                                ``>=2.2,<4; python_version >= "3.12"``
+==========================================  =============================================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-sendgrid[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.1.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.0/changelog.html>`_.

@@ -32,6 +32,9 @@ from airflow.providers.amazon.aws.hooks.redshift_data import (
 SQL = "sql"
 DATABASE = "database"
 STATEMENT_ID = "statement_id"
+EXACTLY_ONE_REQUIRED_ERROR_MSG = (
+    "Exactly one of cluster_identifier, workgroup_name, or session_id must be provided"
+)
 
 
 class TestRedshiftDataHook:
@@ -64,7 +67,7 @@ class TestRedshiftDataHook:
         mock_conn.describe_statement.assert_not_called()
 
     @pytest.mark.parametrize(
-        "cluster_identifier, workgroup_name, session_id",
+        ("cluster_identifier", "workgroup_name", "session_id"),
         [
             (None, None, None),
             ("some_cluster", "some_workgroup", None),
@@ -81,7 +84,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,
@@ -92,7 +95,7 @@ class TestRedshiftDataHook:
             )
 
     @pytest.mark.parametrize(
-        "cluster_identifier, workgroup_name, session_id",
+        ("cluster_identifier", "workgroup_name", "session_id"),
         [
             (None, None, None),
             ("some_cluster", "some_workgroup", None),
@@ -109,7 +112,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,
@@ -125,7 +128,7 @@ class TestRedshiftDataHook:
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
         hook = RedshiftDataHook()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=EXACTLY_ONE_REQUIRED_ERROR_MSG):
             hook.execute_query(
                 database=DATABASE,
                 cluster_identifier=cluster_identifier,
@@ -415,7 +418,7 @@ class TestRedshiftDataHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "describe_statement_response, expected_result",
+        ("describe_statement_response", "expected_result"),
         [
             ({"Status": "PICKED"}, True),
             ({"Status": "STARTED"}, True),
@@ -450,7 +453,7 @@ class TestRedshiftDataHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "describe_statement_response, expected_exception",
+        ("describe_statement_response", "expected_exception"),
         (
             (
                 {"Id": "uuid", "Status": "FAILED", "QueryString": "select 1", "Error": "Test error"},

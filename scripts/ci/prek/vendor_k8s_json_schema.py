@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "requests==2.32.3",
 # ]
@@ -28,12 +28,13 @@ import json
 from collections.abc import Iterator
 
 import requests
+from common_prek_utils import AIRFLOW_ROOT_PATH
 
 K8S_DEFINITIONS = (
     "https://raw.githubusercontent.com/yannh/kubernetes-json-schema"
     "/master/v1.29.0-standalone-strict/_definitions.json"
 )
-VALUES_SCHEMA_FILE = "chart/values.schema.json"
+VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values.schema.json"
 
 
 with open(VALUES_SCHEMA_FILE) as f:

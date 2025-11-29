@@ -169,7 +169,7 @@ class TestS3ToGoogleCloudStorageOperator:
         )
 
     @pytest.mark.parametrize(
-        "source_objects, existing_objects, objects_expected",
+        ("source_objects", "existing_objects", "objects_expected"),
         [
             (MOCK_FILES, [], MOCK_FILES),
             (MOCK_FILES, [MOCK_FILE_1], [MOCK_FILE_2, MOCK_FILE_3]),
@@ -420,7 +420,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
             operator.transfer_files_async(files=[], gcs_hook=mock.MagicMock(), s3_hook=mock.MagicMock())
 
     @pytest.mark.parametrize(
-        "file_names, chunks, expected_job_names",
+        ("file_names", "chunks", "expected_job_names"),
         [
             (MOCK_FILES, [MOCK_FILES], [TRANSFER_JOB_ID_0]),
             (

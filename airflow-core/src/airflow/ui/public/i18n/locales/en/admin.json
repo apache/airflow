@@ -72,7 +72,6 @@
     "tooltip": "Delete selected connections"
   },
   "formActions": {
-    "reset": "Reset",
     "save": "Save"
   },
   "plugins": {
@@ -129,8 +128,6 @@
       "tooltip": "Delete selected variables"
     },
     "edit": "Edit Variable",
-    "export": "Export",
-    "exportTooltip": "Export selected variables",
     "form": {
       "invalidJson": "Invalid JSON",
       "keyMaxLength": "Key can contain a maximum of 250 characters",

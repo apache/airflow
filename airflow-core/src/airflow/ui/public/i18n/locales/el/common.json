@@ -1,0 +1,318 @@
+{
+  "admin": {
+    "Config": "Ρυθμίσεις",
+    "Connections": "Συνδέσεις",
+    "Plugins": "Πρόσθετα",
+    "Pools": "Pools",
+    "Providers": "Πάροχοι",
+    "Variables": "Μεταβλητές"
+  },
+  "allOperators": "Όλοι οι Τελεστές",
+  "appearance": {
+    "appearance": "Εμφάνιση",
+    "darkMode": "Σκούρο Θέμα",
+    "lightMode": "Φωτεινό Θέμα",
+    "systemMode": "Σύμφωνα με το σύστημα"
+  },
+  "asset_one": "Οντότητα",
+  "asset_other": "Οντότητες",
+  "assetEvent_one": "Συμβάν Οντότητας",
+  "assetEvent_other": "Συμβάντα Οντοτήτων",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
+  "browse": {
+    "auditLog": "Καταγραφή Ελέγχου",
+    "requiredActions": "Απαιτούμενες Ενέργειες",
+    "xcoms": "XComs"
+  },
+  "collapseDetailsPanel": "Σύμπτυξη Πίνακα Λεπτομερειών",
+  "createdAssetEvent_one": "Δημιουργήθηκε Συμβάν Οντότητας",
+  "createdAssetEvent_other": "Δημιουργήθηκαν Συμβάντα Οντοτήτων",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "dagRunTimeout": "Χρονικό Όριο Εκτέλεσης Dag",
+    "defaultArgs": "Προεπιλεγμένες Παράμετροι",
+    "description": "Περιγραφή",
+    "documentation": "Τεκμηρίωση Dag",
+    "fileLocation": "Τοποθεσία Αρχείου",
+    "hasTaskConcurrencyLimits": "Περιορισμοί ταυτόχρονων Εργασιών",
+    "lastExpired": "Τελευταία Λήξη",
+    "lastParseDuration": "Διάρκεια Τελευταίας Ανάλυσης",
+    "lastParsed": "Τελευταία Ανάλυση",
+    "latestDagVersion": "Τελευταία Έκδοση Dag",
+    "latestRun": "Τελευταία Εκτέλεση",
+    "maxActiveRuns": "Μέγιστες Ενεργές Εκτελέσεις",
+    "maxActiveTasks": "Μέγιστες Ενεργές Εργασίες",
+    "maxConsecutiveFailedDagRuns": "Μέγιστες Διαδοχικές Αποτυχημένες Εκτελέσεις Dag",
+    "nextRun": "Επόμενη Εκτέλεση",
+    "owner": "Ιδιοκτήτης",
+    "params": "Παράμετροι",
+    "schedule": "Πρόγραμμα",
+    "tags": "Ετικέτες"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Ρυθμίσεις",
+    "dagVersions": "Έκδοση(εις) Dag",
+    "dataIntervalEnd": "Τέλος Διαστήματος Δεδομένων",
+    "dataIntervalStart": "Έναρξη Διαστήματος Δεδομένων",
+    "lastSchedulingDecision": "Τελευταία Απόφαση Προγραμματισμού",
+    "queuedAt": "Σε Ουρά Στις",
+    "runAfter": "Εκτέλεση Μετά",
+    "runType": "Τύπος Εκτέλεσης",
+    "sourceAssetEvent": "Συμβάν Πηγής Οντότητας",
+    "triggeredBy": "Ενεργοποιήθηκε Από",
+    "triggeringUser": "Όνομα Χρήστη Ενεργοποίησης"
+  },
+  "dagRun_one": "Εκτέλεση Dag",
+  "dagRun_other": "Εκτελέσεις Dag",
+  "dagRunId": "ID Εκτέλεσης Dag",
+  "dagWarnings": "Προειδοποιήσεις/Σφάλματα Dag",
+  "defaultToGraphView": "Προεπιλογή σε γραφική προβολή",
+  "defaultToGridView": "Προεπιλογή σε πλέγμα",
+  "direction": "Κατεύθυνση",
+  "docs": {
+    "documentation": "Τεκμηρίωση",
+    "githubRepo": "Αποθετήριο GitHub",
+    "restApiReference": "REST API Αναφορά"
+  },
+  "duration": "Διάρκεια",
+  "endDate": "Ημερομηνία Λήξης",
+  "error": {
+    "back": "Πίσω",
+    "defaultMessage": "Παρουσιάστηκε απρόσμενο σφάλμα",
+    "home": "Αρχική",
+    "notFound": "Η σελίδα δεν βρέθηκε",
+    "title": "Σφάλμα"
+  },
+  "expand": {
+    "collapse": "Σύμπτυξη",
+    "expand": "Ανάπτυξη",
+    "hotkey": "e",
+    "tooltip": "Πατήστε {{hotkey}} για εναλλαγή ανάπτυξης"
+  },
+  "expression": {
+    "all": "Όλα",
+    "and": "ΚΑΙ",
+    "any": "Οποιοδήποτε",
+    "or": "Ή"
+  },
+  "filter": "Φίλτρο",
+  "filters": {
+    "durationFrom": "Διάρκεια Από",
+    "durationTo": "Διάρκεια Έως",
+    "logicalDateFrom": "Λογική Ημερομηνία Από",
+    "logicalDateTo": "Λογική Ημερομηνία Έως",
+    "runAfterFrom": "Εκτέλεση Μετά Από",
+    "runAfterTo": "Εκτέλεση Μετά Έως"
+  },
+  "logicalDate": "Λογική Ημερομηνία",
+  "logout": "Αποσύνδεση",
+  "logoutConfirmation": "Πρόκειται να αποσυνδεθείτε από την εφαρμογή.",
+  "mapIndex": "Δείκτης Χάρτη",
+  "modal": {
+    "cancel": "Ακύρωση",
+    "confirm": "Επιβεβαίωση",
+    "delete": {
+      "button": "Διαγραφή",
+      "confirmation": "Είστε σίγουροι ότι θέλετε να διαγράψετε το {{resourceName}}; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί."
+    }
+  },
+  "nav": {
+    "admin": "Διαχείριση",
+    "assets": "Οντότητες",
+    "browse": "Περιήγηση",
+    "dags": "Dags",
+    "docs": "Τεκμηρίωση",
+    "home": "Αρχική",
+    "legacyFabViews": "Παλιές Προβολές",
+    "plugins": "Πρόσθετα",
+    "security": "Ασφάλεια"
+  },
+  "noItemsFound": "Δεν βρέθηκε {{modelName}}",
+  "note": {
+    "add": "Προσθήκη σημείωσης",
+    "dagRun": "Σημείωση Εκτέλεσης Dag",
+    "label": "Σημείωση",
+    "placeholder": "Προσθέστε μια σημείωση...",
+    "taskInstance": "Σημείωση Εκτέλεσης Εργασίας"
+  },
+  "pools": {
+    "deferred": "Αναβληθέν",
+    "open": "Ανοιχτό",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "Σε Ουρά",
+    "running": "Εκτελείται",
+    "scheduled": "Προγραμματισμένο"
+  },
+  "reset": "Επαναφορά",
+  "runId": "ID Εκτέλεσης",
+  "runTypes": {
+    "asset_triggered": "Ενεργοποιήθηκε από Οντότητα",
+    "backfill": "Backfill",
+    "manual": "Χειροκίνητο",
+    "scheduled": "Προγραμματισμένο"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "κάτω",
+      "top": "πάνω"
+    },
+    "tooltip": "Πατήστε {{hotkey}} για κύλιση προς τα {{direction}}"
+  },
+  "security": {
+    "actions": "Ενέργειες",
+    "permissions": "Δικαιώματα",
+    "resources": "Πόροι",
+    "roles": "Ρόλοι",
+    "users": "Χρήστες"
+  },
+  "selectLanguage": "Επιλογή Γλώσσας",
+  "showDetailsPanel": "Εμφάνιση Πίνακα Λεπτομερειών",
+  "source": {
+    "hide": "Απόκρυψη Πηγαίου Κώδικα",
+    "hotkey": "s",
+    "show": "Εμφάνιση Πηγαίου Κώδικα"
+  },
+  "sourceAssetEvent_one": "Συμβάν Πηγής Οντότητας",
+  "sourceAssetEvent_other": "Συμβάντα Πηγής Οντοτήτων",
+  "startDate": "Ημερομηνία Έναρξης",
+  "state": "Κατάσταση",
+  "states": {
+    "deferred": "Αναβληθέν",
+    "failed": "Αποτυχία",
+    "no_status": "Χωρίς Κατάσταση",
+    "none": "Χωρίς Κατάσταση",
+    "planned": "Προγραμματισμένο",
+    "queued": "Σε Ουρά",
+    "removed": "Αφαιρέθηκε",
+    "restarting": "Επανεκκίνηση",
+    "running": "Εκτελείται",
+    "scheduled": "Προγραμματισμένο",
+    "skipped": "Παραλείφθηκε",
+    "success": "Επιτυχία",
+    "up_for_reschedule": "Προς Επαναπρογραμματισμό",
+    "up_for_retry": "Προς Επανάληψη",
+    "upstream_failed": "Αποτυχία Ανάντη"
+  },
+  "table": {
+    "completedAt": "Ολοκληρώθηκε στις",
+    "createdAt": "Δημιουργήθηκε στις",
+    "filterByTag": "Φιλτράρισμα Dags κατά ετικέτα",
+    "filterColumns": "Φιλτράρισμα στηλών πίνακα",
+    "filterReset_one": "Επαναφορά φίλτρου",
+    "filterReset_other": "Επαναφορά φίλτρων",
+    "from": "Από",
+    "maxActiveRuns": "Μέγιστες Ενεργές Εκτελέσεις",
+    "noTagsFound": "Δεν βρέθηκαν ετικέτες",
+    "tagMode": {
+      "all": "Όλα",
+      "any": "Οποιοδήποτε"
+    },
+    "tagPlaceholder": "Φιλτράρισμα κατά ετικέτα",
+    "to": "Έως"
+  },
+  "task": {
+    "documentation": "Τεκμηρίωση Εργασίας",
+    "lastInstance": "Τελευταία Εκτέλεση",
+    "operator": "Τελεστής",
+    "triggerRule": "Κανόνας Ενεργοποίησης"
+  },
+  "task_one": "Εργασία",
+  "task_other": "Εργασίες",
+  "taskGroup": "Ομάδα Εργασιών",
+  "taskId": "ID Εργασίας",
+  "taskInstance": {
+    "dagVersion": "Έκδοση Dag",
+    "executor": "Εκτελεστής",
+    "executorConfig": "Ρυθμίσεις Εκτελεστή",
+    "hostname": "Όνομα Υπολογιστή",
+    "maxTries": "Μέγιστες Προσπάθειες",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Θέσεις Pool",
+    "priorityWeight": "Βάρος Προτεραιότητας",
+    "queue": "Ουρά",
+    "queuedWhen": "Σε Ουρά Στις",
+    "scheduledWhen": "Προγραμματίστηκε Στις",
+    "triggerer": {
+      "assigned": "Ανατεθειμένος triggerer",
+      "class": "Κλάση Trigger",
+      "createdAt": "Χρόνος δημιουργίας trigger",
+      "id": "ID Trigger",
+      "latestHeartbeat": "Τελευταίος παλμός triggerer",
+      "title": "Πληροφορίες Triggerer"
+    },
+    "unixname": "Όνομα Unix"
+  },
+  "taskInstance_one": "Εκτέλεση Εργασίας",
+  "taskInstance_other": "Εκτελέσεις Εργασίας",
+  "timeRange": {
+    "last12Hours": "Τελευταίες 12 Ώρες",
+    "last24Hours": "Τελευταίες 24 Ώρες",
+    "lastHour": "Τελευταία Ώρα",
+    "pastWeek": "Προηγούμενη Εβδομάδα"
+  },
+  "timestamp": {
+    "hide": "Απόκρυψη Χρονικών Σημάνσεων",
+    "hotkey": "t",
+    "show": "Εμφάνιση Χρονικών Σημάνσεων"
+  },
+  "timezone": "Ζώνη Ώρας",
+  "timezoneModal": {
+    "current-timezone": "Τρέχουσα ώρα σε",
+    "placeholder": "Επιλέξτε ζώνη ώρας",
+    "title": "Επιλογή Ζώνης Ώρας",
+    "utc": "UTC (Συντονισμένη Παγκόσμια Ώρα)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Αποτυχία μαζικής διαγραφής {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} διαγράφηκαν με επιτυχία. Κλειδιά: {{keys}}",
+        "title": "Υποβλήθηκε αίτημα μαζικής διαγραφής {{resourceName}}"
+      }
+    },
+    "create": {
+      "error": "Αποτυχία δημιουργίας {{resourceName}}",
+      "success": {
+        "description": "Το {{resourceName}} δημιουργήθηκε με επιτυχία.",
+        "title": "Υποβλήθηκε αίτημα δημιουργίας {{resourceName}}"
+      }
+    },
+    "delete": {
+      "error": "Αποτυχία διαγραφής {{resourceName}}",
+      "success": {
+        "description": "Το {{resourceName}} διαγράφηκε με επιτυχία.",
+        "title": "Υποβλήθηκε αίτημα διαγραφής {{resourceName}}"
+      }
+    },
+    "import": {
+      "error": "Αποτυχία εισαγωγής {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} εισήχθησαν με επιτυχία.",
+        "title": "Υποβλήθηκε αίτημα εισαγωγής {{resourceName}}"
+      }
+    },
+    "update": {
+      "error": "Αποτυχία ενημέρωσης {{resourceName}}",
+      "success": {
+        "description": "Το {{resourceName}} ενημερώθηκε με επιτυχία.",
+        "title": "Υποβλήθηκε αίτημα ενημέρωσης {{resourceName}}"
+      }
+    }
+  },
+  "total": "Σύνολο {{state}}",
+  "triggered": "Ενεργοποιήθηκε",
+  "tryNumber": "Αριθμός Προσπάθειας",
+  "user": "Χρήστης",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Πατήστε {{hotkey}} για εναλλαγή αναδίπλωσης",
+    "unwrap": "Ξεδίπλωμα",
+    "wrap": "Αναδίπλωση"
+  }
+}

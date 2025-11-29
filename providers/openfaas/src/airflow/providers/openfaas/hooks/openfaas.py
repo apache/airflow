@@ -22,7 +22,7 @@ from typing import Any
 import requests
 
 from airflow.exceptions import AirflowException
-from airflow.providers.openfaas.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 OK_STATUS_CODE = 202
 
@@ -32,15 +32,28 @@ class OpenFaasHook(BaseHook):
     Interact with OpenFaaS to query, deploy, invoke and update function.
 
     :param function_name: Name of the function, Defaults to None
-    :param conn_id: openfaas connection to use, Defaults to open_faas_default
-        for example host : http://openfaas.faas.com, Connection Type : Http
+    :param conn_id: OpenFaaS connection to use, defaults to ``open_faas_default``
+        for example host : http://openfaas.faas.com
     """
+
+    conn_name_attr = "conn_id"
+    default_conn_name = "open_faas_default"
+    conn_type = "openfaas"
+    hook_name = "OpenFaaS"
 
     GET_FUNCTION = "/system/function/"
     INVOKE_ASYNC_FUNCTION = "/async-function/"
     INVOKE_FUNCTION = "/function/"
     DEPLOY_FUNCTION = "/system/functions"
     UPDATE_FUNCTION = "/system/functions"
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "port", "login", "password", "extra"],
+            "relabeling": {},
+        }
 
     def __init__(self, function_name=None, conn_id: str = "open_faas_default", *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

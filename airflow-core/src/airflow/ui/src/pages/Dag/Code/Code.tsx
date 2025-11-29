@@ -21,9 +21,7 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { createElement, PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import { oneLight, oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { createElement } from "react-syntax-highlighter";
 
 import {
   useDagServiceGetDagDetails,
@@ -40,8 +38,8 @@ import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
-
-SyntaxHighlighter.registerLanguage("python", python);
+import { renderDuration } from "src/utils";
+import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common"]);
@@ -100,6 +98,11 @@ export const Code = () => {
               {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
             </Heading>
           )}
+          {dag?.last_parse_duration !== undefined && (
+            <Heading as="h4" fontSize="14px" size="md">
+              {translate("code.parseDuration")} {renderDuration(dag.last_parse_duration)}
+            </Heading>
+          )}
 
           {
             // eslint-disable-next-line @typescript-eslint/prefer-optional-chain
@@ -136,7 +139,6 @@ export const Code = () => {
           >
             <Button
               aria-label={translate(`common:wrap.${wrap ? "un" : ""}wrap`)}
-              bg="bg.panel"
               onClick={toggleWrap}
               variant="outline"
             >
@@ -151,7 +153,7 @@ export const Code = () => {
       <Box
         css={{
           "& *::selection": {
-            bg: "gray.emphasized",
+            bg: "blue.emphasized",
           },
         }}
         fontSize="14px"

@@ -72,7 +72,6 @@
     "tooltip": "Kijelölt kapcsolatok törlése"
   },
   "formActions": {
-    "reset": "Alaphelyzetbe állítás",
     "save": "Mentés"
   },
   "plugins": {
@@ -129,8 +128,6 @@
       "tooltip": "Kijelölt változók törlése"
     },
     "edit": "Változó szerkesztése",
-    "export": "Exportálás",
-    "exportTooltip": "Kijelölt változók exportálása",
     "form": {
       "invalidJson": "Érvénytelen JSON",
       "keyMaxLength": "A kulcs maximum 250 karakter hosszú lehet",

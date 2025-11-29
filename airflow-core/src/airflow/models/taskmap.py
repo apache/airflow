@@ -24,12 +24,13 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -63,13 +64,13 @@ class TaskMap(TaskInstanceDependencies):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index = Column(Integer, primary_key=True)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    length: Mapped[int] = mapped_column(Integer, nullable=False)
+    keys: Mapped[list | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
@@ -160,7 +161,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
             total_length = None
 
-        state: TaskInstanceState | None = None
+        state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == task.dag_id,
@@ -221,12 +222,15 @@ class TaskMap(TaskInstanceDependencies):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = session.scalar(
-                select(func.max(TaskInstance.map_index)).where(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.run_id == run_id,
+            current_max_mapping = (
+                session.scalar(
+                    select(func.max(TaskInstance.map_index)).where(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.run_id == run_id,
+                    )
                 )
+                or 0
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -264,8 +268,7 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

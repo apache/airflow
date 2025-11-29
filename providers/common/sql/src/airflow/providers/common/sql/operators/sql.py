@@ -24,18 +24,23 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow import XComArg
-from airflow.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import SkipMixin
+from airflow.providers.common.compat.sdk import (
+    AirflowFailException,
+    AirflowSkipException,
+    BaseHook,
+    BaseOperator,
+)
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 def _convert_to_float_if_possible(s: str) -> float | str:
@@ -1359,7 +1364,7 @@ class SQLInsertRowsOperator(BaseSQLOperator):
         return self.columns
 
     def _process_rows(self, context: Context):
-        return self._rows_processor(context, self.rows)  # type: ignore
+        return self._rows_processor(self.rows, **context)  # type: ignore
 
     def execute(self, context: Context) -> Any:
         if not self.rows:

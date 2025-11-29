@@ -29,6 +29,7 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     DagInfo,
@@ -53,22 +54,24 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag import get_next_data_interval
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk._shared.secrets_masker import _secrets_masker
+    from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS, SecretsMasker
 elif AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.secrets_masker import _secrets_masker  # type: ignore[no-redef]
+    from airflow.sdk.execution_time.secrets_masker import (  # type: ignore[no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
 else:
-    from airflow.utils.log.secrets_masker import _secrets_masker  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.log.secrets_masker import (  # type: ignore[attr-defined,no-redef]
+        DEFAULT_SENSITIVE_FIELDS,
+        SecretsMasker,
+    )
+
+from airflow.providers.common.compat.sdk import DAG
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG
     from airflow.utils.types import DagRunTriggeredByType
-else:
-    from airflow import DAG
 
 
 class SafeStrDict(dict):
@@ -252,7 +255,10 @@ def test_is_name_redactable():
 
 @pytest.mark.enable_redact
 def test_redact_with_exclusions(monkeypatch):
-    redactor = OpenLineageRedactor.from_masker(_secrets_masker())
+    sm = SecretsMasker()
+    if AIRFLOW_V_3_1_PLUS:
+        sm.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    redactor = OpenLineageRedactor.from_masker(sm)
 
     class NotMixin:
         def __init__(self):

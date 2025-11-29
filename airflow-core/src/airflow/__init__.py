@@ -25,13 +25,15 @@
 # lib.)  This is required by some IDEs to resolve the import paths.
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 
 
 import os
 import sys
 import warnings
 from typing import TYPE_CHECKING
+
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
@@ -105,7 +107,7 @@ def __getattr__(name: str):
         warnings.warn(
             f"Import {name!r} directly from the airflow module is deprecated and "
             f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
 

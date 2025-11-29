@@ -45,7 +45,8 @@ class SerializedTaskGroup(DAGNode):
     group_display_name: str | None = attrs.field()
     prefix_group_id: bool = attrs.field()
     parent_group: SerializedTaskGroup | None = attrs.field()
-    dag: SerializedDAG = attrs.field()
+    # TODO (GH-52141): Replace DAGNode dependency.
+    dag: SerializedDAG = attrs.field()  # type: ignore[assignment]
     tooltip: str = attrs.field()
     default_args: dict[str, Any] = attrs.field(factory=dict)
 
@@ -60,6 +61,9 @@ class SerializedTaskGroup(DAGNode):
     downstream_task_ids: set[str] = attrs.field(factory=set, init=False)
 
     is_mapped: ClassVar[bool] = False
+
+    def __repr__(self) -> str:
+        return f"<SerializedTaskGroup: {self.group_id}>"
 
     @staticmethod
     def _iter_child(child):
@@ -234,6 +238,10 @@ class SerializedTaskGroup(DAGNode):
                         if tg.node_id in graph_unsorted:
                             break
                         tg = tg.parent_group
+
+                    if tg:
+                        # We are already going to visit that TG
+                        break
                 else:
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
@@ -256,6 +264,9 @@ class SerializedMappedTaskGroup(SerializedTaskGroup):
     _expand_input: SchedulerExpandInput = attrs.field(alias="expand_input")
 
     is_mapped: ClassVar[bool] = True
+
+    def __repr__(self) -> str:
+        return f"<SerializedMappedTaskGroup: {self.group_id}>"
 
     @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:

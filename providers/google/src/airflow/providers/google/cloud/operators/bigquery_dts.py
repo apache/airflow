@@ -43,7 +43,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _get_transfer_config_details(config_transfer_name: str):

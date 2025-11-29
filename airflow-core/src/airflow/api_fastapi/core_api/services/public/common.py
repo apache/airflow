@@ -20,6 +20,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Generic
 
+from fastapi import HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -72,3 +75,48 @@ class BulkService(Generic[T], ABC):
     def handle_bulk_delete(self, action: BulkDeleteAction[T], results: BulkActionResponse) -> None:
         """Bulk delete entities."""
         raise NotImplementedError
+
+    @staticmethod
+    def apply_patch_with_update_mask(
+        model: DeclarativeMeta,
+        patch_body: BaseModel,
+        update_mask: list[str] | None,
+        non_update_fields: set[str] | None = None,
+    ) -> DeclarativeMeta:
+        """
+        Apply a patch to the given model using the provided update mask.
+
+        :param model: The SQLAlchemy model instance to update.
+        :param patch_body: Pydantic model containing patch data.
+        :param update_mask: Optional list of fields to update.
+        :param non_update_fields: Fields that should not be updated.
+        :return: The updated SQLAlchemy model instance.
+        :raises HTTPException: If invalid fields are provided in update_mask.
+        """
+        # Always dump without aliases for internal validation
+        raw_data = patch_body.model_dump(by_alias=False)
+        fields_to_update = set(patch_body.model_fields_set)
+
+        non_update_fields = non_update_fields or set()
+
+        if update_mask:
+            restricted_in_mask = set(update_mask).intersection(non_update_fields)
+            if restricted_in_mask:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Update not allowed: the following fields are immutable and cannot be modified: {restricted_in_mask}",
+                )
+            fields_to_update = fields_to_update.intersection(update_mask)
+
+        if non_update_fields:
+            fields_to_update = fields_to_update - non_update_fields
+
+        validated_data = {key: raw_data[key] for key in fields_to_update if key in raw_data}
+
+        data = patch_body.model_dump(include=set(validated_data.keys()), by_alias=True)
+
+        # Update the model with the validated data
+        for key, value in data.items():
+            setattr(model, key, value)
+
+        return model

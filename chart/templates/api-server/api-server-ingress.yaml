@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Ingress
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- if or .Values.ingress.apiServer.enabled .Values.ingress.enabled }}
 {{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
@@ -76,7 +76,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}
@@ -94,7 +94,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ .serviceName }}
+                name: {{ $fullname }}-api-server
                 port:
                   name: {{ .servicePort }}
           {{- end }}

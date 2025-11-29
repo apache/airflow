@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+import time
 import uuid
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -28,19 +29,10 @@ from urllib.parse import urlparse
 from dateutil.parser import parse
 from jinja2 import Environment
 
-from airflow.models.operator import BaseOperator
-
-try:
-    from airflow.sdk import Variable
-except ImportError:
-    from airflow.models.variable import Variable
+from airflow.providers.common.compat.sdk import BaseOperator, Variable
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 log = logging.getLogger(__name__)
 
@@ -220,6 +212,7 @@ class OpenLineageTestOperator(BaseOperator):
             raise ValueError("Can't pass both event_templates and file_path")
 
     def execute(self, context: Context) -> None:
+        time.sleep(10)  # Wait for all variables to update properly
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)

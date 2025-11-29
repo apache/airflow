@@ -71,8 +71,8 @@ spec:
         tier: airflow
         component: dag-processor
         release: {{ .Release.Name }}
-        {{- with .Values.labels }}
-          {{- toYaml . | nindent 8 }}
+        {{- if or .Values.labels .Values.dagProcessor.labels }}
+          {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
         checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
@@ -116,10 +116,7 @@ spec:
       restartPolicy: Always
       serviceAccountName: {{ include "dagProcessor.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if .Values.dagProcessor.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations

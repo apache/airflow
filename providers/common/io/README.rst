@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-common-io``
 
-Release: ``1.6.2``
+Release: ``1.7.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 Common IO Provider
 
@@ -37,12 +36,12 @@ This is a provider package for ``common.io`` provider. All classes for this prov
 are in ``airflow.providers.common.io`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.7.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-io``
 
@@ -54,7 +53,7 @@ Requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.10.0``
+``apache-airflow``  ``>=2.11.0``
 ==================  ==================
 
 Cross provider package dependencies
@@ -77,5 +76,15 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+``openlineage``    ``apache-airflow-providers-openlineage``
+=================  ==========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.6.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-io/1.7.0/changelog.html>`_.

@@ -37,12 +37,12 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import datetime
@@ -605,6 +605,60 @@ class MessageHook(BaseAzureServiceBusHook):
             )
             for msg in received_msgs:
                 self._process_message(msg, context, message_callback, subscription_receiver)
+
+    def read_message(
+        self,
+        queue_name: str,
+        max_wait_time: float | None = None,
+    ) -> ServiceBusReceivedMessage | None:
+        """
+        Read a single message from a Service Bus queue without callback processing.
+
+        :param queue_name: The name of the queue to read from.
+        :param max_wait_time: Maximum time to wait for messages (seconds).
+        :return: The received message or None if no message is available.
+        """
+        with (
+            self.get_conn() as service_bus_client,
+            service_bus_client.get_queue_receiver(queue_name=queue_name) as receiver,
+            receiver,
+        ):
+            received_msgs = receiver.receive_messages(max_message_count=1, max_wait_time=max_wait_time)
+            if received_msgs:
+                msg = received_msgs[0]
+                receiver.complete_message(msg)
+                return msg
+            return None
+
+    def read_subscription_message(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_wait_time: float | None = None,
+    ) -> ServiceBusReceivedMessage | None:
+        """
+        Read a single message from a Service Bus topic subscription without callback processing.
+
+        :param topic_name: The name of the topic.
+        :param subscription_name: The name of the subscription.
+        :param max_wait_time: Maximum time to wait for messages (seconds).
+        :return: The received message or None if no message is available.
+        """
+        with (
+            self.get_conn() as service_bus_client,
+            service_bus_client.get_subscription_receiver(
+                topic_name, subscription_name
+            ) as subscription_receiver,
+            subscription_receiver,
+        ):
+            received_msgs = subscription_receiver.receive_messages(
+                max_message_count=1, max_wait_time=max_wait_time
+            )
+            if received_msgs:
+                msg = received_msgs[0]
+                subscription_receiver.complete_message(msg)
+                return msg
+            return None
 
     def _process_message(
         self,

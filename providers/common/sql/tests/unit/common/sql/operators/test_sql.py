@@ -43,6 +43,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLColumnCheckOperator,
     SQLExecuteQueryOperator,
+    SQLInsertRowsOperator,
     SQLIntervalCheckOperator,
     SQLTableCheckOperator,
     SQLThresholdCheckOperator,
@@ -361,7 +362,7 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -521,7 +522,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -558,7 +559,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -1577,3 +1578,32 @@ class TestBaseSQLOperatorSubClass:
         mock_get_connection.return_value.get_hook.return_value = MagicMock(spec=DbApiHook)
         op.get_db_hook()
         mock_get_connection.assert_called_once_with("test_conn")
+
+
+class TestSQLInsertRowsOperator:
+    @mock.patch.object(SQLInsertRowsOperator, "get_db_hook")
+    def test_rows_processor(self, mock_get_db_hook):
+        operator = SQLInsertRowsOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            schema="hollywood",
+            table_name="actors",
+            rows=[
+                {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
+                {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
+                {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
+                {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
+                {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
+            ],
+            rows_processor=lambda rows, **context: map(lambda row: tuple(row.values()), rows),
+        )
+
+        processed_rows = list(operator._process_rows({}))
+
+        assert processed_rows == [
+            (1, "Stallone", "Sylvester", 78),
+            (2, "Statham", "Jason", 57),
+            (3, "Li", "Jet", 61),
+            (4, "Lundgren", "Dolph", 66),
+            (5, "Norris", "Chuck", 84),
+        ]

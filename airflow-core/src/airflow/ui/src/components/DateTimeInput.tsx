@@ -22,6 +22,7 @@ import tz from "dayjs/plugin/timezone";
 import { forwardRef } from "react";
 
 import { useTimezone } from "src/context/timezone";
+import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
 
 dayjs.extend(tz);
 
@@ -35,7 +36,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
   // Convert UTC value to local time for display
   const displayValue =
     Boolean(value) && dayjs(value).isValid()
-      ? dayjs(value).tz(selectedTimezone).format("YYYY-MM-DDTHH:mm:ss.SSS")
+      ? dayjs(value).tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT)
       : "";
 
   return (
@@ -46,7 +47,7 @@ export const DateTimeInput = forwardRef<HTMLInputElement, Props>(({ onChange, va
           target: {
             ...event.target,
             value: dayjs(event.target.value).isValid()
-              ? dayjs(event.target.value).tz(selectedTimezone, true).toISOString()
+              ? dayjs.tz(event.target.value, selectedTimezone).toISOString() // UI Timezone -> Utc -> yyyy-mm-ddThh:mm
               : "",
           },
         })

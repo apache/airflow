@@ -33,14 +33,15 @@ pytestmark = pytest.mark.db_test
 class TestRoleCollectionItemSchema:
     @pytest.fixture(scope="class")
     def role(self, minimal_app_for_auth_api):
-        yield create_role(
-            minimal_app_for_auth_api,
-            name="Test",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            ],
-        )
-        delete_role(minimal_app_for_auth_api, "Test")
+        with minimal_app_for_auth_api.app_context():
+            yield create_role(
+                minimal_app_for_auth_api,
+                name="Test",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                ],
+            )
+            delete_role(minimal_app_for_auth_api, "Test")
 
     @pytest.fixture(autouse=True)
     def _set_attrs(self, minimal_app_for_auth_api, role):
@@ -67,41 +68,38 @@ class TestRoleCollectionItemSchema:
 
 
 class TestRoleCollectionSchema:
-    @pytest.fixture(scope="class")
-    def role1(self, minimal_app_for_auth_api):
-        yield create_role(
-            minimal_app_for_auth_api,
-            name="Test1",
-            permissions=[
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            ],
-        )
-        delete_role(minimal_app_for_auth_api, "Test1")
+    def test_serialize(self, minimal_app_for_auth_api):
+        with minimal_app_for_auth_api.app_context():
+            role1 = create_role(
+                minimal_app_for_auth_api,
+                name="Test1",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+                ],
+            )
+            role2 = create_role(
+                minimal_app_for_auth_api,
+                name="Test2",
+                permissions=[
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                ],
+            )
 
-    @pytest.fixture(scope="class")
-    def role2(self, minimal_app_for_auth_api):
-        yield create_role(
-            minimal_app_for_auth_api,
-            name="Test2",
-            permissions=[
-                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            ],
-        )
-        delete_role(minimal_app_for_auth_api, "Test2")
+            instance = RoleCollection([role1, role2], total_entries=2)
+            deserialized = role_collection_schema.dump(instance)
+            assert deserialized == {
+                "roles": [
+                    {
+                        "name": "Test1",
+                        "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
+                    },
+                    {
+                        "name": "Test2",
+                        "actions": [{"resource": {"name": "DAGs"}, "action": {"name": "can_edit"}}],
+                    },
+                ],
+                "total_entries": 2,
+            }
 
-    def test_serialize(self, role1, role2):
-        instance = RoleCollection([role1, role2], total_entries=2)
-        deserialized = role_collection_schema.dump(instance)
-        assert deserialized == {
-            "roles": [
-                {
-                    "name": "Test1",
-                    "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
-                },
-                {
-                    "name": "Test2",
-                    "actions": [{"resource": {"name": "DAGs"}, "action": {"name": "can_edit"}}],
-                },
-            ],
-            "total_entries": 2,
-        }
+            delete_role(minimal_app_for_auth_api, "Test1")
+            delete_role(minimal_app_for_auth_api, "Test2")

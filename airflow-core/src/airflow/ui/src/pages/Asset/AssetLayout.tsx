@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Box } from "@chakra-ui/react";
+import { HStack, Box, Text, Code } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAsset, useAssetServiceGetAssetEvents } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
 import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 
 import { AssetGraph } from "./AssetGraph";
 import { CreateAssetEvent } from "./CreateAssetEvent";
@@ -59,12 +61,18 @@ export const AssetLayout = () => {
     },
   ];
 
+  const { DAG_ID, END_DATE, START_DATE, TASK_ID } = SearchParamsKeys;
+  const [searchParams] = useSearchParams();
   const { data, isLoading: isLoadingEvents } = useAssetServiceGetAssetEvents(
     {
       assetId: asset?.id,
       limit: pagination.pageSize,
       offset: pagination.pageIndex * pagination.pageSize,
       orderBy,
+      sourceDagId: searchParams.get(DAG_ID) ?? undefined,
+      sourceTaskId: searchParams.get(TASK_ID) ?? undefined,
+      timestampGte: searchParams.get(START_DATE) ?? undefined,
+      timestampLte: searchParams.get(END_DATE) ?? undefined,
     },
     undefined,
     { enabled: Boolean(asset?.id) },
@@ -120,6 +128,26 @@ export const AssetLayout = () => {
           </PanelResizeHandle>
           <Panel defaultSize={30} minSize={20}>
             <Header asset={asset} />
+            {asset?.extra && Object.keys(asset.extra).length > 0 ? (
+              <Box mb={3} mt={3} px={3}>
+                <Text fontWeight="bold" mb={2}>
+                  {translate("assets:additional_data")}
+                </Text>
+                <Code
+                  background="bg.subtle"
+                  borderRadius="md"
+                  color="fg.default"
+                  display="block"
+                  fontSize="sm"
+                  p={2}
+                  w="full"
+                  whiteSpace="pre"
+                >
+                  {JSON.stringify(asset.extra, null, 2)}
+                </Code>
+              </Box>
+            ) : null}
+
             <Box h="100%" overflow="auto" pt={2}>
               <AssetEvents
                 assetId={asset?.id}
@@ -127,6 +155,7 @@ export const AssetLayout = () => {
                 isLoading={isLoadingEvents}
                 setOrderBy={setOrderBy}
                 setTableUrlState={setTableURLState}
+                showFilters={true}
                 tableUrlState={tableURLState}
               />
             </Box>

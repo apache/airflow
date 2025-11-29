@@ -10,6 +10,7 @@
     "hourly": "Godzinowo",
     "legend": {
       "less": "Mniej",
+      "mixed": "Mieszane",
       "more": "Więcej"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Poprzedni rok"
     },
     "noData": "Brak danych",
+    "noFailedRuns": "Brak nieudanych wykonań",
     "noRuns": "Brak wykonań",
     "totalRuns": "Łączna liczba wykonań",
     "week": "Tydzień {{weekNumber}}",
@@ -35,6 +37,7 @@
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
+    "parseDuration": "Czas parsowania:",
     "parsedAt": "Przeanalizowano o:"
   },
   "extraLinks": "Dodatkowe linki",
@@ -92,6 +95,8 @@
       "assetEvent_other": "Utworzone zdarzenia zasobów"
     },
     "failedLogs": {
+      "hideLogs": "Ukryj logi",
+      "showLogs": "🐌 🐌 Pokaż logi",
       "title": "Ostatnie logi nieudanych zadań",
       "viewFullLogs": "Zobacz pełne logi"
     }
@@ -100,8 +105,8 @@
     "buttons": {
       "options": "Opcje",
       "showGantt": "Pokaż diagram Gantta",
-      "showGraph": "Pokaż graf",
-      "showGrid": "Pokaż siatkę"
+      "showGraphShortcut": "Pokaż graf (naciśnij g)",
+      "showGridShortcut": "Pokaż siatkę (naciśnij g)"
     },
     "dagRuns": {
       "label": "Liczba wykonań Daga"
@@ -117,6 +122,18 @@
     },
     "graphDirection": {
       "label": "Kierunek grafu"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktywny filtr",
+      "clearFilter": "Wyczyść filtr",
+      "clickTask": "Kliknij zadanie, aby wybrać je jako źródło filtra",
+      "label": "Filtr",
+      "options": {
+        "both": "Wcześniejsze i późniejsze",
+        "downstream": "Późniejsze",
+        "upstream": "Wcześniejsze"
+      },
+      "selectedTask": "Wybrane zadanie"
     }
   },
   "paramsFailed": "Nie udało się załadować parametrów",

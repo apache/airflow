@@ -63,14 +63,16 @@ class TestTimezone:
             datetime.datetime(2011, 9, 1, 17, 20, 30, tzinfo=ICT), EAT
         ) == datetime.datetime(2011, 9, 1, 13, 20, 30)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"make_naive\(\) cannot be applied to a naive datetime"):
             timezone.make_naive(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT)
 
     def test_make_aware(self):
         assert timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30), EAT) == datetime.datetime(
             2011, 9, 1, 13, 20, 30, tzinfo=EAT
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match=r"make_aware expects a naive datetime, got 2011-09-01 13:20:30\+03:00"
+        ):
             timezone.make_aware(datetime.datetime(2011, 9, 1, 13, 20, 30, tzinfo=EAT), EAT)
 
     def test_td_format(self):
@@ -91,7 +93,7 @@ class TestTimezone:
 
 
 @pytest.mark.parametrize(
-    "input_datetime, output_datetime",
+    ("input_datetime", "output_datetime"),
     [
         pytest.param(None, None, id="None datetime"),
         pytest.param(
@@ -143,7 +145,7 @@ def test_parse_timezone_utc(tz_name):
 
 
 @pytest.mark.parametrize(
-    "tz_offset, expected_offset, expected_name",
+    ("tz_offset", "expected_offset", "expected_name"),
     [
         pytest.param(0, 0, "+00:00", id="zero-offset"),
         pytest.param(-3600, -3600, "-01:00", id="1-hour-behind"),
@@ -181,7 +183,7 @@ def test_from_timestamp_local(tz):
 
 
 @pytest.mark.parametrize(
-    "tz, iana_timezone",
+    ("tz", "iana_timezone"),
     [
         pytest.param(Timezone("Europe/Paris"), "Europe/Paris", id="pendulum-timezone"),
         pytest.param("America/New_York", "America/New_York", id="IANA-timezone"),

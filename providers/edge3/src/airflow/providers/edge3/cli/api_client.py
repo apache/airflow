@@ -27,10 +27,13 @@ from urllib.parse import quote, urljoin
 
 import requests
 from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import before_sleep_log, wait_random_exponential
 
 from airflow.configuration import conf
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerVersionException
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerVersionException,
+)
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -53,12 +56,18 @@ logger = logging.getLogger(__name__)
 # Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
 # So far there is no other config facility in Task SDK we use ENV for the moment
 # TODO: Consider these env variables jointly in task sdk together with task_sdk/src/airflow/sdk/api/client.py
-API_RETRIES = int(os.getenv("AIRFLOW__EDGE__API_RETRIES", os.getenv("AIRFLOW__WORKERS__API_RETRIES", 10)))
+API_RETRIES = int(
+    os.getenv("AIRFLOW__EDGE__API_RETRIES", os.getenv("AIRFLOW__WORKERS__API_RETRIES", str(10)))
+)
 API_RETRY_WAIT_MIN = float(
-    os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MIN", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", 1.0))
+    os.getenv(
+        "AIRFLOW__EDGE__API_RETRY_WAIT_MIN", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MIN", str(1.0))
+    )
 )
 API_RETRY_WAIT_MAX = float(
-    os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MAX", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", 90.0))
+    os.getenv(
+        "AIRFLOW__EDGE__API_RETRY_WAIT_MAX", os.getenv("AIRFLOW__WORKERS__API_RETRY_WAIT_MAX", str(90.0))
+    )
 )
 
 
@@ -72,7 +81,7 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
     wait_network_errors=_default_wait,
     wait_timeouts=_default_wait,
     wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
-    before_sleep=before_log(logger, logging.WARNING),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     if AIRFLOW_V_3_0_PLUS:
@@ -126,6 +135,11 @@ def worker_register(
     except requests.HTTPError as e:
         if e.response.status_code == 400:
             raise EdgeWorkerVersionException(str(e))
+        if e.response.status_code == 409:
+            raise EdgeWorkerDuplicateException(
+                f"A worker with the name '{hostname}' is already active. "
+                "Please ensure worker names are unique, or stop the existing worker before starting a new one."
+            )
         raise e
     return WorkerRegistrationReturn(**result)
 

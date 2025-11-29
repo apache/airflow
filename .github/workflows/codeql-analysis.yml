@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['python', 'javascript', 'actions']
+        language: ['python', 'javascript', 'actions', 'go']
     permissions:
       actions: read
       contents: read
@@ -61,3 +61,6 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858  # v3.29.0
+        with:
+          # Provide more context to the SARIF output (shows up in run.automationDetails.id field)
+          category: "/language:${{matrix.language}}"

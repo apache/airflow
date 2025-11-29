@@ -20,18 +20,21 @@ import functools
 import logging
 from collections.abc import Callable
 from inspect import signature
-from typing import TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 from sqlalchemy.exc import DBAPIError
 
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    from airflow._shared.logging.types import Logger
 
 F = TypeVar("F", bound=Callable)
 
 MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
 
-def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logger | None = None, **kwargs):
+def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Logger | None = None, **kwargs):
     """Return Tenacity Retrying object with project specific default."""
     import tenacity
 
@@ -43,8 +46,8 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
         reraise=True,
         **kwargs,
     )
-    if logger and isinstance(logger, logging.Logger):
-        retry_kwargs["before_sleep"] = tenacity.before_sleep_log(logger, logging.DEBUG, True)
+    if logger is not None:
+        retry_kwargs["before_sleep"] = tenacity.before_sleep_log(logger, logging.DEBUG, True)  # type: ignore[arg-type]
 
     return tenacity.Retrying(**retry_kwargs)
 

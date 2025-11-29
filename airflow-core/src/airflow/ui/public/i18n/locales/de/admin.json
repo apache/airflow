@@ -72,7 +72,6 @@
     "tooltip": "Ausgewählte Verbindungen löschen"
   },
   "formActions": {
-    "reset": "Zurücksetzen",
     "save": "Speichern"
   },
   "plugins": {
@@ -129,8 +128,6 @@
       "tooltip": "Ausgewählte Variablen löschen"
     },
     "edit": "Variable bearbeiten",
-    "export": "Exportieren",
-    "exportTooltip": "Ausgewählte Variablen exportieren",
     "form": {
       "invalidJson": "JSON ist ungültig",
       "keyMaxLength": "Der Name kann maximal 250 Zeichen lang sein",

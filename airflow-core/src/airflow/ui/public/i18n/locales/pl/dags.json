@@ -20,8 +20,7 @@
       "all": "Wszystkie",
       "paused": "Wstrzymane"
     },
-    "runIdPatternFilter": "Szukaj Wykonań Dagów",
-    "triggeringUserNameFilter": "Szukaj według użytkownika wywołującego"
+    "runIdPatternFilter": "Szukaj Wykonań Dagów"
   },
   "ownerLink": "Link do właściciela {{owner}}",
   "runAndTaskActions": {
@@ -34,6 +33,10 @@
       "buttonTooltip": "Użyj shift+c żeby wyczyścić",
       "error": "Nie udało się wyczyścić {{type}}",
       "title": "Wyczyść {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "Zadanie jest obecnie w stanie {{state}} uruchomionym przez użytkownika {{user}} o {{time}}. \nUżytkownik nie może wyczyścić tego zadania, dopóki nie zakończy się jego działanie lub użytkownik nie odznaczy opcji 'Zapobiegaj ponownemu uruchomieniu uruchomionych zadań' w oknie dialogowym czyszczenia zadań.",
+      "title": "Nie można wyczyścić instancji zadania"
     },
     "delete": {
       "button": "Usuń {{type}}",
@@ -62,6 +65,7 @@
       "future": "Przyszłe zadania",
       "onlyFailed": "Wyczyść tylko nieudane zadania",
       "past": "Przeszłe zadania",
+      "preventRunningTasks": "Zapobiegaj ponownemu uruchomieniu, jeśli zadanie jest uruchomione",
       "queueNew": "Kolejkuj nowe zadania",
       "runOnLatestVersion": "Uruchom w najnowszej wersji paczki Dagów",
       "upstream": "Taski nadrzędne"

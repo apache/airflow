@@ -337,7 +337,7 @@ class TestJdbcHook:
             assert mock_connect.call_count == 10
 
     @pytest.mark.parametrize(
-        "params,expected_uri",
+        ("params", "expected_uri"),
         [
             # JDBC URL fallback cases
             pytest.param(

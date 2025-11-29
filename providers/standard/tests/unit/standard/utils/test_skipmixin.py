@@ -128,7 +128,7 @@ class TestSkipMixin:
         assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
@@ -176,7 +176,7 @@ class TestSkipMixin:
             assert executed_states == expected_states
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
             (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),

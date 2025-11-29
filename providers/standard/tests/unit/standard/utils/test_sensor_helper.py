@@ -25,8 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.models import DAG, TaskInstance
-from airflow.models.dagbag import DagBag
+from airflow.models import DAG, DagBag, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.sensor_helper import (
     _count_stmt,
@@ -413,7 +412,7 @@ class TestSensorHelper:
 
 
 @pytest.mark.parametrize(
-    "run_id_task_state_map, states, expected_count",
+    ("run_id_task_state_map", "states", "expected_count"),
     [
         pytest.param(
             {

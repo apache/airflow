@@ -25,6 +25,76 @@
 Changelog
 ---------
 
+1.7.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+1.6.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (cncf,common) (#57995)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
+1.6.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix XCom object storage backend path validation (#56244)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56495)``
+   * ``Remove useless Airflow version compatibility checks (#55852)``
+
+1.6.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix circular import when using ''XComObjectStorageBackend'' (#55805)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Switch pre-commit to prek (#54258)``
+
 1.6.2
 .....
 
@@ -187,8 +257,6 @@ Misc
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 1.4.2

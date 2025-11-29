@@ -8,6 +8,12 @@
     "Variables": "Zmienne"
   },
   "allOperators": "Wszystkie operatory",
+  "appearance": {
+    "appearance": "Wygląd",
+    "darkMode": "Tryb ciemny",
+    "lightMode": "Tryb jasny",
+    "systemMode": "Użyj ustawień systemu"
+  },
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -43,6 +49,7 @@
     "fileLocation": "Lokalizacja pliku",
     "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
     "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
     "latestRun": "Ostatnie wykonanie",
@@ -62,6 +69,7 @@
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
@@ -82,6 +90,11 @@
     "documentation": "Dokumentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
+  },
+  "download": {
+    "download": "Pobierz",
+    "hotkey": "d",
+    "tooltip": "Naciśnij {{hotkey}}, aby pobrać logi"
   },
   "duration": "Czas trwania",
   "endDate": "Data zakończenia",
@@ -104,16 +117,17 @@
     "any": "Dowolne",
     "or": "LUB"
   },
+  "filter": "Filtr",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtruj według Daga",
-    "keyPlaceholder": "Filtruj według klucza XCom",
-    "logicalDateFromPlaceholder": "Data logiczna od",
-    "logicalDateToPlaceholder": "Data logiczna do",
-    "mapIndexPlaceholder": "Filtruj według indeksu mapowania",
-    "runAfterFromPlaceholder": "Uruchom po (od)",
-    "runAfterToPlaceholder": "Uruchom po (do)",
-    "runIdPlaceholder": "Filtruj według identyfikatora uruchomienia",
-    "taskIdPlaceholder": "Filtruj według identyfikatora zadania"
+    "durationFrom": "Czas trwania od",
+    "durationTo": "Czas trwania do",
+    "endTime": "Czas zakończenia",
+    "logicalDateFrom": "Data logiczna od",
+    "logicalDateTo": "Data logiczna do",
+    "runAfterFrom": "Uruchom po (od)",
+    "runAfterTo": "Uruchom po (do)",
+    "selectDateRange": "Wybierz zakres dat",
+    "startTime": "Czas rozpoczęcia"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
@@ -140,7 +154,7 @@
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
-    "add": "Dodać notatkę",
+    "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
@@ -157,6 +171,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
     "asset_triggered": "Uruchomiony przez zasób",
@@ -171,7 +186,6 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -209,8 +223,6 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
-  "switchToDarkMode": "Przełącz na tryb ciemny",
-  "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",

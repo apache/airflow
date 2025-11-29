@@ -49,12 +49,12 @@ from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -1214,7 +1214,4 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param config: Extra parameters for the ADF client.
         """
         client = await self.get_async_conn()
-        try:
-            await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)
-        except Exception as e:
-            raise AirflowException(e)
+        await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)

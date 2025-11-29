@@ -29,12 +29,13 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
@@ -161,7 +162,7 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
     @pytest.mark.parametrize(
-        "params, expected_value",
+        ("params", "expected_value"),
         [
             pytest.param(
                 {"deserialize": True},
@@ -194,6 +195,22 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 200
         assert response.json()["value"] == expected_value
 
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected_return"),
+        [
+            pytest.param(42, 42, id="jsonable"),
+            pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
+            pytest.param([42, AssetAlias("x")], [42, "AssetAlias(name='x', group='asset')"], id="nested"),
+        ],
+    )
+    def test_stringify_false(self, test_client, xcom_value, expected_return):
+        XComModel.set(TEST_XCOM_KEY, xcom_value, dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=run_id)
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True, "stringify": False})
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_return
+
 
 class TestGetXComEntries(TestXComEndpoint):
     @pytest.fixture(autouse=True)
@@ -202,9 +219,10 @@ class TestGetXComEntries(TestXComEndpoint):
 
     def test_should_respond_200(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
-        response = test_client.get(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+            )
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -243,7 +261,8 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
 
-        response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
+        with assert_queries_count(4):
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -304,10 +323,11 @@ class TestGetXComEntries(TestXComEndpoint):
     def test_should_respond_200_with_map_index(self, map_index, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
 
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"map_index": map_index} if map_index is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"map_index": map_index} if map_index is not None else None,
+            )
         assert response.status_code == 200
         response_data = response.json()
 
@@ -348,7 +368,7 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "key, expected_entries",
+        ("key", "expected_entries"),
         [
             (
                 TEST_XCOM_KEY,
@@ -382,10 +402,11 @@ class TestGetXComEntries(TestXComEndpoint):
     )
     def test_should_respond_200_with_xcom_key(self, key, expected_entries, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"xcom_key_pattern": key} if key is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"xcom_key_pattern": key} if key is not None else None,
+            )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -461,7 +482,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_xcom_ids",
+        ("query_params", "expected_xcom_ids"),
         [
             (
                 {"limit": "1"},
@@ -523,7 +544,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
 
 class TestCreateXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail",
+        ("dag_id", "task_id", "dag_run_id", "request_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid input, should succeed with 201 CREATED
             pytest.param(
@@ -628,7 +649,7 @@ class TestCreateXComEntry(TestXComEndpoint):
 
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "key, patch_body, expected_status, expected_detail",
+        ("key", "patch_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid update, should return 200 OK
             pytest.param(

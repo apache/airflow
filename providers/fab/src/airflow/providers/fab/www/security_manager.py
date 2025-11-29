@@ -18,12 +18,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from flask import g
+from flask import current_app, g
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.providers.fab.www.utils import CustomSQLAInterface, get_method_from_fab_action_map
+from airflow.providers.fab.www.utils import get_method_from_fab_action_map
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 EXISTING_ROLES = {
@@ -50,15 +50,6 @@ class AirflowSecurityManagerV2(LoggingMixin):
         # Setup Flask-Limiter
         self.limiter = self.create_limiter()
 
-        # Go and fix up the SQLAInterface used from the stock one to our subclass.
-        # This is needed to support the "hack" where we had to edit
-        # FieldConverter.conversion_table in place in utils
-        for attr in dir(self):
-            if attr.endswith("view"):
-                view = getattr(self, attr, None)
-                if view and getattr(view, "datamodel", None):
-                    view.datamodel = CustomSQLAInterface(view.datamodel.obj)
-
     @staticmethod
     def before_request():
         """Run hook before request."""
@@ -66,9 +57,8 @@ class AirflowSecurityManagerV2(LoggingMixin):
             g.user = get_auth_manager().get_user()
 
     def create_limiter(self) -> Limiter:
-        app = self.appbuilder.get_app
-        limiter = Limiter(key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
-        limiter.init_app(app)
+        limiter = Limiter(key_func=current_app.config.get("RATELIMIT_KEY_FUNC", get_remote_address))
+        limiter.init_app(current_app)
         return limiter
 
     def has_access(

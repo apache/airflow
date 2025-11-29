@@ -82,10 +82,10 @@ ENDPOINT_CONF = {
 with DAG(
     DAG_ID,
     schedule="@once",
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime(2025, 1, 1),
     catchup=False,
     render_template_as_native_obj=True,
-    tags=["example", "vertex_ai", "endpoint_service"],
+    tags=["example", "vertex_ai", "auto_ml", "image_classification", "endpoint_service"],
 ) as dag:
     create_image_dataset = CreateDatasetOperator(
         task_id="image_dataset",
@@ -103,6 +103,7 @@ with DAG(
         import_configs=IMAGE_DATA_CONFIG,
     )
 
+    # [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
     create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
         task_id="auto_ml_image_task",
         display_name=IMAGE_DISPLAY_NAME,
@@ -119,6 +120,8 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    # [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
+
     DEPLOYED_MODEL = {
         # format: 'projects/{project}/locations/{location}/models/{model}'
         "model": "{{ti.xcom_pull('auto_ml_image_task')['name']}}",

@@ -22,13 +22,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
-
-try:
-    from airflow.sdk import timezone
-except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
     from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]

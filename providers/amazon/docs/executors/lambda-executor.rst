@@ -56,7 +56,7 @@ When a task is queued to run with the Lambda executor a Lambda function is async
 invoked with a payload containing the task key being run and the Airflow CLI
 command/workload to run. The Lambda function executes the task and then must
 publish a message to the SQS results queue with the same task key it received as well as
-the return code of the airflow task execution process. The Lambda executor periodically
+the return code of the Airflow task execution process. The Lambda executor periodically
 polls this SQS results queue for messages and updates its internal state with the results
 it receives. The Lambda function must also be configured with a Dead Letter Queue (DLQ) to
 which Lambda will automatically send messages to for invocations that fail to be processed,
@@ -64,6 +64,13 @@ for example due to the 15 minute max timeout of Lambda functions. The Lambda exe
 also poll this DLQ for messages and update the internal state with the results it receives.
 
 .. image:: ../img/lambda_executor.png
+
+Quotas
+------
+
+When working with the Lambda Executor it is important to be familiar with the AWS Lambda quotas
+as they may affect performance and scalability. For more information,
+please refer to the `official AWS Lambda documentation on quotas <http://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html>`__.
 
 .. _lambda_config-options:
 
@@ -358,4 +365,3 @@ To configure Airflow to utilize the Lambda Executor and leverage the resources w
 
 .. include:: general.rst
   :start-after: .. BEGIN INIT_DB
-  :end-before: .. END INIT_DB

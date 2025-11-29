@@ -8,6 +8,12 @@
     "Variables": "Variables"
   },
   "allOperators": "Tots els operadors",
+  "appearance": {
+    "appearance": "Aparença",
+    "darkMode": "Mode fosc",
+    "lightMode": "Mode clar",
+    "systemMode": "Seguir la configuració del sistema"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Esdeveniment d'Asset",
@@ -33,7 +39,8 @@
     "fileLocation": "Ubicació del fitxer",
     "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
     "lastExpired": "Últim caducat",
-    "lastParsed": "Últim anàlitzat",
+    "lastParseDuration": "Duració de l'últim anàlisi",
+    "lastParsed": "Últim analitzat",
     "latestDagVersion": "Última versió del Dag",
     "latestRun": "Última execució",
     "maxActiveRuns": "Màxim d'execucions actives",
@@ -71,6 +78,11 @@
     "githubRepo": "Repositori de GitHub",
     "restApiReference": "Referència de l'API REST"
   },
+  "download": {
+    "download": "Descarregar",
+    "hotkey": "d",
+    "tooltip": "Prem {{hotkey}} per a descarregar els registres"
+  },
   "duration": "Duració",
   "endDate": "Data de finalització",
   "error": {
@@ -92,16 +104,14 @@
     "any": "Qualsevol",
     "or": "O"
   },
+  "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Filtrar per Dag",
-    "keyPlaceholder": "Filtrar per clau XCom",
-    "logicalDateFromPlaceholder": "Data Lògica Des de",
-    "logicalDateToPlaceholder": "Data Lògica Fins a",
-    "mapIndexPlaceholder": "Filtrar per Índex del Mapa",
-    "runAfterFromPlaceholder": "Executar Després de",
-    "runAfterToPlaceholder": "Executar Després de",
-    "runIdPlaceholder": "Filtrar per ID d'Execució",
-    "taskIdPlaceholder": "Filtrar per ID de Tasca"
+    "durationFrom": "Duració Des de",
+    "durationTo": "Duració Fins a",
+    "logicalDateFrom": "Data Lògica Des de",
+    "logicalDateTo": "Data Lògica Fins a",
+    "runAfterFrom": "Executar Després de",
+    "runAfterTo": "Executar Després de"
   },
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
@@ -143,6 +153,7 @@
     "running": "Executant-se",
     "scheduled": "Programat"
   },
+  "reset": "Restablir",
   "runId": "ID de l'execució",
   "runTypes": {
     "asset_triggered": "Executat per Asset",
@@ -157,7 +168,6 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",
@@ -193,8 +203,6 @@
     "up_for_retry": "A reintentar",
     "upstream_failed": "Fallit aigües amunt"
   },
-  "switchToDarkMode": "Canviar a mode fosc",
-  "switchToLightMode": "Canviar a mode clar",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",

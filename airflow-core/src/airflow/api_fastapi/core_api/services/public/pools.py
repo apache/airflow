@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -30,10 +34,80 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkUpdateAction,
 )
 from airflow.api_fastapi.core_api.datamodels.pools import (
+    BasePool,
     PoolBody,
+    PoolPatchBody,
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.pool import Pool
+
+
+def update_orm_from_pydantic(
+    pool_name: str,
+    patch_body: PoolBody | PoolPatchBody,
+    update_mask: list[str] | None,
+    session: SessionDep,
+) -> Pool:
+    """
+    Update an existing pool.
+
+    :param pool_name: The name of the existing Pool to be updated.
+    :param patch_body: Pydantic model containing the fields to update.
+    :param update_mask: Specific fields to update. If None, all provided fields will be considered.
+    :param session: The database session dependency.
+    :return: The updated Pool instance.
+    :raises HTTPException: If attempting to update disallowed fields on ``default_pool``.
+    """
+    # Special restriction: default pool only allows limited fields to be patched
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
+    if not pool:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
+        )
+    if pool_name == Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            # Validate only slots/include_deferred
+            try:
+                patch_body_subset = patch_body.model_dump(
+                    include={"slots", "include_deferred"}, exclude_unset=True, by_alias=True
+                )
+                # Re-run validation with BasePool but only on allowed fields
+                PoolPatchBody.model_validate(patch_body_subset)
+            except ValidationError as e:
+                raise RequestValidationError(errors=e.errors())
+        else:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Only slots and included_deferred can be modified on Default Pool",
+            )
+    else:
+        fields_to_update = patch_body.model_fields_set
+        try:
+            # Dump with both input + output aliases handled
+            body_dict = patch_body.model_dump(
+                include=fields_to_update,
+                by_alias=True,  # ensures we get the API-facing alias keys
+            )
+
+            # Normalize keys for BasePool (expects "pool")
+            if "name" in body_dict and "pool" not in body_dict:
+                body_dict["pool"] = body_dict.pop("name")
+
+            BasePool.model_validate(body_dict)
+
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    # Delegate patch application to the common utility
+    return cast(
+        "Pool",
+        BulkService.apply_patch_with_update_mask(
+            model=pool,
+            patch_body=patch_body,
+            update_mask=update_mask,
+            non_update_fields=None,
+        ),
+    )
 
 
 class BulkPoolService(BulkService[PoolBody]):
@@ -90,7 +164,6 @@ class BulkPoolService(BulkService[PoolBody]):
         """Bulk Update pools."""
         to_update_pool_names = {pool.pool for pool in action.entities}
         _, matched_pool_names, not_found_pool_names = self.categorize_pools(to_update_pool_names)
-
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
                 raise HTTPException(
@@ -101,24 +174,13 @@ class BulkPoolService(BulkService[PoolBody]):
                 update_pool_names = matched_pool_names
             else:
                 update_pool_names = to_update_pool_names
-
             for pool in action.entities:
-                if pool.pool in update_pool_names:
-                    old_pool = self.session.scalar(select(Pool).filter(Pool.pool == pool.pool).limit(1))
+                if pool.pool not in update_pool_names:
+                    continue
 
-                    data = {
-                        key: val for key, val in pool.model_dump(by_alias=True).items() if val is not None
-                    }
-                    try:
-                        PoolBody(**data)
+                updated_pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
 
-                        for key, val in data.items():
-                            setattr(old_pool, key, val)
-
-                        results.success.append(str(pool.pool))
-
-                    except ValidationError as e:
-                        results.errors.append({"error": f"{e.errors()}"})
+                results.success.append(str(updated_pool.pool))  # use request field, always consistent
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

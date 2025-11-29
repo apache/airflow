@@ -25,6 +25,7 @@ import { DagVersionDetails } from "src/components/DagVersionDetails";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import Time from "src/components/Time";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { renderDuration } from "src/utils";
 
 export const Details = () => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -71,6 +72,10 @@ export const Details = () => {
               <Table.Cell>
                 <Time datetime={dag.last_parsed} />
               </Table.Cell>
+            </Table.Row>
+            <Table.Row>
+              <Table.Cell>{translate("dagDetails.lastParseDuration")}</Table.Cell>
+              <Table.Cell>{renderDuration(dag.last_parse_duration)}</Table.Cell>
             </Table.Row>
             <Table.Row>
               <Table.Cell>{translate("dagDetails.latestDagVersion")}</Table.Cell>

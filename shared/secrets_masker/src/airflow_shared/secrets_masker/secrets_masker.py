@@ -25,7 +25,7 @@ import inspect
 import logging
 import re
 import sys
-from collections.abc import Callable, Generator, Iterable, Iterator
+from collections.abc import Generator, Iterable, Iterator
 from enum import Enum
 from functools import cache, cached_property
 from re import Pattern
@@ -70,38 +70,13 @@ SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
 
 
-@cache
-def get_min_secret_length() -> int:
-    """Get minimum length for a secret to be considered for masking from airflow.cfg."""
-    from airflow.configuration import conf
-
-    return conf.getint("logging", "min_length_masked_secret", fallback=5)
-
-
-@cache
-def get_sensitive_variables_fields():
-    """Get comma-separated sensitive Variable Fields from airflow.cfg."""
-    from airflow.configuration import conf
-
-    sensitive_fields = DEFAULT_SENSITIVE_FIELDS.copy()
-    sensitive_variable_fields = conf.get("core", "sensitive_var_conn_names")
-    if sensitive_variable_fields:
-        sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
-    return sensitive_fields
-
-
 def should_hide_value_for_key(name):
     """
     Return if the value for this given name should be hidden.
 
     Name might be a Variable name, or key in conn.extra_dejson, for example.
     """
-    from airflow import settings
-
-    if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
-        name = name.strip().lower()
-        return any(s in name for s in get_sensitive_variables_fields())
-    return False
+    return _secrets_masker().should_hide_value_for_key(name)
 
 
 def mask_secret(secret: JsonValue, name: str | None = None) -> None:
@@ -183,18 +158,27 @@ def reset_secrets_masker() -> None:
     _secrets_masker().reset_masker()
 
 
+def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
+    """Check if object is V1EnvVar, avoiding unnecessary imports."""
+    # Quick check: if k8s not imported, can't be a V1EnvVar instance
+    if "kubernetes.client" not in sys.modules:
+        return False
+
+    # K8s is loaded, safe to get/cache the type
+    v1_type = _get_v1_env_var_type_cached()
+    return isinstance(v, v1_type)
+
+
 @cache
-def _get_v1_env_var_type() -> type:
+def _get_v1_env_var_type_cached() -> type:
+    """Get V1EnvVar type (cached, only called when k8s is already loaded)."""
     try:
         from kubernetes.client import V1EnvVar
 
         return V1EnvVar
     except ImportError:
+        # Shouldn't happen since we check sys.modules first
         return type("V1EnvVar", (), {})
-
-
-def _is_v1_env_var(v: Any) -> TypeGuard[_V1EnvVarLike]:
-    return isinstance(v, _get_v1_env_var_type())
 
 
 class SecretsMasker(logging.Filter):
@@ -208,9 +192,13 @@ class SecretsMasker(logging.Filter):
     _has_warned_short_secret = False
     mask_secrets_in_logs = False
 
+    min_length_to_mask = 5
+    secret_mask_adapter = None
+
     def __init__(self):
         super().__init__()
         self.patterns = set()
+        self.sensitive_variables_fields = []
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -338,7 +326,7 @@ class SecretsMasker(logging.Filter):
         if depth > max_depth:
             return item
         try:
-            if name and should_hide_value_for_key(name):
+            if name and self.should_hide_value_for_key(name):
                 return self._redact_all(item, depth, max_depth, replacement=replacement)
             if isinstance(item, dict):
                 to_return = {
@@ -354,7 +342,7 @@ class SecretsMasker(logging.Filter):
                 )
             if _is_v1_env_var(item):
                 tmp = item.to_dict()
-                if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
+                if self.should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
                     tmp["value"] = replacement
                 else:
                     return self._redact(
@@ -418,7 +406,7 @@ class SecretsMasker(logging.Filter):
 
         try:
             # Determine if we should treat this as sensitive
-            is_sensitive = force_sensitive or (name is not None and should_hide_value_for_key(name))
+            is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
 
             if isinstance(new_item, dict) and isinstance(old_item, dict):
                 merged = {}
@@ -523,40 +511,31 @@ class SecretsMasker(logging.Filter):
             replacement=replacement,
         )
 
-    @cached_property
-    def _mask_adapter(self) -> None | Callable:
-        """
-        Pulls the secret mask adapter from config.
-
-        This lives in a function here to be cached and only hit the config once.
-        """
-        from airflow.configuration import conf
-
-        return conf.getimport("logging", "secret_mask_adapter", fallback=None)
-
-    @cached_property
-    def _test_mode(self) -> bool:
-        """
-        Pulls the unit test mode flag from config.
-
-        This lives in a function here to be cached and only hit the config once.
-        """
-        from airflow.configuration import conf
-
-        return conf.getboolean("core", "unit_test_mode")
-
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
         """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
-        if self._mask_adapter:
+        if self.secret_mask_adapter:
             # This can return an iterable of secrets to mask OR a single secret as a string
-            secret_or_secrets = self._mask_adapter(secret)
+            secret_or_secrets = self.secret_mask_adapter(secret)
             if not isinstance(secret_or_secrets, str):
                 # if its not a string, it must be an iterable
                 yield from secret_or_secrets
             else:
                 yield secret_or_secrets
+
+    def should_hide_value_for_key(self, name):
+        """
+        Return if the value for this given name should be hidden.
+
+        Name might be a Variable name, or key in conn.extra_dejson, for example.
+        """
+        from airflow import settings
+
+        if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
+            name = name.strip().lower()
+            return any(s in name for s in self.sensitive_variables_fields)
+        return False
 
     def add_mask(self, secret: JsonValue, name: str | None = None):
         """Add a new secret to be masked to this filter instance."""
@@ -570,7 +549,7 @@ class SecretsMasker(logging.Filter):
             if secret.lower() in SECRETS_TO_SKIP_MASKING:
                 return
 
-            min_length = get_min_secret_length()
+            min_length = self.min_length_to_mask
             if len(secret) < min_length:
                 if not SecretsMasker._has_warned_short_secret:
                     log.warning(
@@ -591,7 +570,7 @@ class SecretsMasker(logging.Filter):
                         continue
 
                     pattern = re.escape(s)
-                    if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
+                    if pattern not in self.patterns and (not name or self.should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
             if new_mask:

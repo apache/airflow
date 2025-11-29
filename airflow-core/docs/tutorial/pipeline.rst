@@ -95,7 +95,7 @@ Fill in the following details:
 - Password: ``airflow``
 - Port: ``5432``
 
-.. image:: ../img/ui-dark/tutorial_pipeline_add_connection.png
+.. image:: ../img/ui-light/tutorial_pipeline_add_connection.png
   :alt: Add Connection form in Airflow's web UI with Postgres details filled in.
 
 |
@@ -341,13 +341,18 @@ run using the play button.
 
 You can watch each task as it runs in the **Grid** view, and explore logs for each step.
 
-.. image:: ../img/ui-dark/tutorial_pipeline_dag_list.png
+.. image:: ../img/ui-light/tutorial_pipeline_dag_list_trigger.png
   :alt: Dag List view showing the ``process_employees`` Dag
 
 |
 
-.. image:: ../img/ui-dark/tutorial_pipeline_dag_overview_processed.png
+.. image:: ../img/ui-light/tutorial_pipeline_dag_overview_processed.png
   :alt: Dag Overview page for ``process_employees`` Dag showing the Dag run
+
+|
+
+.. image:: ../img/ui-light/tutorial_pipeline_dag_task_instance_logs.png
+  :alt: Task instance page for a task in ``process_employees`` Dag showing the task instance logs
 
 |
 

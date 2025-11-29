@@ -89,7 +89,6 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         <Select.Root
           collection={tryOptions}
           data-testid="select-task-try"
-          defaultValue={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
@@ -97,6 +96,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               );
             }
           }}
+          value={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           width="200px"
         >
           <Select.Trigger>
@@ -127,7 +127,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
           {sortedTries.map((ti) => (
             <TaskInstanceTooltip key={ti.try_number} taskInstance={ti}>
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 data-testid={`log-attempt-select-button-${ti.try_number}`}
                 key={ti.try_number}
                 onClick={() => {

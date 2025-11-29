@@ -26,13 +26,13 @@ from typing import (
     Any,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, BaseOperator, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.version_compat import XCOM_RETURN_KEY, BaseOperator
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -347,6 +347,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 self.defer(
                     trigger=MSGraphTrigger(
                         url=url,
+                        method=self.method,
                         query_parameters=query_parameters,
                         response_type=self.response_type,
                         conn_id=self.conn_id,

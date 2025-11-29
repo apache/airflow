@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, TypeAlias, cast
 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
-def dag_edges(dag: DAG):
+def dag_edges(dag: DAG | SerializedDAG):
     """
     Create the list of edges needed to construct the Graph view.
 

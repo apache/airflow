@@ -89,8 +89,18 @@ const isFieldTime = (fieldType: string, fieldSchema: ParamSchema) =>
 
 export const FieldSelector = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   // FUTURE: Add support for other types as described in AIP-68 via Plugins
-  const { initialParamDict } = useParamStore(namespace);
-  const param = initialParamDict[name] ?? paramPlaceholder;
+  const { initialParamDict, paramsDict } = useParamStore(namespace);
+
+  // Use current paramsDict (which has actual values) for type inference, fall back to initialParamDict for schema
+  const currentParam = paramsDict[name];
+  const initialParam = initialParamDict[name] ?? paramPlaceholder;
+
+  // Create a param object that combines the schema from initialParamDict with the value from paramsDict
+  const param: ParamSpec = {
+    ...initialParam,
+    value: currentParam?.value ?? initialParam.value,
+  };
+
   const fieldType = inferType(param);
 
   if (isFieldBool(fieldType)) {

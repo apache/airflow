@@ -46,6 +46,7 @@ from airflow.utils.cli import (
     get_bagged_dag,
     get_dag_by_file_location,
     get_dags,
+    get_db_dag,
     suppress_logs_and_warning,
 )
 from airflow.utils.helpers import ask_yesno
@@ -53,7 +54,6 @@ from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -82,7 +82,7 @@ def _generate_temporary_run_id() -> str:
 
 def _get_dag_run(
     *,
-    dag: DAG,
+    dag: SerializedDAG,
     create_if_necessary: CreateIfNecessary,
     logical_date_or_run_id: str | None = None,
     session: Session | None = None,
@@ -109,7 +109,7 @@ def _get_dag_run(
         dag_run, logical_date = fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
             value=logical_date_or_run_id,
-            session=session,
+            session=cast("Session", session),
         )
         if dag_run is not None:
             return dag_run, False
@@ -144,16 +144,15 @@ def _get_dag_run(
         )
         return dag_run, True
     if create_if_necessary == "db":
-        scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))  # type: ignore[arg-type]
         dag_run = get_or_create_dagrun(
-            dag=scheduler_dag,
+            dag=dag,
             run_id=_generate_temporary_run_id(),
             logical_date=dag_run_logical_date,
             data_interval=data_interval,
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
             triggering_user_name=user,
-            session=session,
+            session=cast("Session", session),
             start_date=logical_date or run_after,
             conf=None,
         )
@@ -246,10 +245,7 @@ def task_failed_deps(args) -> None:
     Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
     to have succeeded, but found 1 non-success(es).
     """
-    dag = get_bagged_dag(args.bundle_name, args.dag_id)
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+    task = get_db_dag(args.bundle_name, args.dag_id).get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -274,9 +270,7 @@ def task_state(args) -> None:
     """
     if not (dag := SerializedDagModel.get_dag(args.dag_id)):
         raise SystemExit(f"Can not find dag {args.dag_id!r}")
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+    task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     print(ti.state)
 
@@ -353,12 +347,12 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
             "dag_id": ti.dag_id,
             "logical_date": dag_run.logical_date.isoformat() if dag_run.logical_date else "",
             "task_id": ti.task_id,
-            "state": ti.state,
+            "state": ti.state or "",
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
         }
         if has_mapped_instances:
-            data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
+            data["map_index"] = str(ti.map_index) if ti.map_index is not None and ti.map_index >= 0 else ""
         return data
 
     AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
@@ -389,29 +383,35 @@ def task_test(args, dag: DAG | None = None) -> None:
         env_vars.update(args.env_vars)
         os.environ.update(env_vars)
 
-    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
 
-    # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-    # instead, but currently it inherits SDK's DAG.
-    task = cast("Operator", dag.get_task(task_id=args.task_id))
+    sdk_task = sdk_dag.get_task(args.task_id)
 
     # Add CLI provided task_params to task.params
     if args.task_params:
         passed_in_params = json.loads(args.task_params)
-        task.params.update(passed_in_params)
+        sdk_task.params.update(passed_in_params)
 
-    if task.params and isinstance(task.params, ParamsDict):
-        task.params.validate()
+    if sdk_task.params and isinstance(sdk_task.params, ParamsDict):
+        sdk_task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
+        scheduler_dag.get_task(args.task_id),
+        args.map_index,
+        logical_date_or_run_id=args.logical_date_or_run_id,
+        create_if_necessary="db",
     )
     try:
         # TODO: move bulk of this logic into the SDK: http://github.com/apache/airflow/issues/54658
         from airflow.sdk._shared.secrets_masker import RedactedIO
 
         with redirect_stdout(RedactedIO()):
-            _run_task(ti=ti, task=task, run_triggerer=True)
+            _run_task(ti=ti, task=sdk_task, run_triggerer=True)
         if ti.state == State.FAILED and args.post_mortem:
             debugger = _guess_debugger()
             debugger.set_trace()
@@ -434,15 +434,13 @@ def task_render(args, dag: DAG | None = None) -> None:
         dag = get_bagged_dag(args.bundle_name, args.dag_id)
     serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
     ti, _ = _get_ti(
-        # TODO (GH-52141): get_task in scheduler needs to return scheduler types
-        # instead, but currently it inherits SDK's DAG.
-        cast("Operator", serialized_dag.get_task(task_id=args.task_id)),
+        serialized_dag.get_task(task_id=args.task_id),
         args.map_index,
         logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
     )
 
-    with create_session() as session, set_current_task_instance_session(session=session):
+    with create_session() as session:
         context = ti.get_template_context(session=session)
         task = dag.get_task(args.task_id)
         # TODO (GH-52141): After sdk separation, ti.get_template_context() would

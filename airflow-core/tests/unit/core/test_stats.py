@@ -282,7 +282,7 @@ class TestDogStats:
 
 class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
-        "validator, stat_name, expect_incr",
+        ("validator", "stat_name", "expect_incr"),
         [
             (PatternAllowListValidator, "stats_one", True),
             (PatternAllowListValidator, "stats_two.bla", True),
@@ -309,7 +309,7 @@ class TestStatsAllowAndBlockLists:
             statsd_client.assert_not_called()
 
     @pytest.mark.parametrize(
-        "match_pattern, expect_incr",
+        ("match_pattern", "expect_incr"),
         [
             ("^stat", True),  # Match: Regex Startswith
             ("a.{4}o", True),  # Match: RegEx Pattern
@@ -343,7 +343,7 @@ class TestPatternValidatorConfigOption:
     block_list = {("metrics", "metrics_block_list"): "foo,bar"}
 
     @pytest.mark.parametrize(
-        "config, expected",
+        ("config", "expected"),
         [
             pytest.param(
                 {**stats_on},
@@ -376,11 +376,11 @@ class TestPatternValidatorConfigOption:
 
     @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
-        importlib.reload(airflow.stats)
-
-        assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
         with caplog.at_level(logging.WARNING):
+            importlib.reload(airflow.stats)
+
+            assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
+            assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
             assert "Ignoring metrics_block_list" in caplog.text
 
 

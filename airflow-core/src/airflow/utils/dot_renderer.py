@@ -28,7 +28,7 @@ from airflow.models.mappedoperator import MappedOperator as SerializedMappedOper
 from airflow.sdk import DAG, BaseOperator, TaskGroup
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 
@@ -98,7 +98,7 @@ def _draw_task(
 def _draw_task_group(
     task_group: TaskGroup | SerializedTaskGroup,
     parent_graph: graphviz.Digraph,
-    states_by_task_id: dict[str, str] | None,
+    states_by_task_id: dict[str, str | None] | None,
 ) -> None:
     """Draw the given task_group and its children on the given parent_graph."""
     # Draw joins
@@ -136,7 +136,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
+    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator, SerializedMappedOperator)):
@@ -194,7 +194,7 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
     return dot
 
 
-def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
+def render_dag(dag: DAG | SerializedDAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
     Render the DAG object to the DOT object.
 

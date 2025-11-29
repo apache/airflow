@@ -139,7 +139,7 @@ class TestFileToGcsOperator:
             **self._config,
         )
         operator.execute(None)
-        object_names = ["test/" + os.path.basename(fp) for fp in glob("/tmp/fake*.csv")]
+        object_names = ["test/" + os.path.basename(fp) for fp in glob(f"{self.tmpdir_posix}/fake*.csv")]
         files_objects = zip(glob(f"{self.tmpdir_posix}/fake*.csv"), object_names)
         calls = [
             mock.call(
@@ -172,7 +172,7 @@ class TestFileToGcsOperator:
             dst=dst,
             **self._config,
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="'dst' parameter references filepath."):
             operator.execute(None)
         mock_instance.assert_not_called()
 

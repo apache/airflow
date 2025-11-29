@@ -403,6 +403,14 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("email")
 
     @property
+    def email_on_failure(self) -> bool:
+        return self.partial_kwargs.get("email_on_failure", True)
+
+    @property
+    def email_on_retry(self) -> bool:
+        return self.partial_kwargs.get("email_on_retry", True)
+
+    @property
     def map_index_template(self) -> None | str:
         return self.partial_kwargs.get("map_index_template")
 
@@ -527,11 +535,16 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_delay"] = value
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        value = self.partial_kwargs.get("retry_exponential_backoff", 0)
+        if value is True:
+            return 2.0
+        if value is False:
+            return 0.0
+        return float(value)
 
     @retry_exponential_backoff.setter
-    def retry_exponential_backoff(self, value: bool) -> None:
+    def retry_exponential_backoff(self, value: float) -> None:
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property

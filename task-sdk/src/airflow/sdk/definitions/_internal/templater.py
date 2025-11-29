@@ -89,7 +89,7 @@ class Templater:
 
     def resolve_template_files(self) -> None:
         """Get the content of files for template_field / template_ext."""
-        if getattr(self, "template_ext", None):
+        if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
                 if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
@@ -170,7 +170,7 @@ class Templater:
             jinja_env = self.get_template_env()
 
         if isinstance(value, str):
-            if hasattr(self, "template_ext") and value.endswith(tuple(self.template_ext)):  # A filepath.
+            if value.endswith(tuple(self.template_ext)):  # A filepath.
                 template = jinja_env.get_template(value)
             else:
                 template = jinja_env.from_string(value)

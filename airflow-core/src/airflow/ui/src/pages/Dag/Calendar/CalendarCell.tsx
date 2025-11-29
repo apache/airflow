@@ -17,34 +17,91 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import type React from "react";
+
+import { HoverTooltip } from "src/components/HoverTooltip";
 
 import { CalendarTooltip } from "./CalendarTooltip";
-import { useDelayedTooltip } from "./useDelayedTooltip";
+import type { CalendarCellData, CalendarColorMode } from "./types";
 
 type Props = {
-  readonly backgroundColor: Record<string, string> | string;
-  readonly content: string;
+  readonly backgroundColor:
+    | Record<string, string>
+    | string
+    | {
+        actual: string | { _dark: string; _light: string };
+        planned: string | { _dark: string; _light: string };
+      };
+  readonly cellData: CalendarCellData | undefined;
   readonly index?: number;
   readonly marginRight?: string;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const CalendarCell = ({ backgroundColor, content, index, marginRight }: Props) => {
-  const { handleMouseEnter, handleMouseLeave } = useDelayedTooltip();
+const renderTooltip =
+  (cellData: CalendarCellData | undefined, viewMode: CalendarColorMode) =>
+  (triggerRef: React.RefObject<HTMLElement>) => (
+    <CalendarTooltip cellData={cellData} triggerRef={triggerRef} viewMode={viewMode} />
+  );
 
+export const CalendarCell = ({
+  backgroundColor,
+  cellData,
+  index,
+  marginRight,
+  viewMode = "total",
+}: Props) => {
   const computedMarginRight = marginRight ?? (index !== undefined && index % 7 === 6 ? "8px" : "0");
 
-  return (
-    <Box onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} position="relative">
+  const relevantCount =
+    viewMode === "failed" ? (cellData?.counts.failed ?? 0) : (cellData?.counts.total ?? 0);
+  const hasData = Boolean(cellData && relevantCount > 0);
+  const hasTooltip = Boolean(cellData);
+
+  const isMixedState =
+    typeof backgroundColor === "object" && "planned" in backgroundColor && "actual" in backgroundColor;
+
+  const cellBox = isMixedState ? (
+    <Box
+      _hover={hasData ? { transform: "scale(1.1)" } : {}}
+      borderRadius="2px"
+      cursor={hasData ? "pointer" : "default"}
+      height="14px"
+      marginRight={computedMarginRight}
+      overflow="hidden"
+      position="relative"
+      width="14px"
+    >
       <Box
-        _hover={{ transform: "scale(1.1)" }}
-        bg={backgroundColor}
-        borderRadius="2px"
-        cursor="pointer"
-        height="14px"
-        marginRight={computedMarginRight}
-        width="14px"
+        bg={backgroundColor.planned}
+        clipPath="polygon(0 100%, 100% 100%, 0 0)"
+        height="100%"
+        position="absolute"
+        width="100%"
       />
-      <CalendarTooltip content={content} />
+      <Box
+        bg={backgroundColor.actual}
+        clipPath="polygon(100% 0, 100% 100%, 0 0)"
+        height="100%"
+        position="absolute"
+        width="100%"
+      />
     </Box>
+  ) : (
+    <Box
+      _hover={hasData ? { transform: "scale(1.1)" } : {}}
+      bg={backgroundColor}
+      borderRadius="2px"
+      cursor={hasData ? "pointer" : "default"}
+      height="14px"
+      marginRight={computedMarginRight}
+      width="14px"
+    />
   );
+
+  if (!hasTooltip) {
+    return cellBox;
+  }
+
+  return <HoverTooltip tooltip={renderTooltip(cellData, viewMode)}>{cellBox}</HoverTooltip>;
 };
