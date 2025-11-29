@@ -128,6 +128,10 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
+    timetable_type: Annotated[
+        FilterParam[list[str] | None],
+        Depends(filter_param_factory(DagModel.timetable_type, list[str], FilterOptionEnum.IN)),
+    ],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
@@ -155,6 +159,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            timetable_type,
             has_asset_schedule,
             asset_dependency,
         ],
