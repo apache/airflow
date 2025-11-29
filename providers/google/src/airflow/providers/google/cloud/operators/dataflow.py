@@ -583,6 +583,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
