@@ -460,6 +460,35 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                         uuid_strings = [str(uuid_id) for uuid_id in migrated_alert_ids]
                         update_dag_deadline_field(conn, serialized_dag_id, uuid_strings, dialect)
 
+                        # Recalculate and update the dag_hash after modifying the deadline data to ensure
+                        # it matches what write_dag() will compute later and avoid re-serialization.
+                        updated_result = conn.execute(
+                            sa.text(
+                                "SELECT data, data_compressed "
+                                "FROM serialized_dag "
+                                "WHERE id = :serialized_dag_id"
+                            ),
+                            {"serialized_dag_id": serialized_dag_id},
+                        ).fetchone()
+
+                        if updated_result:
+                            updated_dag_data = get_dag_data(
+                                updated_result.data, updated_result.data_compressed
+                            )
+                            # Import here to avoid a circular dependency issue
+                            from airflow.models.serialized_dag import SerializedDagModel
+
+                            new_hash = SerializedDagModel.hash(updated_dag_data)
+
+                            conn.execute(
+                                sa.text(
+                                    "UPDATE serialized_dag "
+                                    "SET dag_hash = :new_hash "
+                                    "WHERE id = :serialized_dag_id"
+                                ),
+                                {"new_hash": new_hash, "serialized_dag_id": serialized_dag_id},
+                            )
+
                 # Commit the savepoint if everything succeeded for this Dag.
                 savepoint.commit()
 

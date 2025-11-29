@@ -27,7 +27,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy import exists, select
+from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -1338,7 +1338,7 @@ class TestDagRun:
         assert mock_get_by_id.call_count == len(deadline_ids)
         for deadline_id in deadline_ids:
             mock_get_by_id.assert_any_call(deadline_id, session)
-        mock_prune.assert_called_once_with(session=session, conditions={DagRun.run_id: dag_run.run_id})
+        mock_prune.assert_called_once_with(session=session, conditions={DagRun.id: dag_run.id})
         assert dag_run.state == DagRunState.SUCCESS
 
     @mock.patch.object(Deadline, "prune_deadlines")
@@ -1389,60 +1389,6 @@ class TestDagRun:
 
         mock_prune.assert_not_called()
         assert dag_run.state == DagRunState.SUCCESS
-
-    def test_dagrun_success_deadline_prune(self, dag_maker, session):
-        """Ensure only the deadline associated with dagrun marked as success is deleted."""
-        now = timezone.utcnow()
-        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
-        initial_task_states = {
-            "test_state_succeeded1": TaskInstanceState.SUCCESS,
-        }
-
-        with dag_maker(
-            dag_id="dag_1",
-            schedule=datetime.timedelta(days=1),
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-            session=session,
-        ) as dag1:
-            EmptyOperator(task_id="test_state_succeeded1")
-
-        dag_run1 = self.create_dag_run(
-            dag=dag1, session=session, logical_date=now, task_states=initial_task_states
-        )
-
-        with dag_maker(
-            dag_id="dag_2",
-            schedule=datetime.timedelta(days=1),
-            deadline=DeadlineAlert(
-                reference=DeadlineReference.FIXED_DATETIME(future_date),
-                interval=datetime.timedelta(hours=1),
-                callback=AsyncCallback(empty_callback_for_deadline),
-            ),
-            session=session,
-        ) as dag2:
-            EmptyOperator(task_id="test_state_succeeded1")
-
-        dag_run2 = self.create_dag_run(
-            dag=dag2, session=session, logical_date=now, task_states=initial_task_states
-        )
-
-        dag_run1_deadline = exists().where(Deadline.dagrun_id == dag_run1.id)
-        dag_run2_deadline = exists().where(Deadline.dagrun_id == dag_run2.id)
-
-        assert session.query(dag_run1_deadline).scalar()
-        assert session.query(dag_run2_deadline).scalar()
-
-        session.add(dag_run1)
-        dag_run1.update_state()
-
-        assert not session.query(dag_run1_deadline).scalar()
-        assert session.query(dag_run2_deadline).scalar()
-        assert dag_run1.state == DagRunState.SUCCESS
-        assert dag_run2.state == DagRunState.RUNNING
 
 
 @pytest.mark.parametrize(

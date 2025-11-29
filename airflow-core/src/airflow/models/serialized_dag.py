@@ -394,7 +394,7 @@ class SerializedDagModel(Base):
         :param dag_data: The serialized DAG data dictionary
         :return: Mapping of UUID strings to deadline alert data dicts
         """
-        uuid_mapping = {}
+        uuid_mapping: dict[str, dict] = {}
 
         dag_deadline_data = dag_data.get("dag", {}).get("deadline")
         if not dag_deadline_data:
