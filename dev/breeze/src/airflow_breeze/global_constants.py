@@ -25,6 +25,7 @@ import platform
 import subprocess
 from collections.abc import Generator
 from enum import Enum
+from functools import cache
 from pathlib import Path
 from threading import Lock
 
@@ -682,13 +683,13 @@ def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, Non
 
 
 _regenerate_provider_deps_lock = Lock()
-_has_regeneration_of_providers_run = False
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
     AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
 
 
+@cache  # Note: using functools.cache to avoid multiple dumps in the same run
 def regenerate_provider_dependencies_once() -> None:
     """Run provider dependencies regeneration once per interpreter execution.
 
@@ -696,16 +697,12 @@ def regenerate_provider_dependencies_once() -> None:
     underlying command will only run once. If the underlying command fails the
     CalledProcessError is propagated to the caller.
     """
-    global _has_regeneration_of_providers_run
     with _regenerate_provider_deps_lock:
-        if _has_regeneration_of_providers_run:
-            return
         # Run the regeneration command from the repository root to ensure correct
         # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
         subprocess.check_call(
             ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
         )
-        _has_regeneration_of_providers_run = True
 
 
 def _calculate_provider_deps_hash():
@@ -717,37 +714,31 @@ def _calculate_provider_deps_hash():
     return hasher.hexdigest()
 
 
-def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
-    if calculated_hash is None:
+@cache
+def get_provider_dependencies() -> dict:
+    if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
         calculated_hash = _calculate_provider_deps_hash()
-    AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
-    # We use regular print there as rich console might not be initialized yet here
-    print("Regenerating provider dependencies file")
-    regenerate_provider_dependencies_once()
+        AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
+        # We use regular print there as rich console might not be initialized yet here
+        print("Regenerating provider dependencies file")
+        regenerate_provider_dependencies_once()
     return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
 
 
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
-    PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation()
-else:
-    PROVIDER_DEPENDENCIES = json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
-
-
 def generate_provider_dependencies_if_needed():
-    regenerate_provider_dependencies = False
     if (
         not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
         or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
     ):
-        regenerate_provider_dependencies = True
-        calculated_hash = _calculate_provider_deps_hash()
+        get_provider_dependencies.cache_clear()
+        get_provider_dependencies()
     else:
         calculated_hash = _calculate_provider_deps_hash()
         if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
-            regenerate_provider_dependencies = True
-    if regenerate_provider_dependencies:
-        global PROVIDER_DEPENDENCIES
-        PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation(calculated_hash)
+            # Force re-generation
+            AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.unlink(missing_ok=True)
+            get_provider_dependencies.cache_clear()
+            get_provider_dependencies()
 
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"

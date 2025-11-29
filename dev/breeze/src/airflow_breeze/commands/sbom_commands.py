@@ -44,7 +44,7 @@ from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
     DEVEL_DEPS_PATH,
-    PROVIDER_DEPENDENCIES,
+    get_provider_dependencies,
 )
 from airflow_breeze.utils.cdxgen import (
     CHECK_DOCS,
@@ -624,7 +624,7 @@ def build_all_airflow_images(
 @option_historical_python_versions
 @click.option(
     "--provider-id",
-    type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
+    type=BetterChoice(list(get_provider_dependencies().keys())),
     required=False,
     help="Provider id to generate the requirements for",
 )

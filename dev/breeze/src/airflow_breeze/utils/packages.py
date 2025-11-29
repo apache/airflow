@@ -35,9 +35,9 @@ from rich.syntax import Syntax
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    PROVIDER_DEPENDENCIES,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
+    get_provider_dependencies,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.functools_cache import clearable_cache
@@ -657,7 +657,7 @@ def convert_optional_dependencies_to_table(
 def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     if provider_id in get_removed_provider_ids():
         return []
-    return PROVIDER_DEPENDENCIES[provider_id]["cross-providers-deps"]
+    return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
 def get_license_files(provider_id: str) -> str:
@@ -919,7 +919,9 @@ def regenerate_pyproject_toml(
     context["AIRFLOW_DOC_URL"] = (
         "https://airflow.staged.apache.org" if version_suffix else "https://airflow.apache.org"
     )
-    cross_provider_ids = set(PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"])
+    cross_provider_ids = set(
+        get_provider_dependencies()[provider_details.provider_id]["cross-providers-deps"]
+    )
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
