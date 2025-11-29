@@ -819,4 +819,4 @@ class ShellParams:
         return self.__dict__ == other.__dict__
 
     def __hash__(self) -> int:
-        return self.__dict__.__hash__()
+        return hash(tuple(sorted(self.__dict__.items())))
