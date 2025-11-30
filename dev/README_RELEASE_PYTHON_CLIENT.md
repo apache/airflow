@@ -279,9 +279,14 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-I have cut the first release candidate for the Apache Airflow Python Client ${VERSION}.
-This email is calling for a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+The release candidate for Apache Airflow Python Client ${VERSION_RC} is now available for testing!
+
+This email is calling for a vote on the release, which will last at least 72 hours, from Friday, October 8, 2025 at 4:00 pm UTC
+until Monday, October 11, 2025 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
+
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION_RC}/
@@ -421,10 +426,10 @@ cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
-export PATH_TO_SVN="${PWD}/asf-dist/dev/airflow/"
+export PATH_TO_AIRFLOW_SVN="${PWD}/asf-dist/dev/airflow/"
 
 # Then compare the packages
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -439,12 +444,11 @@ In case the files are different, you should see:
 Binary files apache_airflow-client-2.9.0.tar.gz and .../apache_airflow-2.9.0.tar.gz differ
 ```
 
-You can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py python-client -v ${VERSION_RC} -p ${PATH_TO_SVN}
+breeze release-management check-release-files python-client --version ${VERSION_RC}
 ```
 
 
@@ -463,7 +467,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
+rm -rf /tmp/apache/airflow-python-client-src && mkdir -p /tmp/apache-airflow-python-client-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}/apache_airflow_python_client-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-python-client-src
 ```
 
 Run the check:
@@ -537,7 +541,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell script
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.asc
 do
    echo -e "Checking $i\n"; gpg --verify $i
@@ -577,7 +581,7 @@ Primary key fingerprint: 1271 7556 040E EF2E EAF1  B9C2 75FC CD0A 25FA 0E4B
 Run this:
 
 ```shell script
-cd ${PATH_TO_SVN}/clients/python/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/clients/python/${VERSION_RC}
 for i in *.sha512
 do
     echo "Checking $i"; shasum -a 512 `basename $i .sha512 ` | diff - $i
@@ -652,10 +656,19 @@ python /opt/airflow/clients/python/test_python_client.py
 
 ## Summarize the voting for the Apache Airflow client release
 
+Subject:
+
+```
+[RESULT][VOTE] Release Airflow Python Client 3.1.3 from 3.1.3rc1
+```
+
 ```shell script
 Hello,
 
-Apache Airflow Python Client 2.5.0 (based on RC1) has been accepted.
+The vote to release Apache Airflow Python Client version 3.1.3 based on 3.1.3rc1 is now closed.
+
+The vote PASSED with 3 binding "+1", 1 non-binding "+1" and 0 "-1" votes:
+
 
 3 "+1" binding votes received:
 - Ephraim Anierobi
@@ -723,13 +736,13 @@ We need to upload the packages to PyPI. Note that we are not copying the generat
 
 ```shell script
 cd ${VERSION}
-twine check *.tar.gz *.whl
+twine check *${VERSION}.tar.gz *.whl
 ```
 
 - Upload the package to PyPi's production environment:
 
 ```shell script
-twine upload -r pypi *.tar.gz *.whl
+twine upload -r pypi *${VERSION}.tar.gz *.whl
 ```
 
 - Confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow-client
@@ -773,7 +786,7 @@ Dear Airflow community,
 I'm happy to announce that Apache Airflow Python Client ${VERSION} was just released.
 
 We made this version available on PyPI for convenience:
-\`pip install apache-airflow-client\`
+\`pip install apache-airflow-client==${VERSION}\`
 https://pypi.org/project/apache-airflow-client/${VERSION}/
 
 The documentation is available at:

@@ -50,15 +50,18 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Job", "test-rbac-create-user"),
     ("Job", "test-rbac-run-airflow-migrations"),
     ("CronJob", "test-rbac-cleanup"),
+    ("CronJob", "test-rbac-database-cleanup"),
 ]
 
 RBAC_ENABLED_KIND_NAME_TUPLES = [
     ("Role", "test-rbac-pod-launcher-role"),
     ("Role", "test-rbac-cleanup-role"),
+    ("Role", "test-rbac-database-cleanup-role"),
     ("Role", "test-rbac-pod-log-reader-role"),
     ("RoleBinding", "test-rbac-pod-launcher-rolebinding"),
     ("RoleBinding", "test-rbac-pod-log-reader-rolebinding"),
     ("RoleBinding", "test-rbac-cleanup-rolebinding"),
+    ("RoleBinding", "test-rbac-database-cleanup-rolebinding"),
 ]
 
 SERVICE_ACCOUNT_NAME_TUPLES = [
@@ -66,6 +69,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-scheduler"),
     ("ServiceAccount", "test-rbac-triggerer"),
     ("ServiceAccount", "test-rbac-pgbouncer"),
+    ("ServiceAccount", "test-rbac-database-cleanup"),
     ("ServiceAccount", "test-rbac-flower"),
     ("ServiceAccount", "test-rbac-statsd"),
     ("ServiceAccount", "test-rbac-create-user-job"),
@@ -80,6 +84,7 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_WORKER_NAME := "TestWorker"),
     (CUSTOM_TRIGGERER_NAME := "TestTriggerer"),
     (CUSTOM_CLEANUP_NAME := "TestCleanup"),
+    (CUSTOM_DATABASE_CLEANUP_NAME := "TestDatabaseCleanup"),
     (CUSTOM_FLOWER_NAME := "TestFlower"),
     (CUSTOM_PGBOUNCER_NAME := "TestPGBouncer"),
     (CUSTOM_STATSD_NAME := "TestStatsd"),
@@ -174,6 +179,12 @@ class TestRBAC:
                             "create": False,
                         },
                     },
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
                     "pgbouncer": {
                         "enabled": True,
                         "serviceAccount": {
@@ -211,6 +222,7 @@ class TestRBAC:
                     "executor": "CeleryExecutor,KubernetesExecutor",
                     "rbac": {"create": False},
                     "cleanup": {"enabled": True},
+                    "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                     "workers": {"useWorkerDedicatedServiceAccounts": dedicated_workers_sa},
@@ -247,6 +259,12 @@ class TestRBAC:
                     "fullnameOverride": "test-rbac",
                     "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "create": False,
+                        },
+                    },
+                    "databaseCleanup": {
                         "enabled": True,
                         "serviceAccount": {
                             "create": False,
@@ -289,6 +307,7 @@ class TestRBAC:
                     "fullnameOverride": "test-rbac",
                     "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {"enabled": True},
+                    "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
                     "workers": {"useWorkerDedicatedServiceAccounts": dedicated_workers_sa},
@@ -312,10 +331,17 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
                         "name": CUSTOM_CLEANUP_NAME,
+                    },
+                },
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_DATABASE_CLEANUP_NAME,
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
@@ -390,10 +416,17 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
                         "name": CUSTOM_CLEANUP_NAME,
+                    },
+                },
+                "databaseCleanup": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "name": CUSTOM_DATABASE_CLEANUP_NAME,
                     },
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},

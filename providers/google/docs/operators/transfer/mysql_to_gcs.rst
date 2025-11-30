@@ -49,5 +49,6 @@ Reference
 ---------
 
 For further information, look at:
+
 * `MySQL Documentation <https://dev.mysql.com/doc/>`__
 * `Google Cloud Storage Documentation <https://cloud.google.com/storage/>`__

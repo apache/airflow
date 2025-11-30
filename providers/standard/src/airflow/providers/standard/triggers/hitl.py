@@ -30,7 +30,7 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import ParamValidationError
+from airflow.providers.common.compat.sdk import ParamValidationError
 from airflow.sdk import Param
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import (

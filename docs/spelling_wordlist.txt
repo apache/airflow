@@ -376,6 +376,8 @@ customizable
 customizations
 cwd
 cx
+Cypher
+cypher
 Daemonize
 daemonize
 daemonized
@@ -702,6 +704,7 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore
@@ -1621,6 +1624,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
@@ -1817,6 +1822,7 @@ tasksetmeta
 tasksState
 taskTree
 tblproperties
+tbuild
 TCP
 tcp
 teardown
@@ -1873,6 +1879,7 @@ toolchain
 Tooltip
 tooltip
 tooltips
+tpt
 traceback
 tracebacks
 tracemalloc

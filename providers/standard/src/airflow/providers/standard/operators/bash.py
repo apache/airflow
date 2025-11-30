@@ -24,8 +24,8 @@ from collections.abc import Callable, Container, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.providers.common.compat.sdk import context_to_airflow_vars
+from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowSkipException, context_to_airflow_vars
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
 from airflow.providers.standard.version_compat import BaseOperator
 

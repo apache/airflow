@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-papermill``
 
-Release: ``3.11.4``
+Release: ``3.12.0``
 
 
 `Papermill <https://github.com/nteract/papermill>`__
@@ -36,7 +36,7 @@ This is a provider package for ``papermill`` provider. All classes for this prov
 are in ``airflow.providers.papermill`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  =====================================
 PIP package                                 Version required
 ==========================================  =====================================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``papermill[all]``                          ``>=2.6.0``
 ``scrapbook[all]``                          ``>=0.5.0``
@@ -92,4 +92,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.11.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.0/changelog.html>`_.
