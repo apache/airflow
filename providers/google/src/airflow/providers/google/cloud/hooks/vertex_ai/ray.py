@@ -52,7 +52,7 @@ class RayHook(GoogleBaseHook):
                 return [__encode_value(nested_value) for nested_value in value]
             if not isinstance(value, dict) and isinstance(value, MutableMapping):
                 return {key: __encode_value(nested_value) for key, nested_value in dict(value).items()}
-            if dataclasses.is_dataclass(value):
+            if dataclasses.is_dataclass(value) and not isinstance(value, type):
                 return dataclasses.asdict(value)
             return value
 

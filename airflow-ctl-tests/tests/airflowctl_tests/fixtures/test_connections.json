@@ -1,0 +1,11 @@
+{
+  "test_import_conn": {
+    "conn_type": "postgres",
+    "host": "localhost",
+    "login": "testuser",
+    "password": "testpass",
+    "port": 5432,
+    "extra": "{}",
+    "description": "Test connection for import"
+  }
+}
