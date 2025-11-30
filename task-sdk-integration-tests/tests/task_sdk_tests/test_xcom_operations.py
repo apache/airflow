@@ -25,6 +25,8 @@ These tests validate the Execution API endpoints for XCom operations:
 
 from __future__ import annotations
 
+import pytest
+
 from airflow.sdk.api.datamodels._generated import (
     XComResponse,
     XComSequenceIndexResponse,
@@ -194,7 +196,7 @@ def test_xcom_delete(sdk_client, dag_info):
 
 def test_xcom_head_unmapped(sdk_client, dag_info):
     """
-    Test getting count of mapped XCom values.
+    Test getting count of unmapped XCom values.
 
     Expected: XComCountResponse with len field in it (should be ideally equal to number of unmapped tasks, since we have None it might throw RuntimeError)
     Endpoint: HEAD /execution/xcoms/{dag_id}/{run_id}/{task_id}/{key}
@@ -245,7 +247,15 @@ def test_xcom_head_mapped(sdk_client, dag_info):
     console.print("[green]✅ XCom head mapped test passed!")
 
 
-def test_xcom_get_sequence_item(sdk_client, dag_info):
+@pytest.mark.parametrize(
+    ("offset", "expected_value"),
+    [
+        (0, "processed_alpha"),
+        (-1, "processed_delta"),
+        (2, "processed_gamma"),
+    ],
+)
+def test_xcom_get_sequence_item(sdk_client, dag_info, offset, expected_value):
     """
     Test getting XCom sequence item by offset.
 
@@ -254,29 +264,22 @@ def test_xcom_get_sequence_item(sdk_client, dag_info):
     """
     console.print("[yellow]Testing XCom sequence item access...")
 
-    cases = [
-        {"label": "offset=0", "offset": 0, "expected": "processed_alpha"},
-        {"label": "offset=-1", "offset": -1, "expected": "processed_delta"},
-        {"label": "offset=2", "offset": 2, "expected": "processed_gamma"},
-    ]
+    response = sdk_client.xcoms.get_sequence_item(
+        dag_id=dag_info["dag_id"],
+        run_id=dag_info["dag_run_id"],
+        task_id="mapped_task",
+        key="return_value",
+        offset=offset,
+    )
 
-    for case in cases:
-        response = sdk_client.xcoms.get_sequence_item(
-            dag_id=dag_info["dag_id"],
-            run_id=dag_info["dag_run_id"],
-            task_id="mapped_task",
-            key="return_value",
-            offset=case["offset"],
-        )
+    console.print(f" XCom Sequence Item [offset={offset}] ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Value:[/] {response.root}")
+    console.print("=" * 72)
 
-        console.print(f" XCom Sequence Item [{case['label']}] ".center(72, "="))
-        console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
-        console.print(f"[bright_blue]Value:[/] {response.root}")
-        console.print("=" * 72)
-
-        assert isinstance(response, XComSequenceIndexResponse)
-        assert response.root == case["expected"]
-    console.print("[green]✅ XCom get_sequence_item test passed!")
+    assert isinstance(response, XComSequenceIndexResponse)
+    assert response.root == expected_value
+    console.print(f"[green]✅ XCom get_sequence_item test {offset} passed!")
 
 
 def test_xcom_get_sequence_item_not_found_offset(sdk_client, dag_info):
@@ -338,54 +341,49 @@ def test_xcom_get_sequence_item_not_found_wrong_key(sdk_client, dag_info):
     console.print("[green]✅ XCom get_sequence_item_not_found (wrong key) test passed!")
 
 
-def test_xcom_get_sequence_slice(sdk_client, dag_info):
+@pytest.mark.parametrize(
+    ("case_params", "expected_values"),
+    [
+        (
+            {"start": None, "stop": None, "step": None},
+            ["processed_alpha", "processed_beta", "processed_gamma", "processed_delta"],
+        ),
+        ({"start": 1, "stop": 3, "step": None}, ["processed_beta", "processed_gamma"]),
+        ({"start": 0, "stop": 4, "step": 2}, ["processed_alpha", "processed_gamma"]),
+    ],
+    ids=["full_slice", "slice_1_to_3", "slice_step_2"],
+)
+def test_xcom_get_sequence_slice(sdk_client, dag_info, case_params, expected_values):
     """
     Test getting XCom sequence slice.
 
     Expected: XComSequenceSliceResponse with list of values
     Endpoint: GET /execution/xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice
     """
-    console.print("[yellow]Testing XCom sequence slice access...")
+    start = case_params["start"]
+    stop = case_params["stop"]
+    step = case_params["step"]
+    console.print(f"[yellow]Testing XCom sequence slice access (start={start}, stop={stop}, step={step})...")
 
-    cases = [
-        {
-            "label": "full",
-            "params": {"start": None, "stop": None, "step": None},
-            "expected": ["processed_alpha", "processed_beta", "processed_gamma", "processed_delta"],
-        },
-        {
-            "label": "start=1,stop=3",
-            "params": {"start": 1, "stop": 3, "step": None},
-            "expected": ["processed_beta", "processed_gamma"],
-        },
-        {
-            "label": "step=2",
-            "params": {"start": 0, "stop": 4, "step": 2},
-            "expected": ["processed_alpha", "processed_gamma"],
-        },
-    ]
+    response = sdk_client.xcoms.get_sequence_slice(
+        dag_id=dag_info["dag_id"],
+        run_id=dag_info["dag_run_id"],
+        task_id="mapped_task",
+        key="return_value",
+        start=start,
+        stop=stop,
+        step=step,
+    )
 
-    console.print("[yellow]Testing XCom sequence slice access...")
+    console.print(f" XCom Sequence Slice [{start}:{stop}:{step}] ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Values:[/] {response.root}")
+    console.print("=" * 72)
 
-    for case in cases:
-        response = sdk_client.xcoms.get_sequence_slice(
-            dag_id=dag_info["dag_id"],
-            run_id=dag_info["dag_run_id"],
-            task_id="mapped_task",
-            key="return_value",
-            **case["params"],
-        )
+    assert isinstance(response, XComSequenceSliceResponse)
+    assert response.root == expected_values
 
-        console.print(f" XCom Sequence Slice [{case['label']}] ".center(72, "="))
-        console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
-        console.print(f"[bright_blue]Values:[/] {response.root}")
-        console.print("=" * 72)
-
-        assert isinstance(response, XComSequenceSliceResponse)
-        assert response.root == case["expected"]
-
-
-console.print("[green]✅ XCom get_sequence_slice test passed!")
+    console.print("[green]✅ XCom get_sequence_slice test passed!")
 
 
 def test_xcom_get_sequence_slice_not_found(sdk_client, dag_info):
