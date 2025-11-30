@@ -17,11 +17,9 @@
  * under the License.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
-import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { buildDagRunUrl, buildTaskInstanceUrl, buildTaskUrl } from "src/utils/links";
+import { useDagRunUrlBuilder, useTaskInstanceUrlBuilder, useTaskUrlBuilder } from "src/hooks/useUrlBuilders";
 
 import type {
   NavigationDirection,
@@ -62,51 +60,16 @@ const isValidDirection = (direction: NavigationDirection, mode: NavigationMode):
 const getNextIndex = (current: number, direction: number, options: { max: number }): number =>
   Math.max(0, Math.min(options.max - 1, current + direction));
 
-const buildPath = (params: {
-  dagId: string;
-  mapIndex?: string;
-  mode: NavigationMode;
-  pathname: string;
-  run: GridRunsResponse;
-  task: GridTask;
-}): string => {
-  const { dagId, mapIndex = "-1", mode, pathname, run, task } = params;
-
-  switch (mode) {
-    case "run":
-      return buildDagRunUrl({
-        currentPathname: pathname,
-        dagId,
-        runId: run.run_id,
-      });
-    case "task":
-      return buildTaskUrl({
-        currentPathname: pathname,
-        dagId,
-        isGroup: task.isGroup,
-        taskId: task.id,
-      });
-    case "TI":
-      return buildTaskInstanceUrl({
-        currentPathname: pathname,
-        dagId,
-        isGroup: task.isGroup,
-        isMapped: task.is_mapped ?? false,
-        mapIndex,
-        runId: run.run_id,
-        taskId: task.id,
-      });
-    default:
-      return `/dags/${dagId}`;
-  }
-};
-
 export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps): UseNavigationReturn => {
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
-  const location = useLocation();
   const [mode, setMode] = useState<NavigationMode>("TI");
+
+  // Use custom hooks for URL building
+  const buildDagRunUrl = useDagRunUrlBuilder();
+  const buildTaskUrl = useTaskUrlBuilder();
+  const buildTaskInstanceUrl = useTaskInstanceUrlBuilder();
 
   useEffect(() => {
     const detectedMode = detectModeFromUrl(globalThis.location.pathname);
@@ -178,7 +141,30 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
       const task = tasks[newTaskIndex];
 
       if (run && task) {
-        const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
+        let path: string;
+
+        switch (mode) {
+          case "run":
+            path = buildDagRunUrl(run.run_id);
+            break;
+          case "task":
+            path = buildTaskUrl({
+              isGroup: task.isGroup,
+              taskId: task.id,
+            });
+            break;
+          case "TI":
+            path = buildTaskInstanceUrl({
+              isGroup: task.isGroup,
+              isMapped: task.is_mapped ?? false,
+              mapIndex,
+              runId: run.run_id,
+              taskId: task.id,
+            });
+            break;
+          default:
+            path = `/dags/${dagId}`;
+        }
 
         navigate(path, { replace: true });
 
@@ -190,7 +176,19 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
         }
       }
     },
-    [currentIndices, dagId, enabled, location.pathname, mapIndex, mode, runs, tasks, navigate],
+    [
+      buildDagRunUrl,
+      buildTaskInstanceUrl,
+      buildTaskUrl,
+      currentIndices,
+      dagId,
+      enabled,
+      mapIndex,
+      mode,
+      navigate,
+      runs,
+      tasks,
+    ],
   );
 
   useKeyboardNavigation({

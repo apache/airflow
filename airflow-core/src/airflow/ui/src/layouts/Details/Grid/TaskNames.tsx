@@ -65,7 +65,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
-  const { groupId, runId, taskId } = useParams();
+  const { groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const buildTaskUrl = useTaskUrlBuilder();
 
@@ -92,7 +92,6 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
             to={{
               pathname: buildTaskUrl({
                 isGroup: true,
-                runId,
                 taskId: node.id,
               }),
               search: searchParams.toString(),
@@ -141,7 +140,6 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
             to={{
               pathname: buildTaskUrl({
                 isGroup: false,
-                runId,
                 taskId: node.id,
               }),
               search: searchParams.toString(),
