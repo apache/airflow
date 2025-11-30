@@ -17,19 +17,19 @@
  * under the License.
  */
 import { forwardRef } from "react";
-import { useParams, useSearchParams, useLocation, Link as RouterLink } from "react-router-dom";
+import { useParams, useSearchParams, Link as RouterLink } from "react-router-dom";
 
 import { TaskName, type TaskNameProps } from "src/components/TaskName";
-import { buildTaskUrl } from "src/utils/links";
+import { useTaskUrlBuilder } from "src/hooks/useUrlBuilders";
 
 type Props = {
   readonly id: string;
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
-  const { dagId = "", groupId, runId, taskId } = useParams();
+  const { groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { pathname } = useLocation();
+  const buildTaskUrl = useTaskUrlBuilder();
 
   // If clicking on the same task/group, don't navigate
   const isSameTask = isGroup ? groupId === id : taskId === id;
@@ -39,8 +39,6 @@ export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isM
   }
 
   const taskPath = buildTaskUrl({
-    currentPathname: pathname,
-    dagId,
     isGroup,
     isMapped,
     runId,

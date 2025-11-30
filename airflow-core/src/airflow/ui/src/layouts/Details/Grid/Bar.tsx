@@ -30,7 +30,6 @@ import type { GridTask } from "./utils";
 const BAR_HEIGHT = 100;
 
 type Props = {
-  readonly currentPathname: string;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
@@ -38,7 +37,7 @@ type Props = {
   readonly run: GridRunsResponse;
 };
 
-export const Bar = ({ currentPathname, max, nodes, onCellClick, onColumnClick, run }: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -67,8 +66,6 @@ export const Bar = ({ currentPathname, max, nodes, onCellClick, onColumnClick, r
         <GridButton
           alignItems="center"
           color="fg"
-          currentPathname={currentPathname}
-          dagId={dagId}
           flexDir="column"
           height={`${(run.duration / max) * BAR_HEIGHT}px`}
           justifyContent="flex-end"
