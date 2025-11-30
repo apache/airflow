@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-30T07:45:14.908223
+# This constraints file was automatically generated on 2025-11-30T13:49:05.084444
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -118,7 +118,7 @@ backoff==2.2.1
 backports.zstd==1.1.0
 bcrypt==5.0.0
 beautifulsoup4==4.14.2
-billiard==4.2.3
+billiard==4.2.4
 bitarray==3.8.0
 black==25.11.0
 bleach==6.3.0
@@ -188,7 +188,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.122.0
+fastapi==0.122.1
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
