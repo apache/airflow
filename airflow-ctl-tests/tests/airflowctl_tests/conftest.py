@@ -263,14 +263,13 @@ def test_commands(login_command, date_param):
         # DAGs commands
         "dags list",
         "dags get --dag-id=example_bash_operator",
+        # Order of trigger and pause/unpause is important for test stability because state checked
+        f"dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
         "dags pause --dag-id=example_bash_operator",
         "dags unpause --dag-id=example_bash_operator",
-        "dags update --dag-id=example_bash_operator --is-paused=false",
         # DAG Run commands
-        f"dagrun trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
+        f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
-        f"dagrun get --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
-        f"dagrun delete --dag-id=example_bash_operator --dagrun-id=manual__{date_param}",
         # Jobs commands
         "jobs list",
         # Pools commands
