@@ -111,7 +111,7 @@ def test_get_parent_job_information_as_spark_properties():
     assert result == EXAMPLE_PARENT_JOB_SPARK_PROPERTIES
 
 
-@patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties(mock_ol_listener):
     fake_listener = mock.MagicMock()
     mock_ol_listener.return_value = fake_listener
@@ -122,7 +122,7 @@ def test_get_transport_information_as_spark_properties(mock_ol_listener):
     assert result == EXAMPLE_TRANSPORT_SPARK_PROPERTIES
 
 
-@patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties_unsupported_transport_type(mock_ol_listener):
     kafka_config = KafkaConfig(
         topic="my_topic",
@@ -143,7 +143,7 @@ def test_get_transport_information_as_spark_properties_unsupported_transport_typ
     assert result == {}
 
 
-@patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_get_transport_information_as_spark_properties_composite_transport_type(mock_ol_listener):
     fake_listener = mock.MagicMock()
     mock_ol_listener.return_value = fake_listener
@@ -305,7 +305,7 @@ def test_inject_parent_job_information_into_spark_properties(properties, should_
         ),
     ],
 )
-@patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_inject_transport_information_into_spark_properties(mock_ol_listener, properties, should_inject):
     fake_listener = mock.MagicMock()
     mock_ol_listener.return_value = fake_listener
@@ -346,7 +346,7 @@ def test_inject_transport_information_into_spark_properties(mock_ol_listener, pr
         ),
     ],
 )
-@patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
+@patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
 def test_inject_composite_transport_information_into_spark_properties(
     mock_ol_listener, properties, should_inject
 ):
