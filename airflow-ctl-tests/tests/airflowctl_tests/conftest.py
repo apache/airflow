@@ -277,6 +277,8 @@ def test_commands(login_command, date_param):
         "dags unpause --dag-id=example_bash_operator",
         # DAG Run commands
         f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
+        "dags update --dag-id=example_bash_operator --no-is-paused",
+        # DAG Run commands
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
         # Jobs commands
         "jobs list",

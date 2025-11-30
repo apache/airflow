@@ -70,7 +70,6 @@ EXCLUDED_COMMANDS = {
     "dags delete",
     "dags get-import-error",
     "dags get-tags",
-    "dags trigger",
 }
 
 
@@ -106,7 +105,8 @@ def parse_tested_commands() -> set[str]:
         content = f.read()
 
     # Match command patterns like "assets list", "dags list-import-errors", etc.
-    pattern = r'"([a-z]+(?:-[a-z]+)*\s+[a-z]+(?:-[a-z]+)*)'
+    # Also handles f-strings like f"dagrun get..." or f'dagrun get...'
+    pattern = r'f?["\']([a-z]+(?:-[a-z]+)*\s+[a-z]+(?:-[a-z]+)*)'
     for match in re.findall(pattern, content):
         parts = match.split()
         if len(parts) >= 2:
