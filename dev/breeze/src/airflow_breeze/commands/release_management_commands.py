@@ -4223,9 +4223,9 @@ def publish_docs_to_s3(
         docs_to_s3.publish_all_docs()
     if stable_versions:
         docs_to_s3.publish_stable_version_docs()
-    from airflow_breeze.utils.publish_docs_to_s3 import version_error
+    from airflow_breeze.utils.publish_docs_to_s3 import VersionError
 
-    if version_error:
+    if VersionError.has_any_error():
         get_console().print(
             "[error]There was an error with the version of the docs. "
             "Please check the version in the docs and try again.[/]"
