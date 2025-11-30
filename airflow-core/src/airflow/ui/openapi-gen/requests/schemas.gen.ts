@@ -1344,6 +1344,11 @@ export const $ClearTaskInstancesBody = {
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the dag after clearing the task instances.',
             default: false
+        },
+        prevent_running_task: {
+            type: 'boolean',
+            title: 'Prevent Running Task',
+            default: false
         }
     },
     additionalProperties: false,
@@ -2072,6 +2077,11 @@ export const $DAGDetailsResponse = {
             type: 'boolean',
             title: 'Is Favorite',
             default: false
+        },
+        active_runs_count: {
+            type: 'integer',
+            title: 'Active Runs Count',
+            default: 0
         },
         file_token: {
             type: 'string',
@@ -6549,6 +6559,18 @@ export const $VariableBody = {
                 }
             ],
             title: 'Description'
+        },
+        team_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Id'
         }
     },
     additionalProperties: false,
@@ -6602,10 +6624,22 @@ export const $VariableResponse = {
         is_encrypted: {
             type: 'boolean',
             title: 'Is Encrypted'
+        },
+        team_id: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'uuid'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Id'
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted'],
+    required: ['key', 'value', 'description', 'is_encrypted', 'team_id'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -6868,6 +6902,23 @@ export const $XComUpdateBody = {
     required: ['value'],
     title: 'XComUpdateBody',
     description: 'Payload serializer for updating an XCom entry.'
+} as const;
+
+export const $AuthenticatedMeResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        }
+    },
+    type: 'object',
+    required: ['id', 'username'],
+    title: 'AuthenticatedMeResponse',
+    description: 'Authenticated user information serializer for responses.'
 } as const;
 
 export const $BaseEdgeResponse = {
@@ -7759,7 +7810,7 @@ export const $GridRunsResponse = {
             '$ref': '#/components/schemas/DagRunType'
         },
         duration: {
-            type: 'integer',
+            type: 'number',
             title: 'Duration',
             readOnly: true
         }

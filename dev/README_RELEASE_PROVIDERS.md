@@ -103,14 +103,14 @@ distributions together.
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
-searching and replacing old version occurrences with newer one. For example 2.10.0 to 3.0.0
+searching and replacing old version occurrences with newer one. For example 2.10.0 to 2.11.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
 in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management prepare-provider-documentation --only-min-version-update`
 This will only update the min version in  the `__init__.py` files and package documentation without bumping the provider versions.
 
 4. Remove `AIRFLOW_V_X_Y_PLUS` in all tests (review and update skipif and other conditional
-   behaviour and test_compat.py, where X is the TARGET version we change to. For example
+   behavior and test_compat.py, where X is the TARGET version we change to. For example
    when we update min Airflow version to 3.0.0, we should remove all references to AIRFLOW_V_3_0_PLUS
    simply because "everything" in our tests is already 3.0.0+ and there is no need to exclude or
    modify tests for earlier versions of Airflow.
@@ -145,7 +145,7 @@ when the time to update min airflow version has come.
 ## Move provider into remove state
 
 > [!NOTE]
-> This is oonly needed in case some providers have been removed since last release wave.
+> This is only needed in case some providers have been removed since last release wave.
 
 The removed state needs to be in a release wave before you actually plan to remove the source code for the provider.
 Set provider with ``removed state`` -> ``release provider`` -> ``remove source code of the provider``.
@@ -384,7 +384,7 @@ mkdir -p ${RELEASE_DATE}
 mv ${AIRFLOW_REPO_ROOT}/dist/* "${RELEASE_DATE}"
 
 # Add and commit
-svn add ${RELEASE_DATA}
+svn add ${RELEASE_DATE}
 svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
@@ -514,9 +514,9 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
-By default the command will attempt to retrieve the github token used to authenticate with GH and tackle
+By default the command will attempt to retrieve the GitHub token used to authenticate with GH and tackle
 rate limiting from locally run `gh auth token` command output - but if you do not have `gh` installed,
-you can generate such token in Github Interface and pass it to the command manually. When you use
+you can generate such token in GitHub Interface and pass it to the command manually. When you use
 `breeze release-management generate-issue-content-providers --help` - you will see the link that you
 will be able to click to generate such token.
 
@@ -527,7 +527,7 @@ breeze release-management generate-issue-content-providers --only-available-in-d
 ```
 
 Sometimes, when there are big PRs implemented across many providers, you want to filter them out
-from the issue contenr. When there are many of the same PRs/issues they create a noise in the issue
+from the issue content. When there are many of the same PRs/issues they create a noise in the issue
 and not add value, usually those PRs and issues are about package preparation mechanism so they
 are tested well outside regular package testing.
 
@@ -661,10 +661,10 @@ Set expected release tag (the same as announced in the vote email):
 export RELEASE_DATE=2025-11-03
 ````
 
-Go to the directory where you have airflow checked out and set AIRFLOW_ROOT_PATH variable
+Go to the directory where you have airflow checked out and set AIRFLOW_REPO_ROOT variable
 
 ```shell
-export AIRFLOW_ROOT_PATH=$(pwd -P)
+export AIRFLOW_REPO_ROOT=$(pwd -P)
 ```
 
 ### SVN check
@@ -692,29 +692,29 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set environment variables: PATH_TO_SVN to the root of folder where you have providers and RELEASE_DATE to
+Set environment variables: PATH_TO_AIRFLOW_SVN to the root of folder where you have providers and RELEASE_DATE to
 the release date you are verifying.
 
 ```shell script
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=$(pwd -P)
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
-script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+Optionally you can use the `breeze release-management check-release-files` command
+to verify that all expected files are present in SVN. This command will produce a `Dockerfile.pmc` which
 may help with verifying installation of the packages.
 
-Once you have cloned/updated the SVN repository, copy the pypi URLs shared
+Once you have cloned/updated the SVN repository, copy the PyPi URLs shared
 in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
-directory and cd into it.
+directory.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}/dev
 # Copy packages.txt extracted from the mail sent by the release manager here
-uv run check_files.py providers --release-date ${RELEASE_DATE} --path ${PATH_TO_SVN}
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```
 
-After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+After the above command completes you can build `Dockerfile.pmc` to trigger an installation of each provider
 package and verify the correct versions are installed:
 
 ```shell script
@@ -763,7 +763,7 @@ breeze release-management prepare-provider-distributions --include-removed-provi
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}
+cd ${PATH_TO_AIRFLOW_SVN}
 cd providers/${RELEASE_DATE}
 ```
 
@@ -836,7 +836,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-providers-src && tar -xzf ${PATH_TO_SVN}/providers/${RELEASE_DATE}/apache_airflow_providers-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-providers-src
+rm -rf /tmp/apache/airflow-providers-src && mkdir -p /tmp/apache-airflow-providers-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/providers/${RELEASE_DATE}/apache_airflow_providers-*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-providers-src
 ```
 
 Run the check:
@@ -912,7 +912,7 @@ gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7
 Once you have the keys, the signatures can be verified by running this:
 
 ```shell
-cd ${PATH_TO_SVN}
+cd ${PATH_TO_AIRFLOW_SVN}
 cd providers/${RELEASE_DATE}
 ```
 
@@ -1253,12 +1253,12 @@ Copy links to updated packages, sort it alphabetically and save it on the side. 
 ## Add tags in git
 
 Assume that your remote for apache repository is called `apache` you should now
-set tags for the providers in the repo.
+set tags for the providers in the repository.
 
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created
-and lead to annoying errors. The default behaviour would be to clean such local tags up.
+and lead to annoying errors. The default behavior would be to clean such local tags up.
 
-If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+If you want to disable this behavior, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
 breeze release-management tag-providers

@@ -44,7 +44,6 @@ from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
     DEVEL_DEPS_PATH,
-    PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
     CHECK_DOCS,
@@ -90,6 +89,7 @@ from airflow_breeze.utils.projects_google_spreadsheet import (
     read_metadata_from_google_spreadsheet,
     write_sbom_information_to_google_spreadsheet,
 )
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -102,7 +102,7 @@ if TYPE_CHECKING:
     name="sbom",
     help="Tools that release managers can use to prepare sbom information",
 )
-def sbom():
+def sbom_group():
     pass
 
 
@@ -122,7 +122,9 @@ SBOM_INDEX_TEMPLATE = """
 """
 
 
-@sbom.command(name="update-sbom-information", help="Update SBOM information in airflow-site-archive project.")
+@sbom_group.command(
+    name="update-sbom-information", help="Update SBOM information in airflow-site-archive project."
+)
 @click.option(
     "--airflow-site-archive-path",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
@@ -552,7 +554,9 @@ def core_jobs(
             )
 
 
-@sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
+@sbom_group.command(
+    name="build-all-airflow-images", help="Generate images with airflow versions pre-installed"
+)
 @option_historical_python_versions
 @option_verbose
 @option_dry_run
@@ -614,11 +618,13 @@ def build_all_airflow_images(
             )
 
 
-@sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
+@sbom_group.command(
+    name="generate-providers-requirements", help="Generate requirements for selected provider."
+)
 @option_historical_python_versions
 @click.option(
     "--provider-id",
-    type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
+    type=BetterChoice(list(get_provider_dependencies().keys())),
     required=False,
     help="Provider id to generate the requirements for",
 )
@@ -767,7 +773,7 @@ def generate_providers_requirements(
             )
 
 
-@sbom.command(name="export-dependency-information", help="Export dependency information from SBOM.")
+@sbom_group.command(name="export-dependency-information", help="Export dependency information from SBOM.")
 @option_airflow_version
 @option_python
 @click.option(

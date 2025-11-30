@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-segment"
-version = "3.8.3"
+version = "3.9.0"
 description = "Provider package apache-airflow-providers-segment for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,7 +58,7 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     # segment-analytics-python is in mantaincnce mode.
     # Review changing to https://github.com/segmentio/public-api-sdk-python when ready? (currently in beta)
@@ -100,8 +100,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-segment/3.8.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-segment/3.8.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-segment/3.9.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

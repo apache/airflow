@@ -8,5 +8,5 @@
     "strict": true,
     "target": "ESNext"
   },
-  "include": ["./*.ts", "./*.js", "./rules/*.js", "./rules/*.ts"]
+  "include": ["./*.ts", "./*.js", "./rules/*.js", "./rules/*.ts", "./tests/**/*.ts"]
 }

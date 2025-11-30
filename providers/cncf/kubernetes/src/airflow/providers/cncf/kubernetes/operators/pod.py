@@ -41,11 +41,6 @@ from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    TaskDeferred,
-)
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -65,6 +60,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
     create_unique_id,
+    generic_api_retry,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
@@ -82,12 +78,13 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, TaskDeferred
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -124,6 +121,10 @@ class PodReattachFailure(AirflowException):
 
 class PodCredentialsExpiredFailure(AirflowException):
     """When pod fails to refresh credentials."""
+
+
+class FoundMoreThanOnePodFailure(AirflowException):
+    """When during reconnect more than one matching pod was found."""
 
 
 class KubernetesPodOperator(BaseOperator):
@@ -563,6 +564,7 @@ class KubernetesPodOperator(BaseOperator):
             callback.on_sync_client_creation(client=client, operator=self)
         return client
 
+    @generic_api_retry
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
         """Return an already-running pod for this task instance if one exists."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
@@ -579,7 +581,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log_matching_pod(pod=pod, context=context)
         elif num_pods > 1:
             if self.reattach_on_restart:
-                raise AirflowException(f"More than one pod running with labels {label_selector}")
+                raise FoundMoreThanOnePodFailure(f"More than one pod running with labels {label_selector}")
             self.log.warning("Found more than one pod running with labels %s, resolving ...", label_selector)
             pod = self.process_duplicate_label_pods(pod_list)
             self.log_matching_pod(pod=pod, context=context)
@@ -935,6 +937,8 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
+            if self.do_xcom_push:
+                return xcom_sidecar_output
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
@@ -1198,11 +1202,16 @@ class KubernetesPodOperator(BaseOperator):
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" label to ensure we don't reattach on retries."""
         with _optionally_suppress(reraise=reraise):
-            self.client.patch_namespaced_pod(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                body={"metadata": {"labels": {self.POD_CHECKED_KEY: "True"}}},
-            )
+
+            @generic_api_retry
+            def _patch_with_retry():
+                self.client.patch_namespaced_pod(
+                    name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    body={"metadata": {"labels": {self.POD_CHECKED_KEY: "True"}}},
+                )
+
+            _patch_with_retry()
 
     def on_kill(self) -> None:
         self._killed = True
@@ -1215,8 +1224,12 @@ class KubernetesPodOperator(BaseOperator):
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
 
-            try:
+            @generic_api_retry
+            def _delete_with_retry():
                 self.client.delete_namespaced_pod(**kwargs)
+
+            try:
+                _delete_with_retry()
             except kubernetes.client.exceptions.ApiException:
                 self.log.exception("Unable to delete pod %s", self.pod.metadata.name)
 

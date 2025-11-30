@@ -79,8 +79,8 @@ def test_listener_gets_calls(create_task_instance, session):
     # `run()` calls `_run_raw_task()`
     ti.run()
 
-    assert len(full_listener.state) == 2
-    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+    assert len(full_listener.get_listener_state().state) == 2
+    assert full_listener.get_listener_state().state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
 
 
 @provide_session
@@ -97,10 +97,10 @@ def test_multiple_listeners(create_task_instance, session):
         # suppress NotImplementedError: just for lifecycle
         run_job(job=job, execute_callable=job_runner._execute)
 
-    assert full_listener.started_component is job
-    assert lifecycle_listener.started_component is job
-    assert full_listener.stopped_component is job
-    assert lifecycle_listener.stopped_component is job
+    assert full_listener.get_listener_state().started_component is job
+    assert lifecycle_listener.get_listener_state().started_component is job
+    assert full_listener.get_listener_state().stopped_component is job
+    assert lifecycle_listener.get_listener_state().stopped_component is job
     assert class_based_listener.state == [DagRunState.RUNNING, DagRunState.SUCCESS]
 
 
@@ -140,8 +140,8 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
     with pytest.raises(AirflowException):
         ti.run()
 
-    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
-    assert len(full_listener.state) == 2
+    assert full_listener.get_listener_state().state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
+    assert len(full_listener.get_listener_state().state) == 2
 
 
 @provide_session
@@ -154,8 +154,8 @@ def test_listener_captures_longrunning_taskinstances(create_task_instance_of_ope
     )
     ti.run()
 
-    assert full_listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
-    assert len(full_listener.state) == 2
+    assert full_listener.get_listener_state().state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS]
+    assert len(full_listener.get_listener_state().state) == 2
 
 
 @provide_session
