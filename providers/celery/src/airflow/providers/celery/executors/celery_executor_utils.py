@@ -271,15 +271,21 @@ def send_task_to_executor(
     """Send task to executor."""
     key, args, queue, task_to_run = task_tuple
 
+    task_instance_id = None
     if AIRFLOW_V_3_0_PLUS:
         if TYPE_CHECKING:
             assert isinstance(args, workloads.BaseWorkload)
+        if hasattr(args, "ti"):
+            task_instance_id = str(args.ti.id)
         args = (args.model_dump_json(),)
     else:
         args = [args]  # type: ignore[list-item]
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
-            result = task_to_run.apply_async(args=args, queue=queue)
+            if task_instance_id:
+                result = task_to_run.apply_async(args=args, queue=queue, task_id=task_instance_id)
+            else:
+                result = task_to_run.apply_async(args=args, queue=queue)
     except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)

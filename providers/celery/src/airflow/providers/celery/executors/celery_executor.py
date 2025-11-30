@@ -574,6 +574,15 @@ class CeleryExecutor(BaseExecutor):
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
 
+        if session is not None:
+            from airflow.models.taskinstance import TaskInstance as TIModel
+
+            ti_id = str(ti.id)
+            ti_model = session.get(TIModel, ti_id)
+            if ti_model:
+                ti_model.external_executor_id = ti_id
+                session.flush()
+
 
 def _get_parser() -> argparse.ArgumentParser:
     """
