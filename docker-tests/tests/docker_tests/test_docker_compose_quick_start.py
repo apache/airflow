@@ -116,10 +116,8 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
         compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
 
         # Verify API server health endpoint is accessible and returns valid response
-        health_response = api_request("GET", path="monitor/health")
-        health_response.raise_for_status()
-        health_data = health_response.json()
-        assert "metadatabase" in health_data
+        health_status = api_request("GET", path=f"monitor/health").get("metadatabase").get("status")
+        assert health_status == "healthy"
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
         api_request(
