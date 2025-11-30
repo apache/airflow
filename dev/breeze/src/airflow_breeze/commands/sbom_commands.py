@@ -44,7 +44,6 @@ from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
     DEVEL_DEPS_PATH,
-    PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
     CHECK_DOCS,
@@ -90,6 +89,7 @@ from airflow_breeze.utils.projects_google_spreadsheet import (
     read_metadata_from_google_spreadsheet,
     write_sbom_information_to_google_spreadsheet,
 )
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
@@ -624,7 +624,7 @@ def build_all_airflow_images(
 @option_historical_python_versions
 @click.option(
     "--provider-id",
-    type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
+    type=BetterChoice(list(get_provider_dependencies().keys())),
     required=False,
     help="Provider id to generate the requirements for",
 )
