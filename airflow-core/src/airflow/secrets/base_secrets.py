@@ -19,8 +19,12 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING
 
+# This is added to support both Airflow 2.x and Airflow 3.x
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    try:
+        from airflow.sdk import Connection
+    except ImportError:
+        from airflow.models.connection import Connection
 
 
 class BaseSecretsBackend(ABC):
@@ -58,7 +62,11 @@ class BaseSecretsBackend(ABC):
         :param value: the serialized representation of the Connection object
         :return: the deserialized Connection
         """
-        from airflow.models.connection import Connection
+        # This is added to support both Airflow 2.x and Airflow 3.x
+        try:
+            from airflow.sdk import Connection
+        except ImportError:
+            from airflow.models.connection import Connection
 
         value = value.strip()
         if value[0] == "{":
