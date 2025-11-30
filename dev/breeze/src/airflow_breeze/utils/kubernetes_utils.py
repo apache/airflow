@@ -82,6 +82,118 @@ def get_kubeconfig_file(python: str, kubernetes_version: str) -> Path:
     return get_config_folder(python=python, kubernetes_version=kubernetes_version) / ".kubeconfig"
 
 
+def get_execution_api_server_url_for_kind(python: str, kubernetes_version: str, api_port: int = 8080) -> str:
+    """
+    Get the execution API server URL that worker pods in KinD can use to reach the Breeze container.
+
+    Worker pods in KinD need to connect to the host where Breeze is running.
+    This function determines the correct host IP and port.
+
+    :param python: Python version
+    :param kubernetes_version: Kubernetes version
+    :param api_port: Port where the API server is running (default: 8080)
+    :return: URL string like "http://192.168.97.1:8080/execution/"
+    """
+    import platform
+
+    # Get the KinD network gateway IP (this is the host IP from KinD's perspective)
+    try:
+        # Get the kind network gateway IP
+        result = run_command(
+            ["docker", "network", "inspect", "kind", "--format", "{{range .IPAM.Config}}{{.Gateway}}{{end}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            host_ip = result.stdout.strip()
+        else:
+            # Fallback: try to get from the cluster's network
+            # On Mac, host.docker.internal might work, but KinD pods might not resolve it
+            # On Linux, use the default Docker bridge gateway
+            if platform.system() == "Darwin":
+                # Try to get the actual gateway from the kind network
+                host_ip = "host.docker.internal"
+            else:
+                host_ip = "172.17.0.1"  # Default Docker bridge gateway
+    except Exception:
+        # Fallback to default
+        if platform.system() == "Darwin":
+            host_ip = "host.docker.internal"
+        else:
+            host_ip = "172.17.0.1"
+
+    return f"http://{host_ip}:{api_port}/execution/"
+
+
+def get_container_kubeconfig_file(python: str, kubernetes_version: str) -> Path:
+    """
+    Get a container-compatible kubeconfig file path.
+
+    This creates a modified version of the kubeconfig that replaces 127.0.0.1
+    with host.docker.internal so it can be accessed from inside a Docker container.
+    """
+    import platform
+
+    original_kubeconfig = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+    container_kubeconfig = (
+        get_config_folder(python=python, kubernetes_version=kubernetes_version) / ".kubeconfig.container"
+    )
+
+    # Only create/modify if original exists and container version doesn't exist or is older
+    if original_kubeconfig.exists():
+        if (
+            not container_kubeconfig.exists()
+            or original_kubeconfig.stat().st_mtime > container_kubeconfig.stat().st_mtime
+        ):
+            import yaml
+
+            # Read original kubeconfig
+            with open(original_kubeconfig) as f:
+                kubeconfig_data = yaml.safe_load(f)
+
+            # Determine host address based on platform
+            # On Mac, use host.docker.internal; on Linux, try to detect gateway
+            if platform.system() == "Darwin":
+                host_address = "host.docker.internal"
+            else:
+                # On Linux, try to get the default gateway
+                # Fallback to host.docker.internal if available, otherwise use 172.17.0.1 (default Docker bridge)
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        ["ip", "route", "show", "default"],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if result.returncode == 0 and "default via" in result.stdout:
+                        host_address = result.stdout.split("default via")[1].split()[0]
+                    else:
+                        host_address = "172.17.0.1"  # Default Docker bridge gateway
+                except Exception:
+                    host_address = "172.17.0.1"
+
+            # Replace 127.0.0.1 with host address in server URLs
+            if "clusters" in kubeconfig_data:
+                for cluster in kubeconfig_data["clusters"]:
+                    if "cluster" in cluster and "server" in cluster["cluster"]:
+                        server_url = cluster["cluster"]["server"]
+                        # Replace https://127.0.0.1:port with https://host_address:port
+                        if "127.0.0.1" in server_url:
+                            cluster["cluster"]["server"] = server_url.replace("127.0.0.1", host_address)
+
+            # Write modified kubeconfig
+            with open(container_kubeconfig, "w") as f:
+                yaml.dump(kubeconfig_data, f)
+
+            # Set permissions to match original
+            container_kubeconfig.chmod(original_kubeconfig.stat().st_mode)
+
+    return container_kubeconfig if container_kubeconfig.exists() else original_kubeconfig
+
+
 def get_kind_cluster_config_path(python: str, kubernetes_version: str) -> Path:
     return get_config_folder(python=python, kubernetes_version=kubernetes_version) / ".kindconfig.yaml"
 

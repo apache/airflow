@@ -581,7 +581,7 @@ def initialize_kind_cluster_for_executor(
             output=None,
         )
         if result.returncode != 0:
-            get_console().print(f"[warning]Failed to ensure namespace, but continuing...[/]")
+            get_console().print("[warning]Failed to ensure namespace, but continuing...[/]")
 
         get_console().print(f"[success]✓ KinD cluster '{cluster_name}' ready[/]")
         get_console().print(f"[info]  Kubeconfig: {kubeconfig_path}[/]")
@@ -678,6 +678,15 @@ def build_k8s_worker_image(
     dags_path.mkdir(parents=True, exist_ok=True)
     include_path.mkdir(parents=True, exist_ok=True)
 
+    # Copy files to docker-context-files (which is whitelisted in .dockerignore)
+    # to make them available in the Docker build context
+    docker_context_dags = Path("docker-context-files/k8s-worker-dags")
+    docker_context_include = Path("docker-context-files/k8s-worker-include")
+
+    # Ensure docker-context-files directory exists
+    docker_context_dags.parent.mkdir(parents=True, exist_ok=True)
+    docker_context_include.parent.mkdir(parents=True, exist_ok=True)
+
     # Build COPY commands for DAGs and include files if directories exist
     copy_dags_command = ""
     copy_include_command = ""
@@ -685,7 +694,11 @@ def build_k8s_worker_image(
     # Check if dags directory has any files
     dag_files = list(dags_path.rglob("*.py"))
     if dag_files:
-        copy_dags_command = "COPY --chown=airflow:0 files/dags/ /opt/airflow/dags/"
+        # Copy to docker-context-files so it's available in build context
+        if docker_context_dags.exists():
+            shutil.rmtree(docker_context_dags)
+        shutil.copytree(dags_path, docker_context_dags, dirs_exist_ok=False)
+        copy_dags_command = "COPY --chown=airflow:0 docker-context-files/k8s-worker-dags/ /opt/airflow/dags/"
         get_console().print(f"[info]  • Including {len(dag_files)} DAG file(s) from {dags_path}[/]")
     else:
         get_console().print(f"[info]  • No DAG files found in {dags_path}[/]")
@@ -697,7 +710,13 @@ def build_k8s_worker_image(
     # Filter out directories from include_files
     include_files = [f for f in include_files if f.is_file()]
     if include_files:
-        copy_include_command = "COPY --chown=airflow:0 files/include/ /opt/airflow/include/"
+        # Copy to docker-context-files so it's available in build context
+        if docker_context_include.exists():
+            shutil.rmtree(docker_context_include)
+        shutil.copytree(include_path, docker_context_include, dirs_exist_ok=False)
+        copy_include_command = (
+            "COPY --chown=airflow:0 docker-context-files/k8s-worker-include/ /opt/airflow/include/"
+        )
         get_console().print(f"[info]  • Including {len(include_files)} file(s) from {include_path}[/]")
     else:
         get_console().print(f"[info]  • No include files found in {include_path}[/]")
@@ -840,10 +859,14 @@ def setup_kubernetes_executor_environment(
 
     get_console().print("\n[bold]Environment Variables Set:[/bold]")
     get_console().print("  AIRFLOW__CORE__EXECUTOR=KubernetesExecutor")
-    get_console().print("  AIRFLOW__KUBERNETES__NAMESPACE=airflow")
-    get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY={image_name.rsplit(':', 1)[0]}")
-    get_console().print(f"  AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG={tag}")
-    get_console().print(f"  AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH={kubeconfig_path}")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE=airflow")
+    get_console().print(
+        f"  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY={image_name.rsplit(':', 1)[0]}"
+    )
+    get_console().print(f"  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG={tag}")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER=False")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__VERIFY_SSL=False")
+    get_console().print(f"  AIRFLOW__KUBERNETES_EXECUTOR__CONFIG_FILE={kubeconfig_path}")
 
     return cluster_name, kubeconfig_path
 

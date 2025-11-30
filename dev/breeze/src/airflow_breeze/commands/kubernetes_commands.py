@@ -629,11 +629,13 @@ ENV GUNICORN_CMD_ARGS='--preload'
 def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | None) -> tuple[int, str]:
     params = BuildProdParams(python=python)
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    # Include the tag in the image name for kind load
+    image_with_tag = f"{params.airflow_image_kubernetes}:latest"
     get_console(output=output).print(
-        f"[info]Uploading Airflow image {params.airflow_image_kubernetes} to cluster {cluster_name}"
+        f"[info]Uploading Airflow image {image_with_tag} to cluster {cluster_name}"
     )
     kind_load_result = run_command_with_k8s_env(
-        ["kind", "load", "docker-image", "--name", cluster_name, params.airflow_image_kubernetes],
+        ["kind", "load", "docker-image", "--name", cluster_name, image_with_tag],
         python=python,
         output=output,
         kubernetes_version=kubernetes_version,

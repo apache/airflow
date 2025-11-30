@@ -82,7 +82,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
-from airflow_breeze.utils.kubernetes_utils import get_kubeconfig_file
+from airflow_breeze.utils.kubernetes_utils import get_container_kubeconfig_file
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
     BUILD_CACHE_PATH,
@@ -603,16 +603,49 @@ class ShellParams:
 
         if self.executor == KUBERNETES_EXECUTOR:
             # Set KubernetesExecutor specific environment variables
-            _set_var(_env, "AIRFLOW__KUBERNETES__NAMESPACE", "airflow")
-            _set_var(_env, "AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY", "airflow-k8s-worker-prod")
-            _set_var(_env, "AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG", "latest")
-            _set_var(_env, "AIRFLOW__KUBERNETES__DELETE_WORKER_PODS", "True")
-            _set_var(_env, "AIRFLOW__KUBERNETES__DELETE_WORKER_PODS_ON_FAILURE", "False")
+            # Note: section is "kubernetes_executor", so env vars use AIRFLOW__KUBERNETES_EXECUTOR__...
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE", "airflow")
+            # Get the worker image name using BuildProdParams (same as used in build_k8s_worker_image)
+            # This ensures the image name matches what was actually built
+            from airflow_breeze.params.build_prod_params import BuildProdParams
+
+            worker_params = BuildProdParams(python=self.python, use_uv=True)
+            worker_image_base = worker_params.airflow_image_kubernetes
+            # Extract repository and tag - image format is typically: repo/path/image:tag
+            # For kubernetes executor, we use :latest tag
+            worker_repo = worker_image_base
+            worker_tag = "latest"
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY", worker_repo)
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG", worker_tag)
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS", "False")
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE", "False")
+            # Set pod template file path for local development
+            # This template has imagePullPolicy: Never to use local images
+            _set_var(
+                _env,
+                "AIRFLOW__KUBERNETES_EXECUTOR__POD_TEMPLATE_FILE",
+                "/files/pod_templates/worker_pod_template.yaml",
+            )
+            # Set in_cluster to False to use kubeconfig instead of in-cluster config
+            # This is required for local development with KinD
+            # Note: section is "kubernetes_executor", so env var is AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER", "False")
+            # Disable SSL verification for local development with KinD
+            # This is needed because the certificate is issued for 127.0.0.1 but we connect via host.docker.internal
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__VERIFY_SSL", "False")
             # Set kubeconfig path for the auto-created KinD cluster
-            kubeconfig_path = get_kubeconfig_file(
+            # Use container-compatible kubeconfig that replaces 127.0.0.1 with host.docker.internal
+            kubeconfig_path = get_container_kubeconfig_file(
                 python=self.python, kubernetes_version=self.kubernetes_version or DEFAULT_KUBERNETES_VERSION
             )
-            _set_var(_env, "AIRFLOW__KUBERNETES__KUBE_CONFIG_PATH", str(kubeconfig_path))
+            # Convert host path to container path (host .build is mounted at /opt/airflow/.build)
+            # Host: /path/to/airflow/.build/... -> Container: /opt/airflow/.build/...
+            if str(kubeconfig_path).startswith(str(self.airflow_sources)):
+                container_path = str(kubeconfig_path).replace(str(self.airflow_sources), "/opt/airflow", 1)
+            else:
+                container_path = str(kubeconfig_path)
+            # Note: section is "kubernetes_executor", so env var is AIRFLOW__KUBERNETES_EXECUTOR__CONFIG_FILE
+            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__CONFIG_FILE", container_path)
 
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "ALLOW_PRE_RELEASES", self.allow_pre_releases)
