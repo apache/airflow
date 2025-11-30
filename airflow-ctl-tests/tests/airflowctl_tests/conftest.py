@@ -243,6 +243,8 @@ def test_commands(login_command, date_param):
         login_command,
         # Assets commands
         "assets list",
+        "assets get --asset-id=1",
+        "assets create-event --asset-id=1",
         # Backfill commands
         "backfill list",
         # Config commands
@@ -263,12 +265,20 @@ def test_commands(login_command, date_param):
         # DAGs commands
         "dags list",
         "dags get --dag-id=example_bash_operator",
+        "dags get-details --dag-id=example_bash_operator",
+        "dags get-stats --dag-ids=example_bash_operator",
+        "dags get-version --dag-id=example_bash_operator --version-number=1",
+        "dags list-import-errors",
+        "dags list-version --dag-id=example_bash_operator",
+        "dags list-warning",
         # Order of trigger and pause/unpause is important for test stability because state checked
         f"dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
         "dags pause --dag-id=example_bash_operator",
         "dags unpause --dag-id=example_bash_operator",
         # DAG Run commands
         f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
+        "dags update --dag-id=example_bash_operator --no-is-paused",
+        # DAG Run commands
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
         # Jobs commands
         "jobs list",
