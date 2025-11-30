@@ -1133,3 +1133,79 @@ class TestPytestSnowflakeHook:
 
         # Check AzureBaseHook initialization
         mock_connection_class.get.assert_called_once_with(azure_conn_id)
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_oauth_token_client_credentials_without_scope(
+        self, mock_conn_params, requests_post, mock_auth
+    ):
+        """Test client_credentials flow without oauth_scope."""
+        mock_conn_params.return_value = {
+            **CONN_PARAMS_OAUTH_BASE,
+            "grant_type": "client_credentials",
+        }
+
+        basic_auth = {"Authorization": "Basic test"}
+        mock_auth.return_value = basic_auth
+
+        # Response mock
+        requests_post.return_value.status_code = 200
+        requests_post.return_value.json = lambda: {"access_token": "token123"}
+
+        hook = SnowflakeHook(snowflake_conn_id="test_conn")
+        hook.get_oauth_token(
+            conn_config=mock_conn_params.return_value,
+            grant_type="client_credentials",
+        )
+
+        requests_post.assert_called_once_with(
+            f"https://{CONN_PARAMS_OAUTH_BASE['account']}.snowflakecomputing.com/oauth/token-request",
+            data={
+                "grant_type": "client_credentials",
+                "redirect_uri": "https://localhost.com",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=basic_auth,
+        )
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_oauth_token_client_credentials_with_scope(self, mock_conn_params, requests_post, mock_auth):
+        """Test client_credentials flow WITH oauth_scope."""
+        mock_conn_params.return_value = {
+            **CONN_PARAMS_OAUTH_BASE,
+            "grant_type": "client_credentials",
+            "oauth_scope": "custom_scope",
+        }
+
+        basic_auth = {"Authorization": "Basic test"}
+        mock_auth.return_value = basic_auth
+
+        # Response mock
+        requests_post.return_value.status_code = 200
+        requests_post.return_value.json = lambda: {"access_token": "token123"}
+
+        hook = SnowflakeHook(snowflake_conn_id="test_conn")
+        hook.get_oauth_token(
+            conn_config=mock_conn_params.return_value,
+            grant_type="client_credentials",
+        )
+
+        requests_post.assert_called_once_with(
+            f"https://{CONN_PARAMS_OAUTH_BASE['account']}.snowflakecomputing.com/oauth/token-request",
+            data={
+                "grant_type": "client_credentials",
+                "redirect_uri": "https://localhost.com",
+                "scope": "custom_scope",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=basic_auth,
+        )

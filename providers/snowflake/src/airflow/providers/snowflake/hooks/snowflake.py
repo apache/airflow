@@ -224,11 +224,15 @@ class SnowflakeHook(DbApiHook):
         }
 
         if grant_type == "refresh_token":
-            data |= {
-                "refresh_token": conn_config["refresh_token"],
-            }
+            # Older provider versions may not supply refresh_token; avoid KeyError
+            refresh_token = conn_config.get("refresh_token")
+            if not refresh_token:
+                raise AirflowException("grant_type=refresh_token requires `refresh_token` in extra")
+            data["refresh_token"] = refresh_token
         elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
+            oauth_scope = conn_config.get("oauth_scope")
+            if oauth_scope:
+                data["scope"] = oauth_scope
         else:
             raise ValueError(f"Unknown grant_type: {grant_type}")
 
@@ -379,6 +383,10 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("password", None)
 
         refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        oauth_scope = self._get_field(extra_dict, "oauth_scope")
+        if oauth_scope:
+            conn_config["oauth_scope"] = oauth_scope
+
         if refresh_token:
             conn_config["refresh_token"] = refresh_token
             conn_config["authenticator"] = "oauth"
