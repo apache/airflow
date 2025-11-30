@@ -71,7 +71,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
 )
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
 ALL_VERSIONS_LABEL = "all versions"
@@ -1387,7 +1387,7 @@ class SelectiveChecks:
     @cached_property
     def excluded_providers_as_string(self) -> str:
         providers_to_exclude = defaultdict(list)
-        for provider, provider_info in DEPENDENCIES.items():
+        for provider, provider_info in get_provider_dependencies().items():
             if "excluded-python-versions" in provider_info:
                 for python_version in provider_info["excluded-python-versions"]:
                     providers_to_exclude[python_version].append(provider)
@@ -1439,7 +1439,7 @@ class SelectiveChecks:
             if provider == "Providers":
                 all_providers_affected = True
             elif provider is not None:
-                if provider not in DEPENDENCIES:
+                if provider not in get_provider_dependencies():
                     suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
