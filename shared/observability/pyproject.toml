@@ -44,7 +44,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "apache-airflow",
     "apache-airflow-devel-common",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-observability[all]",
