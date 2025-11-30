@@ -243,6 +243,8 @@ def test_commands(login_command, date_param):
         login_command,
         # Assets commands
         "assets list",
+        "assets get --asset-id=1",
+        "assets create-event --asset-id=1",
         # Backfill commands
         "backfill list",
         # Config commands
@@ -263,6 +265,12 @@ def test_commands(login_command, date_param):
         # DAGs commands
         "dags list",
         "dags get --dag-id=example_bash_operator",
+        "dags get-details --dag-id=example_bash_operator",
+        "dags get-stats --dag-ids=example_bash_operator",
+        "dags get-version --dag-id=example_bash_operator --version-number=1",
+        "dags list-import-errors",
+        "dags list-version --dag-id=example_bash_operator",
+        "dags list-warning",
         "dags pause --dag-id=example_bash_operator",
         "dags unpause --dag-id=example_bash_operator",
         "dags update --dag-id=example_bash_operator --is-paused=false",

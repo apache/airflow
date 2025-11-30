@@ -49,41 +49,28 @@ EXCLUDED_METHODS = {
     "bulk",
 }
 
-# Commands intentionally not tested - grouped by reason:
 EXCLUDED_COMMANDS = {
-    # Assets - require asset state/dependencies
-    "assets materialize",
-    "assets get",
-    "assets get-by-alias",
-    "assets list-by-alias",
-    "assets create-event",
-    "assets get-queued-events",
-    "assets get-dag-queued-events",
-    "assets get-dag-queued-event",
-    "assets delete-queued-events",
     "assets delete-dag-queued-events",
     "assets delete-queued-event",
-    # Backfill - require IDs from create command
+    "assets delete-queued-events",
+    "assets get-by-alias",
+    "assets get-dag-queued-event",
+    "assets get-dag-queued-events",
+    "assets get-queued-events",
+    "assets list-by-alias",
+    "assets materialize",
     "backfill cancel",
     "backfill create",
     "backfill create-dry-run",
     "backfill get",
     "backfill pause",
     "backfill unpause",
-    # DAGs - destructive or require specific state
-    "dags delete",
-    "dags get-details",
-    "dags get-tags",
-    "dags get-import-error",
-    "dags list-import-errors",
-    "dags get-stats",
-    "dags get-version",
-    "dags list-version",
-    "dags list-warning",
-    "dags trigger",  # covered by dagrun trigger
-    # Connections
     "connections create-defaults",
-    "connections test",  # requires server-side configuration (core.test_connection)
+    "connections test",
+    "dags delete",
+    "dags get-import-error",
+    "dags get-tags",
+    "dags trigger",
 }
 
 
@@ -118,8 +105,8 @@ def parse_tested_commands() -> set[str]:
     with open(CONFTEST_FILE) as f:
         content = f.read()
 
-    # Match command patterns like "assets list", "connections create --..."", etc.
-    pattern = r'"([a-z]+(?:-[a-z]+)?\s+[a-z]+(?:-[a-z]+)?)'
+    # Match command patterns like "assets list", "dags list-import-errors", etc.
+    pattern = r'"([a-z]+(?:-[a-z]+)*\s+[a-z]+(?:-[a-z]+)*)'
     for match in re.findall(pattern, content):
         parts = match.split()
         if len(parts) >= 2:
