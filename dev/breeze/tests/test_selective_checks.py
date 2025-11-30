@@ -3099,3 +3099,163 @@ def test_large_pr_by_line_count(files, git_diff_output, expected_outputs: dict[s
             default_branch="main",
         )
         assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_with_next_version_passes(mock_run_command):
+    """Test that check passes when common.compat changes and other provider has '# use next version'."""
+    provider_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        result.stdout = provider_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=(
+            "providers/common/compat/src/airflow/providers/common/compat/file.py",
+            "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+        ),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.common_compat_changed_without_next_version
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_without_next_version_fails(mock_run_command):
+    """Test that check fails when common.compat changes and other provider doesn't have '# use next version'."""
+    provider_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        result.stdout = provider_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    with pytest.raises(SystemExit):
+        _ = SelectiveChecks(
+            files=(
+                "providers/common/compat/src/airflow/providers/common/compat/file.py",
+                "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+            ),
+            commit_ref=NEUTRAL_COMMIT,
+            pr_labels=(),
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        ).common_compat_changed_without_next_version
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_only_changed_passes(mock_run_command):
+    """Test that check passes when only common.compat provider changes."""
+    selective_checks = SelectiveChecks(
+        files=("providers/common/compat/src/airflow/providers/common/compat/file.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.common_compat_changed_without_next_version
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_not_changed_passes(mock_run_command):
+    """Test that check passes when common.compat provider doesn't change."""
+    selective_checks = SelectiveChecks(
+        files=("providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.common_compat_changed_without_next_version
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_with_provider_without_dependency_passes(mock_run_command):
+    """Test that check passes when other provider doesn't depend on common-compat."""
+    provider_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "some-other-package>=1.0.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        result.stdout = provider_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=(
+            "providers/common/compat/src/airflow/providers/common/compat/file.py",
+            "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+        ),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    result = selective_checks.common_compat_changed_without_next_version
+    assert result is False
+
+
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_common_compat_changed_without_next_version_bypassed_with_label(mock_run_command):
+    """Test that check can be bypassed with 'skip common compat check' label."""
+    provider_toml = """
+[project]
+dependencies = [
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",
+]
+"""
+
+    def side_effect(*args, **kwargs):
+        result = Mock()
+        result.returncode = 0
+        result.stdout = provider_toml
+        return result
+
+    mock_run_command.side_effect = side_effect
+
+    selective_checks = SelectiveChecks(
+        files=(
+            "providers/common/compat/src/airflow/providers/common/compat/file.py",
+            "providers/ftp/src/airflow/providers/ftp/hooks/ftp.py",
+        ),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=("skip common compat check",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    # Should pass with the skip label
+    result = selective_checks.common_compat_changed_without_next_version
+    assert result is True
