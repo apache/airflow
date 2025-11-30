@@ -27,7 +27,10 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
+from airflow.api_fastapi.execution_api.datamodels.dagrun import (
+    DagRunStateResponse,
+    TriggerDAGRunPayload,
+)
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
@@ -39,6 +42,86 @@ router = APIRouter()
 
 
 log = logging.getLogger(__name__)
+
+
+@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
+def get_previous_dagrun(
+    dag_id: str,
+    logical_date: UtcDateTime,
+    session: SessionDep,
+    state: Annotated[DagRunState | None, Query()] = None,
+) -> DagRun | None:
+    """Get the previous DAG run before the given logical date, optionally filtered by state."""
+    query = (
+        select(DagRunModel)
+        .where(
+            DagRunModel.dag_id == dag_id,
+            DagRunModel.logical_date < logical_date,
+        )
+        .order_by(DagRunModel.logical_date.desc())
+        .limit(1)
+    )
+
+    if state:
+        query = query.where(DagRunModel.state == state)
+
+    dag_run = session.scalar(query)
+
+    if not dag_run:
+        return None
+
+    return DagRun.model_validate(dag_run)
+
+
+@router.get(
+    "/{dag_id}/{run_id}",
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found for the given dag_id and run_id"},
+    },
+)
+def get_dag_run(
+    dag_id: str,
+    run_id: str,
+    session: SessionDep,
+) -> DagRun:
+    """Get a DAG Run."""
+    dag_run = session.scalar(
+        select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+    )
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+            },
+        )
+
+    # Calculate duration for the response
+    duration = None
+    if dag_run.end_date and dag_run.start_date:
+        duration = (dag_run.end_date - dag_run.start_date).total_seconds()
+
+    # Create response with calculated duration
+    response_data = {
+        "dag_id": dag_run.dag_id,
+        "run_id": dag_run.run_id,
+        "logical_date": dag_run.logical_date,
+        "data_interval_start": dag_run.data_interval_start,
+        "data_interval_end": dag_run.data_interval_end,
+        "run_after": dag_run.run_after,
+        "start_date": dag_run.start_date,
+        "end_date": dag_run.end_date,
+        "clear_number": dag_run.clear_number,
+        "run_type": dag_run.run_type,
+        "conf": dag_run.conf,
+        "state": dag_run.state,
+        "queued_at": dag_run.queued_at,
+        "last_scheduling_decision": dag_run.last_scheduling_decision,
+        "duration": duration,
+    }
+
+    return DagRun.model_validate(response_data)
 
 
 @router.post(
@@ -188,32 +271,3 @@ def get_dr_count(
 
     count = session.scalar(query)
     return count or 0
-
-
-@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
-def get_previous_dagrun(
-    dag_id: str,
-    logical_date: UtcDateTime,
-    session: SessionDep,
-    state: Annotated[DagRunState | None, Query()] = None,
-) -> DagRun | None:
-    """Get the previous DAG run before the given logical date, optionally filtered by state."""
-    query = (
-        select(DagRunModel)
-        .where(
-            DagRunModel.dag_id == dag_id,
-            DagRunModel.logical_date < logical_date,
-        )
-        .order_by(DagRunModel.logical_date.desc())
-        .limit(1)
-    )
-
-    if state:
-        query = query.where(DagRunModel.state == state)
-
-    dag_run = session.scalar(query)
-
-    if not dag_run:
-        return None
-
-    return DagRun.model_validate(dag_run)
