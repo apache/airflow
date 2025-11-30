@@ -8976,7 +8976,8 @@
                 "retentionDays": {
                     "description": "Number of days to retain records in the metadata database.",
                     "type": "integer",
-                    "default": 90
+                    "default": 90,
+                    "minimum": 1
                 },
                 "skipArchive": {
                     "description": "Don't preserve purged records in an archive table.",
