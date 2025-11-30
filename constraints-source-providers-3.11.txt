@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-29T10:20:05.466014
+# This constraints file was automatically generated on 2025-11-30T10:09:44.530472
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -334,7 +334,7 @@ jeepney==0.9.0
 jiter==0.12.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.4.3
+joserfc==1.5.0
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -359,7 +359,7 @@ kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
-librt==0.6.2
+librt==0.6.3
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
