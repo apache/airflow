@@ -166,9 +166,9 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.provider_dependencies import (
-    DEPENDENCIES,
     generate_providers_metadata_for_provider,
     get_all_constraint_files_and_airflow_releases,
+    get_provider_dependencies,
     get_related_providers,
     load_constraints,
 )
@@ -2437,7 +2437,7 @@ def generate_issue_content_providers(
         suffix: str
 
     if not provider_distributions:
-        provider_distributions = list(DEPENDENCIES.keys())
+        provider_distributions = list(get_provider_dependencies().keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -2878,7 +2878,7 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = DEPENDENCIES.keys()
+    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
