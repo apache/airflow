@@ -31,6 +31,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
@@ -85,6 +86,7 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 
+@cache
 def get_celery_configuration() -> dict[str, Any]:
     """Get the Celery configuration dictionary."""
     if conf.has_option("celery", "celery_config_options"):
