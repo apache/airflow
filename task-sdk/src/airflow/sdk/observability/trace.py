@@ -89,7 +89,7 @@ class _TraceMeta(type):
             debug_traces_on = True
 
         if otel_on and debug_traces_on:
-            from airflow.observability.traces import otel_tracer
+            from airflow.sdk.observability.traces import otel_tracer
 
             cls.factory = staticmethod(
                 lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)
