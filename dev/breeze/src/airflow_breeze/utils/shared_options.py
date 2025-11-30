@@ -23,12 +23,8 @@ from airflow_breeze.utils.coertions import coerce_bool_value
 
 
 class _SharedOptions:
-    def get_default_bool_value(env_var: str) -> bool:
-        string_val = os.environ.get(env_var, "")
-        return coerce_bool_value(string_val)
-
-    verbose_value: bool = get_default_bool_value("VERBOSE")
-    dry_run_value: bool = get_default_bool_value("DRY_RUN")
+    verbose_value: bool = coerce_bool_value(os.environ.get("VERBOSE", ""))
+    dry_run_value: bool = coerce_bool_value(os.environ.get("DRY_RUN", ""))
     forced_answer: str | None = None
 
 
