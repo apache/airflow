@@ -25,13 +25,10 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow_breeze.global_constants import (
-    ALL_PYPROJECT_TOML_FILES,
-    FILES_FOR_REBUILD_CHECK,
-    regenerate_provider_dependencies_once,
-)
+from airflow_breeze.global_constants import ALL_PYPROJECT_TOML_FILES, FILES_FOR_REBUILD_CHECK
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.provider_dependencies import regenerate_provider_dependencies_once
 from airflow_breeze.utils.shared_options import get_verbose
 
 if TYPE_CHECKING:
