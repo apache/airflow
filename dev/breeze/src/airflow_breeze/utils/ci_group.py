@@ -26,8 +26,10 @@ from airflow_breeze.utils.path_utils import skip_group_output
 if TYPE_CHECKING:
     from airflow_breeze.utils.parallel import Output
 
-# only allow top-level group
-_in_ci_group = False
+
+# only allow top-level group - GitHub only supports one level of nesting, prevent nesting flag
+class _CIGroupsState:
+    in_ci_group: bool = False
 
 
 def in_github_actions() -> bool:
@@ -51,8 +53,7 @@ def ci_group(
     For more information, see:
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
-    global _in_ci_group
-    if _in_ci_group or skip_group_output():
+    if _CIGroupsState.in_ci_group or skip_group_output():
         yield
         return
     if not in_github_actions():
@@ -63,7 +64,7 @@ def ci_group(
                 get_console(output=output).print(f"\n{title}\n")
         yield
         return
-    _in_ci_group = True
+    _CIGroupsState.in_ci_group = True
     if not skip_printing_title:
         if message_type is not None:
             get_console().print(f"::group::[{message_type.value}]{title}[/]")
@@ -73,4 +74,4 @@ def ci_group(
             yield
         finally:
             get_console().print("::endgroup::")
-            _in_ci_group = False
+            _CIGroupsState.in_ci_group = False
