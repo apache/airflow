@@ -49,7 +49,7 @@ Many operators will auto-push their results into an XCom key called ``return_val
     # Pulls the return_value XCOM from "pushing_task"
     value = task_instance.xcom_pull(task_ids='pushing_task')
 
-The return_value key (default key with which xcoms are pushed) is defined as a constant XCOM_RETURN_KEY in the :class:`~airflow.sdk.bases.xcom.BaseXCom` class and can be accessed as BaseXCom.XCOM_RETURN_KEY.
+The return_value key (default key with which xComs are pushed) is defined as a constant XCOM_RETURN_KEY in the :class:`~airflow.sdk.bases.xcom.BaseXCom` class and can be accessed as BaseXCom.XCOM_RETURN_KEY.
 
 You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
