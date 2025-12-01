@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.26.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.10.0", # use next version,
     # Workaround until we get https://github.com/JohnOmernik/sqlalchemy-drill/issues/94 fixed.
     "sqlalchemy-drill>=1.1.0,!=1.1.6,!=1.1.7",
 ]

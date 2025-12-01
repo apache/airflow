@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.10.0", # use next version,  # use next version
     "datadog>=0.50.0",
 ]
 
