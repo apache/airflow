@@ -24,10 +24,9 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, select
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
@@ -38,7 +37,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import UUIDString, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
@@ -60,7 +59,9 @@ class Variable(Base, LoggingMixin):
     _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(
+        UUIDString(binary=False), ForeignKey("team.id"), nullable=True
+    )
 
     def __init__(self, key=None, val=None, description=None, team_id=None):
         super().__init__()
@@ -137,6 +138,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
+        team_id: str | None = None,
     ) -> Any:
         """
         Get a value for an Airflow Variable Key.
@@ -144,6 +146,7 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
+        :param team_id: ID of the team associated to the task trying to access the variable (if any)
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
@@ -167,7 +170,12 @@ class Variable(Base, LoggingMixin):
 
             return var_val
 
-        var_val = Variable.get_variable_from_secrets(key=key)
+        if team_id and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment but the task trying to access the variable belongs to a team"
+            )
+
+        var_val = Variable.get_variable_from_secrets(key=key, team_id=team_id)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -317,6 +325,7 @@ class Variable(Base, LoggingMixin):
         key: str,
         value: Any,
         serialize_json: bool = False,
+        team_id: str | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -325,6 +334,7 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
+        :param team_id: ID of the team associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -350,9 +360,14 @@ class Variable(Base, LoggingMixin):
             )
             return
 
+        if team_id and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment. To assign a team to a variable, multi-mode must be enabled."
+            )
+
         Variable.check_for_write_conflict(key=key)
 
-        if Variable.get_variable_from_secrets(key=key) is None:
+        if Variable.get_variable_from_secrets(key=key, team_id=team_id) is None:
             raise KeyError(f"Variable {key} does not exist")
 
         ctx: contextlib.AbstractContextManager
@@ -362,7 +377,11 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            obj = session.scalar(select(Variable).where(Variable.key == key))
+            obj = session.scalar(
+                select(Variable).where(
+                    Variable.key == key, or_(Variable.team_id == team_id, Variable.team_id.is_(None))
+                )
+            )
             if obj is None:
                 raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
@@ -375,11 +394,12 @@ class Variable(Base, LoggingMixin):
             )
 
     @staticmethod
-    def delete(key: str, session: Session | None = None) -> int:
+    def delete(key: str, team_id: str | None = None, session: Session | None = None) -> int:
         """
         Delete an Airflow Variable for a given key.
 
         :param key: Variable Keys
+        :param team_id: ID of the team associated to the task trying to delete the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -402,6 +422,11 @@ class Variable(Base, LoggingMixin):
             )
             return 1
 
+        if team_id and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment but the task trying to delete the variable belongs to a team"
+            )
+
         ctx: contextlib.AbstractContextManager
         if session is not None:
             ctx = contextlib.nullcontext(session)
@@ -409,7 +434,11 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            result = session.execute(delete(Variable).where(Variable.key == key))
+            result = session.execute(
+                delete(Variable).where(
+                    Variable.key == key, or_(Variable.team_id == team_id, Variable.team_id.is_(None))
+                )
+            )
             rows = getattr(result, "rowcount", 0) or 0
             SecretCache.invalidate_variable(key)
             return rows
@@ -456,25 +485,28 @@ class Variable(Base, LoggingMixin):
             return None
 
     @staticmethod
-    def get_variable_from_secrets(key: str) -> str | None:
+    def get_variable_from_secrets(key: str, team_id: str | None = None) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
 
         :param key: Variable Key
+        :param team_id: ID of the team associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
-        # check cache first
-        # enabled only if SecretCache.init() has been called first
-        try:
-            return SecretCache.get_variable(key)
-        except SecretCache.NotPresentException:
-            pass  # continue business
+        # Disable cache if the variable belongs to a team. We might enable it later
+        if not team_id:
+            # check cache first
+            # enabled only if SecretCache.init() has been called first
+            try:
+                return SecretCache.get_variable(key)
+            except SecretCache.NotPresentException:
+                pass  # continue business
 
         var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                var_val = secrets_backend.get_variable(key=key)
+                var_val = secrets_backend.get_variable(key=key, team_id=team_id)
                 if var_val is not None:
                     break
             except Exception:

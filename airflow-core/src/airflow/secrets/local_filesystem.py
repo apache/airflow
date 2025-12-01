@@ -315,5 +315,5 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return self._local_connections[conn_id]
         return None
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_id: str | None = None) -> str | None:
         return self._local_variables.get(key)

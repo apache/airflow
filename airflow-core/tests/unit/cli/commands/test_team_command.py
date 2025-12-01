@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import uuid
 from unittest.mock import patch
 
 import pytest
@@ -71,12 +70,12 @@ class TestCliTeams:
         team = self.session.query(Team).filter(Team.name == "test-team").first()
         assert team is not None
         assert team.name == "test-team"
-        assert isinstance(team.id, uuid.UUID)
+        assert isinstance(team.id, str)
 
         # Verify output message
         output = stdout.getvalue()
         assert "Team 'test-team' created successfully" in output
-        assert str(team.id) in output
+        assert team.id in output
 
     def test_team_create_empty_name(self):
         """Test team creation with empty name."""
