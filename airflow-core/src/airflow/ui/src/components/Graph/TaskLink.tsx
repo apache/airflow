@@ -27,16 +27,9 @@ type Props = {
 } & TaskNameProps;
 
 export const TaskLink = forwardRef<HTMLAnchorElement, Props>(({ id, isGroup, isMapped, ...rest }, ref) => {
-  const { groupId, runId, taskId } = useParams();
+  const { runId } = useParams();
   const [searchParams] = useSearchParams();
   const buildTaskUrl = useTaskUrlBuilder();
-
-  // If clicking on the same task/group, don't navigate
-  const isSameTask = isGroup ? groupId === id : taskId === id;
-
-  if (isSameTask) {
-    return <TaskName isGroup={isGroup} isMapped={isMapped} {...rest} />;
-  }
 
   const taskPath = buildTaskUrl({
     isGroup,

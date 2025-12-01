@@ -46,7 +46,7 @@ export const useRequiredActionTabs = (
   options: UseRequiredActionTabsOptions = {},
 ) => {
   const { t: translate } = useTranslation("hitl");
-  const { autoRedirect = false, refetchInterval } = options;
+  const { autoRedirect = true, refetchInterval } = options;
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -58,6 +58,9 @@ export const useRequiredActionTabs = (
     }
     if (Boolean(dagId) && Boolean(dagRunId)) {
       return `/dags/${dagId}/runs/${dagRunId}`;
+    }
+    if (Boolean(dagId) && Boolean(taskId)) {
+      return `/dags/${dagId}/tasks/${taskId}`;
     }
     if (Boolean(dagId) && Boolean(taskIdPattern)) {
       return `/dags/${dagId}/tasks/group/${taskIdPattern}`;
