@@ -1758,10 +1758,12 @@ RUN chmod a+x /entrypoint /entrypoint-exec
 
 
 # Install autocomplete for airflow and kubectl
+# hadolint ignore=SC2028
 RUN if command -v airflow; then \
     register-python-argcomplete airflow >> ~/.bashrc ; \
     fi; \
-    echo "source /etc/bash_completion" >> ~/.bashrc
+    echo "source /etc/bash_completion" >> ~/.bashrc ; \
+    echo 'export PS1="\[\033[1;36m\][Breeze:\$(python --version 2>&1 | cut -d\" \" -f2)]\[\033[0m\] \[\033[1;32m\]\u@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ "' >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
 
