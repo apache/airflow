@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-30T19:42:43.805842
+# This constraints file was automatically generated on 2025-12-01T07:48:00.137595
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -79,7 +79,7 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.12.0
 apache-beam==2.69.0
-apispec==6.8.4
+apispec==6.9.0
 apprise==1.9.5
 argcomplete==3.6.3
 arro3-core==0.6.5
@@ -95,7 +95,7 @@ asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.103.0
+aws-sam-translator==1.104.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -145,7 +145,7 @@ celery==5.6.0
 certifi==2025.11.12
 cffi==1.17.1
 cfgv==3.5.0
-cfn-lint==1.41.0
+cfn-lint==1.42.0
 chardet==5.2.0
 charset-normalizer==3.4.4
 checksumdir==1.3.0
@@ -385,7 +385,7 @@ microsoft-kiota-serialization-text==1.9.7
 mistune==3.1.4
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.17
+moto==5.1.18
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.34.0
@@ -508,7 +508,7 @@ pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.15.4
-pymssql==2.3.9
+pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5
 pyparsing==3.2.5
@@ -570,7 +570,7 @@ rich-click==1.8.9
 rich-toolkit==0.17.0
 rich==13.9.4
 roman-numerals-py==3.1.0
-rpds-py==0.29.0
+rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
