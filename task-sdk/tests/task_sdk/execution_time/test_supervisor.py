@@ -1362,9 +1362,9 @@ class TestMetricsEmission:
         proc._exit_code = 0
 
         # Mock methods to avoid actual subprocess monitoring
-        mocker.patch('airflow.sdk.execution_time.supervisor.ActivitySubprocess._monitor_subprocess')
-        mocker.patch('airflow.sdk.execution_time.supervisor.ActivitySubprocess.update_task_state_if_needed')
-        mocker.patch('airflow.sdk.execution_time.supervisor.ActivitySubprocess._upload_logs')
+        mocker.patch("airflow.sdk.execution_time.supervisor.ActivitySubprocess._monitor_subprocess")
+        mocker.patch("airflow.sdk.execution_time.supervisor.ActivitySubprocess.update_task_state_if_needed")
+        mocker.patch("airflow.sdk.execution_time.supervisor.ActivitySubprocess._upload_logs")
 
         proc.wait()
 
