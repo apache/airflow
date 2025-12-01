@@ -316,7 +316,7 @@ class KubernetesPodTrigger(BaseTrigger):
             in_cluster=self.in_cluster,
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
-            conn_extras=self.connection_extras,
+            connection_extras=self.connection_extras,
         )
 
     @cached_property

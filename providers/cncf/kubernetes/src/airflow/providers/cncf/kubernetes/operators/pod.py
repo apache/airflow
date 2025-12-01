@@ -858,11 +858,11 @@ class KubernetesPodOperator(BaseOperator):
         """Redefine triggers which are being used in child classes."""
         self.convert_config_file_to_dict()
 
-        conn_extras = None
+        connection_extras = None
         if self.kubernetes_conn_id:
             try:
                 conn = BaseHook.get_connection(self.kubernetes_conn_id)
-                conn_extras = conn.extra_dejson
+                connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
             except Exception as e:
                 self.log.warning(
@@ -878,7 +878,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
-                connection_extras=conn_extras,
+                connection_extras=connection_extras,
                 cluster_context=self.cluster_context,
                 config_dict=self._config_dict,
                 in_cluster=self.in_cluster,

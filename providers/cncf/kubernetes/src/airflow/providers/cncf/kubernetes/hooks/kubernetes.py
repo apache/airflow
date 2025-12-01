@@ -778,11 +778,13 @@ def _get_bool(val) -> bool | None:
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
-    def __init__(self, config_dict: dict | None = None, conn_extras: dict | None = None, *args, **kwargs):
+    def __init__(
+        self, config_dict: dict | None = None, connection_extras: dict | None = None, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
 
         self.config_dict = config_dict
-        self._extras: dict | None = conn_extras
+        self._extras: dict | None = connection_extras
 
     async def _load_config(self):
         """Return Kubernetes API session for use with requests."""
