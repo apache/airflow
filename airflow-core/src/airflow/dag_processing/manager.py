@@ -79,6 +79,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
+    from structlog.typing import FilteringBoundLogger as Logger
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -1151,7 +1152,7 @@ def process_parse_results(
     *,
     is_callback_only: bool = False,
     relative_fileloc: str | None = None,
-    log: logging.Logger | None = None,
+    log: Logger | None = None,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     if is_callback_only:
@@ -1209,7 +1210,7 @@ def process_parse_results(
             stat.import_errors = len(parsing_result.import_errors)
 
         # Load Airflow modules that were not loaded during runtime.
-        if conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+        if conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True) and log:
             for module in parsing_result.not_loaded_airflow_modules or []:
                 try:
                     if module not in sys.modules.keys():
