@@ -27,7 +27,7 @@ from unittest.mock import Mock
 import pytest
 import statsd
 
-import airflow.observability.stats
+import airflow
 from airflow._shared.configuration import AirflowConfigException
 from airflow._shared.observability.exceptions import InvalidStatsNameException
 from airflow._shared.observability.metrics.datadog_logger import SafeDogStatsdLogger
@@ -510,7 +510,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_invalid",
+            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_invalid",
         }
     )
     @mock.patch("statsd.StatsClient")
@@ -523,7 +523,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_invalid",
+            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_invalid",
         }
     )
     @mock.patch("datadog.DogStatsd")
@@ -535,11 +535,12 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_valid",
+            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("statsd.StatsClient")
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
+        importlib.reload(airflow.observability.stats)
         importlib.reload(airflow.observability.stats)
         airflow.observability.stats.Stats.incr("empty_key")
         mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
@@ -548,7 +549,7 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "observability.metrics.test_stats.always_valid",
+            ("metrics", "stat_name_handler"): "unit.observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("datadog.DogStatsd")

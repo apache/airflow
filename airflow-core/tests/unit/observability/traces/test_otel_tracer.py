@@ -40,46 +40,46 @@ def name():
 
 
 class TestOtelTrace:
+    @conf_vars(
+        {
+            ("traces", "otel_on"): "True",
+            ("traces", "otel_debugging_on"): "True",
+        }
+    )
     def test_get_otel_tracer_from_trace_metaclass(self):
         """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        with conf_vars(
-            {
-                ("traces", "otel_on"): "True",
-                ("traces", "otel_debugging_on"): "True",
-            }
-        ):
-            tracer = otel_tracer.get_otel_tracer(Trace)
-            assert tracer.use_simple_processor is False
+        tracer = otel_tracer.get_otel_tracer(Trace)
+        assert tracer.use_simple_processor is False
 
-            assert isinstance(Trace.factory(), EmptyTrace)
+        assert isinstance(Trace.factory(), EmptyTrace)
 
-            Trace.configure_factory()
-            assert isinstance(Trace.factory(), OtelTrace)
+        Trace.configure_factory()
+        assert isinstance(Trace.factory(), OtelTrace)
 
-            task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
-            assert task_tracer.use_simple_processor is True
+        task_tracer = otel_tracer.get_otel_tracer_for_task(Trace)
+        assert task_tracer.use_simple_processor is True
 
-            task_tracer.get_otel_tracer_provider()
-            assert task_tracer.use_simple_processor is True
+        task_tracer.get_otel_tracer_provider()
+        assert task_tracer.use_simple_processor is True
 
+    @conf_vars(
+        {
+            ("traces", "otel_on"): "True",
+            ("traces", "otel_debug_traces_on"): "False",
+        }
+    )
     def test_debug_trace_metaclass(self):
         """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
-        with conf_vars(
-            {
-                ("traces", "otel_on"): "True",
-                ("traces", "otel_debug_traces_on"): "False",
-            }
-        ):
-            assert DebugTrace.check_debug_traces_flag is True
+        assert DebugTrace.check_debug_traces_flag is True
 
-            # Factory hasn't been configured, it defaults to EmptyTrace.
-            assert not isinstance(DebugTrace.factory(), OtelTrace)
-            assert isinstance(DebugTrace.factory(), EmptyTrace)
+        # Factory hasn't been configured, it defaults to EmptyTrace.
+        assert not isinstance(DebugTrace.factory(), OtelTrace)
+        assert isinstance(DebugTrace.factory(), EmptyTrace)
 
-            DebugTrace.configure_factory()
-            # Factory has been configured, it should still be EmptyTrace.
-            assert not isinstance(DebugTrace.factory(), OtelTrace)
-            assert isinstance(DebugTrace.factory(), EmptyTrace)
+        DebugTrace.configure_factory()
+        # Factory has been configured, it should still be EmptyTrace.
+        assert not isinstance(DebugTrace.factory(), OtelTrace)
+        assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
     @patch("airflow.observability.traces.otel_tracer.conf")
