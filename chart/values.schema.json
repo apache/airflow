@@ -2857,7 +2857,7 @@
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -2867,7 +2867,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
@@ -5159,7 +5159,7 @@
                 "podDisruptionBudget": {
                     "description": "API server pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5169,7 +5169,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for API server.",
@@ -5963,7 +5963,7 @@
                 "podDisruptionBudget": {
                     "description": "Webserver pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5973,7 +5973,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
@@ -7533,7 +7533,7 @@
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enabled PodDistributionBudget.",
@@ -7543,7 +7543,7 @@
                         "config": {
                             "description": "Pod distribution configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
@@ -8976,7 +8976,8 @@
                 "retentionDays": {
                     "description": "Number of days to retain records in the metadata database.",
                     "type": "integer",
-                    "default": 90
+                    "default": 90,
+                    "minimum": 1
                 },
                 "skipArchive": {
                     "description": "Don't preserve purged records in an archive table.",

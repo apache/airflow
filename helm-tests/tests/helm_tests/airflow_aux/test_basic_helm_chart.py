@@ -518,8 +518,12 @@ class TestBaseChartTest:
                 expected_labels["executor"] = "CeleryExecutor"
                 if executor == "CeleryExecutor,KubernetesExecutor":
                     expected_labels["executor"] = "CeleryExecutor-KubernetesExecutor"
-            actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
-            assert actual_labels == expected_labels
+
+            if component and component == "airflow-cleanup-pods" and executor == "CeleryExecutor":
+                assert (k8s_object_name, kind) not in kind_k8s_obj_labels_tuples
+            else:
+                actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+                assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
@@ -531,7 +535,7 @@ class TestBaseChartTest:
             name=release_name,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
-                "executor": "CeleryExecutor",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "dagProcessor": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},

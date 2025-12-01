@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,31 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "rich>=13.6.0",
-#   "ruff==0.14.7",
-# ]
-# ///
+
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_prek_utils import (
-    initialize_breeze_prek,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 
-initialize_breeze_prek(__name__, __file__)
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_check_imports_in_providers.py"],
-    backend="postgres",
-    skip_environment_initialization=False,
-)
+class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
+    """Middleware that automatically generates and includes auth header for simple auth manager."""
 
-validate_cmd_result(cmd_result)
+    async def dispatch(self, request: Request, call_next):
+        # Starlette Request is expected to be immutable, but we modify it to add the auth header
+        # https://github.com/fastapi/fastapi/issues/2727#issuecomment-770202019
+        token = SimpleAuthManagerLogin.create_token_all_admins()
+        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
+        return await call_next(request)

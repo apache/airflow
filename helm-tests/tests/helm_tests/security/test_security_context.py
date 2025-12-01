@@ -17,13 +17,23 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
 class TestSCBackwardsCompatibility:
     """Tests SC Backward Compatibility."""
 
-    def test_check_deployments_and_jobs(self):
+    @pytest.mark.parametrize(
+        "executor",
+        [
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
+            "KubernetesExecutor",
+        ],
+    )
+    def test_check_deployments_and_jobs(self, executor):
         docs = render_chart(
             values={
                 "uid": 3000,
@@ -31,7 +41,7 @@ class TestSCBackwardsCompatibility:
                 "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "airflowVersion": "2.2.0",
-                "executor": "CeleryKubernetesExecutor",
+                "executor": executor,
             },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
@@ -64,9 +74,17 @@ class TestSCBackwardsCompatibility:
 
         assert jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0]) == 3000
 
-    def test_check_cleanup_job(self):
+    @pytest.mark.parametrize(
+        "executor", ["CeleryKubernetesExecutor", "CeleryExecutor,KubernetesExecutor", "KubernetesExecutor"]
+    )
+    def test_check_cleanup_job(self, executor):
         docs = render_chart(
-            values={"uid": 3000, "gid": 30, "cleanup": {"enabled": True}},
+            values={
+                "uid": 3000,
+                "gid": 30,
+                "executor": executor,
+                "cleanup": {"enabled": True},
+            },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
@@ -234,6 +252,7 @@ class TestSecurityContext:
         docs = render_chart(
             values={
                 "securityContexts": {"containers": ctx_value_container, "pod": ctx_value_pod},
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
@@ -291,6 +310,7 @@ class TestSecurityContext:
         security_context = {"securityContexts": {"container": ctx_value}}
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
@@ -425,6 +445,7 @@ class TestSecurityContext:
         security_context = {"securityContexts": {"pod": ctx_value}}
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
@@ -463,6 +484,7 @@ class TestSecurityContext:
         security_context = {"securityContext": ctx_value}
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
