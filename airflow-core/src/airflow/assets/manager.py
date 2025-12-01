@@ -252,6 +252,7 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _queue_dagruns(
         cls,
+        *,
         asset_id: int,
         dags_to_queue: set[DagModel],
         partition_key: str | None,
@@ -345,7 +346,7 @@ class AssetManager(LoggingMixin):
         target_key: str,
         target_dag: SerializedDagModel,
         session: Session,
-    ):
+    ) -> AssetPartitionDagRun:
         latest_apdr: AssetPartitionDagRun = session.scalar(
             select(AssetPartitionDagRun)
             .where(

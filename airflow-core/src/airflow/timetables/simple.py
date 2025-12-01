@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -220,7 +220,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return None
 
 
-class PartitionMapper:
+class PartitionMapper(ABC):
     """
     Base partition mapper class.
 

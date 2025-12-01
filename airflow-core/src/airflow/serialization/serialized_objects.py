@@ -475,8 +475,7 @@ def decode_timetable(var: dict[str, Any]) -> Timetable:
 def _load_partition_mapper(importable_string) -> PartitionMapper | None:
     if importable_string.startswith("airflow.timetables."):
         return import_string(importable_string)
-    else:
-        return None
+    return None
 
 
 def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
