@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-11-30T10:10:27.158769
+# This constraints file was automatically generated on 2025-12-01T16:48:50.362162
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -78,7 +78,7 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.12.0
 apache-beam==2.69.0
-apispec==6.8.4
+apispec==6.9.0
 apprise==1.9.5
 argcomplete==3.6.3
 arro3-core==0.6.5
@@ -94,7 +94,7 @@ asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.103.0
+aws-sam-translator==1.104.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -129,8 +129,8 @@ backports.tarfile==1.2.0
 backports.zstd==1.1.0
 bcrypt==5.0.0
 beartype==0.21.0
-beautifulsoup4==4.14.2
-billiard==4.2.3
+beautifulsoup4==4.14.3
+billiard==4.2.4
 bitarray==3.8.0
 black==25.11.0
 bleach==6.3.0
@@ -143,11 +143,11 @@ cachetools==6.2.2
 cadwyn==5.4.5
 cassandra-driver==3.29.3
 cattrs==25.3.0
-celery==5.5.3
+celery==5.6.0
 certifi==2025.11.12
 cffi==1.17.1
 cfgv==3.5.0
-cfn-lint==1.41.0
+cfn-lint==1.42.0
 chardet==5.2.0
 charset-normalizer==3.4.4
 checksumdir==1.3.0
@@ -303,7 +303,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.6
+huggingface_hub==1.1.7
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -354,7 +354,7 @@ kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
 kgb==7.2
-kombu==5.5.4
+kombu==5.6.1
 krb5==0.9.0
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
@@ -384,7 +384,7 @@ microsoft-kiota-serialization-text==1.9.7
 mistune==3.1.4
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.17
+moto==5.1.18
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.34.0
@@ -478,9 +478,9 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.3
-psycopg-binary==3.2.13
+psycopg-binary==3.3.0
 psycopg2-binary==2.9.11
-psycopg==3.2.13
+psycopg==3.3.0
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -506,7 +506,7 @@ pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.15.4
-pymssql==2.3.9
+pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5
 pyparsing==3.2.5
@@ -547,7 +547,7 @@ qdrant-client==1.16.1
 ray==2.47.1
 reactivex==4.1.0
 readme_renderer==44.0
-redis==5.2.1
+redis==5.3.1
 redshift-connector==2.1.7
 referencing==0.36.2
 regex==2025.11.3
@@ -567,7 +567,7 @@ rich-argparse==1.7.2
 rich-click==1.8.9
 rich-toolkit==0.17.0
 rich==13.9.4
-rpds-py==0.29.0
+rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
@@ -653,7 +653,7 @@ towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.11.14.15
+trove-classifiers==2025.12.1.14
 twine==6.2.0
 typer-slim==0.20.0
 typer==0.20.0
@@ -698,7 +698,7 @@ virtualenv==20.35.4
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.18.1
+weaviate-client==4.18.2
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
