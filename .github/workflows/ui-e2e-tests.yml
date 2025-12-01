@@ -22,6 +22,9 @@ name: UI End-to-End Tests
 permissions:
   contents: read
 on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - 'ci-workflow-ui-e2e'
   workflow_dispatch:
     inputs:
       workflow-name:
