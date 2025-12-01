@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 import structlog
@@ -264,16 +264,20 @@ class AssetManager(LoggingMixin):
         if not dags_to_queue:
             return None
 
-        partition_dags = cls._queue_partitioned_dags(
+        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
+        partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
+
+        cls._queue_partitioned_dags(
             asset_id=asset_id,
-            all_dags=dags_to_queue,
+            partition_dags=partition_dags,
             event=event,
             partition_key=partition_key,
             session=session,
         )
-        dags_to_queue = dags_to_queue.difference(partition_dags)  # don't double process
 
-        if not dags_to_queue:
+        non_partitioned_dags = dags_to_queue.difference(partition_dags)  # don't double process
+
+        if not non_partitioned_dags:
             return None
 
         # Possible race condition: if multiple dags or multiple (usually
@@ -285,20 +289,18 @@ class AssetManager(LoggingMixin):
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
         if get_dialect_name(session) == "postgresql":
-            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, dags_to_queue, session)
-        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, dags_to_queue, session)
+            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
+        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
 
     @classmethod
     def _queue_partitioned_dags(
         cls,
         asset_id: int,
-        all_dags: set[DagModel],
+        partition_dags: Iterable[DagModel],
         event: AssetEvent,
         partition_key: str | None,
         session: Session,
-    ) -> list[DagModel]:
-        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
-        partition_dags = [x for x in all_dags if x.timetable_summary == "Partitioned Asset"]
+    ) -> None:
         if partition_dags and not partition_key:
             # TODO: AIP-76 how to best ensure users can see this? Probably add Log record.
             log.warning(
@@ -309,7 +311,7 @@ class AssetManager(LoggingMixin):
                 dag_id=event.source_dag_id,
                 task_id=event.source_task_id,
             )
-            return partition_dags
+            return
 
         for target_dag in partition_dags:
             if TYPE_CHECKING:
@@ -338,7 +340,6 @@ class AssetManager(LoggingMixin):
                 target_partition_key=target_key,
             )
             session.add(log_record)
-        return partition_dags
 
     @classmethod
     def _get_or_create_apdr(
