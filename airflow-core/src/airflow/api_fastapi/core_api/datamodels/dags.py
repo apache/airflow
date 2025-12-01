@@ -84,6 +84,16 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: datetime | None
     owners: list[str]
 
+    @field_validator("tags", mode="before")
+    @classmethod
+    def sort_tags(cls, v: Any) -> list[Any]:
+        """Sort tags alphabetically by name."""
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return sorted(v, key=lambda tag: tag.name if hasattr(tag, "name") else str(tag))
+        return v
+
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:

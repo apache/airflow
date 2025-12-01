@@ -526,6 +526,40 @@ class TestGetDags(TestDagEndpoint):
         assert body["total_entries"] == 1
         assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
 
+    def test_get_dags_tags_sorted_alphabetically(self, session, test_client):
+        """Test that tags are returned in alphabetical order."""
+        # Create a DAG with multiple tags in non-alphabetical order
+        dag_id = "test_dag_sorted_tags"
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Add tags in non-alphabetical order
+        tag_names = ["zebra", "alpha", "mike", "bravo"]
+        for tag_name in tag_names:
+            tag = DagTag(name=tag_name, dag_id=dag_id)
+            session.add(tag)
+
+        session.commit()
+
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Find our test DAG in the response
+        test_dag = next((d for d in body["dags"] if d["dag_id"] == dag_id), None)
+        assert test_dag is not None
+
+        # Verify tags are sorted alphabetically
+        tag_names_in_response = [tag["name"] for tag in test_dag["tags"]]
+        expected_sorted_tags = sorted(tag_names)
+        assert tag_names_in_response == expected_sorted_tags
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5
@@ -1213,6 +1247,36 @@ class TestGetDag(TestDagEndpoint):
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
+
+    def test_get_dag_tags_sorted_alphabetically(self, session, test_client):
+        """Test that tags are returned in alphabetical order for a single DAG."""
+        # Create a DAG with multiple tags in non-alphabetical order
+        dag_id = "test_dag_single_sorted_tags"
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Add tags in non-alphabetical order
+        tag_names = ["zebra", "alpha", "mike", "bravo"]
+        for tag_name in tag_names:
+            tag = DagTag(name=tag_name, dag_id=dag_id)
+            session.add(tag)
+
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        res_json = response.json()
+
+        # Verify tags are sorted alphabetically
+        tag_names_in_response = [tag["name"] for tag in res_json["tags"]]
+        expected_sorted_tags = sorted(tag_names)
+        assert tag_names_in_response == expected_sorted_tags
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")
