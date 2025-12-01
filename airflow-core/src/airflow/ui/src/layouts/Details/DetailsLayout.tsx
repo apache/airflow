@@ -77,7 +77,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
   const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage<string>(
-    `version_display_mode-${dagId}`,
+    `version_indicator_display_mode`,
     VersionIndicatorDisplayOptions.ALL,
   );
   const { fitView, getZoom } = useReactFlow();
