@@ -2395,8 +2395,14 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
-    from airflow.serialization.encoders import coerce_to_core_timetable
     from airflow.timetables.base import TimeRestriction
+
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.serialization.encoders import coerce_to_core_timetable
+    else:
+        coerce_to_core_timetable = lambda t: t
 
     timezone = _import_timezone()
 
