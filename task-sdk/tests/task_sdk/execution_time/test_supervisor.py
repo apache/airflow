@@ -1348,14 +1348,14 @@ class TestMetricsEmission:
 
         # Mock the methods at the class level to avoid attrs read-only issues
         # Don't mock _monitor_subprocess since that's where _exit_code gets set
-        mock_update_state = mocker.patch.object(ActivitySubprocess, 'update_task_state_if_needed')
-        mock_upload_logs = mocker.patch.object(ActivitySubprocess, '_upload_logs')
-        
+        mocker.patch.object(ActivitySubprocess, "update_task_state_if_needed")
+        mocker.patch.object(ActivitySubprocess, "_upload_logs")
+
         # Mock _monitor_subprocess to just set the exit code and return
         def mock_monitor_subprocess(self):
-            object.__setattr__(self, '_exit_code', 0)
-        
-        mocker.patch.object(ActivitySubprocess, '_monitor_subprocess', mock_monitor_subprocess)
+            object.__setattr__(self, "_exit_code", 0)
+
+        mocker.patch.object(ActivitySubprocess, "_monitor_subprocess", mock_monitor_subprocess)
 
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
@@ -1367,12 +1367,12 @@ class TestMetricsEmission:
         )
 
         # Don't set exit code here, let _monitor_subprocess do it
-        
+
         # Mock task instance
         mock_ti = mocker.MagicMock()
         mock_ti.dag_id = "test_dag"
         mock_ti.task_id = "test_task"
-        object.__setattr__(proc, 'ti', mock_ti)
+        object.__setattr__(proc, "ti", mock_ti)
 
         # Mock selector to avoid blocking
         proc.selector = mocker.MagicMock()
