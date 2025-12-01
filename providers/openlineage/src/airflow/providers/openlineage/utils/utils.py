@@ -671,10 +671,9 @@ class DagInfo(InfoJsonEncodable):
         if summary := getattr(timetable, "summary", None):
             return summary
         with suppress(ImportError):
-            from airflow.serialization.decoders import decode_timetable
-            from airflow.serialization.encoders import encode_timetable
+            from airflow.serialization.encoders import coerce_to_core_timetable
 
-            return decode_timetable(encode_timetable(timetable)).summary
+            return coerce_to_core_timetable(timetable).summary
         return None
 
     @classmethod

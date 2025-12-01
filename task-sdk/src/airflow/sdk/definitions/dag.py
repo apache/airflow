@@ -1185,8 +1185,7 @@ class DAG:
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
-        from airflow.serialization.decoders import decode_timetable
-        from airflow.serialization.encoders import encode_timetable
+        from airflow.serialization.encoders import coerce_to_core_timetable
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1234,7 +1233,7 @@ class DAG:
             if logical_date is None:
                 data_interval: DataInterval | None = None
             else:
-                timetable = decode_timetable(encode_timetable(self.timetable))
+                timetable = coerce_to_core_timetable(self.timetable)
                 data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
             from airflow.models.dag_version import DagVersion
 

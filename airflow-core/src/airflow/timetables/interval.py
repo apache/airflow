@@ -189,19 +189,6 @@ class DeltaDataIntervalTimetable(DeltaMixin, _DataIntervalTimetable):
             return cls(decode_relativedelta(delta))
         return cls(datetime.timedelta(seconds=delta))
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Return if the offsets match.
-
-        This is only for testing purposes and should not be relied on otherwise.
-        """
-        if not isinstance(other, DeltaDataIntervalTimetable):
-            return NotImplemented
-        return self._delta == other._delta
-
-    def __hash__(self):
-        return hash(self._delta)
-
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_relativedelta
 

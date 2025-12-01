@@ -239,10 +239,9 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
 
 def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
-    from airflow.serialization.decoders import decode_timetable
-    from airflow.serialization.encoders import encode_timetable
+    from airflow.serialization.encoders import coerce_to_core_timetable
 
-    core_timetable = decode_timetable(encode_timetable(dag.timetable))
+    core_timetable = coerce_to_core_timetable(dag.timetable)
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,

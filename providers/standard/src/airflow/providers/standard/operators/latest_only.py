@@ -38,10 +38,9 @@ if TYPE_CHECKING:
 if AIRFLOW_V_3_2_PLUS:
 
     def _get_dag_timetable(dag):
-        from airflow.serialization.decoders import decode_timetable
-        from airflow.serialization.encoders import encode_timetable
+        from airflow.serialization.encoders import coerce_to_core_timetable
 
-        return decode_timetable(encode_timetable(dag.timetable))
+        return coerce_to_core_timetable(dag.timetable)
 else:
 
     def _get_dag_timetable(dag):

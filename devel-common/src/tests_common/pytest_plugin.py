@@ -2395,16 +2395,10 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk import DAG
     from airflow.sdk.api.datamodels._generated import TaskInstance
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
-    from airflow.serialization.decoders import decode_timetable
-    from airflow.serialization.encoders import encode_timetable
+    from airflow.serialization.encoders import coerce_to_core_timetable
     from airflow.timetables.base import TimeRestriction
 
     timezone = _import_timezone()
-
-    def _convert_timetable(timetable):
-        if not timetable:
-            return None
-        return decode_timetable(encode_timetable(timetable))
 
     def _create_task_instance(
         task: Operator,
@@ -2452,20 +2446,20 @@ def create_runtime_ti(mocked_parse):
         data_interval_start = None
         data_interval_end = None
 
-        if timetable := _convert_timetable(task.dag.timetable):
-            if run_type == DagRunType.MANUAL:
-                if logical_date is not None:
-                    data_interval_start, data_interval_end = timetable.infer_manual_data_interval(
-                        run_after=logical_date,
-                    )
-            else:
-                drinfo = timetable.next_dagrun_info(
-                    last_automated_data_interval=None,
-                    restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+        timetable = coerce_to_core_timetable(task.dag.timetable)
+        if run_type == DagRunType.MANUAL:
+            if logical_date is not None:
+                data_interval_start, data_interval_end = timetable.infer_manual_data_interval(
+                    run_after=logical_date,
                 )
-                if drinfo:
-                    data_interval = drinfo.data_interval
-                    data_interval_start, data_interval_end = data_interval.start, data_interval.end
+        else:
+            drinfo = timetable.next_dagrun_info(
+                last_automated_data_interval=None,
+                restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+            )
+            if drinfo:
+                data_interval = drinfo.data_interval
+                data_interval_start, data_interval_end = data_interval.start, data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0

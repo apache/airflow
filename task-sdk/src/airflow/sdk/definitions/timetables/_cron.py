@@ -36,6 +36,6 @@ class CronMixin:
 
     def validate(self) -> None:
         try:
-            croniter(self._expression)
+            croniter(self.expression)
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))

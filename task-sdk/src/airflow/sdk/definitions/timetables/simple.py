@@ -20,25 +20,7 @@ from __future__ import annotations
 from airflow.sdk.definitions.timetables.base import BaseTimetable
 
 
-class TrivialTimetable(BaseTimetable):
-    """Some code reuse for "trivial" timetables that has nothing complex."""
-
-    def __hash__(self) -> int:
-        """As simple as reasonably possible, just to satisfy the linter."""
-        return 0
-
-    def __eq__(self, other: object) -> bool:
-        """
-        As long as *other* is of the same type.
-
-        This is only for testing purposes and should not be relied on otherwise.
-        """
-        if not isinstance(other, type(self)):
-            return NotImplemented
-        return True
-
-
-class NullTimetable(TrivialTimetable):
+class NullTimetable(BaseTimetable):
     """
     Timetable that never schedules anything.
 
@@ -48,7 +30,7 @@ class NullTimetable(TrivialTimetable):
     can_be_scheduled = False
 
 
-class OnceTimetable(TrivialTimetable):
+class OnceTimetable(BaseTimetable):
     """
     Timetable that schedules the execution once as soon as possible.
 
@@ -56,7 +38,7 @@ class OnceTimetable(TrivialTimetable):
     """
 
 
-class ContinuousTimetable(TrivialTimetable):
+class ContinuousTimetable(BaseTimetable):
     """
     Timetable that schedules continually, while still respecting start_date and end_date.
 

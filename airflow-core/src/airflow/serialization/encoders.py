@@ -20,7 +20,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import functools
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import attrs
 import pendulum
@@ -40,6 +40,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.base import BaseTimetable
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
@@ -51,8 +52,9 @@ if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
 
     from airflow.sdk.definitions.asset import BaseAsset
-    from airflow.sdk.definitions.timetables.base import BaseTimetable
     from airflow.triggers.base import BaseEventTrigger
+
+    T = TypeVar("T")
 
 
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:
@@ -156,10 +158,10 @@ def encode_asset_condition(a: BaseAsset) -> dict[str, Any]:
 def _get_serialized_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
-        return _TimetableSerializer.BUILTIN_TIMETABLES[type(var)]
+        return _serializer.BUILTIN_TIMETABLES[var_type := type(var)]
 
     # Check Core classes.
-    if is_core_timetable_import_path(importable_string := qualname(var)):
+    if is_core_timetable_import_path(importable_string := qualname(var_type)):
         return importable_string
 
     # Find user-registered classes.
@@ -270,3 +272,25 @@ class _TimetableSerializer:
 
 
 _serializer = _TimetableSerializer()
+
+
+@overload
+def coerce_to_core_timetable(obj: BaseTimetable | CoreTimetable) -> CoreTimetable: ...
+
+
+@overload
+def coerce_to_core_timetable(obj: T) -> T: ...
+
+
+def coerce_to_core_timetable(obj: object) -> object:
+    """
+    Convert *obj* from an SDK timetable to a Core tiemtable instance if possible.
+
+    :meta private:
+    """
+    if isinstance(obj, CoreTimetable) or not isinstance(obj, BaseTimetable):
+        return obj
+
+    from airflow.serialization.decoders import decode_timetable
+
+    return decode_timetable(encode_timetable(obj))
