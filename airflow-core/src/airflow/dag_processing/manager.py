@@ -1212,7 +1212,8 @@ def process_parse_results(
         if conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
             for module in parsing_result.not_loaded_airflow_modules or []:
                 try:
-                    importlib.import_module(module)
+                    if module not in sys.modules.keys():
+                        importlib.import_module(module)
                 except Exception:
                     log.warning("Error when trying to pre-import module '%s'", module)
     return stat
