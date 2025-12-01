@@ -69,6 +69,7 @@ else:
         HTTP_400_BAD_REQUEST = 400
         HTTP_403_FORBIDDEN = 403
         HTTP_404_NOT_FOUND = 404
+        HTTP_409_CONFLICT = 409
         HTTP_500_INTERNAL_SERVER_ERROR = 500
 
     class HTTPException(ProblemException):  # type: ignore[no-redef]
@@ -85,11 +86,13 @@ else:
             EXCEPTIONS_LINK_MAP = {
                 400: f"{doc_link}#section/Errors/BadRequest",
                 403: f"{doc_link}#section/Errors/PermissionDenied",
+                409: f"{doc_link}#section/Errors/Conflict",
                 500: f"{doc_link}#section/Errors/Unknown",
             }
             TITLE_MAP = {
                 400: "BadRequest",
                 403: "PermissionDenied",
+                409: "Conflict",
                 500: "InternalServerError",
             }
             super().__init__(
@@ -98,6 +101,11 @@ else:
                 title=TITLE_MAP[status],
                 detail=detail,
             )
+
+        @property
+        def status_code(self) -> int:
+            """Alias for status to match FastAPI's HTTPException interface."""
+            return self.status
 
         def to_response(self):
             from flask import Response

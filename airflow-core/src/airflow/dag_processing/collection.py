@@ -285,21 +285,22 @@ def _update_import_errors(
 ):
     from airflow.listeners.listener import get_listener_manager
 
-    # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
-    # errors (i.e. from files that are removed) separately
-
-    session.execute(
-        delete(ParseImportError).where(
-            tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_parsed)
-        )
-    )
-
-    # the below query has to match (bundle_name, filename) tuple in that order since the
-    # import_errors list is a dict with keys as (bundle_name, relative_fileloc)
+    # Check existing import errors BEFORE deleting, so we can determine if we should update or create
     existing_import_error_files = set(
         session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
     )
-    # Add the errors of the processed files
+
+    # Delete errors for files that were parsed but don't have errors in import_errors
+    # (i.e., files that were successfully parsed without errors)
+    files_to_clear = files_parsed.difference(import_errors)
+    if files_to_clear:
+        session.execute(
+            delete(ParseImportError).where(
+                tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_to_clear)
+            )
+        )
+
+    # Add or update the errors of the processed files
     for key, stacktrace in import_errors.items():
         bundle_name_, relative_fileloc = key
 
@@ -371,6 +372,7 @@ def update_dag_parsing_results_in_db(
     session: Session,
     *,
     warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
+    files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -388,6 +390,10 @@ def update_dag_parsing_results_in_db(
     then all warnings and errors related to this file will be removed.
 
     ``import_errors`` will be updated in place with an new errors
+
+    :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
+        If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
+        import errors are cleared for files that were parsed but no longer contain DAGs.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -423,16 +429,8 @@ def update_dag_parsing_results_in_db(
             import_errors.update(serialize_errors)
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
-        # TODO: This won't clear errors for files that exist that no longer contain DAGs. Do we need to pass
-        # in the list of file parsed?
-
-        good_dag_filelocs = {
-            (bundle_name, dag.relative_fileloc)
-            for dag in dags
-            if dag.relative_fileloc is not None and (bundle_name, dag.relative_fileloc) not in import_errors
-        }
         _update_import_errors(
-            files_parsed=good_dag_filelocs,
+            files_parsed=files_parsed if files_parsed is not None else set(),
             bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,

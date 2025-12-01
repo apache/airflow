@@ -213,6 +213,15 @@ rules to remember:
   ``# use next version`` comment to it, next time when ``prek hook`` will be run it will remove the automatically
   added line and keep only the manually added line with the comment.
 
+# There is an automated check for that in case of ``common.compat`` provider - because it is one that changes
+  often and almost always when it changes, there are some providers that need those changes - so you should
+  add the ``# use next version`` comment to such providers always when you modify ``common.compat``.
+  In case there is a change in the ``common.compat`` package that requires updating other providers, and there
+  are no changes in other providers that require such update - you will get and error in the Selective Check
+  CI job that will remind you to add such comments to the providers that need to be updated. You can skip
+  the check if you are sure that no other providers do not need to be updated by adding
+  ``skip common compat check`` label to the PR. Only maintainers and collaborators can add such label.
+
 * Some of our dependencies have forced minimum version - mostly because of the Airflow 3 minimum version
   compatibility. Just in case in the future, we have other distributions referring to them we are forcing a
   minimum version for those distributions by a ``prek`` hook. This causes entries like this:

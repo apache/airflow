@@ -925,6 +925,7 @@ class VariableBody(BaseModel):
     key: Annotated[str, Field(max_length=250, title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VariableResponse(BaseModel):
@@ -936,6 +937,7 @@ class VariableResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VersionInfo(BaseModel):

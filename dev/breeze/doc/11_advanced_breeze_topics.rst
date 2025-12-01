@@ -216,7 +216,7 @@ Node (pnpm) dependencies
 ........................
 
 If you need to change "node" dependencies in ``airflow/ui``, you need to compile them in the
-host with ``breeze compile-ui-assets`` command. No need to rebuild the image.
+host with ``breeze ui compile-assets`` command. No need to rebuild the image.
 
 
 Recording command output

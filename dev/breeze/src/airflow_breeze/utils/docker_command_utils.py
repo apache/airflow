@@ -230,6 +230,36 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
+def check_container_engine(quiet: bool = False):
+    """Checks if the container engine is Docker or podman."""
+    response = run_command(
+        ["docker", "version"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            "[error]Could not determine the container engine.[/]\n"
+            "[warning]Please ensure that Docker is installed and running.[/]"
+        )
+        sys.exit(1)
+    run_command_output = "\n".join(
+        " ".join(line.split()) for line in response.stdout.strip().lower().splitlines()
+    )
+    podman_engine_enabled = any(
+        "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
+    )
+    if podman_engine_enabled:
+        get_console().print(
+            "[error]Podman is not yet supported as a container engine in breeze.[/]\n"
+            "[warning]Please switch to Docker.[/]"
+        )
+        sys.exit(1)
+
+
 def check_remote_ghcr_io_commands():
     """Checks if you have permissions to pull an empty image from ghcr.io.
 
@@ -508,6 +538,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
+    check_container_engine(quiet)
     check_docker_version(quiet)
     check_docker_compose_version(quiet)
     check_executable_entrypoint_permissions(quiet)
@@ -826,8 +857,6 @@ def enter_shell(
     cmd.extend(["run", "--service-ports", "--rm"])
     if shell_params.tty == "disabled":
         cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
     cmd.append("airflow")
     cmd_added = shell_params.command_passed
     if cmd_added is not None:

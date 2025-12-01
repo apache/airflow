@@ -16,17 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Select as ChakraSelect, Portal } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-export const downloadJson = (data: Record<string, string | undefined>, name: string) => {
-  const jsonData = JSON.stringify(data, undefined, 2);
-  const blob = new Blob([jsonData], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+type ContentProps = {
+  readonly portalled?: boolean;
+  readonly portalRef?: React.RefObject<HTMLElement>;
+} & ChakraSelect.ContentProps;
 
-  const link = document.createElement("a");
+export const Content = forwardRef<HTMLDivElement, ContentProps>((props, ref) => {
+  const { portalled = true, portalRef, ...rest } = props;
 
-  link.href = url;
-  link.download = `${name}.json`;
-  link.click();
-
-  URL.revokeObjectURL(url);
-};
+  return (
+    <Portal container={portalRef} disabled={!portalled}>
+      <ChakraSelect.Positioner>
+        <ChakraSelect.Content {...rest} ref={ref} />
+      </ChakraSelect.Positioner>
+    </Portal>
+  );
+});

@@ -791,13 +791,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param executor: The executor to enqueue tasks for
         :param session: The session object
         """
+
+        def _get_sentry_integration(executor: BaseExecutor) -> str:
+            try:
+                sentry_integration = executor.sentry_integration
+            except AttributeError:
+                # Old executor interface hard-codes the supports_sentry flag.
+                if getattr(executor, "supports_sentry", False):
+                    return "sentry_sdk.integrations.celery.CeleryIntegration"
+                return ""
+            if not isinstance(sentry_integration, str):
+                self.log.warning(
+                    "Ignoring invalid sentry_integration on executor",
+                    executor=executor,
+                    sentry_integration=sentry_integration,
+                )
+                return ""
+            return sentry_integration
+
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
 
-            workload = workloads.ExecuteTask.make(ti, generator=executor.jwt_generator)
+            workload = workloads.ExecuteTask.make(
+                ti,
+                generator=executor.jwt_generator,
+                sentry_integration=_get_sentry_integration(executor),
+            )
             executor.queue_workload(workload, session=session)
 
     def _critical_section_enqueue_task_instances(self, session: Session) -> int:

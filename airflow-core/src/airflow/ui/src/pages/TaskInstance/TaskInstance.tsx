@@ -116,10 +116,7 @@ export const TaskInstance = () => {
             {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
           </Heading>
         ) : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
+          <Header taskInstance={taskInstance} />
         )}
       </DetailsLayout>
     </ReactFlowProvider>

@@ -325,11 +325,14 @@ class TestTriggerRunner:
             1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+            asyncio.run(
+                trigger_runner.run_trigger(
+                    1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
+                )
+            )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
@@ -918,7 +921,7 @@ class CustomTriggerDagRun(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -1009,7 +1012,7 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task

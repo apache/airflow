@@ -152,8 +152,8 @@ AIRFLOW_PYPROJECT_TOML_FILE_PATH = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
 AIRFLOW_CORE_TESTS_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "tests"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
+PROVIDER_DEPENDENCIES_JSON_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
+PROVIDER_DEPENDENCIES_JSON_HASH_PATH = (
     AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
 )
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
@@ -194,19 +194,13 @@ def _calculate_provider_deps_hash():
     return hasher.hexdigest()
 
 
-if (
-    not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
-    or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
-):
+if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
     subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
 else:
     calculated_provider_deps_hash = _calculate_provider_deps_hash()
-    if (
-        calculated_provider_deps_hash.strip()
-        != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip()
-    ):
+    if calculated_provider_deps_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
         subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
-        AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_provider_deps_hash)
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_provider_deps_hash)
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
@@ -1944,12 +1938,17 @@ def _mock_plugins(request: pytest.FixtureRequest):
 
 @pytest.fixture
 def hook_lineage_collector():
-    from airflow.lineage import hook
+    from airflow.lineage.hook import HookLineageCollector
 
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-    yield hook.get_hook_lineage_collector()
-    hook._hook_lineage_collector = None
+    hlc = HookLineageCollector()
+    with mock.patch(
+        "airflow.lineage.hook.get_hook_lineage_collector",
+        return_value=hlc,
+    ):
+        # Redirect calls to compat provider to support back-compat tests of 2.x as well
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        yield get_hook_lineage_collector()
 
 
 @pytest.fixture
@@ -2490,6 +2489,11 @@ def create_runtime_ti(mocked_parse):
         if upstream_map_indexes is not None:
             ti_context.upstream_map_indexes = upstream_map_indexes
 
+        compat_fields = {
+            "requests_fd": 0,
+            "sentry_integration": "",
+        }
+
         startup_details = StartupDetails(
             ti=TaskInstance(
                 id=ti_id,
@@ -2505,7 +2509,7 @@ def create_runtime_ti(mocked_parse):
             ti_context=ti_context,
             start_date=start_date,  # type: ignore
             # Back-compat of task-sdk. Only affects us when we manually create these objects in tests.
-            **({"requests_fd": 0} if "requests_fd" in StartupDetails.model_fields else {}),  # type: ignore
+            **{k: v for k, v in compat_fields.items() if k in StartupDetails.model_fields},  # type: ignore
         )
 
         ti = mocked_parse(startup_details, dag_id, task)

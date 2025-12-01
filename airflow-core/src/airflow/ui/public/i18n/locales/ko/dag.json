@@ -116,7 +116,7 @@
       "label": "그래프 방향"
     },
     "taskStreamFilter": {
-      "activeFilter": "활성 필터",
+      "activeFilter": "필터 적용하기",
       "clearFilter": "필터 지우기",
       "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
       "label": "필터",

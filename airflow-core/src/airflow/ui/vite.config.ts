@@ -44,6 +44,7 @@ export default defineConfig({
     },
     css: true,
     environment: "happy-dom",
+    exclude: ["**/node_modules/**", "**/dist/**", "tests/e2e/**"],
     globals: true,
     mockReset: true,
     restoreMocks: true,
