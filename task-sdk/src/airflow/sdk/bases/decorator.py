@@ -286,7 +286,8 @@ class DecoratedOperator(BaseOperator):
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = textwrap.dedent(raw_source)
+        raw_source_lines = [line for line in raw_source.splitlines() if not line.strip().startswith("#")]
+        res = textwrap.dedent("\n".join(raw_source_lines)) + "\n"
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
