@@ -856,6 +856,9 @@ class TestWatchedSubprocess:
         # Patch the kill method at the class level so we can assert it was called with the correct signal
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
 
+        # Mock Stats.incr to verify metrics emission
+        mock_stats_incr = mocker.patch("airflow.stats.Stats.incr")
+
         proc = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -906,6 +909,9 @@ class TestWatchedSubprocess:
             "timestamp": mocker.ANY,
             "loc": mocker.ANY,
         } in captured_logs
+
+        # Verify heartbeat failure metric was emitted
+        mock_stats_incr.assert_called_with("local_task_job_prolonged_heartbeat_failure", 1, 1)
 
     @pytest.mark.parametrize(
         ("terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"),
@@ -1333,6 +1339,49 @@ class TestWatchedSubprocessKill:
         actual_timeout = call_args[1]["timeout"] if "timeout" in call_args[1] else call_args[0][0]
 
         assert actual_timeout >= expected_min_timeout
+
+
+class TestMetricsEmission:
+    def test_task_exit_metrics_emission(self, mocker):
+        """Test that task exit metrics are emitted correctly."""
+        mock_stats_incr = mocker.patch("airflow.stats.Stats.incr")
+
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.MagicMock(),
+            client=mocker.MagicMock(),
+            process=mocker.MagicMock(),
+        )
+
+        # Mock task instance
+        proc.ti = mocker.MagicMock()
+        proc.ti.dag_id = "test_dag"
+        proc.ti.task_id = "test_task"
+        proc._exit_code = 0
+
+        # Mock methods to avoid actual subprocess monitoring
+        mocker.patch.object(proc, '_monitor_subprocess')
+        mocker.patch.object(proc, 'update_task_state_if_needed')
+        mocker.patch.object(proc, '_upload_logs')
+
+        proc.wait()
+
+        # Verify both metrics were emitted
+        expected_calls = [
+            mocker.call(f"local_task_job.task_exit.{TI_ID}.test_dag.test_task.0"),
+            mocker.call(
+                "local_task_job.task_exit",
+                tags={
+                    "job_id": str(TI_ID),
+                    "dag_id": "test_dag",
+                    "task_id": "test_task",
+                    "return_code": 0,
+                },
+            ),
+        ]
+        mock_stats_incr.assert_has_calls(expected_calls)
 
 
 @dataclass

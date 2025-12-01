@@ -1025,6 +1025,25 @@ class ActivitySubprocess(WatchedSubprocess):
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
+        # Log return code metrics
+        if self.ti:
+            try:
+                from airflow.stats import Stats
+                Stats.incr(
+                    f"local_task_job.task_exit.{self.id}.{self.ti.dag_id}.{self.ti.task_id}.{self._exit_code}"
+                )
+                Stats.incr(
+                    "local_task_job.task_exit",
+                    tags={
+                        "job_id": str(self.id),
+                        "dag_id": self.ti.dag_id,
+                        "task_id": self.ti.task_id,
+                        "return_code": self._exit_code,
+                    },
+                )
+            except ImportError:
+                pass
+
         self.update_task_state_if_needed()
 
         # Now at the last possible moment, when all logs and comms with the subprocess has finished, lets
@@ -1174,6 +1193,11 @@ class ActivitySubprocess(WatchedSubprocess):
         )
         # If we've failed to heartbeat too many times, kill the process
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
+            try:
+                from airflow.stats import Stats
+                Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
+            except ImportError:
+                pass
             log.error(
                 "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
             )
