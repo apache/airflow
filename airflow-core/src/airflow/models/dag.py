@@ -23,6 +23,7 @@ from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
+import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
@@ -136,7 +137,9 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
     ) is not None:
         return data_interval
 
-    if (data_interval := timetable.infer_manual_data_interval(run_after=run.run_after)) is not None:
+    if (
+        data_interval := timetable.infer_manual_data_interval(run_after=pendulum.instance(run.run_after))
+    ) is not None:
         return data_interval
 
     # Compatibility: runs created before AIP-39 implementation don't have an
