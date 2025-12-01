@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.26.0",
-    "apache-airflow-providers-common-compat>=1.10.0", # use next version,  # use next version
+    "apache-airflow-providers-common-compat>=1.8.0", # use next version,  # use next version
     "pydruid>=0.6.6",
 ]
 
