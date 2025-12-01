@@ -58,7 +58,7 @@ requires-python = ">=3.10,!=3.13"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.2",
-    "apache-airflow-providers-common-compat>=1.8.0", # use next version,  # use next version
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2; python_version < '3.13'",
