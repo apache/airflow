@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Send executor integration info in workload (#57800)``
+* ``Prevent duplicate edge workers unless existing worker is offline or unkown (#58586)``
+* ``Add multi-select state filter to worker page (#58505)``
+* ``Add queue name filtering to Edge Worker tab (#58416)``
+* ``Add search functionality to Edge Worker tab (#58331)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use 'before_sleep_log' in retries of Edge Worker (#58480)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#58780)``
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Upgrade Edge TS dependencies (#58413)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+
 1.5.0
 .....
 

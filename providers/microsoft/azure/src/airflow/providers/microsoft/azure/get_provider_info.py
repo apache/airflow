@@ -200,7 +200,7 @@ def get_provider_info():
         ],
         "filesystems": [
             "airflow.providers.microsoft.azure.fs.adls",
-            "airflow.providers.microsoft.azure.fs.msgraphfs",
+            "airflow.providers.microsoft.azure.fs.msgraph",
         ],
         "hooks": [
             {

@@ -13,7 +13,7 @@
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
-/chart/ @dstandish @jedcunningham @hussein-awala @jscheffl
+/chart/ @jedcunningham @hussein-awala @jscheffl
 
 # Docs
 /docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
@@ -25,6 +25,9 @@
 
 # Airflow CTL
 /airflow-ctl/ @bugraoz93 @potiuk
+
+# Airflow CLI
+/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk
 
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck

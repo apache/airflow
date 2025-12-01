@@ -264,7 +264,7 @@ class TestClient:
 
 class TestTaskInstanceOperations:
     """
-    Test that the TestVariableOperations class works as expected. While the operations are simple, it
+    Test that the TestTaskInstanceOperations class works as expected. While the operations are simple, it
     still catches the basic functionality of the client for task instances including endpoint and
     response parsing.
     """

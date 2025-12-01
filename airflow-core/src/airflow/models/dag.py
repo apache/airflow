@@ -41,7 +41,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, Session, backref, load_only, relationship
+from sqlalchemy.orm import Mapped, Session, backref, joinedload, load_only, relationship
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -131,11 +131,18 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
-    data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
-    if data_interval is not None:
+    if (
+        data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+    ) is not None:
         return data_interval
+
+    if (data_interval := timetable.infer_manual_data_interval(run_after=run.run_after)) is not None:
+        return data_interval
+
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
+    if TYPE_CHECKING:
+        assert run.logical_date is not None
     return infer_automated_data_interval(timetable, run.logical_date)
 
 
@@ -516,14 +523,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = session.execute(
+        paused_dag_ids = session.scalars(
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
-        return paused_dag_ids
+        return set(paused_dag_ids)
 
     @property
     def safe_dag_id(self):
@@ -598,20 +604,29 @@ class DagModel(Base):
 
         evaluator = AssetEvaluator(session)
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool:
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
                 # if dag was serialized before 2.9 and we *just* upgraded,
                 # we may be dealing with old version.  In that case,
                 # just wait for the dag to be reserialized.
-                log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
-                return None
+                log.warning("Dag '%s' has old serialization; skipping run creation.", dag_id)
+                return False
+            except Exception:
+                log.exception("Dag '%s' failed to be evaluated; assuming not ready", dag_id)
+                return False
 
         # this loads all the ADRQ records.... may need to limit num dags
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
-        for r in session.scalars(select(AssetDagRunQueue)):
-            adrq_by_dag[r.target_dag_id].append(r)
+        for adrq in session.scalars(select(AssetDagRunQueue).options(joinedload(AssetDagRunQueue.dag_model))):
+            if adrq.dag_model.asset_expression is None:
+                # The dag referenced does not actually depend on an asset! This
+                # could happen if the dag DID depend on an asset at some point,
+                # but no longer does. Delete the stale adrq.
+                session.delete(adrq)
+            else:
+                adrq_by_dag[adrq.target_dag_id].append(adrq)
 
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
             dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}

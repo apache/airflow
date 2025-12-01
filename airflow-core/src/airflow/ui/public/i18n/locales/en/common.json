@@ -90,6 +90,7 @@
     "back": "Back",
     "defaultMessage": "An unexpected error occurred",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
     "title": "Error"
   },

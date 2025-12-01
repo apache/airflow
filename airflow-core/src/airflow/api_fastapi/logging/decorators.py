@@ -167,5 +167,8 @@ def action_logging(event: str | None = None):
             else:
                 logger.warning("Logical date is missing or empty")
         session.add(log)
+        # Explicit commit to persist the access log independently if the path operation fails or not.
+        # Also it cannot be deferred to a 'function' scoped dependency because of the `request` parameter.
+        session.commit()
 
     return log_action

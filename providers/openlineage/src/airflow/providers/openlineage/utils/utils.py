@@ -712,6 +712,7 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "execution_date",  # Airflow 2
         "logical_date",  # Airflow 3
         "run_after",  # Airflow 3
         "run_id",
@@ -802,13 +803,20 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
-        "trigger_dag_id",
-        "external_dag_id",
-        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
+        # Operator-specific useful attributes
+        "trigger_dag_id",  # TriggerDagRunOperator
+        "trigger_run_id",  # TriggerDagRunOperator
+        "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_ids",  # ExternalTaskSensor
+        "external_task_group_id",  # ExternalTaskSensor
+        "external_dates_filter",  # ExternalTaskSensor
+        "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
