@@ -16,5 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-# Re export for compat
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+from .base import BaseSecretsBackend
+
+__all__ = ["BaseSecretsBackend"]

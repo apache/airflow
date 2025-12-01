@@ -17,4 +17,4 @@
 from __future__ import annotations
 
 # Re export for compat
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+from airflow.sdk._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend

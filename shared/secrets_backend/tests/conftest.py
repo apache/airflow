@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,7 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Pytest configuration for shared secrets_backend tests."""
+
 from __future__ import annotations
 
-# Re export for compat
-from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+import os
+
+import pytest
+
+os.environ["_AIRFLOW__AS_LIBRARY"] = "true"
+
+
+@pytest.fixture
+def sample_conn_uri():
+    """Sample connection URI for testing."""
+    return "mysql://user:password@host:3306/database"
+
+
+@pytest.fixture
+def sample_conn_json():
+    """Sample connection JSON for testing."""
+    return '{"conn_type": "mysql", "host": "host", "login": "user", "password": "password", "port": 3306}'
