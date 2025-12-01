@@ -817,6 +817,23 @@ class TaskInfo(InfoJsonEncodable):
         "external_dates_filter",  # ExternalTaskSensor
         "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
         "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "database",  # BaseSQlOperator
+        "parameters",  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+        "column_mapping",  # SQLColumnCheckOperator
+        "pass_value",  # SQLValueCheckOperator
+        "tol",  # SQLValueCheckOperator
+        "metrics_thresholds",  # SQLIntervalCheckOperator
+        "ratio_formula",  # SQLIntervalCheckOperator
+        "ignore_zero",  # SQLIntervalCheckOperator
+        "min_threshold",  # SQLThresholdCheckOperator
+        "max_threshold",  # SQLThresholdCheckOperator
+        "follow_task_ids_if_true",  # BranchSQLOperator
+        "follow_task_ids_if_false",  # BranchSQLOperator
+        "follow_branch",  # BranchSQLOperator
+        "preoperator",  # SQLInsertRowsOperator
+        "postoperator",  # SQLInsertRowsOperator
+        "table_name_with_schema",  # SQLInsertRowsOperator
+        "column_names",  # SQLInsertRowsOperator
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
