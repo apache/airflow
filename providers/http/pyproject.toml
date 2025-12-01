@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.0", # use next version,  # use next version
+    "apache-airflow-providers-common-compat>=1.8.0", # use next version,  # use next version
     # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
     # release it as a requirement for airflow
     "requests>=2.32.0,<3",
