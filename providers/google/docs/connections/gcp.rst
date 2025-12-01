@@ -16,7 +16,6 @@
     under the License.
 
 
-
 .. _howto/connection:gcp:
 
 Google Cloud Connection
@@ -42,16 +41,16 @@ There are three ways to connect to Google Cloud using Airflow:
    the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access
    tokens.
 
-   .. warning:: Additional permissions might be needed
+.. warning::
 
-   Connection which uses key from the Secret Manager requires that `Application Default Credentials
-   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
-   have permission to access payloads of secrets.
+  Connection which uses key from the Secret Manager requires that `Application Default Credentials
+  <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
+  have permission to access payloads of secrets. Additional permissions might be needed.
 
-   .. note:: Alternative way of storing connections
+.. note::
 
-   Besides storing only key in Secret Manager there is an option for storing entire connection.
-   For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
+  Besides storing only key in Secret Manager there is an option for storing entire connection.
+  For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
 
 Default Connection IDs
 ----------------------
