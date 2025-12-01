@@ -30,12 +30,13 @@ import {
   VStack,
   Text,
   Box,
+  Circle,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiGrid } from "react-icons/fi";
+import { FiChevronDown, FiGitCommit, FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useParams } from "react-router-dom";
@@ -49,7 +50,10 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
-import { showVersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import {
+  showVersionIndicatorOptions,
+  VersionIndicatorDisplayOptions,
+} from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
@@ -508,11 +512,21 @@ export const PanelButtons = ({
                         <Select.Control>
                           <Select.Trigger>
                             <Select.ValueText>
-                              {translate(
-                                showVersionIndicatorOptions.items.find(
-                                  (item) => item.value === showVersionIndicatorMode,
-                                )?.label ?? "",
-                              )}
+                              <Flex alignItems="center" gap={1}>
+                                {(showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
+                                  showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) && (
+                                  <FiGitCommit color="var(--chakra-colors-orange-focus-ring)" />
+                                )}
+                                {(showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+                                  showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) && (
+                                  <Circle bg="orange.focusRing" size="8px" />
+                                )}
+                                {translate(
+                                  showVersionIndicatorOptions.items.find(
+                                    (item) => item.value === showVersionIndicatorMode,
+                                  )?.label ?? "",
+                                )}
+                              </Flex>
                             </Select.ValueText>
                           </Select.Trigger>
                           <Select.IndicatorGroup>
@@ -523,7 +537,17 @@ export const PanelButtons = ({
                           <Select.Content>
                             {showVersionIndicatorOptions.items.map((option) => (
                               <Select.Item item={option} key={option.value}>
-                                {translate(option.label)}
+                                <Flex alignItems="center" gap={1}>
+                                  {(option.value === VersionIndicatorDisplayOptions.BUNDLE ||
+                                    option.value === VersionIndicatorDisplayOptions.ALL) && (
+                                    <FiGitCommit color="var(--chakra-colors-orange-focus-ring)" />
+                                  )}
+                                  {(option.value === VersionIndicatorDisplayOptions.DAG ||
+                                    option.value === VersionIndicatorDisplayOptions.ALL) && (
+                                    <Circle bg="orange.focusRing" size="8px" />
+                                  )}
+                                  {translate(option.label)}
+                                </Flex>
                               </Select.Item>
                             ))}
                           </Select.Content>
