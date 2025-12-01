@@ -17,7 +17,6 @@
 
 
 
-
 .. _howto/connection:gcp:
 
 Google Cloud Connection
@@ -130,12 +129,11 @@ The Google Cloud project ID to use for API quota and billing purposes. This is u
 
 .. note::
 
-   If using anonymous credentials, quota project logic is ignored.
+    If using anonymous credentials, quota project logic is ignored.
 
 .. warning::
 
-   Ensure the service account has permission to use the specified quota project. Invalid or unauthorized quota project IDs will result in an error.
-
+    Ensure the service account has permission to use the specified quota project. Invalid or unauthorized quota project IDs will result in an error.
 
 Number of Retries
     Integer, number of times to retry with randomized
