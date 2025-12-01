@@ -812,3 +812,11 @@ class ShellParams:
                 "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
             )
             sys.exit(2)
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, ShellParams):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self) -> int:
+        return hash(str(self.__dict__))

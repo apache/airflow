@@ -42,6 +42,7 @@ class TestServiceAccountAnnotations:
         [
             (
                 {
+                    "executor": "KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -450,12 +451,13 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
                         "example": "cleanup",
                     },
-                }
+                },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {

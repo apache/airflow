@@ -22,6 +22,7 @@ import signal
 import sys
 from collections.abc import Generator
 from datetime import datetime
+from functools import cache
 from multiprocessing.pool import Pool
 from time import sleep
 
@@ -122,8 +123,6 @@ GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers t
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
 DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
-
-logs_already_dumped = False
 
 option_skip_docker_compose_deletion = click.option(
     "--skip-docker-compose-deletion",
@@ -267,8 +266,8 @@ def _run_test(
             notify_on_unhealthy_backend_container(
                 project_name=project_name, backend=shell_params.backend, output=output
             )
-        if os.environ.get("CI") == "true" and result.returncode != 0 and not logs_already_dumped:
-            get_console(output=output).print(f"[error]Test failed with {result.returncode}. Dumping logs[/]")
+        if os.environ.get("CI") == "true" and result.returncode != 0:
+            get_console(output=output).print(f"[error]Test failed with {result.returncode}.[/]")
             _dump_container_logs(output=output, shell_params=shell_params)
     finally:
         if not skip_docker_compose_down:
@@ -303,8 +302,9 @@ def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     return compose_project_name, project_name
 
 
+@cache  # Note: using functools.cache to avoid multiple dumps in the same run
 def _dump_container_logs(output: Output | None, shell_params: ShellParams):
-    global logs_already_dumped
+    get_console().print("[warning]Dumping container logs[/]")
     ps_result = run_command(
         ["docker", "ps", "--all", "--format", "{{.Names}}"],
         check=True,
@@ -330,7 +330,6 @@ def _dump_container_logs(output: Output | None, shell_params: ShellParams):
                 check=False,
                 stdout=outfile,
             )
-    logs_already_dumped = True
 
 
 def _run_tests_in_pool(
@@ -1471,10 +1470,12 @@ def ui_e2e_tests(
     from pathlib import Path
 
     from airflow_breeze.utils.console import get_console
-    from airflow_breeze.utils.run_utils import run_command
+    from airflow_breeze.utils.run_utils import check_pnpm_installed, run_command
     from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
     perform_environment_checks()
+
+    check_pnpm_installed()
 
     airflow_root = Path(__file__).resolve().parents[5]
     ui_dir = airflow_root / "airflow-core" / "src" / "airflow" / "ui"
@@ -1599,7 +1600,6 @@ class TimeoutHandler:
         get_console().print("[warning]Stopping all running containers[/]:")
         self._print_all_containers()
         if os.environ.get("CI") == "true":
-            get_console().print("[warning]Dumping container logs first[/]")
             _dump_container_logs(output=None, shell_params=self.shell_params)
         list_of_containers = self._get_running_containers().stdout.splitlines()
         get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")

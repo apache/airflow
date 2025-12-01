@@ -111,7 +111,11 @@ class _GlobIgnoreRule(NamedTuple):
         for rule in rules:
             if not isinstance(rule, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(rule)}")
-            rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
+            rel_obj = path.relative_to(rule.relative_to) if rule.relative_to else Path(path.name)
+            if path.is_dir():
+                rel_path = f"{rel_obj.as_posix()}/"
+            else:
+                rel_path = rel_obj.as_posix()
             if (
                 rule.wild_match_pattern.include is not None
                 and rule.wild_match_pattern.match_file(rel_path) is not None

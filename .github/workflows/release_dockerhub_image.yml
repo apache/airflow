@@ -61,13 +61,16 @@ jobs:
       UV_VERSION: "0.9.13"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
-      "utkarsharma2"
+      "utkarsharma2",
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"

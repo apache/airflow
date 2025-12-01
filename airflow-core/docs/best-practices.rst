@@ -291,7 +291,7 @@ When you execute that code you will see:
 
 .. code-block:: bash
 
-    root@cf85ab34571e:/opt/airflow# python /files/test_python.py
+    [Breeze:3.10.19] root@cf85ab34571e:/opt/airflow# python /files/test_python.py
     Executing 1
 
 This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.

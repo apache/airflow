@@ -17,35 +17,18 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import cache
-from typing import Any
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
-from airflow.listeners import hookimpl
-
-
-@dataclass
-class ListenerState:
-    started_component: Any = None
-    stopped_component: Any = None
+from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
 
 
-@cache
-def get_listener_state() -> ListenerState:
-    return ListenerState()
+class SimpleAllAdminMiddleware(BaseHTTPMiddleware):
+    """Middleware that automatically generates and includes auth header for simple auth manager."""
 
-
-@hookimpl
-def on_starting(component):
-    get_listener_state().started_component = component
-
-
-@hookimpl
-def before_stopping(component):
-    get_listener_state().stopped_component = component
-
-
-def clear():
-    listener_state = get_listener_state()
-    listener_state.started_component = None
-    listener_state.stopped_component = None
+    async def dispatch(self, request: Request, call_next):
+        # Starlette Request is expected to be immutable, but we modify it to add the auth header
+        # https://github.com/fastapi/fastapi/issues/2727#issuecomment-770202019
+        token = SimpleAuthManagerLogin.create_token_all_admins()
+        request.scope["headers"].append((b"authorization", f"Bearer {token}".encode()))
+        return await call_next(request)

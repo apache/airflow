@@ -78,8 +78,8 @@ class TestJob:
         job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))
         run_job(job=job, execute_callable=job_runner._execute)
 
-        assert lifecycle_listener.started_component is job
-        assert lifecycle_listener.stopped_component is job
+        assert lifecycle_listener.get_listener_state().started_component is job
+        assert lifecycle_listener.get_listener_state().stopped_component is job
 
     def test_state_failed(self):
         def abort():

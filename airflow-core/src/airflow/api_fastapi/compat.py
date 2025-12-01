@@ -14,38 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import cache
-from typing import Any
+try:
+    from starlette.status import HTTP_422_UNPROCESSABLE_CONTENT
+except ImportError:
+    from starlette.status import (  # type: ignore[no-redef]
+        HTTP_422_UNPROCESSABLE_ENTITY as HTTP_422_UNPROCESSABLE_CONTENT,
+    )
 
-from airflow.listeners import hookimpl
-
-
-@dataclass
-class ListenerState:
-    started_component: Any = None
-    stopped_component: Any = None
-
-
-@cache
-def get_listener_state() -> ListenerState:
-    return ListenerState()
-
-
-@hookimpl
-def on_starting(component):
-    get_listener_state().started_component = component
-
-
-@hookimpl
-def before_stopping(component):
-    get_listener_state().stopped_component = component
-
-
-def clear():
-    listener_state = get_listener_state()
-    listener_state.started_component = None
-    listener_state.stopped_component = None
+__all__ = ["HTTP_422_UNPROCESSABLE_CONTENT"]

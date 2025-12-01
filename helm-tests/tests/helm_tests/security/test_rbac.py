@@ -331,6 +331,7 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {
@@ -415,6 +416,7 @@ class TestRBAC:
             values={
                 "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "serviceAccount": {

@@ -47,7 +47,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   build-info:
     name: "Build info"
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
@@ -378,6 +377,7 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
+
   tests-postgres-core:
     name: "Postgres tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -494,7 +494,6 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
 
-
   tests-sqlite-core:
     name: "Sqlite tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -556,7 +555,6 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
-
 
   tests-non-db-core:
     name: "Non-DB tests: core"
@@ -795,6 +793,7 @@ jobs:
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.run-helm-tests == 'true')
+
 
   tests-task-sdk:
     name: "Task SDK tests"
