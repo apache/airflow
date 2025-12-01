@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-01T07:51:54.789617
+# This constraints file was automatically generated on 2025-12-01T13:56:57.783200
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -387,7 +387,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.6
+huggingface_hub==1.1.7
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -679,7 +679,7 @@ virtualenv==20.35.4
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.18.1
+weaviate-client==4.18.2
 webencodings==0.5.1
 websocket-client==1.9.0
 websockets==15.0.1
