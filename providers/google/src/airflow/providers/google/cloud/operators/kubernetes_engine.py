@@ -637,15 +637,13 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        on_finish_action: str | None = None,
+        on_finish_action: str = OnFinishAction.DELETE_POD,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         *args,
         **kwargs,
     ) -> None:
-        if on_finish_action is not None:
-            kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
-        else:
-            kwargs["on_finish_action"] = OnFinishAction.DELETE_POD
+        kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
+
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.location = location
