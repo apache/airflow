@@ -50,6 +50,7 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import {
   showVersionIndicatorOptions,
   VersionIndicatorDisplayOptions,
@@ -72,10 +73,10 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<string>>;
+  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorDisplayOption>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
-  readonly showVersionIndicatorMode: string;
+  readonly showVersionIndicatorMode: VersionIndicatorDisplayOption;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -206,7 +207,7 @@ export const PanelButtons = ({
     event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
   ) => {
     if (event.value[0] !== undefined) {
-      setShowVersionIndicatorMode(event.value[0]);
+      setShowVersionIndicatorMode(event.value[0] as VersionIndicatorDisplayOption);
     }
   };
 

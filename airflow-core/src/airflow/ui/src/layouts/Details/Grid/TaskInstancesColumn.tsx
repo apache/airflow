@@ -21,6 +21,7 @@ import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridTI } from "./GridTI";
@@ -32,7 +33,7 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
-  readonly showVersionIndicatorMode?: string;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 

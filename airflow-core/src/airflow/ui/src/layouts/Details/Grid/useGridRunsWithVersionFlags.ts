@@ -22,6 +22,7 @@ import { useMemo } from "react";
 import { UseDagRunServiceGetDagRunKeyFn } from "openapi/queries";
 import type { GridRunsResponse } from "openapi/requests";
 import { DagRunService } from "openapi/requests/services.gen";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 
 export type GridRunWithVersionFlags = {
@@ -35,7 +36,7 @@ export type GridRunWithVersionFlags = {
 type UseGridRunsWithVersionFlagsParams = {
   dagId: string;
   gridRuns: Array<GridRunsResponse> | undefined;
-  showVersionIndicatorMode?: string;
+  showVersionIndicatorMode?: VersionIndicatorDisplayOption;
 };
 
 // Hook to fetch version information and calculate version change flags for grid runs.

@@ -26,6 +26,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import { useStructureServiceStructureData } from "openapi/queries";
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -47,7 +48,7 @@ type Props = {
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
-  readonly showVersionIndicatorMode?: string;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
   readonly triggeringUser?: string | undefined;
 };
 

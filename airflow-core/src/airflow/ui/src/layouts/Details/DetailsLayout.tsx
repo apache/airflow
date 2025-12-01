@@ -37,6 +37,7 @@ import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -76,10 +77,11 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
-  const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage<string>(
-    `version_indicator_display_mode`,
-    VersionIndicatorDisplayOptions.ALL,
-  );
+  const [showVersionIndicatorMode, setShowVersionIndicatorMode] =
+    useLocalStorage<VersionIndicatorDisplayOption>(
+      `version_indicator_display_mode`,
+      VersionIndicatorDisplayOptions.ALL,
+    );
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();

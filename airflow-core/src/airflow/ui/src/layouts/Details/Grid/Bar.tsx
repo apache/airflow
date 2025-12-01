@@ -22,6 +22,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { BundleVersionIndicator, DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
@@ -42,7 +43,7 @@ type Props = {
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
   readonly run: GridRunsResponse;
-  readonly showVersionIndicatorMode?: string;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
 };
 
 export const Bar = ({
