@@ -24,6 +24,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 from shutil import copyfile
 
@@ -38,7 +39,7 @@ def setup_airflow_docker_compose_environment(
     docker_compose_source: Path,
     tmp_dir: Path | None = None,
     env_vars: dict[str, str] | None = None,
-    docker_compose_modifications: callable | None = None,
+    docker_compose_modifications: Callable[[dict, Path], dict] | None = None,
 ) -> tuple[Path, Path]:
     """Set up a temporary directory with docker-compose files for Airflow."""
     if tmp_dir is None:
