@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import importlib
 import inspect
 import logging
 import os
@@ -859,6 +860,7 @@ class DagFileProcessorManager(LoggingMixin):
                 session=session,
                 is_callback_only=is_callback_only,
                 relative_fileloc=str(file.rel_path),
+                log=self.log,
             )
 
         for file in finished:
@@ -1149,6 +1151,7 @@ def process_parse_results(
     *,
     is_callback_only: bool = False,
     relative_fileloc: str | None = None,
+    log: logging.Logger | None = None,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     if is_callback_only:
@@ -1204,4 +1207,12 @@ def process_parse_results(
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:
             stat.import_errors = len(parsing_result.import_errors)
+
+        # Load Airflow modules that were not loaded during runtime.
+        if conf.getboolean("dag_processor", "parsing_pre_import_modules", fallback=True):
+            for module in parsing_result.not_loaded_airflow_modules or []:
+                try:
+                    importlib.import_module(module)
+                except Exception:
+                    log.warning("Error when trying to pre-import module '%s'", module)
     return stat

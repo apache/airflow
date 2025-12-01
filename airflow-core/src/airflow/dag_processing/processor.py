@@ -115,6 +115,7 @@ class DagFileParsingResult(BaseModel):
     warnings: list | None = None
     import_errors: dict[str, str] | None = None
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
+    not_loaded_airflow_modules: list[str] | None = None
 
 
 ToManager = Annotated[
@@ -206,6 +207,7 @@ def _parse_file_entrypoint():
 
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
+    modules_before = set(sys.modules.keys())
 
     bag = DagBag(
         dag_folder=msg.file,
@@ -221,12 +223,17 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+
+    modules_after = set(sys.modules.keys())
+    not_loaded_airflow_modules = {m for m in (modules_after - modules_before) if m.startswith("airflow.")}
+
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
         # TODO: Make `bag.dag_warnings` not return SQLA model objects
         warnings=[],
+        not_loaded_airflow_modules=list(not_loaded_airflow_modules),
     )
     return result
 

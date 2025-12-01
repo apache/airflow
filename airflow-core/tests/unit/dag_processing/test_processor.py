@@ -565,6 +565,38 @@ def test_parse_file_with_dag_callbacks(spy_agency):
     assert called is True
 
 
+def test_parse_file_tracks_newly_imported_airflow_modules(tmp_path):
+    """Test that newly imported airflow modules are tracked in not_import_module"""
+    dag_file = tmp_path / "test_dag.py"
+    dag_file.write_text("""
+from airflow import DAG
+import airflow.decorators
+from datetime import datetime
+
+dag = DAG(
+    dag_id="test_dag",
+    start_date=datetime(2024, 1, 1),
+)
+""")
+
+    if "airflow.decorators" in sys.modules:
+        del sys.modules["airflow.decorators"]
+
+    result = _parse_file(
+        DagFileParseRequest(
+            file=str(dag_file),
+            bundle_path=str(tmp_path),
+            bundle_name="testing",
+            callback_requests=[],
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result is not None
+    assert "airflow.decorators" in result.not_loaded_airflow_modules
+    assert all(m.startswith("airflow.") for m in result.not_loaded_airflow_modules)
+
+
 def test_parse_file_with_task_callbacks(spy_agency):
     called = False
 
@@ -643,6 +675,30 @@ def test_normal_parsing_updates_timestamps(session):
     assert stat.last_finish_time == finish_time
     assert stat.run_count == 4
     assert stat.import_errors == 0
+
+
+def test_import_not_imported_module(session):
+    """test the function actually load the not loaded airflow module"""
+    if "airflow.decorators" in sys.modules:
+        del sys.modules["airflow.decorators"]
+
+    finish_time = timezone.utcnow()
+
+    process_parse_results(
+        run_duration=2.0,
+        finish_time=finish_time,
+        run_count=3,
+        bundle_name="test-bundle",
+        bundle_version="v1",
+        parsing_result=DagFileParsingResult(
+            fileloc="test.py", serialized_dags=[], not_loaded_airflow_modules=["airflow.decorators"]
+        ),
+        session=session,
+        is_callback_only=False,
+        log=structlog.get_logger(),
+    )
+
+    assert "airflow.decorators" in sys.modules.keys()
 
 
 def test_import_error_updates_timestamps(session):
