@@ -34,14 +34,14 @@ To push a value within a task called **"task-1"** that will be used by another t
 
 .. code-block:: python
 
-    # pushes data in any_serializable_value into xcom with key "identifier as string"
+    # pushes data in any_serializable_value into XCom with key "identifier as string"
     task_instance.xcom_push(key="identifier as a string", value=any_serializable_value)
 
 To pull the value that was pushed in the code above in a different task:
 
 .. code-block:: python
 
-    # pulls the xcom variable with key "identifier as string" that was pushed from within task-1
+    # pulls the XCom variable with key "identifier as string" that was pushed from within task-1
     task_instance.xcom_pull(key="identifier as string", task_ids="task-1")
 
 Many operators will auto-push their results into an XCom key called ``return_value`` if the ``do_xcom_push`` argument is set to ``True`` (as it is by default), and ``@task`` functions do this as well. ``xcom_pull`` defaults to using ``return_value`` as key if no key is passed to it, meaning it's possible to write code like this::
@@ -75,7 +75,7 @@ An example of pushing multiple XComs and pulling them individually:
         key1 = context["ti"].xcom_pull(task_ids="push_multiple", key="key1")  # to pull key1
         key2 = context["ti"].xcom_pull(task_ids="push_multiple", key="key2")  # to pull key2
 
-        # Pulling entire xcom data from push_multiple task
+        # Pulling entire XCom data from push_multiple task
         data = context["ti"].xcom_pull(task_ids="push_multiple", key="return_value")
 
 .. note::
@@ -96,7 +96,7 @@ The XCom system has interchangeable backends, and you can set which backend is b
 
 If you want to implement your own backend, you should subclass :class:`~airflow.sdk.bases.xcom.BaseXCom`, and override the ``serialize_value`` and ``deserialize_value`` methods.
 
-You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the xcom data from the custom backend. This will be called as part of ``delete``.
+You can override the ``purge`` method in the ``BaseXCom`` class to have control over purging the XCom data from the custom backend. This will be called as part of ``delete``.
 
 Verifying Custom XCom Backend usage in Containers
 -------------------------------------------------
