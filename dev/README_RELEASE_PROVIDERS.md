@@ -384,7 +384,7 @@ mkdir -p ${RELEASE_DATE}
 mv ${AIRFLOW_REPO_ROOT}/dist/* "${RELEASE_DATE}"
 
 # Add and commit
-svn add ${RELEASE_DATA}
+svn add ${RELEASE_DATE}
 svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
@@ -711,7 +711,7 @@ directory.
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}/dev
 # Copy packages.txt extracted from the mail sent by the release manager here
-breeze release-management check-release-files providers --release-date ${RELEASE_DATE}
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```
 
 After the above command completes you can build `Dockerfile.pmc` to trigger an installation of each provider

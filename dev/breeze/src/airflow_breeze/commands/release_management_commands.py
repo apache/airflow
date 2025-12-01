@@ -167,9 +167,9 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
 )
 from airflow_breeze.utils.provider_dependencies import (
-    DEPENDENCIES,
     generate_providers_metadata_for_provider,
     get_all_constraint_files_and_airflow_releases,
+    get_provider_dependencies,
     get_related_providers,
     load_constraints,
 )
@@ -259,7 +259,7 @@ AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
 PREK_VERSION = "0.2.19"
-HATCH_VERSION = "1.16.0"
+HATCH_VERSION = "1.16.1"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -2523,7 +2523,7 @@ def generate_issue_content_providers(
         suffix: str
 
     if not provider_distributions:
-        provider_distributions = list(DEPENDENCIES.keys())
+        provider_distributions = list(get_provider_dependencies().keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -3003,7 +3003,7 @@ def generate_providers_metadata(
         airflow_release_dates=airflow_release_dates,
         current_metadata=current_metadata,
     )
-    package_ids = DEPENDENCIES.keys()
+    package_ids = get_provider_dependencies().keys()
     with Pool() as pool:
         results = pool.map(
             partial_generate_providers_metadata,
@@ -4223,9 +4223,9 @@ def publish_docs_to_s3(
         docs_to_s3.publish_all_docs()
     if stable_versions:
         docs_to_s3.publish_stable_version_docs()
-    from airflow_breeze.utils.publish_docs_to_s3 import version_error
+    from airflow_breeze.utils.publish_docs_to_s3 import VersionError
 
-    if version_error:
+    if VersionError.has_any_error():
         get_console().print(
             "[error]There was an error with the version of the docs. "
             "Please check the version in the docs and try again.[/]"
