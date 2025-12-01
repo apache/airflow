@@ -89,7 +89,7 @@ class BaseTimetable:
     parallelism, such as ``ContinuousTimetable``.
     """
 
-    assets: BaseAsset = NullAsset()
+    asset_condition: BaseAsset = NullAsset()
 
     def validate(self) -> None:
         """
@@ -100,4 +100,3 @@ class BaseTimetable:
 
         :raises: :class:`~airflow.sdk.exceptions.AirflowTimetableInvalid` on validation failure.
         """
-        return

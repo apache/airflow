@@ -1059,10 +1059,7 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        from airflow.sdk.definitions.timetables.base import BaseTimetable
-
-        asset_condition = t.assets if isinstance(t := dag.timetable, BaseTimetable) else t.asset_condition
-        yield from asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
+        yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 # TODO (GH-52141): Duplicate DAGNode in the scheduler.

@@ -40,7 +40,7 @@ class AssetTriggeredTimetable(BaseTimetable):
     :meta private:
     """
 
-    assets: BaseAsset
+    asset_condition: BaseAsset = attrs.field(alias="assets")
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
@@ -60,7 +60,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
     :param timetable: A timetable instance to evaluate time-based scheduling.
     """
 
-    assets: BaseAsset = attrs.field(converter=_coerce_assets)
+    asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
 
     def __attrs_post_init__(self) -> None:
