@@ -1029,6 +1029,7 @@ class ActivitySubprocess(WatchedSubprocess):
         if self.ti:
             try:
                 from airflow.stats import Stats
+
                 Stats.incr(
                     f"local_task_job.task_exit.{self.id}.{self.ti.dag_id}.{self.ti.task_id}.{self._exit_code}"
                 )
@@ -1195,6 +1196,7 @@ class ActivitySubprocess(WatchedSubprocess):
         if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
             try:
                 from airflow.stats import Stats
+
                 Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
             except ImportError:
                 pass
