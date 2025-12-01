@@ -316,14 +316,14 @@ class TestAssetConditionWithTimetable:
         with dag_maker(schedule=AssetAny(asset1, AssetAll(asset2, asset1))) as dag:
             EmptyOperator(task_id="hello")
 
-        assert isinstance(dag.timetable.asset_condition, AssetAny), (
+        assert isinstance(dag.timetable.assets, AssetAny), (
             "DAG's asset trigger should be an instance of AssetAny"
         )
-        assert any(isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects), (
+        assert any(isinstance(trigger, AssetAll) for trigger in dag.timetable.assets.objects), (
             "DAG's asset trigger should include AssetAll"
         )
 
-        serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
+        serialized_triggers = SerializedDAG.serialize(dag.timetable.assets)
 
         deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
 
