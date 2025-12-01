@@ -22,9 +22,6 @@ name: UI End-to-End Tests
 permissions:
   contents: read
 on:  # yamllint disable-line rule:truthy
-  push:
-    branches:
-      - 'ci-workflow-ui-e2e'
   workflow_dispatch:
     inputs:
       workflow-name:
@@ -103,7 +100,7 @@ jobs:
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -122,7 +119,7 @@ jobs:
           BROWSER: "${{ inputs.browser }}"
           DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
       - name: "Upload test results"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: "playwright-report-${{ inputs.browser }}"
           path: |
