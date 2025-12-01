@@ -1228,7 +1228,7 @@ class DagRun(Base, LoggingMixin):
                     isinstance(d.reference, DeadlineReference.TYPES.DAGRUN)
                     for d in cast("list", dag.deadline)
                 ):
-                    Deadline.prune_deadlines(session=session, conditions={DagRun.run_id: self.run_id})
+                    Deadline.prune_deadlines(session=session, conditions={DagRun.id: self.id})
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
