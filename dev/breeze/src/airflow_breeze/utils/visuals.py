@@ -126,7 +126,7 @@ CHEATSHEET = f"""
     integration or starting complete Airflow using `start-airflow` command as well as ways
     of cleaning up the installation.
 
-    Make sure to run `setup-autocomplete` to get the commands and options auto-completable
+    Make sure to run `breeze setup autocomplete` to get the commands and options auto-completable
     in your shell.
 
     You can disable this cheatsheet by running:
