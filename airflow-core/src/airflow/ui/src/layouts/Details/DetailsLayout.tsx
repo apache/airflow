@@ -37,6 +37,7 @@ import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
+import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
@@ -75,9 +76,9 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   );
 
   const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
-  const [showVersionIndicatorMode, setshowVersionIndicatorMode] = useLocalStorage<string>(
+  const [showVersionIndicatorMode, setShowVersionIndicatorMode] = useLocalStorage<string>(
     `version_display_mode-${dagId}`,
-    "dag",
+    VersionIndicatorDisplayOptions.ALL,
   );
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
@@ -149,7 +150,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   setLimit={setLimit}
                   setRunTypeFilter={setRunTypeFilter}
                   setShowGantt={setShowGantt}
-                  setshowVersionIndicatorMode={setshowVersionIndicatorMode}
+                  setShowVersionIndicatorMode={setShowVersionIndicatorMode}
                   setTriggeringUserFilter={setTriggeringUserFilter}
                   showGantt={showGantt}
                   showVersionIndicatorMode={showVersionIndicatorMode}

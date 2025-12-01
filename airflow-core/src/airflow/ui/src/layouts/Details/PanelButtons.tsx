@@ -72,7 +72,7 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
-  readonly setshowVersionIndicatorMode: React.Dispatch<React.SetStateAction<string>>;
+  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<string>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
   readonly showVersionIndicatorMode: string;
@@ -123,7 +123,7 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
-  setshowVersionIndicatorMode,
+  setShowVersionIndicatorMode,
   setTriggeringUserFilter,
   showGantt,
   showVersionIndicatorMode,
@@ -202,11 +202,11 @@ export const PanelButtons = ({
     setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
   };
 
-  const handleshowVersionIndicatorChange = (
+  const handleShowVersionIndicatorChange = (
     event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
   ) => {
     if (event.value[0] !== undefined) {
-      setshowVersionIndicatorMode(event.value[0]);
+      setShowVersionIndicatorMode(event.value[0]);
     }
   };
 
@@ -502,7 +502,7 @@ export const PanelButtons = ({
                       <Select.Root
                         // @ts-expect-error option type
                         collection={showVersionIndicatorOptions}
-                        onValueChange={handleshowVersionIndicatorChange}
+                        onValueChange={handleShowVersionIndicatorChange}
                         size="sm"
                         value={[showVersionIndicatorMode]}
                       >
