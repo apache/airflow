@@ -85,7 +85,7 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined, no-redef]
     from airflow.models import BaseOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -862,14 +862,15 @@ class KubernetesPodOperator(BaseOperator):
         if self.kubernetes_conn_id:
             try:
                 conn = BaseHook.get_connection(self.kubernetes_conn_id)
+            except AirflowNotFoundException:
+                self.log.warning(
+                    "Could not resolve connection extras for deferral: connection `%s` not found. "
+                    "Triggerer will try to resolve it from its own environment.",
+                    self.kubernetes_conn_id,
+                )
+            else:
                 connection_extras = conn.extra_dejson
                 self.log.info("Successfully resolved connection extras for deferral.")
-            except Exception as e:
-                self.log.warning(
-                    "Could not resolve connection extras for deferral: %s. "
-                    "Triggerer will try to resolve it from its own environment.",
-                    e,
-                )
 
         trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
