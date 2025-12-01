@@ -349,6 +349,13 @@ class ConnectionAccessor:
         return "<ConnectionAccessor (dynamic access)>"
 
     def __iter__(self):
+        """Prevent debugger introspection from triggering infinite loops.
+
+        Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
+        potentially causing infinite loops when accessing variables/connections/macros.
+
+        See #51861 for more details.
+        """
         raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other):
@@ -390,6 +397,13 @@ class VariableAccessor:
         return "<VariableAccessor (dynamic access)>"
 
     def __iter__(self):
+        """Prevent debugger introspection from triggering infinite loops.
+
+        Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
+        potentially causing infinite loops when accessing variables/connections/macros.
+
+        See #51861 for more details.
+        """
         raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __getattr__(self, key: str) -> Any:
@@ -421,6 +435,13 @@ class MacrosAccessor:
         return "<MacrosAccessor (dynamic access to macros)>"
 
     def __iter__(self):
+        """Prevent debugger introspection from triggering infinite loops.
+
+        Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
+        potentially causing infinite loops when accessing variables/connections/macros.
+
+        See #51861 for more details.
+        """
         raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other: object) -> bool:
