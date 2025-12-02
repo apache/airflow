@@ -1934,7 +1934,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         }
 
-        if (skipped_backfills := backfill_ids - locked_backfills.keys()):
+        if skipped_backfills := backfill_ids - locked_backfills.keys():
             self.log.debug(
                 "Skipping backfill runs for backfill_ids=%s - locked by another scheduler",
                 skipped_backfills,
