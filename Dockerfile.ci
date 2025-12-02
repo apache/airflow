@@ -1550,7 +1550,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.25.4"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.25.5"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
@@ -1695,7 +1695,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.13
+ARG AIRFLOW_UV_VERSION=0.9.14
 ARG AIRFLOW_PREK_VERSION="0.2.19"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
