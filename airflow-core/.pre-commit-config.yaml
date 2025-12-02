@@ -402,6 +402,7 @@ repos:
           ^src/airflow/utils/session\.py$|
           ^src/airflow/utils/task_group\.py$|
           ^src/airflow/utils/trigger_rule\.py$|
+          ^src/airflow/utils/json\.py$|
           ^src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-schema-defaults
