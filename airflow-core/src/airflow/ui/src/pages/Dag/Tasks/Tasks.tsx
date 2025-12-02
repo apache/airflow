@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Skeleton, Box } from "@chakra-ui/react";
-import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
@@ -40,7 +39,6 @@ const cardDef = (dagId: string): CardDef<TaskResponse> => ({
 export const Tasks = () => {
   const { dagId = "" } = useParams();
   const { MAPPED, NAME_PATTERN, OPERATOR, RETRIES, TRIGGER_RULE } = SearchParamsKeys;
-  const { t: translate } = useTranslation();
   const [searchParams] = useSearchParams();
   const selectedOperators = searchParams.getAll(OPERATOR);
   const selectedTriggerRules = searchParams.getAll(TRIGGER_RULE);
@@ -100,7 +98,7 @@ export const Tasks = () => {
         displayMode="card"
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("task_one")}
+        modelName="common:task"
         total={data ? data.total_entries : 0}
       />
     </Box>
