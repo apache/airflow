@@ -18,7 +18,7 @@
  */
 import { Code, Flex, Heading, Text, VStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiTrash, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { Button, Dialog } from "src/components/ui";
@@ -85,7 +85,7 @@ const DeleteConnectionsButton = ({ clearSelections, deleteKeys: connectionIds }:
                   mutate({ requestBody: { actions: [{ action: "delete", entities: connectionIds }] } });
                 }}
               >
-                <FiTrash /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
+                <FiTrash2 /> <Text as="span">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

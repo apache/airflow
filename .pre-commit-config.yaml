@@ -474,6 +474,8 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^README\.md$|
+          ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|
