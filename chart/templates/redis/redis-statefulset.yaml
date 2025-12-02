@@ -92,9 +92,11 @@ spec:
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          command: ["/bin/sh"]
+          command: ["redis-server"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
-          args: ["-c", "exec redis-server --requirepass ${REDIS_PASSWORD}"]
+          # Not launching via shell -- parentheses are required
+          # https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#use-environment-variables-to-define-arguments
+          args: ["--requirepass", "$(REDIS_PASSWORD)"]
           ports:
             - name: redis-db
               containerPort: {{ .Values.ports.redisDB }}
