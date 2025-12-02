@@ -56,7 +56,6 @@ def test_airflow_sdk_no_unexpected_exports():
         "secrets_masker",
         "configuration",
         "module_loading",
-        "observability",
         "yaml",
     }
     unexpected = actual - public - ignore

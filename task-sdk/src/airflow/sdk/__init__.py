@@ -47,8 +47,10 @@ __all__ = [
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "Stats",
     "TaskGroup",
     "TaskInstanceState",
+    "Trace",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -61,6 +63,7 @@ __all__ = [
     "get_current_context",
     "get_parsing_context",
     "literal",
+    "observability",
     "setup",
     "task",
     "task_group",
@@ -68,6 +71,9 @@ __all__ = [
 ]
 
 __version__ = "1.2.0"
+
+from airflow.sdk.observability.stats import Stats
+from airflow.sdk.observability.trace import Trace
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
@@ -132,8 +138,10 @@ __lazy_imports: dict[str, str] = {
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
+    "Stats": ".observability.stats",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
+    "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
@@ -145,6 +153,7 @@ __lazy_imports: dict[str, str] = {
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
     "get_parsing_context": ".definitions.context",
+    "observability": ".observability",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
     "task_group": ".definitions.decorators",
