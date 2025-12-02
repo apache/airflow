@@ -556,6 +556,36 @@ class TestCreateXComEntry(TestXComEndpoint):
                 None,
                 id="valid-xcom-entry",
             ),
+            # Test case: Valid input with string value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="string_key", value="simple string"),
+                201,
+                None,
+                id="valid-xcom-with-string-value",
+            ),
+            # Test case: Valid input with integer value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="int_key", value=42),
+                201,
+                None,
+                id="valid-xcom-with-integer-value",
+            ),
+            # Test case: Valid input with list value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="list_key", value=[1, 2, 3]),
+                201,
+                None,
+                id="valid-xcom-with-list-value",
+            ),
             # Test case: DAG not found
             pytest.param(
                 "invalid-dag-id",
@@ -647,6 +677,42 @@ class TestCreateXComEntry(TestXComEndpoint):
         assert response.status_code == 403
 
 
+class TestDeleteXComEntry(TestXComEndpoint):
+    def test_delete_xcom_entry(self, test_client, session):
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+
+        response = test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+
+        assert response.status_code == 204
+        check_last_log(session, dag_id=TEST_DAG_ID, event="delete_xcom_entry", logical_date=None)
+
+        # Verify it's gone
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 404
+
+    def test_delete_xcom_entry_not_found(self, test_client):
+        response = test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 403
+
+
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
         ("key", "patch_body", "expected_status", "expected_detail"),
@@ -658,6 +724,30 @@ class TestPatchXComEntry(TestXComEndpoint):
                 200,
                 None,
                 id="valid-xcom-update",
+            ),
+            # Test case: Update with complex object
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": {"nested": {"key": "value"}, "list": [1, 2, 3]}},
+                200,
+                None,
+                id="valid-xcom-update-complex-object",
+            ),
+            # Test case: Update with integer
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": 999},
+                200,
+                None,
+                id="valid-xcom-update-integer",
+            ),
+            # Test case: Update with list
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": ["updated", "list", "values"]},
+                200,
+                None,
+                id="valid-xcom-update-list",
             ),
             # Test case: XCom entry does not exist, should return 404
             pytest.param(
