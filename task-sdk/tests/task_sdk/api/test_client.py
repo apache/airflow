@@ -1249,7 +1249,7 @@ class TestTaskRescheduleOperations:
         result = client.task_instances.get_reschedule_start_date(id=ti_id, try_number=1)
 
         assert isinstance(result, TaskRescheduleStartDate)
-        assert result.start_date == "2024-01-01T00:00:00Z"
+        assert result.start_date == datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 
 class TestHITLOperations:
