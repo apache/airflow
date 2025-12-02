@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-01T21:34:50.498325
+# This constraints file was automatically generated on 2025-12-02T22:18:46.291145
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -61,7 +61,7 @@ aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
 alembic==1.17.2
-alibabacloud-adb20211201==3.5.1
+alibabacloud-adb20211201==3.6.0
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.3
 alibabacloud-tea-util==0.3.14
@@ -94,7 +94,7 @@ asyncssh==2.21.1
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-sam-translator==1.104.0
+aws-sam-translator==1.105.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -307,7 +307,7 @@ hvac==2.4.0
 hyperframe==6.1.0
 hyperlink==21.0.0
 ibm-cloud-sdk-core==3.24.2
-ibmcloudant==0.11.1
+ibmcloudant==0.11.2
 icdiff==2.0.7
 id==1.5.0
 identify==2.6.15
@@ -395,9 +395,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.41.0
-mypy-boto3-rds==1.41.2
+mypy-boto3-rds==1.42.1
 mypy-boto3-redshift-data==1.41.1
-mypy-boto3-s3==1.41.1
+mypy-boto3-s3==1.42.1
 mypy==1.19.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
@@ -477,9 +477,9 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.3
-psycopg-binary==3.3.0
+psycopg-binary==3.3.1
 psycopg2-binary==2.9.11
-psycopg==3.3.0
+psycopg==3.3.1
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -504,7 +504,7 @@ pyexasol==1.1.0
 pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
-pymongo==4.15.4
+pymongo==4.15.5
 pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5
@@ -579,7 +579,7 @@ scikit-learn==1.7.2
 scipy==1.16.3
 scramp==1.4.6
 scrapbook==0.5.0
-segment-analytics-python==2.3.4
+segment-analytics-python==2.3.5
 semver==3.0.4
 sendgrid==6.12.4
 sentry-sdk==2.46.0
@@ -687,7 +687,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.13
+uv==0.9.14
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
