@@ -53,7 +53,6 @@ Alphasort
 amazonaws
 amqp
 analyse
-and
 Analytics
 analytics
 analyticsreporting
@@ -63,6 +62,7 @@ analyzeSentiment
 AnalyzeSentimentResponse
 analyzeSyntax
 AnalyzeSyntaxResponse
+and
 Aneesh
 AnExampleDisplayName
 AnnotateTextResponse
@@ -71,8 +71,8 @@ ans
 anser
 Ansible
 anyOf
-apache
 Apache
+apache
 api
 apikey
 apis
@@ -250,13 +250,13 @@ celltags
 centric
 cfg
 cgi
-chapter
 Cgroups
 cgroups
 cgroupspy
 chakra
 Changelog
 changelog
+chapter
 charset
 chatbot
 chatbots
@@ -299,7 +299,6 @@ cmd
 cmdlet
 cmdline
 cmds
-command
 cname
 cncf
 cnf
@@ -312,6 +311,7 @@ Colour
 colour
 colours
 ColumnLineageDatasetFacet
+command
 CommandType
 comparator
 compat
@@ -512,8 +512,6 @@ deques
 deregister
 desc
 descendents
-desired
-detailed
 deserialization
 Deserialize
 deserialize
@@ -522,7 +520,9 @@ deserialized
 deserializer
 deserializes
 deserializing
+desired
 dest
+detailed
 dev
 devel
 DevOps
@@ -641,10 +641,10 @@ env
 envFrom
 EnvFromSource
 environ
+environment
 envs
 EnvVar
 envvar
-environment
 eof
 eol
 eols
@@ -731,12 +731,12 @@ fmt
 fn
 fo
 followsa
+For
 forecasted
 forkserver
 formatter
 formatters
 Formaturas
-For
 forwardability
 forwardable
 fqdn
@@ -917,9 +917,6 @@ ing
 ingestions
 ini
 init
-Installation
-install
-installed
 initcontainer
 initcontainers
 initdb
@@ -930,7 +927,10 @@ InsecureClient
 InspectContentResponse
 InspectTemplate
 instafail
+install
 installable
+Installation
+installed
 InstanceFlexibilityPolicy
 InstanceGroupConfig
 InstanceSelection
@@ -943,8 +943,6 @@ internalIpOnly
 ints
 intvl
 Investorise
-variable
-version
 io
 IP
 ip
@@ -958,7 +956,6 @@ ipv6
 ipynb
 iPython
 irrep
-yourroducible
 IRSA
 isfile
 ish
@@ -984,10 +981,6 @@ JenkinsRequest
 Jetson
 Jiajie
 Jinja
-more
-set
-the
-To
 jinja
 Jinjafied
 Jinjafy
@@ -1004,15 +997,8 @@ JobRunning
 JobSpec
 JobStatus
 jobtrac
-package
-pipker
 JobTrigger
 jos
-rerun
-scenarios
-see
-upgrade
-using
 journald
 JPype
 js
@@ -1198,6 +1184,7 @@ mongo
 mongodb
 mongoHook
 monospace
+more
 Moto
 moto
 mouseover
@@ -1320,6 +1307,7 @@ otel
 overridable
 oversubscription
 PaaS
+package
 Pagerduty
 pagerduty
 PagerdutyEventsHook
@@ -1368,6 +1356,7 @@ pinodb
 Pinot
 pinot
 PipelineRun
+pipker
 pkill
 plaintext
 platformVersion
@@ -1556,6 +1545,7 @@ req
 reqs
 requeue
 requeued
+rerun
 Reserialize
 reserialize
 reserialized
@@ -1616,6 +1606,7 @@ scalability
 scalable
 scaler
 scalers
+scenarios
 sched
 schedulable
 schedulername
@@ -1637,6 +1628,7 @@ securecookie
 securestring
 SecurityManager
 securityManager
+see
 seealso
 Seedlist
 seedlist
@@ -1661,6 +1653,7 @@ ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
+set
 setattr
 setdefault
 setitem
@@ -1883,6 +1876,7 @@ texttospeech
 TextToSpeechClient
 Tez
 tez
+the
 theService
 Thinknear
 THIRDPARTY
@@ -1900,6 +1894,7 @@ TLS
 tls
 tmp
 tnsnames
+To
 ToC
 todo
 tokenization
@@ -1990,6 +1985,7 @@ untrusted
 unutilized
 updateMask
 updateonly
+upgrade
 Upsert
 upsert
 upserted
@@ -2011,6 +2007,7 @@ useQueryCache
 userguide
 userId
 userpass
+using
 usr
 utc
 utcnow
@@ -2026,6 +2023,7 @@ V1JobList
 validator
 validators
 vals
+variable
 vCPU
 ve
 vectorizer
@@ -2034,6 +2032,7 @@ vendored
 Vendorize
 venv
 venvs
+version
 versionable
 Vertica
 vertica
@@ -2112,6 +2111,7 @@ YDB
 ydb
 Yieldr
 yml
+yourroducible
 youtrack
 youtube
 yq
