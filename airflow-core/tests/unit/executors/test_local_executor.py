@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import gc
 import multiprocessing
 import os
 from unittest import mock
@@ -44,6 +45,11 @@ skip_spawn_mp_start = pytest.mark.skipif(
 
 
 class TestLocalExecutor:
+    """
+    When the executor is started, end() must be called before the test finishes.
+    Otherwise, subprocesses will remain running, preventing the test from terminating and causing a timeout.
+    """
+
     TEST_SUCCESS_COMMANDS = 5
 
     def test_supports_sentry(self):
@@ -54,6 +60,20 @@ class TestLocalExecutor:
 
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
+
+    @skip_spawn_mp_start
+    @mock.patch.object(gc, "unfreeze")
+    @mock.patch.object(gc, "freeze")
+    def test_executor_worker_spawned(self, mock_freeze, mock_unfreeze):
+        executor = LocalExecutor(parallelism=5)
+        executor.start()
+
+        mock_freeze.assert_called_once()
+        mock_unfreeze.assert_called_once()
+
+        assert len(executor.workers) == 5
+
+        executor.end()
 
     @skip_spawn_mp_start
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
@@ -86,11 +106,12 @@ class TestLocalExecutor:
         mock_supervise.side_effect = fake_supervise
 
         executor = LocalExecutor(parallelism=2)
-        executor.start()
-
-        assert executor.result_queue.empty()
 
         with spy_on(executor._spawn_worker) as spawn_worker:
+            executor.start()
+
+            assert executor.result_queue.empty()
+
             for ti in success_tis:
                 executor.queue_workload(
                     workloads.ExecuteTask(
