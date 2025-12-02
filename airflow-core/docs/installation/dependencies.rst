@@ -38,7 +38,7 @@ For the list of the extras and what they enable, see: :doc:`/extra-packages-ref`
 Provider distributions
 ''''''''''''''''''''''
 
-Unlike Apache Airflow 1.10, the Airflow 2.0 is delivered in multiple, separate, but connected packages.
+Unlike Apache Airflow 1.10, the Airflow 3.0 is delivered in multiple, separate, but connected packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are around
 60 providers which can be installed separately as so called ``Airflow providers``.
 The default Airflow installation doesn't have many integrations and you have to install them yourself.
