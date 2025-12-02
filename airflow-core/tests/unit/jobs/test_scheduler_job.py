@@ -5699,6 +5699,89 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
+    def test_backfill_runs_skipped_when_lock_held_by_another_scheduler(self, dag_maker, session):
+        """Test that a scheduler skips backfill runs when another scheduler holds the lock."""
+        dag_id = "test_dag1"
+        backfill_max_active_runs = 3
+        dag_max_active_runs = 1
+
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=dag_max_active_runs,
+            catchup=True,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-05")
+        _create_backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=backfill_max_active_runs,
+            reverse=False,
+            triggering_user_name="test_user",
+            dag_run_conf={},
+        )
+
+        queued_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.QUEUED,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert queued_count == 5
+
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
+        job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Simulate another scheduler holding the lock by returning empty from _lock_backfills
+        with patch.object(job_runner, "_lock_backfills", return_value={}):
+            job_runner._start_queued_dagruns(session)
+            session.flush()
+
+        # No runs should be started because we couldn't acquire the lock
+        running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.RUNNING,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert running_count == 0, f"Expected 0 running when lock not acquired, but got {running_count}. "
+        # no locks now:
+        job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.RUNNING,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert running_count == backfill_max_active_runs
+        queued_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.QUEUED,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        # 2 runs are still queued
+        assert queued_count == 2
+
     def test_start_queued_dagruns_do_follow_logical_date_order(self, dag_maker):
         session = settings.Session()
         with dag_maker("test_dag1", max_active_runs=1):
