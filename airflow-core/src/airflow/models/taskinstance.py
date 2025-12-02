@@ -438,9 +438,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    next_kwargs: Mapped[dict | str | None] = mapped_column(
-        MutableDict.as_mutable(ExtendedJSON), nullable=True
-    )
+    next_kwargs: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
 
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True

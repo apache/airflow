@@ -41,6 +41,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
     PrevSuccessfulDagRunResponse,
@@ -96,7 +97,7 @@ log = structlog.get_logger(__name__)
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
 )
@@ -337,7 +338,7 @@ def _get_upstream_map_indexes(
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_409_CONFLICT: {"description": "The TI is already in the requested state"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_update_state(
@@ -581,7 +582,7 @@ def _create_ti_state_update_query_and_update_state(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_skip_downstream(
@@ -628,7 +629,7 @@ def ti_skip_downstream(
         status.HTTP_409_CONFLICT: {
             "description": "The TI attempting to heartbeat should be terminated for the given reason"
         },
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
 )
 def ti_heartbeat(
@@ -703,7 +704,7 @@ def ti_heartbeat(
     # TODO: Do we need to use create_openapi_http_exception_doc here?
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+        HTTP_422_UNPROCESSABLE_CONTENT: {
             "description": "Invalid payload for the setting rendered task instance fields"
         },
     },
@@ -735,7 +736,7 @@ def ti_put_rtif(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid rendered_map_index value"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid rendered_map_index value"},
     },
 )
 def ti_patch_rendered_map_index(
@@ -750,7 +751,7 @@ def ti_patch_rendered_map_index(
     if not rendered_map_index:
         log.error("rendered_map_index cannot be empty")
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail="rendered_map_index cannot be empty",
         )
 

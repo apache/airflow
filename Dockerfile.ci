@@ -16,6 +16,20 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
+# PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
+#
+# Link-Time Optimization uses MD5 checksums during the compilation process to verify
+# object files and intermediate representations. In FIPS-compliant environments, MD5
+# is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
+# This can cause Python builds with LTO to fail when FIPS mode is enabled.
+#
+# When building FIPS-compliant images, set this to "false" to disable LTO:
+#   docker build --build-arg PYTHON_LTO="false" ...
+#
+# Default: "true" (LTO enabled for better performance)
+#
+# Related: https://github.com/apache/airflow/issues/58337
+ARG PYTHON_LTO="true"
 ARG BASE_IMAGE="debian:bookworm-slim"
 
 ##############################################################################################
@@ -44,6 +58,7 @@ if [[ "$#" != 1 ]]; then
 fi
 
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -329,9 +344,17 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
+    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
+    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
+    # See: https://github.com/apache/airflow/issues/58337
+    local lto_option=""
+    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
+        lto_option="--with-lto"
+    fi
     ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
         --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared --with-lto
+            --enable-shared ${lto_option}
     make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
         "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
@@ -1528,9 +1551,11 @@ ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 ENV GOLANG_MAJOR_MINOR_VERSION="1.25.4"
 
+ARG PYTHON_LTO
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_os_dependencies.sh ci
+RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh ci
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -1734,10 +1759,12 @@ RUN chmod a+x /entrypoint /entrypoint-exec
 
 
 # Install autocomplete for airflow and kubectl
+# hadolint ignore=SC2028
 RUN if command -v airflow; then \
     register-python-argcomplete airflow >> ~/.bashrc ; \
     fi; \
-    echo "source /etc/bash_completion" >> ~/.bashrc
+    echo "source /etc/bash_completion" >> ~/.bashrc ; \
+    echo 'export PS1="\[\033[1;36m\][Breeze:\$(python --version 2>&1 | cut -d\" \" -f2)]\[\033[0m\] \[\033[1;32m\]\u@\h\[\033[0m\]:\[\033[1;34m\]\w\[\033[0m\]\$ "' >> ~/.bashrc
 
 WORKDIR ${AIRFLOW_SOURCES}
 
