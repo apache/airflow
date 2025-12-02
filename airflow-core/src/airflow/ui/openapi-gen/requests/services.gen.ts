@@ -2795,7 +2795,7 @@ export class TaskInstanceService {
      * @param data.taskId
      * @param data.mapIndex
      * @param data.tryNumber
-     * @returns HITLDetailHisotry Successful Response
+     * @returns HITLDetailHistory Successful Response
      * @throws ApiError
      */
     public static getHitlDetailTryDetail(data: GetHitlDetailTryDetailData): CancelablePromise<GetHitlDetailTryDetailResponse> {

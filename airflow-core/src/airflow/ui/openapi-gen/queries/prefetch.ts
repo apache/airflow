@@ -1101,7 +1101,7 @@ export const prefetchUseTaskInstanceServiceGetHitlDetail = (queryClient: QueryCl
 * @param data.taskId
 * @param data.mapIndex
 * @param data.tryNumber
-* @returns HITLDetailHisotry Successful Response
+* @returns HITLDetailHistory Successful Response
 * @throws ApiError
 */
 export const prefetchUseTaskInstanceServiceGetHitlDetailTryDetail = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {

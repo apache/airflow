@@ -47,7 +47,7 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.hitl import (
     HITLDetail,
     HITLDetailCollection,
-    HITLDetailHisotry,
+    HITLDetailHistory,
     HITLDetailResponse,
     UpdateHITLDetailPayload,
 )
@@ -229,7 +229,7 @@ def get_hitl_detail_try_detail(
     session: SessionDep,
     map_index: int = -1,
     try_number: int = -1,
-) -> HITLDetailHisotry:
+) -> HITLDetailHistory:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance_history = _get_task_instance_with_hitl_detail(
         dag_id=dag_id,

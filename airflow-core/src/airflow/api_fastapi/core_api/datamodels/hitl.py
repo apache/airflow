@@ -104,7 +104,7 @@ class HITLDetailCollection(BaseModel):
     total_entries: int
 
 
-class HITLDetailHisotry(BaseHITLDetail):
+class HITLDetailHistory(BaseHITLDetail):
     """Schema for Human-in-the-loop detail history."""
 
     task_instance: TaskInstanceHistoryResponse

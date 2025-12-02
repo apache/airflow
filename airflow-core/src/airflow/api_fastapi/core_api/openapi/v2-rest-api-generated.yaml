@@ -8489,7 +8489,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HITLDetailHisotry'
+                $ref: '#/components/schemas/HITLDetailHistory'
         '401':
           content:
             application/json:
@@ -11483,7 +11483,7 @@ components:
       - total_entries
       title: HITLDetailCollection
       description: Schema for a collection of Human-in-the-loop details.
-    HITLDetailHisotry:
+    HITLDetailHistory:
       properties:
         options:
           items:
@@ -11556,7 +11556,7 @@ components:
       - subject
       - created_at
       - task_instance
-      title: HITLDetailHisotry
+      title: HITLDetailHistory
       description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:

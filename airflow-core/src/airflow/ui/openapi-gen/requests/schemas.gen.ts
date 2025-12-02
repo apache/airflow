@@ -3913,7 +3913,7 @@ export const $HITLDetailCollection = {
     description: 'Schema for a collection of Human-in-the-loop details.'
 } as const;
 
-export const $HITLDetailHisotry = {
+export const $HITLDetailHistory = {
     properties: {
         options: {
             items: {
@@ -4026,7 +4026,7 @@ export const $HITLDetailHisotry = {
     },
     type: 'object',
     required: ['options', 'subject', 'created_at', 'task_instance'],
-    title: 'HITLDetailHisotry',
+    title: 'HITLDetailHistory',
     description: 'Schema for Human-in-the-loop detail history.'
 } as const;
 

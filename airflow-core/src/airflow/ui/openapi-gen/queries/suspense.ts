@@ -1101,7 +1101,7 @@ export const useTaskInstanceServiceGetHitlDetailSuspense = <TData = Common.TaskI
 * @param data.taskId
 * @param data.mapIndex
 * @param data.tryNumber
-* @returns HITLDetailHisotry Successful Response
+* @returns HITLDetailHistory Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceGetHitlDetailTryDetailSuspense = <TData = Common.TaskInstanceServiceGetHitlDetailTryDetailDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, dagRunId, mapIndex, taskId, tryNumber }: {
