@@ -127,9 +127,10 @@ export const Pools = () => {
           displayMode="card"
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:admin.Pools")}
+          modelName="admin:pools.pool"
           noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
+          showRowCountHeading
           total={data ? data.total_entries : 0}
         />
       </Box>

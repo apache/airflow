@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, HStack, Link, Text } from "@chakra-ui/react";
+import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -242,20 +242,15 @@ export const DagRuns = () => {
   return (
     <>
       <DagRunsFilters dagId={dagId} />
-      {(data?.total_entries ?? 0) > 0 && (
-        <Heading py={3} size="md">
-          {`${data?.total_entries} ${translate("dagRun", { count: data?.total_entries })}`}
-        </Heading>
-      )}
-
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:dagRun_other")}
+        modelName="common:dagRun"
         onStateChange={setTableURLState}
+        showRowCountHeading
         total={data?.total_entries}
       />
     </>

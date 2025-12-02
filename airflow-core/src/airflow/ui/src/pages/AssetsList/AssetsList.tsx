@@ -16,7 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+<<<<<<< HEAD
 import { Box, Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
+=======
+import { Box, Link, VStack } from "@chakra-ui/react";
+>>>>>>> da1f3c7c66 (remove unused translate)
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
@@ -177,8 +181,9 @@ export const AssetsList = () => {
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:asset_one")}
+          modelName="common:asset"
           onStateChange={setTableURLState}
+          showRowCountHeading
           total={data?.total_entries}
         />
       </Box>

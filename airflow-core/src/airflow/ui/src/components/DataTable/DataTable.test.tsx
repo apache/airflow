@@ -159,4 +159,51 @@ describe("DataTable", () => {
 
     expect(screen.getAllByTestId("skeleton")).toHaveLength(5);
   });
+
+  it("renders row count heading when showRowCountHeading and modelName are provided", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        showRowCountHeading
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByRole("heading")).toHaveTextContent("2 task");
+  });
+
+  it("does not render row count heading when showRowCountHeading is not provided", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByRole("heading")).toBeNull();
+  });
+
+  it("uses translated zero-count model name in empty state", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={[]}
+        initialState={{ pagination, sorting: [] }}
+        modelName="task"
+        showRowCountHeading
+        total={0}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByText(/noitemsFound/iu)).toBeInTheDocument();
+  });
 });

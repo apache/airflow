@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text } from "@chakra-ui/react";
+import { Heading, HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -53,6 +53,7 @@ type DataTableProps<TData> = {
   readonly noRowsMessage?: ReactNode;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+  readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
 };
@@ -73,6 +74,7 @@ export const DataTable = <TData,>({
   modelName,
   noRowsMessage,
   onStateChange,
+  showRowCountHeading,
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
@@ -142,11 +144,28 @@ export const DataTable = <TData,>({
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
 
+  const hasModelName = typeof modelName === "string" && modelName.length > 0;
+  const modelNameKey = modelName ?? "";
+  const translateModelName = useCallback(
+    (count: number) =>
+      hasModelName ? translate(modelNameKey, { count }) : translate("items", { defaultValue: "items" }),
+    [hasModelName, modelNameKey, translate],
+  );
+  const showRowCount = Boolean(
+    showRowCountHeading && hasModelName && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+  );
+  const noRowsModelName = translateModelName(0);
+
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
       <Toaster />
       {errorMessage}
+      {showRowCount ? (
+        <Heading py={3} size="md">
+          {`${total} ${translateModelName(total)}`}
+        </Heading>
+      ) : undefined}
       {hasRows && display === "table" ? (
         <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
@@ -155,7 +174,7 @@ export const DataTable = <TData,>({
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
         <Text as="div" pl={4} pt={1}>
-          {noRowsMessage ?? translate("noItemsFound", { modelName })}
+          {noRowsMessage ?? translate("noItemsFound", { modelName: noRowsModelName })}
         </Text>
       )}
       {hasPagination ? (

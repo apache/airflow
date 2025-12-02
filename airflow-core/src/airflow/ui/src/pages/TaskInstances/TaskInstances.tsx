@@ -18,7 +18,7 @@
  */
 
 /* eslint-disable max-lines */
-import { Flex, Heading, Link } from "@chakra-ui/react";
+import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -301,19 +301,15 @@ export const TaskInstances = () => {
   return (
     <>
       <TaskInstancesFilter />
-      {(data?.total_entries ?? 0) > 0 && (
-        <Heading py={3} size="md">
-          {`${data?.total_entries ?? 0} ${translate("taskInstance", { count: data?.total_entries ?? 0 })}`}
-        </Heading>
-      )}
       <DataTable
         columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:taskInstance_other")}
+        modelName="common:taskInstance"
         onStateChange={setTableURLState}
+        showRowCountHeading
         total={data?.total_entries}
       />
     </>
