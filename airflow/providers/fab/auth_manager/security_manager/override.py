@@ -61,6 +61,13 @@ from flask_appbuilder.security.views import (
     AuthView,
     RegisterUserModelView,
 )
+
+# Handle FAB 4.6.3+ compatibility for UserGroupModelView
+try:
+    from flask_appbuilder.security.views import UserGroupModelView
+except ImportError:
+    # Fallback for older FAB versions that don't have UserGroupModelView
+    UserGroupModelView = None
 from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
@@ -79,6 +86,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import DagBag, DagModel
 from airflow.providers.fab.auth_manager.models import (
     Action,
+    Group,
     Permission,
     RegisterUser,
     Resource,
@@ -171,6 +179,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Models """
     user_model = User
     role_model = Role
+    group_model = Group
     action_model = Action
     resource_model = Resource
     permission_model = Permission
@@ -195,6 +204,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     actionmodelview = ActionModelView
     permissionmodelview = PermissionPairModelView
     rolemodelview = CustomRoleModelView
+    groupmodelview = UserGroupModelView  # May be None for FAB versions < 4.6.3
     registeruser_model = RegisterUser
     registerusermodelview = RegisterUserModelView
     resourcemodelview = ResourceModelView
@@ -1190,6 +1200,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
+            # Handle both old-style (set of actions) and new-style (dict of resource->actions) formats
+            # This maintains backward compatibility for tests that call _sync_dag_view_permissions directly
             if isinstance(resource_actions, (set, list)):
                 # Support for old-style access_control where only the actions are specified
                 resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}

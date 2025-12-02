@@ -233,8 +233,8 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "25.1.1"
-AIRFLOW_UV_VERSION = "0.7.16"
+AIRFLOW_PIP_VERSION = "25.2"
+AIRFLOW_UV_VERSION = "0.9.4"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
