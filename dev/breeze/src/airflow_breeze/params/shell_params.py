@@ -612,13 +612,11 @@ class ShellParams:
             worker_params = BuildProdParams(python=self.python, use_uv=True)
             worker_image_base = worker_params.airflow_image_kubernetes
             # Extract repository and tag - image format is typically: repo/path/image:tag
-            # For kubernetes executor, we use :latest tag
+           # For kubernetes executor, we use :latest tag
             worker_repo = worker_image_base
             worker_tag = "latest"
             _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY", worker_repo)
             _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG", worker_tag)
-            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS", "False")
-            _set_var(_env, "AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE", "False")
             # Set pod template file path for local development
             # This template has imagePullPolicy: Never to use local images
             _set_var(
