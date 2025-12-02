@@ -33,6 +33,7 @@ import {
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
+import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
@@ -55,6 +56,7 @@ type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
   const { i18n, t: translate } = useTranslation();
   const { selectedTheme, setColorMode } = useColorMode();
+  const { data: currentUser } = useAuthLinksServiceGetCurrentUserInfo();
 
   const colorModeOptions = [
     {
@@ -88,9 +90,19 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
     <>
       <Menu.Root positioning={{ placement: "right" }}>
         <Menu.Trigger asChild>
-          <NavButton icon={FiUser} title={translate("user")} />
+          <NavButton icon={FiUser} title={translate("user.user")} />
         </Menu.Trigger>
         <Menu.Content>
+          {currentUser ? (
+            <Box borderBottom="1px solid" borderColor="border.muted" p={3}>
+              <Box color="fg.muted" fontSize="sm">
+                {translate("user.signedInAs")}
+              </Box>
+              <Box fontSize="md" fontWeight="semibold">
+                {currentUser.username}
+              </Box>
+            </Box>
+          ) : null}
           <Menu.Item onClick={onOpenLanguage} value="language">
             <Icon as={FiGlobe} boxSize={4} />
             <Box flex="1">{translate("selectLanguage")}</Box>

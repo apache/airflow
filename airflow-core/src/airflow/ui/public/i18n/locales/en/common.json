@@ -318,7 +318,10 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
-  "user": "User",
+  "user": {
+    "signedInAs": "Signed in as",
+    "user": "User"
+  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
