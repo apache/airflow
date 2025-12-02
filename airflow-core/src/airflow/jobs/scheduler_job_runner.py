@@ -1920,12 +1920,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Lock Backfill rows to prevent race conditions when multiple schedulers run concurrently.
 
-        :param dag_runs: Collection of dag runs to process
+        :param dag_runs: Collection of Dag runs to process
         :param session: DB session
         :return: Dict mapping backfill_id to locked Backfill objects
         """
-        backfill_ids = {dr.backfill_id for dr in dag_runs if dr.backfill_id is not None}
-        if not backfill_ids:
+        if not (backfill_ids := {dr.backfill_id for dr in dag_runs if dr.backfill_id is not None}):
             return {}
 
         locked_backfills = {
@@ -1935,8 +1934,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         }
 
-        skipped_backfills = backfill_ids - locked_backfills.keys()
-        if skipped_backfills:
+        if (skipped_backfills := backfill_ids - locked_backfills.keys()):
             self.log.debug(
                 "Skipping backfill runs for backfill_ids=%s - locked by another scheduler",
                 skipped_backfills,
