@@ -531,7 +531,7 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
                 f"repository should only be checked out on a filesystem that is POSIX compliant."
             )
             sys.exit(1)
-    if not quiet:
+    if get_verbose() and not quiet:
         get_console().print("[success]Executable permissions on entrypoints are OK[/]")
 
 
@@ -542,6 +542,8 @@ def perform_environment_checks(quiet: bool = False):
     check_docker_version(quiet)
     check_docker_compose_version(quiet)
     check_executable_entrypoint_permissions(quiet)
+    if not quiet:
+        get_console().print(f"[success]Host python version is {sys.version}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -810,6 +812,7 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
+    perform_environment_checks(quiet=shell_params.quiet)
     return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
@@ -827,7 +830,6 @@ def enter_shell(
     * shuts down existing project
     * executes the command to drop the user to Breeze shell
     """
-    perform_environment_checks(quiet=shell_params.quiet)
     fix_ownership_using_docker(quiet=shell_params.quiet)
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None and not shell_params.quiet:
