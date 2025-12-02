@@ -28,6 +28,11 @@ export const VersionIndicatorDisplayOptions = {
 export type VersionIndicatorDisplayOption =
   (typeof VersionIndicatorDisplayOptions)[keyof typeof VersionIndicatorDisplayOptions];
 
+const validOptions = new Set<string>(Object.values(VersionIndicatorDisplayOptions));
+
+export const isVersionIndicatorDisplayOption = (value: unknown): value is VersionIndicatorDisplayOption =>
+  typeof value === "string" && validOptions.has(value);
+
 export const showVersionIndicatorOptions = createListCollection({
   items: [
     { label: "dag:panel.showVersionIndicator.options.showAll", value: VersionIndicatorDisplayOptions.ALL },

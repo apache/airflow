@@ -52,6 +52,7 @@ import { Button, Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import {
+  isVersionIndicatorDisplayOption,
   showVersionIndicatorOptions,
   VersionIndicatorDisplayOptions,
 } from "src/constants/showVersionIndicatorOptions";
@@ -206,8 +207,10 @@ export const PanelButtons = ({
   const handleShowVersionIndicatorChange = (
     event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
   ) => {
-    if (event.value[0] !== undefined) {
-      setShowVersionIndicatorMode(event.value[0] as VersionIndicatorDisplayOption);
+    const [selectedDisplayMode] = event.value;
+
+    if (isVersionIndicatorDisplayOption(selectedDisplayMode)) {
+      setShowVersionIndicatorMode(selectedDisplayMode);
     }
   };
 
