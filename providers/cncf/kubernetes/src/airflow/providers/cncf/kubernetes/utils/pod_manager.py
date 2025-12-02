@@ -907,7 +907,12 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -2 $(pgrep -u $(id -u) -f 'sh')")
+            self._exec_pod_command(
+                resp,
+                "for f in /proc/[0-9]*/comm; do "
+                "[ -O $f ] && read c < $f && [ \"$c\" = \"sh\" ] && pid=${f%/comm} && kill -2 ${pid##*/}; "
+                "done",
+            )
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
