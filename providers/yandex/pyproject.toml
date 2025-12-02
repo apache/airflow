@@ -60,7 +60,7 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "yandexcloud>=0.308.0; python_version < '3.13'",
     "yandex-query-client>=0.1.4; python_version < '3.13'",
-    "apache-airflow-providers-common-compat>=1.8.0", # use next version,
+    "apache-airflow-providers-common-compat>=1.8.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
