@@ -1916,11 +1916,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
         return True
 
+    def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
+        """
+        Lock Backfill rows to prevent race conditions when multiple schedulers run concurrently.
+
+        :param dag_runs: Collection of Dag runs to process
+        :param session: DB session
+        :return: Dict mapping backfill_id to locked Backfill objects
+        """
+        if not (backfill_ids := {dr.backfill_id for dr in dag_runs if dr.backfill_id is not None}):
+            return {}
+
+        locked_backfills = {
+            b.id: b
+            for b in session.scalars(
+                select(Backfill).where(Backfill.id.in_(backfill_ids)).with_for_update(skip_locked=True)
+            )
+        }
+
+        if skipped_backfills := backfill_ids - locked_backfills.keys():
+            self.log.debug(
+                "Skipping backfill runs for backfill_ids=%s - locked by another scheduler",
+                skipped_backfills,
+            )
+
+        return locked_backfills
+
     @add_debug_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
-        # added all() to save runtime, otherwise query is executed more than once
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
+
+        # Lock backfills to prevent race conditions with concurrent schedulers
+        locked_backfills = self._lock_backfills(dag_runs, session)
+
         query = (
             select(
                 DagRun.dag_id,
@@ -1984,13 +2013,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_id = dag_run.dag_id
             run_id = dag_run.run_id
             backfill_id = dag_run.backfill_id
-            backfill = dag_run.backfill
             dag = dag_run.dag = cached_get_dag(dag_run)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
             active_runs = active_runs_of_dags[(dag_id, backfill_id)]
             if backfill_id is not None:
+                if backfill_id not in locked_backfills:
+                    # Another scheduler has this backfill locked, skip this run
+                    continue
+                backfill = dag_run.backfill
                 if active_runs >= backfill.max_active_runs:
                     # todo: delete all "candidate dag runs" from list for this dag right now
                     self.log.info(
