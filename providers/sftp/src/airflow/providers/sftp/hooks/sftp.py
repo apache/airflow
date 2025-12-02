@@ -34,6 +34,7 @@ from typing import IO, TYPE_CHECKING, Any, cast
 
 import asyncssh
 from asgiref.sync import sync_to_async
+from paramiko.config import SSH_PORT
 
 from airflow.exceptions import (
     AirflowException,
@@ -704,7 +705,7 @@ class SFTPHookAsync(BaseHook):
         self,
         sftp_conn_id: str = default_conn_name,
         host: str = "",
-        port: int = 22,
+        port: int = SSH_PORT,
         username: str = "",
         password: str = "",
         known_hosts: str = default_known_hosts,
@@ -764,7 +765,7 @@ class SFTPHookAsync(BaseHook):
 
         conn_config: dict[str, Any] = {
             "host": conn.host,
-            "port": conn.port,
+            "port": conn.port if conn.port is not None else SSH_PORT,
             "username": conn.login,
             "password": conn.password,
         }
