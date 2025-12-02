@@ -23,6 +23,7 @@ AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 DEFAULT_DOCKER_IMAGE = f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
+
 DOCKER_IMAGE = os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
 
 DOCKER_COMPOSE_HOST_PORT = os.environ.get("HOST_PORT", "localhost:8080")

@@ -31,6 +31,7 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_airflow_core_branch,
     option_airflow_ui_base_url,
     option_allow_pre_releases,
     option_backend,
@@ -89,6 +90,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
     all_selective_core_test_types,
+    get_image_path_from_branch,
     providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -887,6 +889,7 @@ def task_sdk_integration_tests(
 @option_include_success_outputs
 @option_verbose
 @option_dry_run
+@option_airflow_core_branch
 @click.option(
     "--airflow-ctl-version",
     help="Version of airflowctl to test",
@@ -902,6 +905,7 @@ def airflowctl_integration_tests(
     github_repository: str,
     include_success_outputs: bool,
     airflow_ctl_version: str | None,
+    airflow_core_branch: str,
     extra_pytest_args: tuple,
 ):
     """Run airflowctl integration tests."""
@@ -911,7 +915,7 @@ def airflowctl_integration_tests(
     perform_environment_checks()
     if airflow_ctl_version:
         os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
-    image_name = image_name or os.environ.get("DOCKER_IMAGE")
+    image_name = image_name or get_image_path_from_branch(airflow_branch=airflow_core_branch)
 
     if image_name is None:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
