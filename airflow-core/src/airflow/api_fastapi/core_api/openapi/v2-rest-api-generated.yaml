@@ -8481,7 +8481,9 @@ paths:
         in: path
         required: true
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Try Number
       responses:
         '200':

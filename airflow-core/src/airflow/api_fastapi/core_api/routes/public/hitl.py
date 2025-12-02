@@ -228,7 +228,7 @@ def get_hitl_detail_try_detail(
     task_id: str,
     session: SessionDep,
     map_index: int = -1,
-    try_number: int = -1,
+    try_number: int | None = None,
 ) -> HITLDetailHistory:
     """Get a Human-in-the-loop detail of a specific task instance."""
     task_instance_history = _get_task_instance_with_hitl_detail(
@@ -237,7 +237,7 @@ def get_hitl_detail_try_detail(
         task_id=task_id,
         session=session,
         map_index=map_index,
-        try_number=try_number if try_number != -1 else None,
+        try_number=try_number,
     )
     return task_instance_history.hitl_detail
 

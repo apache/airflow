@@ -63,7 +63,7 @@ export const HITLResponse = () => {
     setSearchParams(searchParams);
   };
 
-  const tryNumber = tryNumberParam === null ? -1 : parseInt(tryNumberParam, 10);
+  const tryNumber = tryNumberParam === null ? taskInstance?.try_number : parseInt(tryNumberParam, 10);
 
   const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetailTryDetail(
     {
@@ -71,7 +71,7 @@ export const HITLResponse = () => {
       dagRunId: runId ?? "",
       mapIndex: parsedMapIndex,
       taskId: taskId ?? "",
-      tryNumber,
+      tryNumber: tryNumber ?? 1,
     },
     undefined,
   );
