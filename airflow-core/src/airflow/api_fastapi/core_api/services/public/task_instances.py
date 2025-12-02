@@ -62,23 +62,21 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
-) -> tuple[SerializedDAG, list[TaskInstance], dict]:
+) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if not dag.has_task(task_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
     query = (
-        select(TaskInstance)
-        .where(
-            TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id, TaskInstance.task_id == task_id
-        )
-        .join(TaskInstance.dag_run)
-        .options(joinedload(TaskInstance.rendered_task_instance_fields))
+        select(TI)
+        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
     )
     if map_index is not None:
-        query = query.where(TaskInstance.map_index == map_index)
+        query = query.where(TI.map_index == map_index)
     else:
-        query = query.order_by(TaskInstance.map_index)
+        query = query.order_by(TI.map_index)
 
     tis = session.scalars(query).all()
 
@@ -108,7 +106,7 @@ def _patch_task_instance_state(
     data: dict,
     session: Session,
     commit: bool,
-) -> list[TaskInstance]:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -153,7 +151,7 @@ def _patch_task_instance_state(
 
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
-    tis: list[TaskInstance],
+    tis: list[TI],
     user: GetUserDep,
     update_mask: list[str] | None = Query(None),
 ) -> None:
