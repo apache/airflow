@@ -1147,3 +1147,14 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "airflow.podDisruptionBudgetConfig" -}}
+  {{- $config := .config | default dict }}
+
+  {{- if $config.minAvailable }}
+  minAvailable: {{ $config.minAvailable }}
+  {{- end }}
+  {{- if or $config.maxUnavailable (not $config.minAvailable)}}
+  maxUnavailable: {{ $config.maxUnavailable | default 1 }}
+  {{- end }}
+{{- end }}

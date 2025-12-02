@@ -2873,7 +2873,8 @@
                                     "description": "Max unavailable pods for scheduler.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
                                     "default": 1
                                 },
@@ -2881,9 +2882,10 @@
                                     "description": "Min available pods for scheduler.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
-                                    "default": 1
+                                    "default": null
                                 }
                             }
                         }
@@ -5175,7 +5177,8 @@
                                     "description": "Max unavailable pods for API server.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
                                     "default": 1
                                 },
@@ -5183,9 +5186,10 @@
                                     "description": "Min available pods for API server.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
-                                    "default": 1
+                                    "default": null
                                 }
                             }
                         }
@@ -5979,7 +5983,8 @@
                                     "description": "Max unavailable pods for webserver.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
                                     "default": 1
                                 },
@@ -5987,9 +5992,10 @@
                                     "description": "Min available pods for webserver.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
-                                    "default": 1
+                                    "default": null
                                 }
                             }
                         }
@@ -7549,7 +7555,8 @@
                                     "description": "Max unavailable pods for PgBouncer.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
                                     "default": 1
                                 },
@@ -7557,9 +7564,10 @@
                                     "description": "Min available pods for PgBouncer.",
                                     "type": [
                                         "integer",
-                                        "string"
+                                        "string",
+                                        "null"
                                     ],
-                                    "default": 1
+                                    "default": null
                                 }
                             }
                         }

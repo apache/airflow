@@ -41,6 +41,6 @@ spec:
       tier: airflow
       component: webserver
       release: {{ .Release.Name }}
-  {{- toYaml .Values.webserver.podDisruptionBudget.config | nindent 2 }}
+  {{- include "airflow.podDisruptionBudgetConfig" (dict "config" .Values.webserver.podDisruptionBudget.config) }}
 {{- end }}
 {{- end }}

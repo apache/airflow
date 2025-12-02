@@ -16,10 +16,10 @@
  specific language governing permissions and limitations
  under the License.
 */}}
-
 ################################
 ## Pgbouncer PodDisruptionBudget
 #################################
+
 {{- if and .Values.pgbouncer.enabled .Values.pgbouncer.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -40,5 +40,5 @@ spec:
       tier: airflow
       component: pgbouncer
       release: {{ .Release.Name }}
-  {{- toYaml .Values.pgbouncer.podDisruptionBudget.config | nindent 2 }}
+  {{- include "airflow.podDisruptionBudgetConfig" (dict "config" .Values.pgbouncer.podDisruptionBudget.config) }}
 {{- end }}
