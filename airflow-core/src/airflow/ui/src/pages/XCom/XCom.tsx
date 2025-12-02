@@ -16,23 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link, Flex, useDisclosure } from "@chakra-ui/react";
+
+/* eslint-disable max-lines */
+import { Box, Flex, Heading, IconButton, Link, useDisclosure } from "@chakra-ui/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FiEdit2, FiPlus, FiTrash2 } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
-import { useXcomServiceGetXcomEntries } from "openapi/queries";
-import type { XComResponse } from "openapi/requests/types.gen";
+import { useXcomServiceGetXcomEntries, useXcomServiceGetXcomEntriesKey } from "openapi/queries";
+import { XcomService } from "openapi/requests/services.gen";
+import type { DeleteXcomEntryData, XComResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import DeleteDialog from "src/components/DeleteDialog";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { Button, toaster } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import AddXComModal from "./AddXComModal";
+import EditXComModal from "./EditXComModal";
 import { XComEntry } from "./XComEntry";
 import { XComFilters } from "./XComFilters";
 
@@ -44,7 +53,14 @@ const {
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const columns = (translate: (key: string) => string, open: boolean): Array<ColumnDef<XComResponse>> => [
+type ColumnsProps = {
+  readonly onDelete: (xcom: XComResponse) => void;
+  readonly onEdit: (xcom: XComResponse) => void;
+  readonly open: boolean;
+  readonly translate: (key: string) => string;
+};
+
+const columns = ({ onDelete, onEdit, open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -116,6 +132,26 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
     enableSorting: false,
     header: translate("xcom.columns.value"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <IconButton aria-label={translate("common:edit")} onClick={() => onEdit(original)} variant="ghost">
+          <FiEdit2 />
+        </IconButton>
+        <IconButton
+          aria-label={translate("common:delete")}
+          colorPalette="danger"
+          onClick={() => onDelete(original)}
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+  },
 ];
 
 export const XCom = () => {
@@ -125,6 +161,13 @@ export const XCom = () => {
   const { pagination } = tableURLState;
   const [searchParams] = useSearchParams();
   const { onClose, onOpen, open } = useDisclosure();
+  const queryClient = useQueryClient();
+
+  const { onClose: onCloseAdd, onOpen: onOpenAdd, open: openAdd } = useDisclosure();
+  const { onClose: onCloseEdit, onOpen: onOpenEdit, open: openEdit } = useDisclosure();
+  const { onClose: onCloseDelete, onOpen: onOpenDelete, open: openDelete } = useDisclosure();
+
+  const [selectedXCom, setSelectedXCom] = useState<XComResponse | undefined>(undefined);
 
   const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
   const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
@@ -162,7 +205,68 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
-  const memoizedColumns = useMemo(() => columns(translate, open), [translate, open]);
+  const { isPending: isDeleting, mutate: deleteXCom } = useMutation({
+    mutationFn: (deleteData: DeleteXcomEntryData) => XcomService.deleteXcomEntry(deleteData),
+    onError: () => {
+      toaster.create({
+        description: translate("xcom.delete.error"),
+        title: translate("xcom.delete.errorTitle"),
+        type: "error",
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntriesKey],
+      });
+      onCloseDelete();
+      toaster.create({
+        description: translate("xcom.delete.success"),
+        title: translate("xcom.delete.successTitle"),
+        type: "success",
+      });
+    },
+  });
+
+  const handleDelete = () => {
+    if (selectedXCom) {
+      deleteXCom({
+        dagId: selectedXCom.dag_id,
+        dagRunId: selectedXCom.run_id,
+        mapIndex: selectedXCom.map_index,
+        taskId: selectedXCom.task_id,
+        xcomKey: selectedXCom.key,
+      });
+    }
+  };
+
+  const onDelete = useCallback(
+    (xcom: XComResponse) => {
+      setSelectedXCom(xcom);
+      onOpenDelete();
+    },
+    [onOpenDelete],
+  );
+
+  const onEdit = useCallback(
+    (xcom: XComResponse) => {
+      setSelectedXCom(xcom);
+      onOpenEdit();
+    },
+    [onOpenEdit],
+  );
+
+  const memoizedColumns = useMemo(
+    () =>
+      columns({
+        onDelete,
+        onEdit,
+        open,
+        translate,
+      }),
+    [open, translate, onDelete, onEdit],
+  );
+
+  const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
   return (
     <Box>
@@ -172,12 +276,19 @@ export const XCom = () => {
 
       <Flex alignItems="center" justifyContent="space-between">
         <XComFilters />
-        <ExpandCollapseButtons
-          collapseLabel={translate("collapseAllExtra")}
-          expandLabel={translate("expandAllExtra")}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
+        <Flex gap={2}>
+          {isTaskInstancePage ? (
+            <Button colorPalette="blue" onClick={onOpenAdd}>
+              <FiPlus /> {translate("xcom.add.title")}
+            </Button>
+          ) : undefined}
+          <ExpandCollapseButtons
+            collapseLabel={translate("collapseAllExtra")}
+            expandLabel={translate("expandAllExtra")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
+        </Flex>
       </Flex>
 
       <ErrorAlert error={error} />
@@ -192,6 +303,37 @@ export const XCom = () => {
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}
+      />
+
+      <AddXComModal
+        dagId={dagId}
+        isOpen={openAdd}
+        mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+        onClose={onCloseAdd}
+        runId={runId}
+        taskId={taskId}
+      />
+
+      {selectedXCom ? (
+        <EditXComModal
+          dagId={selectedXCom.dag_id}
+          isOpen={openEdit}
+          mapIndex={selectedXCom.map_index}
+          onClose={onCloseEdit}
+          runId={selectedXCom.run_id}
+          taskId={selectedXCom.task_id}
+          xcomKey={selectedXCom.key}
+        />
+      ) : undefined}
+
+      <DeleteDialog
+        isDeleting={isDeleting}
+        onClose={onCloseDelete}
+        onDelete={handleDelete}
+        open={openDelete}
+        resourceName={selectedXCom ? selectedXCom.key : ""}
+        title={translate("xcom.delete.title")}
+        warningText={translate("xcom.delete.warning")}
       />
     </Box>
   );
