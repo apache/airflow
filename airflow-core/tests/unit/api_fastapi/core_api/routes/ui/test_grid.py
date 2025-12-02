@@ -45,6 +45,8 @@ DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 DAG_ID_3 = "test_dag_3"
 DAG_ID_4 = "test_dag_4"
+DAG_ID_5 = "test_dag_5"
+DAG_ID_6 = "test_dag_6"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
@@ -253,6 +255,60 @@ def setup(dag_maker, session=None):
         ti.end_date = end_date
         start_date = end_date
         end_date = start_date.add(seconds=2)
+
+    # DAG 5 for testing root, include_upstream, include_downstream parameters
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_e = EmptyOperator(task_id="task_e")
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_e
+        task_a >> task_b >> task_c >> task_d >> task_e
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_5.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_5 = dag_maker.create_dagrun(
+        run_id="run_5-1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_5.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+
+    # DAG 6 for testing root, include_upstream, include_downstream with non-linear dependencies
+    # Structure: start >> [branch_a, branch_b] >> merge >> end
+    #            branch_a >> intermediate >> merge
+    with dag_maker(dag_id=DAG_ID_6, serialized=True, session=session) as dag_6:
+        start = EmptyOperator(task_id="start")
+        branch_a = EmptyOperator(task_id="branch_a")
+        branch_b = EmptyOperator(task_id="branch_b")
+        intermediate = EmptyOperator(task_id="intermediate")
+        merge = EmptyOperator(task_id="merge")
+        end = EmptyOperator(task_id="end")
+        # Create non-linear dependencies
+        start >> [branch_a, branch_b]
+        branch_a >> intermediate >> merge
+        branch_b >> merge
+        merge >> end
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_6.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_6 = dag_maker.create_dagrun(
+        run_id="run_6-1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_6.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
     session.commit()
 
 
@@ -776,3 +832,80 @@ class TestGetGridDataEndpoint:
         # Optional None fields are excluded from response due to response_model_exclude_none=True
         assert "is_mapped" not in t4
         assert "children" not in t4
+
+    # Tests for root, include_upstream, and include_downstream parameters
+    def test_structure_with_root_only(self, test_client):
+        """Test that specifying only root parameter returns just that task."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = [node["id"] for node in nodes]
+        # Only task_c should be returned when root is specified without upstream/downstream
+        assert task_ids == ["task_c"]
+
+    def test_structure_with_root_and_include_upstream(self, test_client):
+        """Test that root + include_upstream returns the root task and all upstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_c and all upstream tasks (task_a, task_b)
+        assert task_ids == ["task_a", "task_b", "task_c"]
+
+    def test_structure_with_root_and_include_downstream(self, test_client):
+        """Test that root + include_downstream returns the root task and all downstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_c and all downstream tasks (task_d, task_e)
+        assert task_ids == ["task_c", "task_d", "task_e"]
+
+    # Tests for non-linear DAG structure
+    def test_nonlinear_structure_with_root_downstream_from_branch(self, test_client):
+        """Test filtering downstream from branch point includes both branches."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=start&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return all tasks since start is the root of the DAG
+        assert task_ids == ["branch_a", "branch_b", "end", "intermediate", "merge", "start"]
+
+    def test_nonlinear_structure_with_root_upstream_from_merge(self, test_client):
+        """Test filtering upstream from merge point includes all upstream branches."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=merge&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return merge and all upstream tasks (both branches and their parents)
+        assert task_ids == ["branch_a", "branch_b", "intermediate", "merge", "start"]
+
+    def test_nonlinear_structure_with_root_on_branch_include_downstream(self, test_client):
+        """Test filtering downstream from one branch."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return branch_a and its downstream path (intermediate, merge, end)
+        assert task_ids == ["branch_a", "end", "intermediate", "merge"]
+
+    def test_nonlinear_structure_with_root_on_branch_include_upstream(self, test_client):
+        """Test filtering upstream from one branch."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return branch_a and its upstream (start)
+        assert task_ids == ["branch_a", "start"]
+
+    def test_nonlinear_structure_intermediate_with_both_directions(self, test_client):
+        """Test filtering from intermediate node with both upstream and downstream."""
+        response = test_client.get(
+            f"/grid/structure/{DAG_ID_6}?root=intermediate&include_upstream=true&include_downstream=true"
+        )
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return intermediate, its upstream path, and downstream path
+        # upstream: branch_a, start; downstream: merge, end
+        assert task_ids == ["branch_a", "end", "intermediate", "merge", "start"]
