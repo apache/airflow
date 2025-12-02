@@ -63,10 +63,10 @@ class InfluxDB3Hook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.influxdb3_conn_id = conn_id
-        self.connection = kwargs.pop("connection", None)
+        self.connection: Connection | None = kwargs.pop("connection", None)
         self.client: InfluxDBClient3 | None = None
-        self.extras: dict = {}
-        self.uri = None
+        self.extras: dict[str, Any] = {}
+        self.uri: str | None = None
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -89,7 +89,7 @@ class InfluxDB3Hook(BaseHook):
             ),
         }
 
-    def get_client(self, uri: str, kwargs: dict) -> InfluxDBClient3:
+    def get_client(self, uri: str, kwargs: dict[str, Any]) -> InfluxDBClient3:
         """Get InfluxDB 3.x client."""
         if not INFLUXDB_CLIENT_3_AVAILABLE:
             raise ImportError(
@@ -123,7 +123,7 @@ class InfluxDB3Hook(BaseHook):
         if (
             conn_scheme == "https"
             and conn.host
-            and ".influxdb.io" in conn.host.lower()
+            and conn.host.lower().endswith(".influxdb.io")
             and conn_port == 8086
         ):
             self.log.warning(
@@ -132,7 +132,8 @@ class InfluxDB3Hook(BaseHook):
             )
             conn_port = 443
         
-        return f"{conn_scheme}://{conn.host}:{conn_port}"
+        host = conn.host or ""
+        return f"{conn_scheme}://{host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient3:
         """
@@ -218,6 +219,11 @@ class InfluxDB3Hook(BaseHook):
                 fields={"value": 25.3, "unit": "celsius"}
             )
         """
+        if not INFLUXDB_CLIENT_3_AVAILABLE or Point is None:
+            raise ImportError(
+                "influxdb3-python is required for InfluxDB 3.x support. "
+                "Install it with: pip install influxdb3-python"
+            )
         if not fields:
             raise ValueError("At least one field is required")
 
