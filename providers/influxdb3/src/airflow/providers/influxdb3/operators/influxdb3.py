@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
@@ -60,12 +60,18 @@ class InfluxDB3Operator(BaseOperator):
         self.influxdb3_conn_id = influxdb3_conn_id
         self.sql = sql
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        """
+        Execute SQL query and return results as JSON-serializable list of dictionaries.
+
+        :param context: Airflow context
+        :return: List of dictionaries representing query results
+        """
         self.log.info("Executing SQL query: %s", self.sql)
         hook = InfluxDB3Hook(conn_id=self.influxdb3_conn_id)
         result = hook.query(self.sql)
-        
+
         self.log.info("Query executed successfully. Rows returned: %d", len(result))
-        
-        json_str = result.to_json(orient='records', date_format='iso')
+
+        json_str = result.to_json(orient="records", date_format="iso")
         return json.loads(json_str)

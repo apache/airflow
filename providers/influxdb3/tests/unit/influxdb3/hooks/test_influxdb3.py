@@ -65,7 +65,7 @@ class TestInfluxDB3Hook:
         influxdb3_hook.get_connection.return_value = connection
         connection.extra_dejson = extra
 
-        with pytest.raises(ValueError, match="database parameter is required"):
+        with pytest.raises(ValueError, match="database is required"):
             influxdb3_hook.get_conn()
 
     def test_query(self):
