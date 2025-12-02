@@ -169,6 +169,9 @@ spec:
             {{- if .Values.dagProcessor.extraVolumeMounts }}
               {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
               {{- if .Values.logs.persistence.subPath }}
@@ -268,6 +271,11 @@ spec:
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
           {{- tpl (toYaml .Values.dagProcessor.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs

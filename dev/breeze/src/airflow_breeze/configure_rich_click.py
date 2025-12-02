@@ -40,6 +40,7 @@ else:
     from airflow_breeze.commands.developer_commands_config import DEVELOPER_COMMANDS, DEVELOPER_PARAMETERS
     from airflow_breeze.commands.kubernetes_commands_config import (
         KUBERNETES_CLUSTER_COMMANDS,
+        KUBERNETES_DEVELOPMENT_COMMANDS,
         KUBERNETES_INSPECTION_COMMANDS,
         KUBERNETES_PARAMETERS,
         KUBERNETES_TESTING_COMMANDS,
@@ -114,6 +115,7 @@ else:
         "breeze testing": TESTING_COMMANDS,
         "breeze k8s": [
             KUBERNETES_CLUSTER_COMMANDS,
+            KUBERNETES_DEVELOPMENT_COMMANDS,
             KUBERNETES_INSPECTION_COMMANDS,
             KUBERNETES_TESTING_COMMANDS,
         ],

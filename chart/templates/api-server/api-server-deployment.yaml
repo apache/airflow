@@ -170,6 +170,9 @@ spec:
             {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
               {{- include "airflow_api_server_config_mount" . | nindent 12 }}
             {{- end }}
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -234,6 +237,11 @@ spec:
             name: {{ template "airflow_api_server_config_configmap_name" . }}
         {{- end }}
         {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
