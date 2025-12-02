@@ -18,7 +18,7 @@
  */
 import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiTrash } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 
 import { Button, Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
@@ -42,7 +42,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
         actionName={translate("variables.delete.title")}
         colorPalette="danger"
         disabled={disabled}
-        icon={<FiTrash />}
+        icon={<FiTrash2 />}
         onClick={() => {
           onOpen();
         }}
@@ -81,7 +81,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
+                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>
