@@ -16,9 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
 default_language_version:
+  python: python3
+  node: 22.19.0
   golang: 1.24.0
-minimum_prek_version: '0.0.28'
 repos:
   - repo: meta
     hooks:
