@@ -1957,7 +1957,7 @@ class HITLDetailCollection(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHisotry(BaseModel):
+class HITLDetailHistory(BaseModel):
     """
     Schema for Human-in-the-loop detail history.
     """

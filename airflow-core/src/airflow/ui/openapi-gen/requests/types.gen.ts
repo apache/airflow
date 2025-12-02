@@ -1008,7 +1008,7 @@ export type HITLDetailCollection = {
 /**
  * Schema for Human-in-the-loop detail history.
  */
-export type HITLDetailHisotry = {
+export type HITLDetailHistory = {
     options: Array<(string)>;
     subject: string;
     body?: string | null;
@@ -3060,7 +3060,7 @@ export type GetHitlDetailTryDetailData = {
     tryNumber: number;
 };
 
-export type GetHitlDetailTryDetailResponse = HITLDetailHisotry;
+export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
 
 export type GetHitlDetailsData = {
     /**
@@ -5699,7 +5699,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: HITLDetailHisotry;
+                200: HITLDetailHistory;
                 /**
                  * Unauthorized
                  */

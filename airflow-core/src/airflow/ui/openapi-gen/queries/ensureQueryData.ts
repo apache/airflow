@@ -1099,7 +1099,7 @@ export const ensureUseTaskInstanceServiceGetHitlDetailData = (queryClient: Query
 * @param data.taskId
 * @param data.mapIndex
 * @param data.tryNumber
-* @returns HITLDetailHisotry Successful Response
+* @returns HITLDetailHistory Successful Response
 * @throws ApiError
 */
 export const ensureUseTaskInstanceServiceGetHitlDetailTryDetailData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, taskId, tryNumber }: {
