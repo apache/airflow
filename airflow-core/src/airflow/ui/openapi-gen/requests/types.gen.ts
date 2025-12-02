@@ -3029,7 +3029,7 @@ export type GetHitlDetailTryDetailData = {
     dagRunId: string;
     mapIndex: number;
     taskId: string;
-    tryNumber: number;
+    tryNumber: number | null;
 };
 
 export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
