@@ -19,6 +19,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from tableauserverclient import JobItem
+
 from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
@@ -93,7 +95,7 @@ class TableauOperator(BaseOperator):
         self.blocking_refresh = blocking_refresh
         self.tableau_conn_id = tableau_conn_id
 
-    def execute(self, context: Context) -> str:
+    def execute(self, context: Context) -> str | None:
         """
         Execute the Tableau API resource and push the job id or downloaded file URI to xcom.
 
@@ -116,18 +118,33 @@ class TableauOperator(BaseOperator):
 
             resource_id = self._get_resource_id(tableau_hook)
 
-            response = method(resource_id)
+            job_item: JobItem | None
+            if self.resource == "tasks" and self.method == "run":
+                task_item = resource.get_by_id(resource_id)
+                response = method(task_item)
+                job_items = JobItem.from_response(response, tableau_hook.server.namespace)
+                if not isinstance(job_items, list) or not len(job_items):
+                    self.log.error(
+                        "Failed to parse Tableau API response. Expected a list of JobItem, got: %s", job_items
+                    )
+                    raise AirflowException("Unexpected API response")
+                job_item = job_items[0]
+            else:
+                job_item = method(resource_id)
 
-            job_id = response.id
+            if self.method in ("delete", "remove") or job_item is None:
+                return None
 
-            if self.method == "refresh":
-                if self.blocking_refresh:
-                    if not tableau_hook.wait_for_state(
-                        job_id=job_id,
-                        check_interval=self.check_interval,
-                        target_state=TableauJobFinishCode.SUCCESS,
-                    ):
-                        raise TableauJobFailedException(f"The Tableau Refresh {self.resource} Job failed!")
+            job_id = job_item.id
+
+            if self.blocking_refresh and not tableau_hook.wait_for_state(
+                job_id=job_id,
+                check_interval=self.check_interval,
+                target_state=TableauJobFinishCode.SUCCESS,
+            ):
+                raise TableauJobFailedException(
+                    f"The Tableau {self.resource} {self.method} Job failed! Job ID: {job_id}"
+                )
 
         return job_id
 

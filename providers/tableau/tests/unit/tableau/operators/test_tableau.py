@@ -33,6 +33,7 @@ class TestTableauOperator:
     def setup_method(self):
         self.mocked_workbooks = []
         self.mock_datasources = []
+        self.mock_tasks = []
 
         for i in range(3):
             mock_workbook = Mock()
@@ -44,6 +45,11 @@ class TestTableauOperator:
             mock_datasource.id = i
             mock_datasource.name = f"ds_{i}"
             self.mock_datasources.append(mock_datasource)
+
+            mock_task = Mock()
+            mock_task.id = i
+            mock_task.name = f"task_{i}"
+            self.mock_tasks.append(mock_task)
 
         self.kwargs = {
             "site_id": "test_site",
@@ -179,6 +185,92 @@ class TestTableauOperator:
         with pytest.raises(AirflowException):
             operator.execute({})
 
+    @patch("airflow.providers.tableau.operators.tableau.JobItem")
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_tasks(self, mock_tableau_hook, mock_job_item):
+        """
+        Test Execute datasources
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_tasks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+        mock_task_item = Mock()
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=mock_task_item)
+
+        mock_job = Mock()
+        mock_job_item.from_response = Mock(return_value=[mock_job])
+
+        kwargs = self.kwargs.copy()
+        kwargs.update({"method": "run"})
+        operator = TableauOperator(blocking_refresh=False, find="task_2", resource="tasks", **kwargs)
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.tasks.get_by_id.assert_called_once_with(self.mock_tasks[2].id)
+        mock_tableau_hook.server.tasks.run.assert_called_once_with(mock_task_item)
+        assert mock_job.id == job_id
+
+    @patch("airflow.providers.tableau.operators.tableau.JobItem")
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_tasks_blocking(self, mock_tableau_hook, mock_job_item):
+        """
+        Test run Tableau task blocking
+        """
+        mock_signed_in = [False]
+
+        def mock_hook_enter():
+            mock_signed_in[0] = True
+            return mock_tableau_hook
+
+        def mock_hook_exit(exc_type, exc_val, exc_tb):
+            mock_signed_in[0] = False
+
+        def mock_wait_for_state(job_id, target_state, check_interval):
+            if not mock_signed_in[0]:
+                raise Exception("Not signed in")
+
+            return True
+
+        mock_tableau_hook.return_value.__enter__ = Mock(side_effect=mock_hook_enter)
+        mock_tableau_hook.return_value.__exit__ = Mock(side_effect=mock_hook_exit)
+        mock_tableau_hook.wait_for_state = Mock(side_effect=mock_wait_for_state)
+
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_tasks)
+
+        mock_task_item = Mock()
+        mock_tableau_hook.server.tasks.get_by_id = Mock(return_value=mock_task_item)
+
+        mock_job = Mock()
+        mock_job_item.from_response = Mock(return_value=[mock_job])
+
+        kwargs = self.kwargs.copy()
+        kwargs.update({"method": "run"})
+        operator = TableauOperator(find="task_2", resource="tasks", **kwargs)
+
+        job_id = operator.execute(context={})
+
+        mock_tableau_hook.server.tasks.get_by_id.assert_called_once_with(self.mock_tasks[2].id)
+        mock_tableau_hook.server.tasks.run.assert_called_once_with(mock_task_item)
+        assert mock_job.id == job_id
+        mock_tableau_hook.wait_for_state.assert_called_once_with(
+            job_id=job_id, check_interval=20, target_state=TableauJobFinishCode.SUCCESS
+        )
+
+    @patch("airflow.providers.tableau.operators.tableau.TableauHook")
+    def test_execute_missing_task(self, mock_tableau_hook):
+        """
+        Test run missing Tableau datasource
+        """
+        mock_tableau_hook.get_all = Mock(return_value=self.mock_tasks)
+        mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
+
+        kwargs = self.kwargs.copy()
+        kwargs.update({"method": "run"})
+
+        operator = TableauOperator(find="test", resource="tasks", **kwargs)
+
+        with pytest.raises(AirflowException, match=r"tasks with .+ not found!"):
+            operator.execute({})
+
     def test_execute_unavailable_resource(self):
         """
         Test execute unavailable resource
@@ -193,5 +285,5 @@ class TestTableauOperator:
         Test get resource id
         """
         resource_id = "res_id"
-        operator = TableauOperator(resource="task", find=resource_id, method="run", task_id="t", dag=None)
+        operator = TableauOperator(resource="tasks", find=resource_id, method="run", task_id="t", dag=None)
         assert operator._get_resource_id(resource_id) == resource_id
