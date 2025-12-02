@@ -40,6 +40,9 @@ class S3ToSFTPOperator(BaseOperator):
 
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
+    :param sftp_remote_host: remote host to connect (templated)
+        Nullable. If provided, it will replace the `remote_host` which was
+        predefined in the connection of `sftp_conn_id`.
     :param sftp_path: The sftp remote path. This is the specified file path for
         uploading file to the SFTP server.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -56,7 +59,7 @@ class S3ToSFTPOperator(BaseOperator):
         the file size matches and confirm successful transfer.
     """
 
-    template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
+    template_fields: Sequence[str] = ("s3_key", "sftp_path", "sftp_remote_host", "s3_bucket")
 
     def __init__(
         self,
@@ -65,12 +68,14 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
+        sftp_remote_host: str | None = None,
         aws_conn_id: str | None = "aws_default",
         confirm: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.sftp_conn_id = sftp_conn_id
+        self.sftp_remote_host = sftp_remote_host
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -85,7 +90,7 @@ class S3ToSFTPOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
-        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
+        ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id, remote_host=self.sftp_remote_host or "")
         s3_hook = S3Hook(self.aws_conn_id)
 
         s3_client = s3_hook.get_conn()
