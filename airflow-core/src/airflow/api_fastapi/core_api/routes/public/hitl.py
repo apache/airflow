@@ -98,15 +98,15 @@ def _get_task_instance_with_hitl_detail(
         if try_number is not None:
             query = query.where(orm_object.try_number == try_number)
 
-        task_instance = session.scalar(query)
-        return task_instance
+        ti_or_tih = session.scalar(query)
+        return ti_or_tih
 
     if try_number is None:
-        task_instance = _query(TI)
+        ti_or_tih = _query(TI)
     else:
-        task_instance = _query(TIH) or _query(TI)
+        ti_or_tih = _query(TIH) or _query(TI)
 
-    if task_instance is None:
+    if ti_or_tih is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=(
@@ -115,13 +115,13 @@ def _get_task_instance_with_hitl_detail(
             ),
         )
 
-    if not task_instance.hitl_detail:
+    if not ti_or_tih.hitl_detail:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {task_instance.id}",
+            detail=f"Human-in-the-loop detail does not exist for Task Instance with id {ti_or_tih.id}",
         )
 
-    return task_instance
+    return ti_or_tih
 
 
 @task_instances_hitl_router.patch(
