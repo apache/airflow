@@ -57,15 +57,8 @@ when you choose to upgrade Airflow via their UI.
 How to upgrade
 ==============
 
-Reinstall Apache Airflow®, specifying the desired new version.
-
-To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
-intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,
-if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For more detailed guidance, see
-:doc:`/start`.
-
-To upgrade a PyPI package, rerun the ``pip install`` command in your environment using the desired version
-as a constraint. For more detailed guidance, see :doc:`/installation/installing-from-pypi`.
+To upgrade Apache Airflow® installed as PyPI package, rerun the ``pip install`` command in your environment using the desired version set in ``AIRFLOW_VERSION`` environment variable
+as a constraint. For more detailed guidance, see chapter "Installation and upgrade scenarios" from :doc:`/installation/installing-from-pypi.html#installation-and-upgrade-scenarios`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
@@ -73,6 +66,7 @@ you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 
 Offline SQL migration scripts
 =============================
+
 If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
 to get the SQL statements that would be executed. You may also specify the starting Airflow version with the ``--from-version`` flag and the ending Airflow version with the ``-n`` or ``--to-version`` flag. This feature is supported in Postgres and MySQL
 from Airflow 2.0.0 onward.
