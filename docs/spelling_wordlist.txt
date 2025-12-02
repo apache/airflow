@@ -33,6 +33,7 @@ Airbnb
 airbnb
 Airbyte
 airbyte
+Airflow
 AirflowConfigParser
 airflowctl
 AirflowException
@@ -52,6 +53,7 @@ Alphasort
 amazonaws
 amqp
 analyse
+and
 Analytics
 analytics
 analyticsreporting
@@ -70,6 +72,7 @@ anser
 Ansible
 anyOf
 apache
+Apache
 api
 apikey
 apis
@@ -91,6 +94,7 @@ argv
 arn
 arraysize
 artifactId
+as
 Asana
 asana
 asc
@@ -246,6 +250,7 @@ celltags
 centric
 cfg
 cgi
+chapter
 Cgroups
 cgroups
 cgroupspy
@@ -294,6 +299,7 @@ cmd
 cmdlet
 cmdline
 cmds
+command
 cname
 cncf
 cnf
@@ -332,6 +338,7 @@ conftest
 conn
 connectTimeoutMS
 connexion
+constraint
 containerConfiguration
 containerd
 ContainerEntrypoint
@@ -505,6 +512,8 @@ deques
 deregister
 desc
 descendents
+desired
+detailed
 deserialization
 Deserialize
 deserialize
@@ -635,6 +644,7 @@ environ
 envs
 EnvVar
 envvar
+environment
 eof
 eol
 eols
@@ -726,9 +736,11 @@ forkserver
 formatter
 formatters
 Formaturas
+For
 forwardability
 forwardable
 fqdn
+from
 frontend
 fs
 fsGroup
@@ -804,6 +816,7 @@ gRPC
 grpc
 GSoD
 gsuite
+guidance
 Gunicorn
 gunicorn
 gz
@@ -891,7 +904,8 @@ imap
 img
 imgcat
 impyla
-incompliancies
+in
+incompatibilities
 inexhaustive
 inferral
 infile
@@ -903,6 +917,9 @@ ing
 ingestions
 ini
 init
+Installation
+install
+installed
 initcontainer
 initcontainers
 initdb
@@ -926,6 +943,8 @@ internalIpOnly
 ints
 intvl
 Investorise
+variable
+version
 io
 IP
 ip
@@ -938,7 +957,8 @@ IPv6
 ipv6
 ipynb
 iPython
-irreproducible
+irrep
+yourroducible
 IRSA
 isfile
 ish
@@ -964,6 +984,10 @@ JenkinsRequest
 Jetson
 Jiajie
 Jinja
+more
+set
+the
+To
 jinja
 Jinjafied
 Jinjafy
@@ -979,9 +1003,16 @@ jobName
 JobRunning
 JobSpec
 JobStatus
-jobtracker
+jobtrac
+package
+pipker
 JobTrigger
 jos
+rerun
+scenarios
+see
+upgrade
+using
 journald
 JPype
 js
