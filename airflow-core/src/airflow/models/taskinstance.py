@@ -2316,9 +2316,17 @@ def find_relevant_relatives(
         visited.update(partial_dag.task_dict)
 
     def _visit_relevant_relatives_for_mapped(mapped_tasks: Iterable[tuple[str, int]]) -> None:
+        from airflow.exceptions import NotMapped
+
         for task_id, map_index in mapped_tasks:
             task = dag.get_task(task_id)
-            ti_count = get_mapped_ti_count(task, run_id, session=session)
+            try:
+                ti_count = get_mapped_ti_count(task, run_id, session=session)
+            except NotMapped:
+                # Task is not actually mapped (not a MappedOperator and not inside a mapped task group).
+                # Treat it as a normal task instead.
+                _visit_relevant_relatives_for_normal([task_id])
+                continue
             # TODO (GH-52141): This should return scheduler operator types, but
             # currently get_flat_relatives is inherited from SDK DAGNode.
             relatives = cast("Iterable[Operator]", task.get_flat_relatives(upstream=direction == "upstream"))
