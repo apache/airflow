@@ -44,18 +44,22 @@ Bug Fixes
 * ``KubernetesPodOperator pushes XCom on successful execution. (#58488)``
 * ``KubernetesPodOperator PodManager retries during create pod on too many requests error (#58033)``
 * ``Add JSON serialization for kubeconfig in AsyncKubernetesHook (#57169)``
+* ``Make the launcher a cached_property and minor change to improve how pod name is retrieved (#58646)``
+* ``Add retry handling for Kubernetes API client operations in KubernetesPodOperator (#58778)``
 
 Misc
 ~~~~
 
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updates to release process of providers (#58316)``
    * ``Send executor integration info in workload (#57800)``
    * ``Fixes #57515 - Fix test_async_write_logs_should_execute_successfully test (#58276)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
 
 10.10.0
 .......

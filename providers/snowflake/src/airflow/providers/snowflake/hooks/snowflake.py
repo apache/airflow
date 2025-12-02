@@ -142,6 +142,7 @@ class SnowflakeHook(DbApiHook):
                         "grant_type": "refresh_token client_credentials",
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
+                        "scope": "scope",
                     },
                     indent=1,
                 ),
@@ -222,6 +223,11 @@ class SnowflakeHook(DbApiHook):
             "grant_type": grant_type,
             "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
         }
+
+        scope = conn_config.get("scope")
+
+        if scope:
+            data["scope"] = scope
 
         if grant_type == "refresh_token":
             data |= {
@@ -388,8 +394,10 @@ class SnowflakeHook(DbApiHook):
                 conn_config["token"] = self.get_azure_oauth_token(extra_dict["azure_conn_id"])
             else:
                 token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
+                conn_config["scope"] = self._get_field(extra_dict, "scope")
                 conn_config["client_id"] = conn.login
                 conn_config["client_secret"] = conn.password
+
                 conn_config["token"] = self.get_oauth_token(
                     conn_config=conn_config,
                     token_endpoint=token_endpoint,
