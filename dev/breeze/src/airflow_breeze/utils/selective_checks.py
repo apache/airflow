@@ -30,6 +30,7 @@ from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    AIRFLOW_CTL_CORE_BRANCHES,
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     COMMITTERS,
@@ -722,6 +723,10 @@ class SelectiveChecks:
     @cached_property
     def helm_version(self) -> str:
         return HELM_VERSION
+
+    @cached_property
+    def airflowctl_core_versions(self) -> list[str]:
+        return AIRFLOW_CTL_CORE_BRANCHES
 
     @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:

@@ -54,6 +54,7 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
+      airflowctl-core-branches: ${{ steps.selective-checks.outputs.airflowctl-core-branches }}
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
@@ -794,6 +795,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      airflowctl-core-branches: ${{ needs.build-info.outputs.airflowctl-core-branches }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:

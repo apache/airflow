@@ -388,6 +388,14 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
+ALL_HISTORICAL_AIRFLOW_CORE_SUPPORTED_BRANCHES = [
+    "v2-10-test",
+    "v2-11-test",
+    "v3-0-test",
+    "v3-1-test",
+    "main",
+]
+
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
 PR_NUMBER_PATTERN = r"^\d+$"
 
@@ -512,6 +520,8 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.5": PYTHON_3_8_TO_3_12,
     "2.11.0": PYTHON_3_9_TO_3_12,
 }
+
+AIRFLOW_CTL_CORE_BRANCHES = ["v3-1-test", "main"]
 
 DB_RESET = False
 START_AIRFLOW = "false"
@@ -782,3 +792,8 @@ class GithubEvents(Enum):
 @clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]
+
+
+def get_image_path_from_branch(airflow_branch: str, python_major_minor_version="3.10") -> str:
+    """Get the image path (folder) from the Airflow branch name."""
+    return f"ghcr.io/apache/airflow/{airflow_branch}/prod/python{python_major_minor_version}"

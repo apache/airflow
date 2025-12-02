@@ -72,6 +72,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run Airflow CTL integration tests (true/false)"
         required: true
         type: string
+      airflowctl-core-branches:
+        description: "JSON-formatted array of Airflow Core branches to test with airflowctl"
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -263,10 +267,15 @@ jobs:
     if: inputs.run-ui-e2e-tests == 'true'
 
   airflow-ctl-integration-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        airflow-core-branch: "${{fromJSON(inputs.airflowctl-core-branches)}}"
     timeout-minutes: 60
     name: "Airflow CTL integration tests with PROD image"
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
+      AIRFLOW_CORE_BRANCH: "${{ matrix.airflow-core-branch }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -291,5 +300,6 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Run airflowctl integration tests"
-        run: breeze testing airflow-ctl-integration-tests
+        run: breeze testing airflow-ctl-integration-tests --airflow-core-branch "${AIRFLOW_CORE_BRANCH}"
     if: inputs.run-airflow-ctl-integration-tests == 'true'
+
