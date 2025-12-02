@@ -757,7 +757,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13.9",
+y    "3.13": "3.13.10",
 }
 
 # Number of slices for low dep tests
