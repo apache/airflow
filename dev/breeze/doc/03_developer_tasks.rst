@@ -400,29 +400,73 @@ You can also use it to start different executor.
 
     breeze start-airflow --executor CeleryExecutor
 
-For KubernetesExecutor, Breeze will automatically create and manage a KinD cluster:
+
+Using KubernetesExecutor
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For KubernetesExecutor, Breeze will automatically create and manage a KinD cluster.
+
+**Prerequisites**:
+
+* Docker (with at least 8GB memory allocated)
+* Kind and kubectl (installed automatically by breeze)
+
+**Quick start**:
 
 .. code-block:: bash
 
     breeze start-airflow --executor KubernetesExecutor
 
-To force rebuild the KinD cluster (useful when configuration changes):
+**Using Custom DAGs and Include Files**:
+
+Place your DAGs in ``files/dags/`` and any supporting modules in ``files/include/`` before starting.
+These directories are built into the worker image at startup.
+
+**Important**: Any changes to ``files/dags/`` or ``files/include/`` require a complete restart
+
+The worker image is built when breeze starts, so new or modified files are only available after a restart.
+
+**Configuration Options**:
+
+Force rebuild the KinD cluster (useful when configuration changes):
 
 .. code-block:: bash
 
     breeze start-airflow --executor KubernetesExecutor --force-rebuild-cluster
 
-To skip rebuilding the worker image on restart (faster when no DAG changes):
+Skip rebuilding the worker image on restart (faster when no DAG changes):
 
 .. code-block:: bash
 
     breeze start-airflow --executor KubernetesExecutor --skip-image-rebuild
 
-To use a specific Kubernetes version for the KinD cluster:
+**Warning**: Only use ``--skip-image-rebuild`` when you're certain no changes have
+been made to ``files/dags/`` or ``files/include/`` since the last image build.
+
+Use a specific Kubernetes version for the KinD cluster:
 
 .. code-block:: bash
 
-    breeze start-airflow --executor KubernetesExecutor --kubernetes-version v1.29.0
+    breeze start-airflow --executor KubernetesExecutor --kubernetes-version v1.30.13
+
+**Accessing Task Logs**:
+
+**Current Limitation**: Task logs are ephemeral and lost when pods are deleted.
+
+**Workaround for Development** - Configure Airflow to keep pods after task completion:
+
+.. code-block:: bash
+
+    export AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS=False
+    export AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE=False
+    breeze start-airflow --executor KubernetesExecutor
+
+With these settings:
+
+* Completed pods remain available for log inspection
+* View logs via Airflow UI while pods exist
+* Manually delete pods when done: ``kubectl delete pods -l airflow-worker -n airflow``
+
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
 ``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
