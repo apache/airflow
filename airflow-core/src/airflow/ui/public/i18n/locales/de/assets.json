@@ -1,5 +1,6 @@
 {
   "consumingDags": "Konsumierende Dags",
+  "consumingTasks": "Konsumierende Tasks",
   "createEvent": {
     "button": "Ereignis erstellen",
     "manual": {
