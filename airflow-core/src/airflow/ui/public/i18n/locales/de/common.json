@@ -89,6 +89,7 @@
     "back": "Zurück",
     "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
     "home": "Start",
+    "invalidUrl": "Seite nicht gefunden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
