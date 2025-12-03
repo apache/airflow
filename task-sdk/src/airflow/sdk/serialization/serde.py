@@ -99,7 +99,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     found for them. The order in which serializers are used is
 
     1. A ``serialize`` function provided by the object.
-    2. A registered serializer in the namespace of ``airflow.serialization.serializers``
+    2. A registered serializer in the namespace of ``airflow.sdk.serialization.serializers``
     3. Annotations from attr or dataclass.
 
     Limitations: attr and dataclass objects can lose type information for nested objects
