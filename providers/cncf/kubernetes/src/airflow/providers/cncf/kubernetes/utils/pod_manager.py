@@ -522,9 +522,8 @@ class PodManager(LoggingMixin):
                 # Log only if more than 2 errors occurred in the last 60 seconds
                 if len(self._http_error_timestamps) > 2:
                     self.log.exception(
-                        "Reading of logs interrupted for container %r; will retry. Error: %s",
+                        "Reading of logs interrupted for container %r; will retry.",
                         container_name,
-                        str(e),
                     )
             return last_captured_timestamp or since_time, exception
 
