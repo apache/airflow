@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Listener hook specifications."""
+
+from __future__ import annotations
+
+# Re-export all spec modules so they can be imported from spec package
+from . import asset, dagrun, importerrors, lifecycle, taskinstance  # noqa: TID252
+
+__all__ = [
+    "asset",
+    "dagrun",
+    "importerrors",
+    "lifecycle",
+    "taskinstance",
+]
