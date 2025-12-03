@@ -229,6 +229,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
+                "--force-rebuild-cluster",
+                "--skip-image-rebuild",
+                "--kubernetes-version",
             ],
         },
         {

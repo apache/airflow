@@ -88,25 +88,34 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
+from airflow_breeze.commands.kubernetes_commands import (
+    _create_cluster,
+    _upload_k8s_image,
+)
 from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
+    ALLOWED_KUBERNETES_VERSIONS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_KUBERNETES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     GITHUB_REPO_BRANCH_PATTERN,
+    KUBERNETES_EXECUTOR,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -114,6 +123,9 @@ from airflow_breeze.utils.docker_command_utils import (
     execute_command_in_shell,
     fix_ownership_using_docker,
     perform_environment_checks,
+)
+from airflow_breeze.utils.kubernetes_utils import (
+    make_sure_kubernetes_tools_are_installed,
 )
 from airflow_breeze.utils.packages import expand_all_provider_distributions
 from airflow_breeze.utils.path_utils import (
@@ -504,6 +516,361 @@ option_executor_start_airflow = click.option(
     "or CeleryExecutor depending on the integration used).",
 )
 
+option_force_rebuild_cluster = click.option(
+    "--force-rebuild-cluster",
+    is_flag=True,
+    help="Force rebuild of the auto-created KinD cluster for KubernetesExecutor.",
+)
+option_skip_image_rebuild = click.option(
+    "--skip-image-rebuild",
+    is_flag=True,
+    help="Skip rebuilding the K8s worker image (use existing image for faster restarts).",
+)
+
+
+option_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version used to create the KinD cluster.",
+    type=CacheableChoice(ALLOWED_KUBERNETES_VERSIONS),
+    show_default=True,
+    default=CacheableDefault(ALLOWED_KUBERNETES_VERSIONS[0]),
+    envvar="KUBERNETES_VERSION",
+)
+
+
+def initialize_kind_cluster_for_executor(
+    python: str,
+    force_recreate_cluster: bool = False,
+    kubernetes_version: str = DEFAULT_KUBERNETES_VERSION,
+) -> tuple[str, Path]:
+    """
+    Initialize KinD cluster for KubernetesExecutor.
+    Returns (cluster_name, kubeconfig_path).
+
+    This reuses the _create_cluster function from kubernetes_commands.py
+    to maintain consistency with breeze k8s commands.
+    """
+    from airflow_breeze.commands.kubernetes_commands import HELM_AIRFLOW_NAMESPACE
+    from airflow_breeze.utils.kubernetes_utils import (
+        check_kind_cluster_exists,
+        ensure_kubernetes_namespace,
+        get_kubeconfig_file,
+    )
+
+    # Make sure kubernetes tools are installed
+    make_sure_kubernetes_tools_are_installed()
+
+    # Print cluster creation status
+    get_console().print("[info]Initializing KinD cluster for KubernetesExecutor...[/]")
+
+    cluster_name = f"airflow-python-{python}-{kubernetes_version}"
+
+    # Check if cluster already exists
+    cluster_exists = check_kind_cluster_exists(python=python, kubernetes_version=kubernetes_version)
+
+    if cluster_exists and not force_recreate_cluster:
+        # Cluster already exists, just return its info
+        get_console().print(f"[info]Using existing KinD cluster '{cluster_name}'[/]")
+        kubeconfig_path = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
+
+        # Ensure the airflow namespace exists even for existing cluster
+
+        result = ensure_kubernetes_namespace(
+            namespace=HELM_AIRFLOW_NAMESPACE,
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=None,
+        )
+        if result.returncode != 0:
+            get_console().print("[warning]Failed to ensure namespace, but continuing...[/]")
+
+        get_console().print(f"[success]✓ KinD cluster '{cluster_name}' ready[/]")
+        get_console().print(f"[info]  Kubeconfig: {kubeconfig_path}[/]")
+        return cluster_name, kubeconfig_path
+
+    if force_recreate_cluster:
+        get_console().print("[warning]Force recreating existing cluster[/]")
+    get_console().print(f"[info]Python version: {python}[/]")
+    get_console().print(f"[info]Kubernetes version: {kubernetes_version}[/]")
+
+    returncode, message, cluster_name, kubeconfig_path = _create_cluster(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+        num_tries=1,
+        force_recreate_cluster=force_recreate_cluster,
+    )
+
+    if returncode != 0:
+        get_console().print(f"[error]Failed to initialize KinD cluster: {message}")
+        raise SystemExit(returncode)
+
+    get_console().print(f"[success]✓ KinD cluster '{cluster_name}' ready[/]")
+    get_console().print(f"[info]  Kubeconfig: {kubeconfig_path}[/]")
+
+    # Ensure the airflow namespace exists
+
+    result = ensure_kubernetes_namespace(
+        namespace=HELM_AIRFLOW_NAMESPACE,  # Use the same namespace as breeze k8s
+        python=python,
+        kubernetes_version=kubernetes_version,
+        output=None,
+    )
+
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+    return cluster_name, kubeconfig_path
+
+
+def build_k8s_worker_image(
+    python: str,
+    kubernetes_version: str,
+    rebuild_base_image: bool = False,
+    cluster_name: str | None = None,
+) -> tuple[int, str]:
+    """
+    Build the K8s worker image with DAGs and include files.
+
+    This function builds a worker image that includes:
+    - Base Airflow image
+    - Contents of files/dags/ copied to /opt/airflow/dags/
+    - Contents of files/include/ copied to /opt/airflow/include/
+
+    Returns: (returncode, message)
+    """
+    from pathlib import Path
+
+    from airflow_breeze.commands.production_image_commands import run_build_production_image
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.utils.run_utils import check_if_image_exists, run_command
+
+    params = BuildProdParams(python=python, use_uv=True)
+
+    # Build or check base image
+    if rebuild_base_image:
+        get_console().print("[info]Rebuilding base production image...[/]")
+        run_build_production_image(
+            prod_image_params=params,
+            param_description=f"Python: {params.python}, Platform: {params.platform}",
+            output=None,
+        )
+        get_console().print("[success]✓ Base production image ready[/]")
+    else:
+        get_console().print("[info]Checking base production image...[/]")
+        if not check_if_image_exists(image=params.airflow_image_name):
+            get_console().print(
+                f"[error]The base PROD image {params.airflow_image_name} does not exist locally.\n"
+            )
+            get_console().print(
+                "[warning]Please add `--rebuild-base-image` flag or rebuild it manually with:\n"
+            )
+            get_console().print(f"breeze prod-image build --python {python}\n")
+            return 1, "Base image not found"
+        get_console().print(f"[success]✓ Base image found: {params.airflow_image_name}[/]")
+
+    get_console().print(f"[info]Building K8s worker image for Python {python}...[/]")
+
+    # Check if files/dags and files/include directories exist
+    dags_path = Path("files/dags")
+    include_path = Path("files/include")
+
+    # Create directories if they don't exist
+    dags_path.mkdir(parents=True, exist_ok=True)
+    include_path.mkdir(parents=True, exist_ok=True)
+
+    # Copy files to docker-context-files (which is whitelisted in .dockerignore)
+    # to make them available in the Docker build context
+    docker_context_dags = Path("docker-context-files/k8s-worker-dags")
+    docker_context_include = Path("docker-context-files/k8s-worker-include")
+
+    # Ensure docker-context-files directory exists
+    docker_context_dags.parent.mkdir(parents=True, exist_ok=True)
+    docker_context_include.parent.mkdir(parents=True, exist_ok=True)
+
+    # Build COPY commands for DAGs and include files if directories exist
+    copy_dags_command = ""
+    copy_include_command = ""
+
+    # Check if dags directory has any files
+    dag_files = list(dags_path.rglob("*.py"))
+    if dag_files:
+        # Copy to docker-context-files so it's available in build context
+        if docker_context_dags.exists():
+            shutil.rmtree(docker_context_dags)
+        shutil.copytree(dags_path, docker_context_dags, dirs_exist_ok=False)
+        copy_dags_command = "COPY --chown=airflow:0 docker-context-files/k8s-worker-dags/ /opt/airflow/dags/"
+        get_console().print(f"[info]  • Including {len(dag_files)} DAG file(s) from {dags_path}[/]")
+    else:
+        get_console().print(f"[info]  • No DAG files found in {dags_path}[/]")
+        # Create empty dags directory in the image
+        copy_dags_command = "RUN mkdir -p /opt/airflow/dags"
+
+    # Check if include directory has any files
+    include_files = list(include_path.rglob("*"))
+    # Filter out directories from include_files
+    include_files = [f for f in include_files if f.is_file()]
+    if include_files:
+        # Copy to docker-context-files so it's available in build context
+        if docker_context_include.exists():
+            shutil.rmtree(docker_context_include)
+        shutil.copytree(include_path, docker_context_include, dirs_exist_ok=False)
+        copy_include_command = (
+            "COPY --chown=airflow:0 docker-context-files/k8s-worker-include/ /opt/airflow/include/"
+        )
+        get_console().print(f"[info]  • Including {len(include_files)} file(s) from {include_path}[/]")
+    else:
+        get_console().print(f"[info]  • No include files found in {include_path}[/]")
+        # Create empty include directory in the image
+        copy_include_command = "RUN mkdir -p /opt/airflow/include"
+
+    get_console().print("[info]  • Adding example DAGs and pod templates[/]")
+
+    # Create Dockerfile for K8s worker image
+    docker_image_for_k8s_worker = f"""
+FROM {params.airflow_image_name}
+
+USER airflow
+
+# Copy DAGs if they exist
+{copy_dags_command}
+
+# Copy include files if they exist
+{copy_include_command}
+
+# Copy example DAGs and pod templates (same as _rebuild_k8s_image)
+COPY --chown=airflow:0 airflow-core/src/airflow/example_dags/ /opt/airflow/dags/
+COPY --chown=airflow:0 providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+
+ENV GUNICORN_CMD_ARGS='--preload'
+"""
+
+    image = f"{params.airflow_image_kubernetes}:latest"
+    get_console().print(f"[info]  • Building Docker image: {image}[/]")
+    docker_build_result = run_command(
+        ["docker", "build", "--tag", image, ".", "-f", "-"],
+        input=docker_image_for_k8s_worker,
+        text=True,
+        check=False,
+        output=None,
+    )
+
+    if docker_build_result.returncode != 0:
+        get_console().print("[error]Error when building the K8s worker image.")
+        return docker_build_result.returncode, f"K8S worker image for Python {python}"
+
+    get_console().print(f"[success]✓ Worker image built: {image}[/]")
+
+    # Upload image to KinD cluster if cluster name provided
+    if cluster_name:
+        get_console().print(f"[info]Uploading image to KinD cluster '{cluster_name}'...[/]")
+        upload_returncode, upload_message = _upload_k8s_image(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=None,
+        )
+        if upload_returncode != 0:
+            get_console().print(f"[error]Failed to upload K8s worker image: {upload_message}")
+            return upload_returncode, upload_message
+        get_console().print(f"[success]✓ Image uploaded to cluster '{cluster_name}'[/]")
+
+    return 0, f"K8S worker image for Python {python}"
+
+
+def setup_kubernetes_executor_environment(
+    python: str,
+    force_recreate_cluster: bool = False,
+    skip_image_rebuild: bool = False,
+    kubernetes_version: str = DEFAULT_KUBERNETES_VERSION,
+) -> tuple[str, Path]:
+    """
+    Setup the complete environment for KubernetesExecutor.
+    This includes:
+    1. Initializing the KinD cluster
+    2. Creating the airflow namespace
+    3. Building and uploading the worker image
+    4. Setting up required configurations
+
+    :param python: Python version
+    :param force_recreate_cluster: Whether to force recreate the cluster
+    :param kubernetes_version: Kubernetes version to use
+    :return: Tuple of (cluster_name, kubeconfig_path)
+    """
+    get_console().print("[info]Setting up Kubernetes environment for KubernetesExecutor[/]")
+
+    # Step 1: Initialize KinD cluster and create namespace
+    cluster_name, kubeconfig_path = initialize_kind_cluster_for_executor(
+        python=python,
+        force_recreate_cluster=force_recreate_cluster,
+        kubernetes_version=kubernetes_version,
+    )
+    get_console().print(f"[info]Kubernetes cluster initialized: {cluster_name}[/]")
+
+    # Step 2: Build and upload worker image
+    if skip_image_rebuild:
+        # Use existing worker image
+        params = BuildProdParams(python=python, use_uv=True)
+        image_name = params.airflow_image_kubernetes
+        tag = "latest"
+
+        # Check if the worker image exists before skipping rebuild
+        result = run_command(
+            ["docker", "images", "-q", f"{image_name}:{tag}"],
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+        if not result.stdout.strip():
+            get_console().print(
+                f"[error]Worker image {image_name}:{tag} not found. "
+                f"Cannot use --skip-image-rebuild when image doesn't exist.[/]"
+            )
+            get_console().print(
+                "[info]Please run without --skip-image-rebuild flag to build the image first.[/]"
+            )
+            raise SystemExit(1)
+
+        get_console().print("[info]Skipping worker image rebuild, using existing image[/]")
+        get_console().print(f"[info]Worker image: {image_name}:{tag}[/]")
+    else:
+        # Build and upload worker image
+        get_console().print("[info]Building Kubernetes worker image[/]")
+        returncode, message = build_k8s_worker_image(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            rebuild_base_image=force_recreate_cluster,
+            cluster_name=cluster_name,
+        )
+        if returncode != 0:
+            get_console().print(f"[error]Failed to build worker image: {message}")
+            raise SystemExit(returncode)
+        # Extract image name and tag
+        params = BuildProdParams(python=python, use_uv=True)
+        image_name = params.airflow_image_kubernetes
+        tag = "latest"
+        get_console().print(f"[success]Worker image ready: {image_name}:{tag}[/]")
+
+    # Step 3: Show connection details and helpful information
+    get_console().print("\n[info]KubernetesExecutor setup complete![/]")
+    get_console().print("\n[bold]Connection Details:[/bold]")
+    get_console().print(f"  Cluster Name:    {cluster_name}")
+    get_console().print("  Namespace:       airflow")
+    get_console().print(f"  Kubeconfig:      {kubeconfig_path}")
+    get_console().print(f"  Worker Image:    {image_name}:{tag}")
+
+    get_console().print("\n[bold]Environment Variables Set:[/bold]")
+    get_console().print("  AIRFLOW__CORE__EXECUTOR=KubernetesExecutor")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE=airflow")
+    get_console().print(
+        f"  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY={image_name.rsplit(':', 1)[0]}"
+    )
+    get_console().print(f"  AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG={tag}")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER=False")
+    get_console().print("  AIRFLOW__KUBERNETES_EXECUTOR__VERIFY_SSL=False")
+    get_console().print(f"  AIRFLOW__KUBERNETES_EXECUTOR__CONFIG_FILE={kubeconfig_path}")
+
+    return cluster_name, kubeconfig_path
+
 
 @main.command(name="start-airflow")
 @click.option(
@@ -542,6 +909,9 @@ option_executor_start_airflow = click.option(
 @option_docker_host
 @option_dry_run
 @option_executor_start_airflow
+@option_force_rebuild_cluster
+@option_skip_image_rebuild
+@option_kubernetes_version
 @option_force_build
 @option_forward_credentials
 @option_github_repository
@@ -590,6 +960,9 @@ def start_airflow(
     create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
+    force_rebuild_cluster: bool,
+    skip_image_rebuild: bool,
+    kubernetes_version: str,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -694,6 +1067,8 @@ def start_airflow(
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
         python=python,
+        force_recreate_kind_cluster=force_rebuild_cluster,
+        kubernetes_version=kubernetes_version,
         restart=restart,
         standalone_dag_processor=standalone_dag_processor,
         start_airflow=True,
@@ -703,6 +1078,16 @@ def start_airflow(
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
+
+    # Initialize KubernetesExecutor if needed
+    if executor == KUBERNETES_EXECUTOR:
+        setup_kubernetes_executor_environment(
+            python=python,
+            force_recreate_cluster=force_rebuild_cluster,
+            skip_image_rebuild=skip_image_rebuild,
+            kubernetes_version=kubernetes_version or DEFAULT_KUBERNETES_VERSION,
+        )
+
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()

@@ -250,7 +250,12 @@ def _create_cluster(
     output: Output | None,
     num_tries: int,
     force_recreate_cluster: bool,
-) -> tuple[int, str]:
+) -> tuple[int, str, str, Path]:
+    """
+    Create a KinD cluster for the given Python and Kubernetes versions.
+
+    Returns: (returncode, message, cluster_name, kubeconfig_path)
+    """
     while True:
         if force_recreate_cluster:
             _delete_cluster(python=python, kubernetes_version=kubernetes_version, output=output)
@@ -287,10 +292,10 @@ def _create_cluster(
                 "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
             )
             get_console(output=output).print("\nbreeze k8s configure-cluster\n")
-            return result.returncode, f"K8S cluster {cluster_name}."
+            return result.returncode, f"K8S cluster {cluster_name}.", cluster_name, kubeconfig_file
         num_tries -= 1
         if num_tries == 0:
-            return result.returncode, f"K8S cluster {cluster_name}."
+            return result.returncode, f"K8S cluster {cluster_name}.", cluster_name, kubeconfig_file
         get_console(output=output).print(
             f"[warning]Failed to create KinD cluster {cluster_name}. "
             f"Retrying! There are {num_tries} tries left.\n"
@@ -367,7 +372,7 @@ def create_cluster(
             include_success_outputs=include_success_outputs,
         )
     else:
-        return_code, _ = _create_cluster(
+        return_code, _, _, _ = _create_cluster(
             python=python,
             kubernetes_version=kubernetes_version,
             output=None,
@@ -624,11 +629,13 @@ ENV GUNICORN_CMD_ARGS='--preload'
 def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | None) -> tuple[int, str]:
     params = BuildProdParams(python=python)
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    # Include the tag in the image name for kind load
+    image_with_tag = f"{params.airflow_image_kubernetes}:latest"
     get_console(output=output).print(
-        f"[info]Uploading Airflow image {params.airflow_image_kubernetes} to cluster {cluster_name}"
+        f"[info]Uploading Airflow image {image_with_tag} to cluster {cluster_name}"
     )
     kind_load_result = run_command_with_k8s_env(
-        ["kind", "load", "docker-image", "--name", cluster_name, params.airflow_image_kubernetes],
+        ["kind", "load", "docker-image", "--name", cluster_name, image_with_tag],
         python=python,
         output=output,
         kubernetes_version=kubernetes_version,
@@ -1616,7 +1623,7 @@ def _run_complete_tests(
     get_console(output=output).print(
         f"\n[info]Creating k8s cluster for Python {python}, Kubernetes {kubernetes_version}\n"
     )
-    returncode, message = _create_cluster(
+    returncode, message, _, _ = _create_cluster(
         python=python,
         kubernetes_version=kubernetes_version,
         output=output,
