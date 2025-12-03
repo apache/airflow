@@ -63,6 +63,9 @@ dependencies = [
     "structlog>=25.4.0",
     "greenback>=1.2.1",
     "tenacity>=8.3.0",
+    # Start of shared listeners dependencies
+    "pluggy>=1.0.0",
+    # End of shared listeners dependencies
     # Start of shared timezones dependencies
     "pendulum>=3.1.0",
     # End of shared timezones dependencies
@@ -105,6 +108,7 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
+"../shared/listeners/src/airflow_shared/listeners" = "src/airflow/sdk/_shared/listeners"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"

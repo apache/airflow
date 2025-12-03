@@ -35,8 +35,8 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.listeners import hookimpl
-from airflow.listeners.listener import get_listener_manager
+from airflow.sdk.listeners import hookimpl
+from airflow.sdk.listeners import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
