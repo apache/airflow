@@ -276,7 +276,7 @@ class SmtpHook(BaseHook):
         try:
             smtp_client = self.get_conn()._smtp_client
             if smtp_client:
-                status = smtp_client.noop()
+                status, _message = smtp_client.noop()
                 if status == 250:
                     return True, "Connection successfully tested"
         except Exception as e:
