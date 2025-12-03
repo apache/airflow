@@ -122,6 +122,7 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
+    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
@@ -489,7 +490,7 @@ def shell(
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
-    perform_environment_checks()
+    perform_environment_checks(quiet=shell_params.quiet)
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -634,7 +635,9 @@ def start_airflow(
             "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
         )
 
+    perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
+        assert_prek_installed()
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(

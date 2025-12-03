@@ -22,9 +22,10 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
+import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import { CELL_HEIGHT } from "./utils";
@@ -78,35 +79,38 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
       py={0}
       transition="background-color 0.2s"
     >
-      <Link
-        id={`grid-${runId}-${taskId}`}
-        onClick={onClick}
-        replace
-        to={{
-          pathname: getTaskUrl(),
-          search: redirectionSearch,
-        }}
+      <BasicTooltip
+        content={
+          <>
+            {translate("taskId")}: {taskId}
+            <br />
+            {translate("state")}:{" "}
+            {instance.state
+              ? translate(`common:states.${instance.state}`)
+              : translate("common:states.no_status")}
+            {instance.min_start_date !== null && (
+              <>
+                <br />
+                {translate("startDate")}: <Time datetime={instance.min_start_date} />
+              </>
+            )}
+            {instance.max_end_date !== null && (
+              <>
+                <br />
+                {translate("endDate")}: <Time datetime={instance.max_end_date} />
+              </>
+            )}
+          </>
+        }
       >
-        <Tooltip
-          content={
-            <>
-              {translate("taskId")}: {taskId}
-              <br />
-              {translate("state")}: {instance.state}
-              {instance.min_start_date !== null && (
-                <>
-                  <br />
-                  {translate("startDate")}: <Time datetime={instance.min_start_date} />
-                </>
-              )}
-              {instance.max_end_date !== null && (
-                <>
-                  <br />
-                  {translate("endDate")}: <Time datetime={instance.max_end_date} />
-                </>
-              )}
-            </>
-          }
+        <Link
+          id={`grid-${runId}-${taskId}`}
+          onClick={onClick}
+          replace
+          to={{
+            pathname: getTaskUrl(),
+            search: redirectionSearch,
+          }}
         >
           <Badge
             alignItems="center"
@@ -122,8 +126,8 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
           >
             <StateIcon size={10} state={instance.state} />
           </Badge>
-        </Tooltip>
-      </Link>
+        </Link>
+      </BasicTooltip>
     </Flex>
   );
 };

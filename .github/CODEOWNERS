@@ -26,6 +26,9 @@
 # Airflow CTL
 /airflow-ctl/ @bugraoz93 @potiuk
 
+# Airflow CLI
+/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk
+
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
 
