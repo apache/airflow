@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -50,7 +50,12 @@ def default_trigger_args() -> dict[str, Any]:
         "ti_id": TI_ID,
         "options": ["1", "2", "3", "4", "5"],
         "params": {
-            "input": {"value": 1, "schema": {}, "description": None},
+            "input": {
+                "value": 1,
+                "schema": {},
+                "description": None,
+                "source": "task",
+            },
         },
         "multiple": False,
     }
@@ -65,11 +70,20 @@ class TestHITLTrigger:
             **default_trigger_args,
         )
         classpath, kwargs = trigger.serialize()
+
+        expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
+        if AIRFLOW_V_3_2_PLUS:
+            expected_params_in_trigger_kwargs = {
+                "input": {"value": 1, "description": None, "schema": {}, "source": "task"}
+            }
+        else:
+            expected_params_in_trigger_kwargs = {"input": {"value": 1, "description": None, "schema": {}}}
+
         assert classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
         assert kwargs == {
             "ti_id": TI_ID,
             "options": ["1", "2", "3", "4", "5"],
-            "params": {"input": {"value": 1, "description": None, "schema": {}}},
+            "params": expected_params_in_trigger_kwargs,
             "defaults": ["1"],
             "multiple": False,
             "timeout_datetime": None,

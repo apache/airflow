@@ -157,3 +157,10 @@ class TestOpenFaasHook:
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
         assert self.hook.deploy_function(False, {}) is None
+
+    def test_get_ui_field_behaviour(self):
+        expected = {
+            "hidden_fields": ["schema", "port", "login", "password", "extra"],
+            "relabeling": {},
+        }
+        assert self.hook.get_ui_field_behaviour() == expected

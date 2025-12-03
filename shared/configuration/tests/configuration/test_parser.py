@@ -30,8 +30,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow._shared.configuration.exceptions import AirflowConfigException
-from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow_shared.configuration.exceptions import AirflowConfigException
+from airflow_shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 
 
 class AirflowConfigParser(_SharedAirflowConfigParser):

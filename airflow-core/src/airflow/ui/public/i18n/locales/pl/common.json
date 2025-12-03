@@ -102,6 +102,7 @@
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
@@ -121,10 +122,13 @@
   "filters": {
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
+    "endTime": "Czas zakończenia",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
     "runAfterFrom": "Uruchom po (od)",
-    "runAfterTo": "Uruchom po (do)"
+    "runAfterTo": "Uruchom po (do)",
+    "selectDateRange": "Wybierz zakres dat",
+    "startTime": "Czas rozpoczęcia"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",

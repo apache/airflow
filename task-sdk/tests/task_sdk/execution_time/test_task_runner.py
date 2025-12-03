@@ -35,15 +35,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowFailException,
-    AirflowSensorTimeout,
-    AirflowSkipException,
-    AirflowTaskTerminated,
-    AirflowTaskTimeout,
-    DownstreamTasksSkipped,
-)
 from airflow.listeners import hookimpl
 from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
@@ -70,7 +61,16 @@ from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, Dataset, Model
 from airflow.sdk.definitions.param import DagParam
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    AirflowTaskTerminated,
+    AirflowTaskTimeout,
+    DownstreamTasksSkipped,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -89,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
+    MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
@@ -967,6 +968,34 @@ def test_run_basic_failed(
     assert ti.state == TaskInstanceState.FAILED
 
     mock_supervisor_comms.send.assert_called_once_with(
+        msg=TaskState(state=TaskInstanceState.FAILED, end_date=instant)
+    )
+
+
+@pytest.mark.parametrize("retries", [0, 1])
+def test_airflow_fail_exception_does_not_retry(
+    time_machine, create_runtime_ti, mock_supervisor_comms, retries
+):
+    """Test that AirflowFailException does not cause task to retry."""
+
+    def fail():
+        raise AirflowFailException("hopeless")
+
+    task = PythonOperator(
+        task_id="test_raise_airflow_fail_exception",
+        python_callable=fail,
+        retries=retries,
+    )
+
+    ti = create_runtime_ti(task=task, dag_id=f"test_airflow_fail_exception_no_retry_{retries}")
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert ti.state == TaskInstanceState.FAILED
+    mock_supervisor_comms.send.assert_called_with(
         msg=TaskState(state=TaskInstanceState.FAILED, end_date=instant)
     )
 
@@ -2634,6 +2663,57 @@ class TestEmailNotifications:
                 )
                 assert kwargs["from_email"] == self.FROM
 
+    @pytest.mark.enable_redact
+    def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that secrets registered with mask_secret() are redacted in rendered template fields."""
+        from unittest.mock import call
+
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+        from airflow.sdk.log import mask_secret
+
+        _secrets_masker().add_mask("admin_user_12345", None)
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("username", "region")
+
+            def __init__(self, username, region, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.username = username
+                self.region = region
+
+            def execute(self, context):
+                # Only mask username
+                mask_secret(self.username)
+
+        task = CustomOperator(
+            task_id="test_masking",
+            username="admin_user_12345",
+            region="us-west-2",
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_secrets_in_rtif")
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert (
+            call(MaskSecret(value="admin_user_12345", name=None, type="MaskSecret"))
+            in mock_supervisor_comms.send.mock_calls
+        )
+        # Region should not be masked
+        assert (
+            call(MaskSecret(value="us-west-2", name=None, type="MaskSecret"))
+            not in mock_supervisor_comms.send.mock_calls
+        )
+
+        assert (
+            call(
+                msg=SetRenderedFields(
+                    rendered_fields={"username": "***", "region": "us-west-2"},
+                    type="SetRenderedFields",
+                )
+            )
+            in mock_supervisor_comms.send.mock_calls
+        )
+
 
 class TestDagParamRuntime:
     DEFAULT_ARGS = {
@@ -3109,7 +3189,7 @@ class TestTaskRunnerCallsCallbacks:
         self.results.append("execute success")
 
     def _execute_skipped(self, context):
-        from airflow.exceptions import AirflowSkipException
+        from airflow.sdk.exceptions import AirflowSkipException
 
         self.results.append("execute skipped")
         raise AirflowSkipException
@@ -3216,7 +3296,6 @@ class TestTaskRunnerCallsCallbacks:
 
     def test_task_runner_on_failure_callback_context(self, create_runtime_ti):
         """Test that on_failure_callback context has end_date and duration."""
-        from airflow.exceptions import AirflowException
 
         def failure_callback(context):
             ti = context["task_instance"]
@@ -3275,8 +3354,6 @@ class TestTaskRunnerCallsCallbacks:
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
-
-        from airflow.exceptions import AirflowException
 
         success_data = {}
         failure_data = {}

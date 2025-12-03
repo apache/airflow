@@ -5,6 +5,7 @@
   "asset_one": "Zasób",
   "asset_other": "Zasoby",
   "consumingDags": "Przetwarzanie Dagów",
+  "consumingTasks": "Przetwarzanie zadań",
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {

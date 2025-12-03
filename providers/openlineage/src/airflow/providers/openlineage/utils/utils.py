@@ -662,18 +662,29 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: DAG) -> str | None:
+    def timetable_summary(cls, dag: DAG | SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
-        if getattr(dag, "timetable_summary", None):
-            return dag.timetable_summary
-        if getattr(dag, "timetable", None):
-            return dag.timetable.summary
+        if summary := getattr(dag, "timetable_summary", None):
+            return summary
+        if (timetable := getattr(dag, "timetable", None)) is None:
+            return None
+        if summary := getattr(timetable, "summary", None):
+            return summary
+        with suppress(ImportError):
+            from airflow.serialization.encoders import coerce_to_core_timetable
+
+            return coerce_to_core_timetable(timetable).summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: DAG | SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
-        serialized = dag.timetable.serialize() or {}
+        try:
+            serialized = dag.timetable.serialize() or {}  # type: ignore[union-attr]
+        except AttributeError:
+            from airflow.serialization.encoders import encode_timetable
+
+            serialized = encode_timetable(dag.timetable)["__var"]
 
         # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
         # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
@@ -712,6 +723,7 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "execution_date",  # Airflow 2
         "logical_date",  # Airflow 3
         "run_after",  # Airflow 3
         "run_id",
@@ -802,13 +814,20 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
-        "trigger_dag_id",
-        "external_dag_id",
-        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
+        # Operator-specific useful attributes
+        "trigger_dag_id",  # TriggerDagRunOperator
+        "trigger_run_id",  # TriggerDagRunOperator
+        "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_ids",  # ExternalTaskSensor
+        "external_task_group_id",  # ExternalTaskSensor
+        "external_dates_filter",  # ExternalTaskSensor
+        "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -906,7 +925,7 @@ def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
 
 def get_airflow_run_facet(
     dag_run: DagRun,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,

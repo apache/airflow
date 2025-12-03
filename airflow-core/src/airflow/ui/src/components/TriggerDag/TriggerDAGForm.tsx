@@ -155,7 +155,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                {/* todo: AIP-76 */}
+                {/* TODO: AIP-76 */}
                 {/* <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText> */}
               </Stack>
             </Field.Root>

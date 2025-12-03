@@ -24,13 +24,7 @@ import { HeaderCard } from "src/components/HeaderCard";
 
 import { DependencyPopover } from "../AssetsList/DependencyPopover";
 
-export const Header = ({
-  asset,
-  isRefreshing,
-}: {
-  readonly asset?: AssetResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
   const { t: translate } = useTranslation("assets");
 
   const stats = [
@@ -49,5 +43,5 @@ export const Header = ({
     },
   ];
 
-  return <HeaderCard icon={<FiDatabase />} isRefreshing={isRefreshing} stats={stats} title={asset?.name} />;
+  return <HeaderCard icon={<FiDatabase />} stats={stats} title={asset?.name} />;
 };

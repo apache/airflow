@@ -51,6 +51,45 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
+19.1.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Create CloudComposerExternalTaskSensor for Cloud Composer service (#57971)``
+* ``Add gcp_conn_id as template field (#58298)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix generate_if for BQ if the run_type=scheduled (#58035)``
+* ``Fix incorrect default docstring for gke_finish_action in GKEStartPodOperator (#58349)``
+* ``Fix Google provider to handle False boolean values in connection extras (#58348)``
+* ``Fix KuberetesPodTriggerer use correct parameter name to read pod logs. (#58489)``
+* ``Fix poll_sleep is ignored in DataflowStartFlexTemplateOperator definition (#58846)``
+* ``Fix race condition in test_execute_wildcard for LocalFilesystemToGCSOperator (#58613)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Fix mypy errors for RayHook (#58843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Update create_airflow_connection helper method for making able to create Connection in Composer environment (#57804)``
+   * ``Ensure blank line before bullet lists (#58760)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
 19.0.0
 ......
 

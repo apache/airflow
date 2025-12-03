@@ -28,6 +28,39 @@ Changelog
 ---------
 
 
+10.11.0
+.......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Account for job- prefix when truncating job names (#58391)``
+* ``KubernetesPodOperator: Rework of Kubernetes API retry behavior (#58397)``
+* ``Fix KuberetesPodTriggerer use correct parameter name to read pod logs. (#58489)``
+* ``KubernetesPodOperator pushes XCom on successful execution. (#58488)``
+* ``KubernetesPodOperator PodManager retries during create pod on too many requests error (#58033)``
+* ``Add JSON serialization for kubeconfig in AsyncKubernetesHook (#57169)``
+* ``Make the launcher a cached_property and minor change to improve how pod name is retrieved (#58646)``
+* ``Add retry handling for Kubernetes API client operations in KubernetesPodOperator (#58778)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Send executor integration info in workload (#57800)``
+   * ``Fixes #57515 - Fix test_async_write_logs_should_execute_successfully test (#58276)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
 10.10.0
 .......
 

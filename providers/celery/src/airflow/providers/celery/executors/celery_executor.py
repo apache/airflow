@@ -51,9 +51,10 @@ from airflow.cli.cli_config import (
     lazy_load_command,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 

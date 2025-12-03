@@ -40,7 +40,6 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
@@ -58,7 +57,14 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_se
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRuntimeError,
+    AirflowTaskTimeout,
+    ErrorType,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -117,9 +123,9 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -782,9 +788,19 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     # TODO: Port one of the following to Task SDK
     #   airflow.serialization.helpers.serialize_template_field or
     #   airflow.models.renderedtifields.get_serialized_template_fields
+    from airflow.sdk._shared.secrets_masker import redact
     from airflow.serialization.helpers import serialize_template_field
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    rendered_fields = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        rendered_fields[field] = redact(serialized, field)
+
+    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -897,8 +913,7 @@ def run(
     """Run the task in this process."""
     import signal
 
-    from airflow.exceptions import (
-        AirflowException,
+    from airflow.sdk.exceptions import (
         AirflowFailException,
         AirflowRescheduleException,
         AirflowSensorTimeout,
@@ -1133,7 +1148,6 @@ def _handle_trigger_dag_run(
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
     if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
         from airflow.providers.standard.triggers.external_task import DagStateTrigger
 
         defer = TaskDeferred(

@@ -241,19 +241,70 @@ def test_commands(login_command, date_param):
     # Define test commands to run with actual running API server
     return [
         login_command,
+        # Assets commands
+        "assets list",
+        "assets get --asset-id=1",
+        "assets create-event --asset-id=1",
+        # Backfill commands
         "backfill list",
+        # Config commands
         "config get --section core --option executor",
+        "config list",
+        "config lint",
+        # Connections commands
         "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
         "connections list",
         "connections list -o yaml",
-        "connections list -o tabledags list",
-        f"dagrun trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
+        "connections list -o table",
+        "connections get --conn-id=test_con",
+        "connections get --conn-id=test_con -o json",
+        "connections update --connection-id=test_con --conn-type=postgres",
+        "connections import tests/airflowctl_tests/fixtures/test_connections.json",
+        "connections delete --conn-id=test_con",
+        "connections delete --conn-id=test_import_conn",
+        # DAGs commands
+        "dags list",
+        "dags get --dag-id=example_bash_operator",
+        "dags get-details --dag-id=example_bash_operator",
+        "dags get-stats --dag-ids=example_bash_operator",
+        "dags get-version --dag-id=example_bash_operator --version-number=1",
+        "dags list-import-errors",
+        "dags list-version --dag-id=example_bash_operator",
+        "dags list-warning",
+        # Order of trigger and pause/unpause is important for test stability because state checked
+        f"dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
+        "dags pause --dag-id=example_bash_operator",
+        "dags unpause --dag-id=example_bash_operator",
+        # DAG Run commands
+        f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
+        "dags update --dag-id=example_bash_operator --no-is-paused",
+        # DAG Run commands
         "dagrun list --dag-id example_bash_operator --state success --limit=1",
+        # Jobs commands
         "jobs list",
+        # Pools commands
         "pools create --name=test_pool --slots=5",
         "pools list",
+        "pools get --pool-name=test_pool",
+        "pools get --pool-name=test_pool -o yaml",
+        "pools update --pool=test_pool --slots=10",
+        "pools import tests/airflowctl_tests/fixtures/test_pools.json",
+        "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
+        "pools delete --pool=test_pool",
+        "pools delete --pool=test_import_pool",
+        # Providers commands
         "providers list",
+        # Variables commands
         "variables create --key=test_key --value=test_value",
         "variables list",
+        "variables get --variable-key=test_key",
+        "variables get --variable-key=test_key -o table",
+        "variables update --key=test_key --value=updated_value",
+        "variables import tests/airflowctl_tests/fixtures/test_variables.json",
+        "variables export tests/airflowctl_tests/fixtures/variables_export.json",
+        "variables delete --variable-key=test_key",
+        "variables delete --variable-key=test_import_var",
+        "variables delete --variable-key=test_import_var_with_desc",
+        # Version command
         "version --remote",
     ]

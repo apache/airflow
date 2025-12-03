@@ -72,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
+    option_use_mprocs,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -121,6 +122,7 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
+    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
@@ -488,7 +490,7 @@ def shell(
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
-    perform_environment_checks()
+    perform_environment_checks(quiet=shell_params.quiet)
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -561,6 +563,7 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_mprocs
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -609,13 +612,14 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    use_mprocs: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in the tmux or mprocs session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -631,7 +635,9 @@ def start_airflow(
             "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
         )
 
+    perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
+        assert_prek_installed()
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
@@ -693,6 +699,7 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        use_mprocs=use_mprocs,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )

@@ -16,7 +16,13 @@
     "preview": "vite preview",
     "codegen": "openapi-merge-cli && openapi-rq -i openapi.merged.json -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:install": "playwright install"
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.3.4",
@@ -105,7 +111,8 @@
     "vite": "^7.1.11",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.2.4",
-    "web-worker": "^1.5.0"
+    "web-worker": "^1.5.0",
+    "@playwright/test": "^1.56.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

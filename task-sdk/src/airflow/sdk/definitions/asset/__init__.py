@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.models.asset import AssetModel
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.serialization.serialized_objects import SerializedAssetWatcher
+    from airflow.serialization.definitions.assets import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
     AttrsInstance = attrs.AttrsInstance
@@ -689,4 +689,5 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
+    dest_asset_extra: dict[str, JsonValue]
     extra: dict[str, JsonValue]

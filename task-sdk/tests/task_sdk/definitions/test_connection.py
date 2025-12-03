@@ -23,10 +23,9 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 

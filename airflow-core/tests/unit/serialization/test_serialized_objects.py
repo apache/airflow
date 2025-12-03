@@ -409,7 +409,8 @@ class MockLazySelectSequence(LazySelectSequence):
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
@@ -714,8 +715,8 @@ class TestSerializedBaseOperator:
         assert caplog.messages == ["test"]
 
     def test_resume_execution(self):
-        from airflow.exceptions import TaskDeferralTimeout
         from airflow.models.trigger import TriggerFailureReason
+        from airflow.sdk.exceptions import TaskDeferralTimeout
 
         op = BaseOperator(task_id="hi")
         with pytest.raises(TaskDeferralTimeout):

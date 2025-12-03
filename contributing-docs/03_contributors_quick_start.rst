@@ -475,11 +475,11 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 .. code-block:: bash
 
-        root@b76fcb399bb6:/opt/airflow# airflow users create \
+   [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow users create \
                 --username admin \
                 --firstname FIRST_NAME \
                 --lastname LAST_NAME \
@@ -495,7 +495,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# exit
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command
@@ -630,24 +630,44 @@ If ``breeze`` was started with ``breeze start-airflow``, this command will stop 
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# stop_airflow
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
 If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# exit
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+
+Using mprocs Instead of tmux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, ``breeze start-airflow`` uses tmux to manage Airflow components. You can use mprocs as an
+alternative with the ``--use-mprocs`` flag:
+
+.. code-block:: bash
+
+  breeze start-airflow --use-mprocs
+
+**Benefits of using mprocs:**
+
+* Modern terminal UI with better visual feedback
+* Easier navigation with mouse and keyboard
+* Individual process controls (start, stop, restart)
+* Process status indicators
+* Better cross-platform support
+
+For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUICK_REFERENCE.md>`__.
 
 1. Knowing more about Breeze
 
 .. code-block:: bash
 
-  breeze --help
+   breeze --help
 
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
@@ -691,7 +711,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
+   [Breeze:3.10.19] root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
    platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
    cachedir: .pytest_cache

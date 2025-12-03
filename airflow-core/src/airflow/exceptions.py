@@ -21,32 +21,52 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
-from datetime import datetime, timedelta
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
     from airflow.models import DagRun
-    from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-    from airflow.utils.state import DagRunState
 
 # Re exporting AirflowConfigException from shared configuration
 from airflow._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
 
+try:
+    from airflow.sdk.exceptions import (
+        AirflowException,
+        AirflowNotFoundException,
+        AirflowRescheduleException as AirflowRescheduleException,
+        AirflowTimetableInvalid as AirflowTimetableInvalid,
+        TaskNotFound as TaskNotFound,
+    )
+except ModuleNotFoundError:
+    # When _AIRFLOW__AS_LIBRARY is set, airflow.sdk may not be installed.
+    # In that case, we define fallback exception classes that mirror the SDK ones.
+    class AirflowException(Exception):  # type: ignore[no-redef]
+        """Base exception for Airflow errors."""
 
-class AirflowException(Exception):
-    """
-    Base class for all Airflow's errors.
+    class AirflowNotFoundException(AirflowException):  # type: ignore[no-redef]
+        """Raise when a requested object is not found."""
 
-    Each custom exception should be derived from this class.
-    """
+    class AirflowTimetableInvalid(AirflowException):  # type: ignore[no-redef]
+        """Raise when a DAG has an invalid timetable."""
 
-    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
+    class TaskNotFound(AirflowException):  # type: ignore[no-redef]
+        """Raise when a Task is not available in the system."""
 
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
+    class AirflowRescheduleException(AirflowException):  # type: ignore[no-redef]
+        """
+        Raise when the task should be re-scheduled at a later time.
+
+        :param reschedule_date: The date when the task should be rescheduled
+        """
+
+        def __init__(self, reschedule_date):
+            super().__init__()
+            self.reschedule_date = reschedule_date
+
+        def serialize(self):
+            cls = self.__class__
+            return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
 
 class AirflowBadRequest(AirflowException):
@@ -55,85 +75,8 @@ class AirflowBadRequest(AirflowException):
     status_code = HTTPStatus.BAD_REQUEST
 
 
-class AirflowNotFoundException(AirflowException):
-    """Raise when the requested object/resource is not available in the system."""
-
-    status_code = HTTPStatus.NOT_FOUND
-
-
-class AirflowSensorTimeout(AirflowException):
-    """Raise when there is a timeout on sensor polling."""
-
-
-class AirflowRescheduleException(AirflowException):
-    """
-    Raise when the task should be re-scheduled at a later time.
-
-    :param reschedule_date: The date when the task should be rescheduled
-    """
-
-    def __init__(self, reschedule_date):
-        super().__init__()
-        self.reschedule_date = reschedule_date
-
-    def serialize(self):
-        cls = self.__class__
-        return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
-
-
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-# Important to inherit BaseException instead of AirflowException->Exception, since this Exception is used
-# to explicitly interrupt ongoing task. Code that does normal error-handling should not treat
-# such interrupt as an error that can be handled normally. (Compare with KeyboardInterrupt)
-class AirflowTaskTimeout(BaseException):
-    """Raise when the task execution times-out."""
-
-
-class AirflowTaskTerminated(BaseException):
-    """Raise when the task execution is terminated."""
-
-
-class AirflowSkipException(AirflowException):
-    """Raise when the task should be skipped."""
-
-
-class AirflowFailException(AirflowException):
-    """Raise when the task should be failed without retrying."""
-
-
-class _AirflowExecuteWithInactiveAssetExecption(AirflowFailException):
-    main_message: str
-
-    def __init__(self, inactive_asset_keys: Collection[AssetUniqueKey | AssetNameRef | AssetUriRef]) -> None:
-        self.inactive_asset_keys = inactive_asset_keys
-
-    @staticmethod
-    def _render_asset_key(key: AssetUniqueKey | AssetNameRef | AssetUriRef) -> str:
-        from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
-
-        if isinstance(key, AssetUniqueKey):
-            return f"Asset(name={key.name!r}, uri={key.uri!r})"
-        if isinstance(key, AssetNameRef):
-            return f"Asset.ref(name={key.name!r})"
-        if isinstance(key, AssetUriRef):
-            return f"Asset.ref(uri={key.uri!r})"
-        return repr(key)  # Should not happen, but let's fails more gracefully in an exception.
-
-    def __str__(self) -> str:
-        return f"{self.main_message}: {self.inactive_assets_message}"
-
-    @property
-    def inactive_assets_message(self) -> str:
-        return ", ".join(self._render_asset_key(key) for key in self.inactive_asset_keys)
-
-
-class AirflowInactiveAssetInInletOrOutletException(_AirflowExecuteWithInactiveAssetExecption):
-    """Raise when the task is executed with inactive assets in its inlet or outlet."""
-
-    main_message = "Task has the following inactive assets in its inlets or outlets"
 
 
 class AirflowOptionalProviderFeatureException(AirflowException):
@@ -148,27 +91,6 @@ class AirflowInternalRuntimeError(BaseException):
 
     :meta private:
     """
-
-
-class XComNotFound(AirflowException):
-    """Raise when an XCom reference is being resolved against a non-existent XCom."""
-
-    def __init__(self, dag_id: str, task_id: str, key: str) -> None:
-        super().__init__()
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.key = key
-
-    def __str__(self) -> str:
-        return f'XComArg result from {self.task_id} at {self.dag_id} with key="{self.key}" is not found!'
-
-    def serialize(self):
-        cls = self.__class__
-        return (
-            f"{cls.__module__}.{cls.__name__}",
-            (),
-            {"dag_id": self.dag_id, "task_id": self.task_id, "key": self.key},
-        )
 
 
 class AirflowDagDuplicatedIdException(AirflowException):
@@ -194,10 +116,6 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 class AirflowClusterPolicyError(AirflowException):
     """Raise for a Cluster Policy other than AirflowClusterPolicyViolation or AirflowClusterPolicySkipDag."""
-
-
-class AirflowTimetableInvalid(AirflowException):
-    """Raise when a DAG has an invalid timetable."""
 
 
 class DagNotFound(AirflowNotFoundException):
@@ -238,37 +156,8 @@ class DagRunAlreadyExists(AirflowBadRequest):
         )
 
 
-class DuplicateTaskIdFound(AirflowException):
-    """Raise when a Task with duplicate task_id is defined in the same DAG."""
-
-
-class TaskAlreadyInTaskGroup(AirflowException):
-    """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
-
-    def __init__(self, task_id: str, existing_group_id: str | None, new_group_id: str) -> None:
-        super().__init__(task_id, new_group_id)
-        self.task_id = task_id
-        self.existing_group_id = existing_group_id
-        self.new_group_id = new_group_id
-
-    def __str__(self) -> str:
-        if self.existing_group_id is None:
-            existing_group = "the DAG's root group"
-        else:
-            existing_group = f"group {self.existing_group_id!r}"
-        return f"cannot add {self.task_id!r} to {self.new_group_id!r} (already in {existing_group})"
-
-
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize something."""
-
-
-class ParamValidationError(AirflowException):
-    """Raise when DAG params is invalid."""
-
-
-class TaskNotFound(AirflowNotFoundException):
-    """Raise when a Task is not available in the system."""
 
 
 class TaskInstanceNotFound(AirflowNotFoundException):
@@ -335,116 +224,6 @@ class ConnectionNotUnique(AirflowException):
 
 class VariableNotUnique(AirflowException):
     """Raise when multiple values are found for the same variable name."""
-
-
-class DownstreamTasksSkipped(AirflowException):
-    """
-    Signal by an operator to skip its downstream tasks.
-
-    Special exception raised to signal that the operator it was raised from wishes to skip
-    downstream tasks. This is used in the ShortCircuitOperator.
-
-    :param tasks: List of task_ids to skip or a list of tuples with task_id and map_index to skip.
-    """
-
-    def __init__(self, *, tasks: Sequence[str | tuple[str, int]]):
-        super().__init__()
-        self.tasks = tasks
-
-
-# TODO: workout this to correct place https://github.com/apache/airflow/issues/44353
-class DagRunTriggerException(AirflowException):
-    """
-    Signal by an operator to trigger a specific Dag Run of a dag.
-
-    Special exception raised to signal that the operator it was raised from wishes to trigger
-    a specific Dag Run of a dag. This is used in the ``TriggerDagRunOperator``.
-    """
-
-    def __init__(
-        self,
-        *,
-        trigger_dag_id: str,
-        dag_run_id: str,
-        conf: dict | None,
-        logical_date: datetime | None,
-        reset_dag_run: bool,
-        skip_when_already_exists: bool,
-        wait_for_completion: bool,
-        allowed_states: list[str | DagRunState],
-        failed_states: list[str | DagRunState],
-        poke_interval: int,
-        deferrable: bool,
-    ):
-        super().__init__()
-        self.trigger_dag_id = trigger_dag_id
-        self.dag_run_id = dag_run_id
-        self.conf = conf
-        self.logical_date = logical_date
-        self.reset_dag_run = reset_dag_run
-        self.skip_when_already_exists = skip_when_already_exists
-        self.wait_for_completion = wait_for_completion
-        self.allowed_states = allowed_states
-        self.failed_states = failed_states
-        self.poke_interval = poke_interval
-        self.deferrable = deferrable
-
-
-class TaskDeferred(BaseException):
-    """
-    Signal an operator moving to deferred state.
-
-    Special exception raised to signal that the operator it was raised from
-    wishes to defer until a trigger fires. Triggers can send execution back to task or end the task instance
-    directly. If the trigger should end the task instance itself, ``method_name`` does not matter,
-    and can be None; otherwise, provide the name of the method that should be used when
-    resuming execution in the task.
-    """
-
-    def __init__(
-        self,
-        *,
-        trigger,
-        method_name: str,
-        kwargs: dict[str, Any] | None = None,
-        timeout: timedelta | int | float | None = None,
-    ):
-        super().__init__()
-        self.trigger = trigger
-        self.method_name = method_name
-        self.kwargs = kwargs
-        self.timeout: timedelta | None
-        # Check timeout type at runtime
-        if isinstance(timeout, (int, float)):
-            self.timeout = timedelta(seconds=timeout)
-        else:
-            self.timeout = timeout
-        if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
-            raise ValueError("Timeout value must be a timedelta")
-
-    def serialize(self):
-        cls = self.__class__
-        return (
-            f"{cls.__module__}.{cls.__name__}",
-            (),
-            {
-                "trigger": self.trigger,
-                "method_name": self.method_name,
-                "kwargs": self.kwargs,
-                "timeout": self.timeout,
-            },
-        )
-
-    def __repr__(self) -> str:
-        return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"
-
-
-class TaskDeferralError(AirflowException):
-    """Raised when a task failed during deferral for some reason."""
-
-
-class TaskDeferralTimeout(AirflowException):
-    """Raise when there is a timeout on the deferral."""
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
@@ -518,23 +297,44 @@ class DeserializationError(Exception):
             super().__init__(f"An unexpected error occurred while trying to deserialize Dag '{dag_id}'")
 
 
-def __getattr__(name: str):
-    """Provide backward compatibility for moved exceptions."""
-    if name == "AirflowDagCycleException":
-        import warnings
-
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
-        warnings.warn(
-            "airflow.exceptions.AirflowDagCycleException is deprecated. "
-            "Use airflow.sdk.exceptions.AirflowDagCycleException instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return AirflowDagCycleException
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
-
 class AirflowClearRunningTaskException(AirflowException):
     """Raise when the user attempts to clear currently running tasks."""
+
+
+_DEPRECATED_EXCEPTIONS = {
+    "AirflowDagCycleException",
+    "AirflowFailException",
+    "AirflowInactiveAssetInInletOrOutletException",
+    "AirflowSensorTimeout",
+    "AirflowSkipException",
+    "AirflowTaskTerminated",
+    "AirflowTaskTimeout",
+    "DagRunTriggerException",
+    "DownstreamTasksSkipped",
+    "DuplicateTaskIdFound",
+    "FailFastDagInvalidTriggerRule",
+    "ParamValidationError",
+    "TaskAlreadyInTaskGroup",
+    "TaskDeferralError",
+    "TaskDeferralTimeout",
+    "TaskDeferred",
+    "XComNotFound",
+}
+
+
+def __getattr__(name: str):
+    """Provide backward compatibility for moved exceptions."""
+    if name in _DEPRECATED_EXCEPTIONS:
+        import warnings
+
+        from airflow import DeprecatedImportWarning
+        from airflow.utils.module_loading import import_string
+
+        target_path = f"airflow.sdk.exceptions.{name}"
+        warnings.warn(
+            f"airflow.exceptions.{name} is deprecated and will be removed in a future version. Use {target_path} instead.",
+            DeprecatedImportWarning,
+            stacklevel=2,
+        )
+        return import_string(target_path)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

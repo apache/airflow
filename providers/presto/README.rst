@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-presto``
 
-Release: ``5.9.4``
+Release: ``5.10.0``
 
 
 `Presto <https://prestodb.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``presto`` provider. All classes for this provide
 are in ``airflow.providers.presto`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  ======================================
 PIP package                                 Version required
 ==========================================  ======================================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.26.0``
 ``presto-python-client``                    ``>=0.8.4``
@@ -94,4 +94,4 @@ Extra       Dependencies
 ==========  ===================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.0/changelog.html>`_.

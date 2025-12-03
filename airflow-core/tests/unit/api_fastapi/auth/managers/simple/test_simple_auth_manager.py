@@ -47,7 +47,6 @@ class TestSimpleAuthManager:
             ("", {}),
             ('{"test1": "test1"}', {"test1": "test1"}),
             ('{"test1": "test1", "test2": "test2"}', {"test1": "test1", "test2": "test2"}),
-            ('{"test1": "test1", "test2": "test2", "test3": "test3"}', {"test1": "test1", "test2": "test2"}),
         ],
     )
     def test_get_passwords(self, auth_manager, file_content, expected):
@@ -58,8 +57,7 @@ class TestSimpleAuthManager:
         ):
             with open(auth_manager.get_generated_password_file(), "w") as file:
                 file.write(file_content)
-            users = auth_manager.get_users()
-            passwords = auth_manager.get_passwords(users)
+            passwords = auth_manager.get_passwords()
             assert passwords == expected
 
     def test_init_with_default_user(self, auth_manager):
@@ -87,8 +85,7 @@ class TestSimpleAuthManager:
         ("file_content", "expected"),
         [
             ({"test1": "test1"}, {"test1": "test1"}),
-            ({"test1": "test1", "test2": "test2"}, {"test1": "test1"}),
-            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY}),
+            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY, "test2": "test2", "test3": "test3"}),
         ],
     )
     def test_init_with_users_with_password(self, auth_manager, file_content, expected):

@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
 

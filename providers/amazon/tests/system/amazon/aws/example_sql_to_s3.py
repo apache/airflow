@@ -157,6 +157,14 @@ with DAG(
         wait_for_completion=True,
     )
 
+    wait_cluster_available_before_transfer = RedshiftClusterSensor(
+        task_id="wait_cluster_available_before_transfer",
+        cluster_identifier=redshift_cluster_identifier,
+        target_status="available",
+        poke_interval=100,
+        timeout=60 * 30,
+    )
+
     # [START howto_transfer_sql_to_s3]
     sql_to_s3_task = SqlToS3Operator(
         task_id="sql_to_s3_task",
@@ -203,6 +211,7 @@ with DAG(
         create_table_redshift_data,
         insert_data,
         # TEST BODY
+        wait_cluster_available_before_transfer,
         sql_to_s3_task,
         sql_to_s3_task_with_groupby,
         # TEST TEARDOWN

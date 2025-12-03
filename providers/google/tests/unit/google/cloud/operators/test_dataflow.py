@@ -305,6 +305,7 @@ class TestDataflowStartFlexTemplateOperator:
             cancel_timeout=600,
             wait_until_finished=None,
             impersonation_chain=None,
+            poll_sleep=10,
         )
         mock_dataflow.return_value.start_flex_template.assert_called_once_with(
             body={"launchParameter": TEST_FLEX_PARAMETERS},

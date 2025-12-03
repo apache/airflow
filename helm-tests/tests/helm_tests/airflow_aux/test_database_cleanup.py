@@ -22,7 +22,7 @@ from chart_utils.helm_template_generator import render_chart
 
 
 class TestDatabaseCleanupDeployment:
-    """Tests database cleanup pods deployments."""
+    """Tests database cleanup deployments."""
 
     def test_should_have_a_schedule_with_defaults(self):
         doc = render_chart(
@@ -69,8 +69,8 @@ class TestDatabaseCleanupDeployment:
         assert doc["spec"]["schedule"] == schedule_result
 
 
-class TestDatabaseCleanupPods:
-    """Tests cleanup of pods."""
+class TestDatabaseCleanup:
+    """Tests database cleanup."""
 
     def test_should_create_cronjob_for_enabled_cleanup(self):
         docs = render_chart(
@@ -211,6 +211,49 @@ class TestDatabaseCleanupPods:
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
             "-c",
             'CLEAN_TS=$(date -d "-90 days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${CLEAN_TS}"; exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes --verbose',
+        ]
+
+    @pytest.mark.parametrize(
+        ("retention", "skip_archive", "verbose", "batch_size", "tables", "command_args"),
+        [
+            (90, False, False, None, None, ""),
+            (91, True, False, None, None, " --skip-archive"),
+            (92, False, True, None, None, " --verbose"),
+            (93, False, False, 200, None, " --batch-size 200"),
+            (94, False, False, None, ["xcom"], " --tables xcom"),
+            (
+                95,
+                True,
+                True,
+                500,
+                ["task_instance", "log"],
+                " --skip-archive --verbose --batch-size 500 --tables task_instance,log",
+            ),
+        ],
+    )
+    def test_cleanup_command_options(
+        self, retention, skip_archive, verbose, batch_size, tables, command_args
+    ):
+        docs = render_chart(
+            values={
+                "databaseCleanup": {
+                    "enabled": True,
+                    "retentionDays": retention,
+                    "skipArchive": skip_archive,
+                    "verbose": verbose,
+                    "batchSize": batch_size,
+                    "tables": tables,
+                }
+            },
+            show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
+        )
+
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) == [
+            "bash"
+        ]
+        assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].args", docs[0]) == [
+            "-c",
+            f'CLEAN_TS=$(date -d "-{retention} days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${{CLEAN_TS}}"; exec airflow db clean --clean-before-timestamp "${{CLEAN_TS}}" --yes{command_args}',
         ]
 
     def test_should_add_extraEnvs(self):

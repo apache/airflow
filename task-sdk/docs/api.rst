@@ -128,6 +128,22 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
+Timetables
+----------
+.. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.CronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.EventsTimetable
+
+.. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath

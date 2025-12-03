@@ -20,10 +20,10 @@ import types
 from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
+from airflow.sdk.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import _TaskDecorator

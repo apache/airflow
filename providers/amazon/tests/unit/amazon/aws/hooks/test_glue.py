@@ -685,6 +685,90 @@ class TestGlueDataQualityHook:
         ]
 
     @mock.patch.object(AwsBaseHook, "conn")
+    def test_validate_evaluation_results_show_results_True(self, mock_conn, caplog):
+        response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
+
+        response_batch_result = {
+            "RunId": self.RUN_ID,
+            "ResultIds": ["resultId1"],
+            "Results": [
+                {
+                    "ResultId": "resultId1",
+                    "RulesetName": "rulesetOne",
+                    "RuleResults": [
+                        {
+                            "Name": "Rule_1",
+                            "Description": "RowCount between 150000 and 600000",
+                            "EvaluatedMetrics": {"Dataset.*.RowCount": 300000.0},
+                            "Result": "PASS",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+
+        mock_conn.batch_get_data_quality_result.return_value = response_batch_result
+
+        with caplog.at_level(logging.INFO, logger=self.glue.log.name):
+            caplog.clear()
+            self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=True)
+
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+        mock_conn.batch_get_data_quality_result.assert_called_once_with(
+            ResultIds=response_evaluation_run["ResultIds"]
+        )
+        # The messages have extra spaces to create spacing in the output, the number of consecutive spaces
+        # may vary. Remove any sequence of spaces greater than 1 before asserting.
+        messages = [" ".join(msg.split()) for msg in caplog.messages]
+        assert messages == [
+            "AWS Glue data quality ruleset evaluation result for RulesetName: rulesetOne RulesetEvaluationRunId: None Score: None",
+            "Name Description EvaluatedMetrics Result 0 Rule_1 RowCount between 150000 and 600000 {'Dataset.*.RowCount': 300000.0} PASS",
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0",
+        ]
+
+    @mock.patch.object(AwsBaseHook, "conn")
+    def test_validate_evaluation_results_show_results_True_no_pandas(self, mock_conn, caplog):
+        response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
+
+        response_batch_result = {
+            "RunId": self.RUN_ID,
+            "ResultIds": ["resultId1"],
+            "Results": [
+                {
+                    "ResultId": "resultId1",
+                    "RulesetName": "rulesetOne",
+                    "RuleResults": [
+                        {
+                            "Name": "Rule_1",
+                            "Description": "RowCount between 150000 and 600000",
+                            "EvaluatedMetrics": {"Dataset.*.RowCount": 300000.0},
+                            "Result": "PASS",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+
+        mock_conn.batch_get_data_quality_result.return_value = response_batch_result
+
+        # Emulate/mock the import of pandas failing with ModlueNotFoundError
+        with mock.patch.dict("sys.modules", {"pandas": None}):
+            with caplog.at_level(logging.INFO, logger=self.glue.log.name):
+                caplog.clear()
+                self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=True)
+
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+        mock_conn.batch_get_data_quality_result.assert_called_once_with(
+            ResultIds=response_evaluation_run["ResultIds"]
+        )
+        assert caplog.messages == [
+            "Pandas is not installed. Please install pandas to see the detailed Data Quality results.",
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0",
+        ]
+
+    @mock.patch.object(AwsBaseHook, "conn")
     def test_validate_evaluation_results_should_fail_when_any_rules_failed(self, mock_conn, caplog):
         response_batch_result = {
             "RunId": self.RUN_ID,
