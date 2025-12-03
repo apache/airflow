@@ -280,31 +280,20 @@ class BaseAsset:
         raise NotImplementedError
 
 
-@attrs.define(init=False)
+def _validate_asset_watcher_trigger(instance, attribute, value):
+    from airflow.triggers.base import BaseEventTrigger
+
+    if not isinstance(value, BaseEventTrigger):
+        raise ValueError("Asset watcher trigger must inherit BaseEventTrigger")
+    return value
+
+
+@attrs.define
 class AssetWatcher:
     """A representation of an asset watcher. The name uniquely identifies the watch."""
 
     name: str
-    # This attribute serves double purpose.
-    # For a "normal" asset instance loaded from Dag, this holds the trigger used to monitor an external
-    # resource. In that case, ``AssetWatcher`` is used directly by users.
-    # For an asset recreated from a serialized Dag, this holds the serialized data of the trigger. In that
-    # case, `SerializedAssetWatcher` is used. We need to keep the two types to make mypy happy because
-    # `SerializedAssetWatcher` is a subclass of `AssetWatcher`.
-    trigger: BaseEventTrigger | dict
-
-    def __init__(
-        self,
-        name: str,
-        trigger: BaseEventTrigger | dict,
-    ) -> None:
-        from airflow.triggers.base import BaseEventTrigger, BaseTrigger
-
-        if isinstance(trigger, BaseTrigger) and not isinstance(trigger, BaseEventTrigger):
-            raise ValueError("The trigger used to watch an asset must inherit ``BaseEventTrigger``")
-
-        self.name = name
-        self.trigger = trigger
+    trigger: BaseEventTrigger = attrs.field(validator=_validate_asset_watcher_trigger)
 
 
 @attrs.define(init=False, unsafe_hash=False)
