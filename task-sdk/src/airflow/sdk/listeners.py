@@ -18,8 +18,7 @@
 
 from __future__ import annotations
 
-# Re-export all listener functionality for SDK usage
-# Re-export spec modules
+# Re-export listener functionality and spec modules for SDK usage
 from airflow.sdk._shared.listeners import (
     hookimpl,
     spec,

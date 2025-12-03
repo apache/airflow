@@ -23,8 +23,7 @@ The actual implementation is now in airflow._shared.listeners.
 
 from __future__ import annotations
 
-# Re-export all listener functionality for backwards compatibility
-# Re-export spec modules for backwards compatibility
+# Re-export listener functionality and spec modules for backwards compatibility
 from airflow._shared.listeners import (
     hookimpl,
     spec,
