@@ -18,15 +18,14 @@
  */
 import { createListCollection } from "@chakra-ui/react";
 
-export const VersionIndicatorDisplayOptions = {
-  ALL: "all",
-  BUNDLE: "bundle",
-  DAG: "dag",
-  NONE: "none",
-} as const;
+export enum VersionIndicatorDisplayOptions {
+  ALL = "all",
+  BUNDLE = "bundle",
+  DAG = "dag",
+  NONE = "none",
+}
 
-export type VersionIndicatorDisplayOption =
-  (typeof VersionIndicatorDisplayOptions)[keyof typeof VersionIndicatorDisplayOptions];
+export type VersionIndicatorDisplayOption = VersionIndicatorDisplayOptions;
 
 const validOptions = new Set<string>(Object.values(VersionIndicatorDisplayOptions));
 
