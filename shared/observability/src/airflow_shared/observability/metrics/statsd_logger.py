@@ -157,7 +157,8 @@ class SafeStatsdLogger:
 
 def get_statsd_logger(
     cls,
-    stats_class: Callable[[str], StatsClient],
+    *,
+    stats_class: type[StatsClient],
     host: str | None = None,
     port: int | None = None,
     prefix: str | None = None,

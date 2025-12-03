@@ -161,6 +161,7 @@ class SafeDogStatsdLogger:
 
 def get_dogstatsd_logger(
     cls,
+    *,
     host: str | None = None,
     port: int | None = None,
     namespace: str | None = None,

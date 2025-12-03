@@ -375,6 +375,7 @@ class MetricsMap:
 
 def get_otel_logger(
     cls,
+    *,
     host: str | None = None,
     port: int | None = None,
     prefix: str | None = None,

@@ -332,6 +332,7 @@ def gen_link_from_traceparent(traceparent: str):
 def get_otel_tracer(
     cls,
     use_simple_processor: bool = False,
+    *,
     host: str | None = None,
     port: int | None = None,
     ssl_active: bool = False,
