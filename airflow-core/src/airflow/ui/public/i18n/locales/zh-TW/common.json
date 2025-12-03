@@ -64,7 +64,7 @@
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
     "sourceAssetEvent": "來源資源事件",
-    "triggeredBy": "觸發者",
+    "triggeredBy": "觸發來源",
     "triggeringUser": "觸發使用者名稱"
   },
   "dagRun_one": "Dag 執行",
@@ -245,12 +245,12 @@
     "queuedWhen": "開始排隊時間",
     "scheduledWhen": "開始排程時間",
     "triggerer": {
-      "assigned": "指派的觸發器",
+      "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
-      "latestHeartbeat": "最新觸發器心跳時間",
-      "title": "觸發器資訊"
+      "latestHeartbeat": "最新觸發者心跳時間",
+      "title": "觸發者資訊"
     },
     "unixname": "Unix 名稱"
   },

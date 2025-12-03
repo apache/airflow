@@ -135,8 +135,7 @@ class TriggerDagRunOperator(BaseOperator):
     :param skip_when_already_exists: Set to true to mark the task as SKIPPED if a DAG run of the triggered
         DAG for the same logical date already exists.
     :param fail_when_dag_is_paused: If the dag to trigger is paused, DagIsPaused will be raised.
-    :param deferrable: If waiting for completion, whether or not to defer the task until done,
-        default is ``False``.
+    :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
     :param openlineage_inject_parent_info: whether to include OpenLineage metadata about the parent task
         in the triggered DAG run's conf, enabling improved lineage tracking. The metadata is only injected
         if OpenLineage is enabled and running. This option does not modify any other part of the conf,
@@ -193,7 +192,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
-        self._defer = deferrable
+        self.deferrable = deferrable
         self.logical_date = logical_date
         if logical_date is NOTSET:
             self.logical_date = NOTSET
@@ -277,7 +276,7 @@ class TriggerDagRunOperator(BaseOperator):
             allowed_states=self.allowed_states,
             failed_states=self.failed_states,
             poke_interval=self.poke_interval,
-            deferrable=self._defer,
+            deferrable=self.deferrable,
         )
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
@@ -318,7 +317,7 @@ class TriggerDagRunOperator(BaseOperator):
 
         if self.wait_for_completion:
             # Kick off the deferral process
-            if self._defer:
+            if self.deferrable:
                 self.defer(
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
