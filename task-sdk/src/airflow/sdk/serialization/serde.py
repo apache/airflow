@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 import attr
 
 import airflow.sdk.serialization.serializers
-from airflow.sdk._shared.configuration import conf
+from airflow.sdk.configuration import conf
 from airflow.sdk.serialization.typing import is_pydantic_model
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
