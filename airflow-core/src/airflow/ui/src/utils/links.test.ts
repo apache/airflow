@@ -117,7 +117,6 @@ describe("getTaskInstanceAdditionalPath", () => {
       "code",
       "details",
       "rendered_templates",
-      "task_instances",
       "asset_events",
       "required_actions",
     ];

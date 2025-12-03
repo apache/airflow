@@ -25,6 +25,7 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 import { TaskName } from "src/components/TaskName";
 import { type HoverContextType, useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
+import { useTaskUrlBuilder } from "src/hooks/useUrlBuilders";
 
 import type { GridTask } from "./utils";
 
@@ -64,8 +65,9 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
   const { setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
-  const { dagId = "", groupId, taskId } = useParams();
+  const { groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
+  const buildTaskUrl = useTaskUrlBuilder();
 
   return nodes.map((node, index) => (
     <Box
@@ -88,7 +90,10 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
             replace
             style={{ outline: "none" }}
             to={{
-              pathname: `/dags/${dagId}/tasks/group/${node.id}`,
+              pathname: buildTaskUrl({
+                isGroup: true,
+                taskId: node.id,
+              }),
               search: searchParams.toString(),
             }}
           >
@@ -133,7 +138,10 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
             onClick={onRowClick}
             replace
             to={{
-              pathname: `/dags/${dagId}/tasks/${node.id}`,
+              pathname: buildTaskUrl({
+                isGroup: false,
+                taskId: node.id,
+              }),
               search: searchParams.toString(),
             }}
           >

@@ -20,9 +20,9 @@ import { Flex, type FlexProps } from "@chakra-ui/react";
 import { Link } from "react-router-dom";
 
 import type { DagRunState, TaskInstanceState } from "openapi/requests/types.gen";
+import { useDagRunUrlBuilder, useTaskInstanceUrlBuilder } from "src/hooks/useUrlBuilders";
 
 type Props = {
-  readonly dagId: string;
   readonly isGroup?: boolean;
   readonly label: string;
   readonly runId: string;
@@ -33,7 +33,6 @@ type Props = {
 
 export const GridButton = ({
   children,
-  dagId,
   isGroup,
   label,
   runId,
@@ -41,8 +40,11 @@ export const GridButton = ({
   state,
   taskId,
   ...rest
-}: Props) =>
-  isGroup ? (
+}: Props) => {
+  const buildDagRunUrl = useDagRunUrlBuilder();
+  const buildTaskInstanceUrl = useTaskInstanceUrlBuilder();
+
+  return isGroup ? (
     <Flex
       background={`${state}.solid`}
       borderRadius={2}
@@ -59,7 +61,7 @@ export const GridButton = ({
     <Link
       replace
       to={{
-        pathname: `/dags/${dagId}/runs/${runId}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+        pathname: taskId === undefined ? buildDagRunUrl(runId) : buildTaskInstanceUrl({ runId, taskId }),
         search: searchParams.toString(),
       }}
     >
@@ -77,3 +79,4 @@ export const GridButton = ({
       </Flex>
     </Link>
   );
+};
