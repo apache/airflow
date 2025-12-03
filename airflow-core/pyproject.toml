@@ -295,6 +295,7 @@ apache-airflow-devel-common = { workspace = true }
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",

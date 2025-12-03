@@ -14,33 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Compatibility imports for listeners module.
 
-[project]
-name = "apache-airflow-shared-secrets-backend"
-description = "Shared secrets backend code for Airflow distributions"
-version = "0.0"
-classifiers = [
-    "Private :: Do Not Upload",
+This module provides backwards compatibility for imports from airflow.listeners.
+The actual implementation is now in airflow._shared.listeners.
+"""
+
+from __future__ import annotations
+
+# Re-export all listener functionality for backwards compatibility
+from airflow._shared.listeners import *  # noqa: F403, F401
+from airflow._shared.listeners import hookimpl  # noqa: F401
+from airflow._shared.listeners.listener import ListenerManager, get_listener_manager  # noqa: F401
+
+# Re-export spec modules for backwards compatibility
+from airflow._shared.listeners import spec  # noqa: F401
+
+__all__ = [
+    "hookimpl",
+    "ListenerManager",
+    "get_listener_manager",
+    "spec",
 ]
-
-dependencies = []
-
-[dependency-groups]
-dev = [
-    "apache-airflow-devel-common",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/airflow_shared"]
-
-[tool.ruff]
-extend = "../../pyproject.toml"
-src = ["src"]
-
-[tool.ruff.lint.per-file-ignores]
-# Ignore Doc rules et al for anything outside of tests
-"!src/*" = ["D", "S101", "TRY002"]
