@@ -51,6 +51,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    find_relevant_relatives,
 )
 from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
@@ -3101,3 +3102,56 @@ def test_delete_dagversion_restricted_when_taskinstance_exists(dag_maker, sessio
     session.delete(version)
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+@pytest.mark.parametrize(
+    ("normal_tasks", "mapped_tasks", "expected"),
+    [
+        # 4 is just a regular task so it depends on all its upstreams.
+        pytest.param(["4"], [], {"1", "2", "3"}, id="nonmapped"),
+        # 3 is a mapped; it depends on all tis of the mapped upstream 2.
+        pytest.param(["3"], [], {"1", "2"}, id="mapped-whole"),
+        # Every ti of a mapped task depends on all tis of the mapped upstream.
+        pytest.param([], [("3", 1)], {"1", "2"}, id="mapped-one"),
+        # Same as the (non-group) unmapped case, d depends on all upstreams.
+        pytest.param(["d"], [], {"a", "b", "c"}, id="group-nonmapped"),
+        # This specifies c tis in ALL mapped task groups, so all b tis are needed.
+        pytest.param(["c"], [], {"a", "b"}, id="group-mapped-whole"),
+        # This only specifies one c ti, so only one b ti from the same mapped instance is returned.
+        pytest.param([], [("c", 1)], {"a", ("b", 1)}, id="group-mapped-one"),
+    ],
+)
+def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks, expected):
+    # 1 -> 2[] -> 3[] -> 4
+    #
+    # a -> " b --> c " -> d
+    #      "== g[] =="
+    with dag_maker(session=session) as dag:
+        t1 = EmptyOperator(task_id="1")
+        t2 = MockOperator.partial(task_id="2").expand(arg1=["x", "y"])
+        t3 = MockOperator.partial(task_id="3").expand(arg1=["x", "y"])
+        t4 = EmptyOperator(task_id="4")
+        t1 >> t2 >> t3 >> t4
+
+        ta = EmptyOperator(task_id="a")
+
+        @task_group(prefix_group_id=False)
+        def g(v):
+            tb = MockOperator(task_id="b", arg1=v)
+            tc = MockOperator(task_id="c", arg1=v)
+            tb >> tc
+
+        td = EmptyOperator(task_id="d")
+        ta >> g.expand(v=["x", "y", "z"]) >> td
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    result = find_relevant_relatives(
+        normal_tasks=normal_tasks,
+        mapped_tasks=mapped_tasks,
+        direction="upstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+    assert result == expected
