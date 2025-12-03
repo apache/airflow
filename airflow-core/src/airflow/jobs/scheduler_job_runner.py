@@ -1674,10 +1674,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return num_queued_tis
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session):
+        asset_partition_dags: set[str] = set()
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
         for apdr in apdrs:
+            asset_partition_dags.add(apdr.target_dag_id)
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", apdr.target_dag_id)
@@ -1701,7 +1703,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
             apdr.created_dag_run_id = dag_run.id
             session.flush()
-        asset_partition_dags = set(a.target_dag_id for a in apdrs)
+
         return asset_partition_dags
 
     @retry_db_transaction
