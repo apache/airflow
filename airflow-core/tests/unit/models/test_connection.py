@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
 import sys
 from typing import TYPE_CHECKING
 from unittest import mock
+from urllib.parse import parse_qsl, urlsplit
 
 import pytest
 
@@ -46,6 +48,33 @@ class TestConnection:
         get_fernet.cache_clear()
         yield
         get_fernet.cache_clear()
+
+    def test_get_uri_with_non_string_extras(self):
+        """Ensure non-string extras (bool, ints, etc.) are properly stringified in URI"""
+        conn = Connection(
+            conn_type="mssql",
+            host="host",
+            login="user",
+            password="pass",
+            schema="db",
+            extra={
+                "tds_version": 7.3,
+                "as_dict": True,
+                "retries": 3,
+                "nested": {"a": 1},
+                "trust_server_certificate": False,
+            },
+        )
+        url = conn.get_uri()
+        query = dict(parse_qsl(urlsplit(url).query))
+
+        assert "__extra__" in query
+        assert query["tds_version"] == "7.3"
+        assert query["as_dict"] == "true"
+        assert query["retries"] == "3"
+        assert query["trust_server_certificate"] == "false"
+        assert json.loads(query["nested"]) == {"a": 1}
+
 
     @pytest.mark.parametrize(
         (
