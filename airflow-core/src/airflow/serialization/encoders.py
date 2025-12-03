@@ -173,8 +173,7 @@ def encode_timetable(var: BaseTimetable | CoreTimetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
 
-    This delegates most of the serialization work to the type, so the behavior
-    can be completely controlled by a custom subclass.
+    See ``_TimetableSerializer.serialize()`` for more implementation detail.
 
     :meta private:
     """
@@ -201,6 +200,19 @@ class _TimetableSerializer:
 
     @functools.singledispatchmethod
     def serialize(self, timetable: BaseTimetable | CoreTimetable) -> dict[str, Any]:
+        """
+        Serialize a timetable into a JSON-compatible dict for storage.
+
+        All timetables defined in the SDK should be handled by registered
+        single-dispatch variants below.
+
+        This function's body should only be
+        called on timetables defined in Core (under ``airflow.timetables``),
+        and user-defined custom timetables registered via plugins, which also
+        inherit from the Core timetable base class.
+
+        For timetables in Core, serialization work is delegated to the type.
+        """
         if not isinstance(timetable, CoreTimetable):
             raise NotImplementedError(f"can not serialize timetable {type(timetable).__name__}")
         return timetable.serialize()
