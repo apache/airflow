@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 # Re-export all spec modules so they can be imported from spec package
-from . import asset, dagrun, importerrors, lifecycle, taskinstance  # noqa: TID252
+from . import asset, dagrun, importerrors, lifecycle, taskinstance
 
 __all__ = [
     "asset",
