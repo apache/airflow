@@ -725,7 +725,7 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def airflowctl_core_versions(self) -> list[str]:
+    def airflowctl_core_branches(self) -> list[str]:
         return AIRFLOW_CTL_CORE_BRANCHES
 
     @cached_property

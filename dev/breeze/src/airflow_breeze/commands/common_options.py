@@ -220,7 +220,7 @@ option_historical_python_versions = click.option(
     "(defaults to all historical python versions)",
 )
 option_airflow_core_branch = click.option(
-    "--airflow-core-branches",
+    "--airflow-core-branch",
     type=BetterChoice(ALL_HISTORICAL_AIRFLOW_CORE_SUPPORTED_BRANCHES),
     required=False,
     envvar="AIRFLOW_CORE_BRANCH",
