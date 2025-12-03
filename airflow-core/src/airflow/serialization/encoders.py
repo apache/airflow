@@ -155,7 +155,7 @@ def encode_asset_condition(a: BaseAsset) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
 
-def _get_serialized_import_path(var: BaseTimetable | CoreTimetable) -> str:
+def _get_serialized_timetable_import_path(var: BaseTimetable | CoreTimetable) -> str:
     # Find SDK classes.
     with contextlib.suppress(KeyError):
         return _serializer.BUILTIN_TIMETABLES[var_type := type(var)]
@@ -178,7 +178,7 @@ def encode_timetable(var: BaseTimetable | CoreTimetable) -> dict[str, Any]:
 
     :meta private:
     """
-    importable_string = _get_serialized_import_path(var)
+    importable_string = _get_serialized_timetable_import_path(var)
     return {Encoding.TYPE: importable_string, Encoding.VAR: _serializer.serialize(var)}
 
 
