@@ -93,11 +93,17 @@ class CommonBuildParams:
         return image
 
     @property
+    def airflow_base_image_tag(self):
+        """Construct base image tag"""
+        tag = ":cache-linux-amd64" if self.airflow_branch != "main" else ":latest"
+        return tag
+
+    @property
     def airflow_image_name(self):
         """Construct image link"""
         image = (
             f"{self.airflow_base_image_name}/{self.airflow_branch}/"
-            f"{self.image_type.lower()}/python{self.python}"
+            f"{self.image_type.lower()}/python{self.python}{self.airflow_base_image_tag}"
         )
         return image
 
