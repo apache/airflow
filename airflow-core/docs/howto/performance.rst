@@ -23,7 +23,7 @@ This guide collects pragmatic tips that improve Airflow performance for API and 
 Configurable metadata indexes
 -----------------------------
 
-Airflow can create additional database indexes on startup to accelerate common queries used by the API and UI.
+Airflow can create additional database indexes on API startup to accelerate common queries used by the API and UI.
 This is helpful in larger deployments where filtering and lookups on high‑cardinality columns become hot paths.
 
 Use :ref:`config:database__metadata_indexes` to declare a list of index specifications.
