@@ -2536,6 +2536,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 4,
                 id="clear mapped tasks with and without map index",
             ),
+            pytest.param(
+                "example_task_group_mapping",
+                [
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_group_mapping",
+                {
+                    "task_ids": [["op.mul_2", 0]],
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_upstream": True,
+                },
+                2,
+                id="clear tasks in mapped task group",
+            ),
         ],
     )
     def test_should_respond_200(
