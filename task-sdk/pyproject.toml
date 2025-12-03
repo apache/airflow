@@ -251,6 +251,7 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
