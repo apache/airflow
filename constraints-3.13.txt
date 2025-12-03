@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-03T07:50:51.389809
+# This constraints file was automatically generated on 2025-12-03T13:57:01.363179
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -382,7 +382,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
 ipykernel==7.1.0
-ipython==9.7.0
+ipython==9.8.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -459,15 +459,15 @@ openlineage_sql==1.40.1
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
-opentelemetry-api==1.38.0
-opentelemetry-exporter-otlp-proto-common==1.38.0
-opentelemetry-exporter-otlp-proto-grpc==1.38.0
-opentelemetry-exporter-otlp-proto-http==1.38.0
-opentelemetry-exporter-otlp==1.38.0
-opentelemetry-exporter-prometheus==0.59b0
-opentelemetry-proto==1.38.0
-opentelemetry-sdk==1.38.0
-opentelemetry-semantic-conventions==0.59b0
+opentelemetry-api==1.39.0
+opentelemetry-exporter-otlp-proto-common==1.39.0
+opentelemetry-exporter-otlp-proto-grpc==1.39.0
+opentelemetry-exporter-otlp-proto-http==1.39.0
+opentelemetry-exporter-otlp==1.39.0
+opentelemetry-exporter-prometheus==0.60b0
+opentelemetry-proto==1.39.0
+opentelemetry-sdk==1.39.0
+opentelemetry-semantic-conventions==0.60b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.1
 orjson==3.11.4
@@ -647,7 +647,7 @@ vine==5.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.18.2
+weaviate-client==4.18.3
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
