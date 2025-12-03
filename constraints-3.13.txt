@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-02T22:22:12.331344
+# This constraints file was automatically generated on 2025-12-03T10:22:55.723111
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -34,7 +34,7 @@ APScheduler==3.11.1
 Authlib==1.6.5
 Deprecated==1.3.1
 Events==0.5
-Flask-Limiter==4.0.0
+Flask-Limiter==4.1.0
 Flask==3.1.2
 GitPython==3.1.45
 JayDeBeApi==1.2.3
@@ -302,7 +302,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.3
 google-auth==2.41.1
-google-cloud-aiplatform==1.128.0
+google-cloud-aiplatform==1.129.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -384,7 +384,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
 ipykernel==7.1.0
-ipython==9.7.0
+ipython==9.8.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -639,7 +639,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.5.0
 uuid6==2025.0.1
-uv==0.9.14
+uv==0.9.15
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
@@ -648,7 +648,7 @@ vine==5.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.18.2
+weaviate-client==4.18.3
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
