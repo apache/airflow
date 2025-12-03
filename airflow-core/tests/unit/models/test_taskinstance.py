@@ -3239,6 +3239,31 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
     assert result == expected
 
 
+def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, session):
+    """Test that specifying a non-mapped task as a tuple doesn't raise NotMapped exception."""
+    # t1 -> t2 (non-mapped) -> t3
+    with dag_maker(session=session) as dag:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        t3 = EmptyOperator(task_id="t3")
+        t1 >> t2 >> t3
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    # Specifying t2 as a tuple (t2, 0) even though it's not mapped should not raise NotMapped
+    # It should treat t2 as a normal task and return its upstream t1
+    result = find_relevant_relatives(
+        normal_tasks=[],
+        mapped_tasks=[("t2", 0)],
+        direction="upstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+    # Should return t1 as the upstream of t2
+    assert result == {"t1"}
+
+
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
     with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:

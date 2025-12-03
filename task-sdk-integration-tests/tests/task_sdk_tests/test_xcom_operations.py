@@ -393,8 +393,26 @@ def test_xcom_get_sequence_slice_not_found(sdk_client, dag_info):
     Expected: XComSequenceSliceResponse as empty list
     Endpoint: GET /execution/xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice
     """
-    console.print("[yellow]TODO: Implement test_xcom_get_sequence_slice_not_found")
-    raise NotImplementedError("test_xcom_get_sequence_slice_not_found not implemented")
+    console.print("[yellow]Testing XCom sequence slice not found...")
+
+    response = sdk_client.xcoms.get_sequence_slice(
+        dag_id=dag_info["dag_id"],
+        run_id=dag_info["dag_run_id"],
+        task_id="mapped_task",
+        key="non_existent_key",
+        start=0,
+        stop=10,
+        step=None,
+    )
+
+    console.print(" XCom Sequence Slice (Not Found) ".center(72, "="))
+    console.print(f"[bright_blue]Response Type:[/] {type(response).__name__}")
+    console.print(f"[bright_blue]Values:[/] {getattr(response, 'root', None)}")
+    console.print("=" * 72)
+
+    assert isinstance(response, XComSequenceSliceResponse)
+    assert response.root == []
+    console.print("[green]✅ XCom get_sequence_slice_not_found test passed!")
 
 
 @pytest.mark.parametrize(
