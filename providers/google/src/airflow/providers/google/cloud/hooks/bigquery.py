@@ -71,6 +71,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import _get_scope
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
+    _UNSET,
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
@@ -80,6 +81,7 @@ from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -160,21 +162,47 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def __init__(
         self,
-        use_legacy_sql: bool = True,
-        location: str | None = None,
-        priority: str = "INTERACTIVE",
-        api_resource_configs: dict | None = None,
+        use_legacy_sql: bool | object = _UNSET,
+        location: str | None | object = _UNSET,
+        priority: str | object = _UNSET,
+        api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
-        labels: dict | None = None,
+        labels: dict | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.use_legacy_sql: bool = self._get_field("use_legacy_sql", use_legacy_sql)
-        self.location: str | None = self._get_field("location", location)
-        self.priority: str = self._get_field("priority", priority)
+        # Use sentinel pattern to distinguish "not provided" from "explicitly provided"
+        if use_legacy_sql is _UNSET:
+            value = self._get_field("use_legacy_sql", _UNSET)
+            self.use_legacy_sql: bool = value if value is not None else True
+        else:
+            self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
+
+        if location is _UNSET:
+            self.location: str | None = self._get_field("location", _UNSET)
+        else:
+            self.location = location  # type: ignore[assignment]
+
+        if priority is _UNSET:
+            value = self._get_field("priority", _UNSET)
+            self.priority: str = value if value is not None else "INTERACTIVE"
+        else:
+            self.priority = priority  # type: ignore[assignment]
+
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = self._get_field("api_resource_configs", api_resource_configs or {})
-        self.labels = self._get_field("labels", labels or {})
+
+        if api_resource_configs is _UNSET:
+            value = self._get_field("api_resource_configs", _UNSET)
+            self.api_resource_configs: dict = value if value is not None else {}
+        else:
+            self.api_resource_configs = api_resource_configs or {}  # type: ignore[assignment]
+
+        if labels is _UNSET:
+            value = self._get_field("labels", _UNSET)
+            self.labels = value if value is not None else {}
+        else:
+            self.labels = labels or {}  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
@@ -1285,7 +1313,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         task_id: str,
         logical_date: datetime | None,
         configuration: dict,
-        run_after: pendulum.DateTime | None = None,
+        run_after: pendulum.DateTime | datetime | None = None,
         force_rerun: bool = False,
     ) -> str:
         if force_rerun:
@@ -1314,18 +1342,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
-    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime:
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime | None:
+        dag_run = context.get("dag_run")
+        if not dag_run:
+            return pendulum.now("UTC")
+
         if AIRFLOW_V_3_0_PLUS:
-            if dag_run := context.get("dag_run"):
-                run_after = pendulum.instance(dag_run.run_after)
-            else:
-                run_after = pendulum.now("UTC")
-        else:
-            if logical_date := context.get("logical_date"):
-                run_after = logical_date
-            else:
-                run_after = pendulum.now("UTC")
-        return run_after
+            return dag_run.start_date
+        return dag_run.start_date if dag_run.run_type == DagRunType.SCHEDULED else context.get("logical_date")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None

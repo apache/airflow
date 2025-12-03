@@ -62,7 +62,7 @@ apache-airflow-providers-mongo package
 `MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 5.2.2
+Release: 5.3.0
 
 Provider package
 ----------------
@@ -80,12 +80,41 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.10.0``
-``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=4.13.2``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``dnspython``                               ``>=1.13.0``
+``pymongo``                                 ``>=4.13.2``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-mongo[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-mongo 5.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mongo 5.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mongo-5.3.0-py3-none-any.whl.sha512>`__)

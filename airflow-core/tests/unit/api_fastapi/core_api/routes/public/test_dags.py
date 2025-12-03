@@ -944,7 +944,14 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "owner_links": {},
-            "params": {"foo": {"value": 1, "schema": {}, "description": None}},
+            "params": {
+                "foo": {
+                    "value": 1,
+                    "schema": {},
+                    "description": None,
+                    "source": None,
+                }
+            },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,
@@ -954,6 +961,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
+            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1033,7 +1041,14 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_run_after": None,
             "owners": ["airflow"],
             "owner_links": {},
-            "params": {"foo": {"value": 1, "schema": {}, "description": None}},
+            "params": {
+                "foo": {
+                    "value": 1,
+                    "schema": {},
+                    "description": None,
+                    "source": None,
+                }
+            },
             "relative_fileloc": "test_dags.py",
             "render_template_as_native_obj": False,
             "timetable_summary": None,
@@ -1043,6 +1058,7 @@ class TestDagDetails(TestDagEndpoint):
             "timetable_description": "Never, external triggers only",
             "timezone": UTC_JSON_REPR,
             "is_favorite": False,
+            "active_runs_count": 0,
         }
         assert res_json == expected
 
@@ -1077,6 +1093,63 @@ class TestDagDetails(TestDagEndpoint):
         assert "is_favorite" in body
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
+
+    def test_dag_details_includes_active_runs_count(self, session, test_client):
+        """Test that DAG details include the active_runs_count field."""
+        # Create running and queued DAG runs for DAG2
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="running_run_1",
+                logical_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 1, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="queued_run_1",
+                logical_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 2, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.QUEUED,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        # Add a successful DAG run (should not be counted)
+        session.add(
+            DagRun(
+                dag_id=DAG2_ID,
+                run_id="success_run_1",
+                logical_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                start_date=datetime(2021, 6, 15, 3, 0, 0, tzinfo=timezone.utc),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.SUCCESS,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+        )
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify active_runs_count field is present and correct
+        assert "active_runs_count" in body
+        assert isinstance(body["active_runs_count"], int)
+        assert body["active_runs_count"] == 2  # 1 running + 1 queued
+
+        # Test with DAG that has no active runs
+        response = test_client.get(f"/dags/{DAG1_ID}/details")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "active_runs_count" in body
+        assert isinstance(body["active_runs_count"], int)
+        assert body["active_runs_count"] == 0
 
 
 class TestGetDag(TestDagEndpoint):
@@ -1140,6 +1213,33 @@ class TestGetDag(TestDagEndpoint):
             "relative_fileloc": "test_dags.py",
         }
         assert res_json == expected
+
+    def test_get_dag_tags_sorted_alphabetically(self, session, test_client, dag_maker):
+        """Test that tags are returned in alphabetical order for a single DAG."""
+        dag_id = "test_dag_single_sorted_tags"
+
+        # Create a DAG using dag_maker
+        with dag_maker(dag_id=dag_id, schedule=None):
+            EmptyOperator(task_id="task1")
+
+        dag_maker.sync_dagbag_to_db()
+
+        # Add tags in non-alphabetical order
+        tag_names = ["zebra", "alpha", "mike", "bravo"]
+        for tag_name in tag_names:
+            tag = DagTag(name=tag_name, dag_id=dag_id)
+            session.add(tag)
+
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}")
+        assert response.status_code == 200
+        res_json = response.json()
+
+        # Verify tags are sorted alphabetically
+        tag_names_in_response = [tag["name"] for tag in res_json["tags"]]
+        expected_sorted_tags = sorted(tag_names)
+        assert tag_names_in_response == expected_sorted_tags
 
     def test_get_dag_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}")

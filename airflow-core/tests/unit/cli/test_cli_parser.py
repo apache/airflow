@@ -558,3 +558,13 @@ class TestCliSubprocess:
         )
         assert result.returncode == 0
         assert "celery_config_options" not in result.stdout
+
+    def test_cli_parser_skips_team_validation(self):
+        """Test that CLI parser calls get_executor_names with validate_teams=False to prevent database dependency during CLI loading."""
+        with patch.object(executor_loader.ExecutorLoader, "get_executor_names") as mock_get_executor_names:
+            mock_get_executor_names.return_value = []
+            # Force reload of cli_parser to trigger the executor loading
+            reload(cli_parser)
+
+            # Verify get_executor_names was called with validate_teams=False
+            mock_get_executor_names.assert_called_with(validate_teams=False)

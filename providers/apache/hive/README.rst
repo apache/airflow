@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hive``
 
-Release: ``9.1.3``
+Release: ``9.2.0``
 
 
 `Apache Hive <https://hive.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.hive`` provider. All classes for this pr
 are in ``airflow.providers.apache.hive`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.0/>`_.
 
 Installation
 ------------
@@ -53,14 +53,13 @@ Requirements
 ==========================================  =====================================
 PIP package                                 Version required
 ==========================================  =====================================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.7.4``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.26.0``
 ``hmsclient``                               ``>=0.1.0``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
 ``pyhive[hive_pure_sasl]``                  ``>=0.7.0``
-``thrift``                                  ``>=0.11.0``
 ``jmespath``                                ``>=0.7.0``
 ==========================================  =====================================
 
@@ -81,6 +80,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                    ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_            ``common.sql``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_  ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                      ``mysql``
@@ -92,17 +92,18 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-===================  ============================================
+===================  =============================================================================================
 Extra                Dependencies
-===================  ============================================
+===================  =============================================================================================
 ``amazon``           ``apache-airflow-providers-amazon``
 ``microsoft.mssql``  ``apache-airflow-providers-microsoft-mssql``
 ``mysql``            ``apache-airflow-providers-mysql``
 ``presto``           ``apache-airflow-providers-presto``
 ``samba``            ``apache-airflow-providers-samba``
 ``vertica``          ``apache-airflow-providers-vertica``
+``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``
 ``common.compat``    ``apache-airflow-providers-common-compat``
-===================  ============================================
+===================  =============================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.0/changelog.html>`_.

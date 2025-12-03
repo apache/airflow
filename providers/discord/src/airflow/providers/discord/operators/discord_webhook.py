@@ -93,5 +93,10 @@ class DiscordWebhookOperator(HttpOperator):
         return hook
 
     def execute(self, context: Context) -> None:
-        """Call the DiscordWebhookHook to post a message."""
+        """
+        Call the DiscordWebhookHook to post a message.
+
+        :param context: the context object
+        :return: None
+        """
         self.hook.execute()

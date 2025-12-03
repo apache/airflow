@@ -53,6 +53,7 @@ import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOption
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
 import { DagRunSelect } from "./DagRunSelect";
+import { TaskStreamFilter } from "./TaskStreamFilter";
 import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
@@ -83,12 +84,12 @@ const getOptions = (translate: (key: string) => string) =>
 const getWidthBasedConfig = (width: number, enableResponsiveOptions: boolean) => {
   const breakpoints = enableResponsiveOptions
     ? [
-        { limit: 100, min: 1600, options: ["5", "10", "25", "50"] }, // xl: extra large screens
-        { limit: 25, min: 1024, options: ["5", "10", "25"] }, // lg: large screens
-        { limit: 10, min: 384, options: ["5", "10"] }, // md: medium screens
-        { limit: 5, min: 0, options: ["5"] }, // sm: small screens and below
+        { limit: 100, min: 1600, options: ["1", "5", "10", "25", "50"] }, // xl: extra large screens
+        { limit: 25, min: 1024, options: ["1", "5", "10", "25"] }, // lg: large screens
+        { limit: 10, min: 384, options: ["1", "5", "10"] }, // md: medium screens
+        { limit: 5, min: 0, options: ["1", "5"] }, // sm: small screens and below
       ]
-    : [{ limit: 5, min: 0, options: ["5", "10", "25", "50"] }];
+    : [{ limit: 5, min: 0, options: ["1", "5", "10", "25", "50"] }];
 
   const config = breakpoints.find(({ min }) => width >= min) ?? breakpoints[breakpoints.length - 1];
 
@@ -259,6 +260,7 @@ export const PanelButtons = ({
         </ButtonGroup>
         <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
           <ToggleGroups />
+          <TaskStreamFilter />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>

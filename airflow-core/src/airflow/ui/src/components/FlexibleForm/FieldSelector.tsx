@@ -47,6 +47,11 @@ const inferType = (param: ParamSpec) => {
     return "array";
   }
 
+  // Missing value, return 'null' as typeof(null) = 'dict'
+  if (param.value === null) {
+    return "null";
+  }
+
   return typeof param.value;
 };
 
@@ -61,7 +66,7 @@ const isFieldDate = (fieldType: string, fieldSchema: ParamSchema) =>
 const isFieldDateTime = (fieldType: string, fieldSchema: ParamSchema) =>
   fieldType === "string" && fieldSchema.format === "date-time";
 
-const enumTypes = ["string", "number", "integer"];
+const enumTypes = ["null", "string", "number", "integer"];
 
 const isFieldDropdown = (fieldType: string, fieldSchema: ParamSchema) =>
   enumTypes.includes(fieldType) && Array.isArray(fieldSchema.enum);

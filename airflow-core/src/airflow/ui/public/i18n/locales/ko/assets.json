@@ -1,4 +1,7 @@
 {
+  "additional_data": "추가 데이터",
+  "asset_many": "에셋들",
+  "asset_one": "에셋",
   "consumingDags": "사용 중인 Dags",
   "createEvent": {
     "button": "이벤트 생성",

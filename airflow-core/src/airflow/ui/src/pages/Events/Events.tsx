@@ -19,6 +19,7 @@
 import { Code, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -207,6 +208,11 @@ export const Events = () => {
     undefined,
   );
 
+  const columns = useMemo(
+    () => eventsColumn({ dagId, open, runId, taskId }, translate),
+    [dagId, open, runId, taskId, translate],
+  );
+
   return (
     <VStack alignItems="stretch">
       {dagId === undefined && runId === undefined && taskId === undefined ? (
@@ -224,7 +230,7 @@ export const Events = () => {
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
+        columns={columns}
         data={data?.event_logs ?? []}
         displayMode="table"
         initialState={tableURLState}

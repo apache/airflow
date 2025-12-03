@@ -214,10 +214,18 @@ function environment_initialization() {
     fi
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
+            export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
+        fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
-        # shellcheck source=scripts/in_container/bin/run_tmux
-        exec run_tmux
+        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+            # shellcheck source=scripts/in_container/bin/run_mprocs
+            exec run_mprocs
+        else
+            # shellcheck source=scripts/in_container/bin/run_tmux
+            exec run_tmux
+        fi
     fi
 }
 
@@ -234,7 +242,7 @@ function handle_mount_sources() {
 # Determine which airflow version to use
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST}" != "true" ]]; then
+    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST=}" != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -303,7 +311,7 @@ function check_boto_upgrade() {
 function check_upgrade_sqlalchemy() {
     # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
     # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
         return
     fi
     echo

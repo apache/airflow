@@ -103,7 +103,12 @@ class AirbyteHook(BaseHook):
                 "extra",
                 "port",
             ],
-            "relabeling": {"login": "Client ID", "password": "Client Secret", "schema": "Token URL"},
+            "relabeling": {
+                "host": "Server URL",
+                "login": "Client ID",
+                "password": "Client Secret",
+                "schema": "Token URL",
+            },
             "placeholders": {},
         }
 

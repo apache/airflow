@@ -39,7 +39,6 @@ from tenacity import (
 )
 from uuid6 import uuid7
 
-from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -74,6 +73,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
@@ -289,7 +289,7 @@ class TaskInstanceOperations:
     def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
         """Get the start date of a task reschedule via the API server."""
         resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
-        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
+        return TaskRescheduleStartDate(start_date=resp.json())
 
     def get_count(
         self,

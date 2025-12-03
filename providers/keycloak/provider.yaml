@@ -22,9 +22,10 @@ description: |
   ``Keycloak Provider``
 
 state: ready
-source-date-epoch: 1761117082
+source-date-epoch: 1763069804
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.3.0
   - 0.2.0
   - 0.1.0
   - 0.0.1

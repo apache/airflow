@@ -56,6 +56,13 @@
     "warning_one": "1 Ostrzeżenie",
     "warning_other": "{{count}} Ostrzeżenia"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Nieprawidłowy format daty.",
+      "invalidTimeFormat": "Nieprawidłowy format czasu.",
+      "startBeforeEnd": "Data/czas rozpoczęcia musi być wcześniejszy niż data/czas zakończenia"
+    }
+  },
   "durationChart": {
     "duration": "Czas trwania (sekundy)",
     "lastDagRun_few": "Ostatnie {{count}} wykonania",

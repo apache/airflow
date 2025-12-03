@@ -26,7 +26,7 @@ license-files = ["LICENSE", "NOTICE"]
 # in all our providers - and usually it will take a while before we can support it for majority of
 # providers, so we proactively limit it to <3.14.
 # It takes about 4-7 months after Python release before we can support it
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10,!=3.14"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -73,6 +73,10 @@ dependencies = [
     # Start of shared logging dependencies
     "pygtrie>=2.5.0",
     # End of shared logging dependencies
+    # Start of shared configuration dependencies
+    "packaging>=24.0",
+    "typing-extensions>=4.14.1",
+    # End of shared configuration dependencies
 ]
 
 [project.optional-dependencies]
@@ -100,9 +104,11 @@ build-backend = "hatchling.build"
 path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -244,7 +250,9 @@ tmp_path_retention_policy = "failed"
 
 [tool.airflow]
 shared_distributions = [
+    "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
 ]

@@ -17,45 +17,53 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from functools import cache
 from typing import Any
 
 from airflow.listeners import hookimpl
 from airflow.utils.state import TaskInstanceState
 
-started_component: Any = None
-stopped_component: Any = None
-state: list[Any] = []
+
+@dataclass
+class ListenerState:
+    started_component: Any = None
+    stopped_component: Any = None
+    state: list[Any] = field(default_factory=list)
+
+
+@cache
+def get_listener_state() -> ListenerState:
+    return ListenerState()
 
 
 @hookimpl
 def on_starting(component):
-    global started_component
-    started_component = component
+    get_listener_state().started_component = component
 
 
 @hookimpl
 def before_stopping(component):
-    global stopped_component
-    stopped_component = component
+    get_listener_state().stopped_component = component
 
 
 @hookimpl
 def on_task_instance_running(previous_state, task_instance):
-    state.append(TaskInstanceState.RUNNING)
+    get_listener_state().state.append(TaskInstanceState.RUNNING)
 
 
 @hookimpl
 def on_task_instance_success(previous_state, task_instance):
-    state.append(TaskInstanceState.SUCCESS)
+    get_listener_state().state.append(TaskInstanceState.SUCCESS)
 
 
 @hookimpl
 def on_task_instance_failed(previous_state, task_instance, error: None | str | BaseException):
-    state.append(TaskInstanceState.FAILED)
+    get_listener_state().state.append(TaskInstanceState.FAILED)
 
 
 def clear():
-    global started_component, stopped_component, state
-    started_component = None
-    stopped_component = None
-    state = []
+    listener_state = get_listener_state()
+    listener_state.started_component = None
+    listener_state.stopped_component = None
+    listener_state.state = []

@@ -32,6 +32,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch for the repository"
         required: true
         type: string
+      run-task-sdk-integration-tests:
+        description: "Whether to run Task SDK integration tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -190,7 +194,8 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Run Task SDK integration tests"
-        run: breeze testing task-sdk-integration-tests
+        run: breeze testing task-sdk-integration-tests --skip-mounting-local-volumes
+    if: inputs.run-task-sdk-integration-tests == 'true'
 
   test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"

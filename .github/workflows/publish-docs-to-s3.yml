@@ -95,14 +95,16 @@ jobs:
       default-python-version: "3.10"
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
       "utkarsharma2",
-      "bugraoz93"
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"
@@ -372,4 +374,4 @@ jobs:
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS} --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+          --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}

@@ -35,6 +35,81 @@
 Changelog
 ---------
 
+1.10.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+* ``Add source to Param (#58615)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator deferral mode not working for Airflow 3 (#58497)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Remove global from task instance session (#58601)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+1.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: HITL params not validating (#57547)``
+* ``Fix: Handle string formatted conf param in TriggerDagRunOperator (#57214)``
+* ``Fix walking through wildcarded directory in FileTrigger (#57155)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Move subprocess utility closer to usage in python venv operators (#57189)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add caution on using Airflow packages in virtualenv operator (#57599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``fix MyPy type errors in datamodels/hitl.py (#57808)``
+   * ``Enable PT006 rule to standard Provider test(ssensor, trigge, util) 9 files (#58022)``
+   * ``Enable PT006 rule to standard Provider test(decorator, hook) 8 files (#58019)``
+   * ``PT006 modify standard (operator) (#58020)``
+   * ``Enable ruff PLW1509 rule (#57659)``
+   * ``Fix mypy static errors in standard provider (#57762)``
+   * ``Fix mypy type errors in providers/standard/ in external_task.py for SQLAlchemy 2 migration (#57369)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0602 rule (#57588)``
+   * ``Revert virtualenv connections/variables access and logging as test are failing``
+   * ``Enable PT011 rule to prvoider tests (#56929)``
+   * ``Allow virtualenv code to access connections/variables and send logs (#57213)``
+   * ``Fix mypy error in main (#57351)``
+   * ``fix mypy errors in providers/standard/ (#57266)``
+
+
 1.9.1
 .....
 
@@ -152,8 +227,6 @@ Doc-only
    * ``docs(hitl): fix typo in example_hitl_operator (#54537)``
    * ``make bundle_name not nullable (#47592)``
    * ``Remove SDK BaseOperator in TaskInstance (#53223)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 1.6.0

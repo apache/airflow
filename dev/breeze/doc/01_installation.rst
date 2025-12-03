@@ -430,7 +430,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-These are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup autocomplete`` command:
 
 .. image:: ./images/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_setup_autocomplete.svg

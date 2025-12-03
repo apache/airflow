@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.16.0"
+version = "9.18.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,8 +58,8 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.0",
     "apache-airflow-providers-common-sql>=1.27.0",
     "apache-airflow-providers-http",
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
@@ -77,10 +77,11 @@ dependencies = [
     "asgiref>=2.3.0",
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
-    "sagemaker-studio>=1.0.9; python_version < \"3.13\"",
-    # The sagemaker studio 1.1.0+ uses pydynamodb that pins sqlean in version 3.45.1 that is not
-    # Supporting Python 3.13 https://github.com/passren/PyDynamoDB/issues/72
-    "sagemaker-studio>=1.0.9,<1.1.0; python_version >= \"3.13\"",
+    "sagemaker-studio>=1.0.9",
+    # Sagemaker studio in Python 3.13 requires version >=1.1.0 and Pydynamodb >=0.7.5
+    # Because of sqlean pinning (https://github.com/passren/PyDynamoDB/issues/72)
+    "pydynamodb>=0.7.5; python_version >= '3.13'",
+    "sqlean.py>=3.47.0; python_version >= '3.13'",
     "marshmallow>=3",
 ]
 
@@ -130,6 +131,10 @@ dependencies = [
 ]
 "mongo" = [
     "apache-airflow-providers-mongo"
+]
+"pandas" = [
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
 ]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
@@ -210,8 +215,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.16.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.16.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.18.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.18.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

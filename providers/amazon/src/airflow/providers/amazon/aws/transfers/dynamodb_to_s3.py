@@ -36,8 +36,8 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
-    from airflow.utils.types import ArgNotSet
+    from airflow.providers.amazon.version_compat import ArgNotSet
+    from airflow.sdk import Context
 
 
 class JSONEncoder(json.JSONEncoder):

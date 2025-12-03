@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -126,6 +127,39 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class JWTReissueMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        from airflow.configuration import conf
+
+        response: Response = await call_next(request)
+
+        refreshed_token: str | None = None
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1]
+            try:
+                async with svcs.Container(request.app.state.svcs_registry) as services:
+                    validator: JWTValidator = await services.aget(JWTValidator)
+                    claims = await validator.avalidated_claims(token, {})
+
+                    now = int(time.time())
+                    validity = conf.getint("execution_api", "jwt_expiration_time")
+                    refresh_when_less_than = max(int(validity * 0.20), 30)
+                    valid_left = int(claims.get("exp", 0)) - now
+                    if valid_left <= refresh_when_less_than:
+                        generator: JWTGenerator = await services.aget(JWTGenerator)
+                        refreshed_token = generator.generate(claims)
+            except Exception as err:
+                # Do not block the response if refreshing fails; log a warning for visibility
+                logger.warning(
+                    "JWT reissue middleware failed to refresh token", error=str(err), exc_info=True
+                )
+
+        if refreshed_token:
+            response.headers["Refreshed-API-Token"] = refreshed_token
+        return response
+
+
 class CadwynWithOpenAPICustomization(Cadwyn):
     # Workaround lack of customzation https://github.com/zmievsa/cadwyn/issues/255
     async def openapi_jsons(self, req: Request) -> JSONResponse:
@@ -211,6 +245,7 @@ def create_task_execution_api_app() -> FastAPI:
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(JWTReissueMiddleware)
 
     app.generate_and_include_versioned_routers(execution_api_router)
 
@@ -266,7 +301,6 @@ class InProcessExecutionAPI:
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
                 JWTBearerTIPathDep,
-                JWTRefresherDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
@@ -281,7 +315,6 @@ class InProcessExecutionAPI:
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
             self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

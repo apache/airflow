@@ -48,7 +48,3 @@ src = ["src"]
 [tool.ruff.lint.per-file-ignores]
 # Ignore Doc rules et al for anything outside of tests
 "!src/*" = ["D", "S101", "TRY002"]
-
-[tool.ruff.lint.flake8-tidy-imports]
-# Override the workspace level default
-ban-relative-imports = "parents"

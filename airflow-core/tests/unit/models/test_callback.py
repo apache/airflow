@@ -26,7 +26,7 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
-from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.session import create_session

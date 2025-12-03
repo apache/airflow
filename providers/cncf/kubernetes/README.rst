@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cncf-kubernetes``
 
-Release: ``10.9.0``
+Release: ``10.11.0``
 
 
 `Kubernetes <https://kubernetes.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cncf.kubernetes`` provider. All classes for thi
 are in ``airflow.providers.cncf.kubernetes`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.9.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0/>`_.
 
 Installation
 ------------
@@ -54,12 +54,12 @@ Requirements
 PIP package                                 Version required
 ==========================================  ====================
 ``aiofiles``                                ``>=23.2.0``
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.0``
 ``asgiref``                                 ``>=3.5.2``
-``cryptography``                            ``>=41.0.0``
-``kubernetes``                              ``>=32.0.0,<34.0.0``
-``kubernetes_asyncio``                      ``>=32.0.0,<34.0.0``
+``cryptography``                            ``>=41.0.0,<46.0.0``
+``kubernetes``                              ``>=32.0.0,<35.0.0``
+``kubernetes_asyncio``                      ``>=32.0.0,<35.0.0``
 ==========================================  ====================
 
 Cross provider package dependencies
@@ -82,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.9.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0/changelog.html>`_.

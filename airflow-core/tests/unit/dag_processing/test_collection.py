@@ -492,7 +492,9 @@ class TestUpdateDagParsingResults:
         mock_full_path.return_value = "abc.py"
 
         import_errors = {}
-        update_dag_parsing_results_in_db("testing", None, [dag], import_errors, None, set(), session)
+        update_dag_parsing_results_in_db(
+            "testing", None, [dag], import_errors, None, set(), session, files_parsed={("testing", "abc.py")}
+        )
         assert "SerializationError" in caplog.text
 
         # Should have been edited in place
@@ -656,6 +658,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={("testing", "abc.py")},
         )
 
         import_error = (
@@ -714,6 +717,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={(bundle_name, "abc.py")},
         )
         dag_model: DagModel = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is False
@@ -758,6 +762,7 @@ class TestUpdateDagParsingResults:
             parse_duration=None,
             warnings=set(),
             session=session,
+            files_parsed={(bundle_name, "abc.py")},
         )
         dag_model = session.get(DagModel, (dag.dag_id,))
         assert dag_model.has_import_errors is True
@@ -773,6 +778,53 @@ class TestUpdateDagParsingResults:
             session=session,
         )
         assert dag_model.has_import_errors is False
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_clear_import_error_for_file_without_dags(self, testing_dag_bundle, session):
+        """
+        Test that import errors are cleared for files that were parsed but no longer contain DAGs.
+        """
+        bundle_name = "testing"
+        filename = "no_dags.py"
+
+        prev_error = ParseImportError(
+            filename=filename,
+            bundle_name=bundle_name,
+            timestamp=tz.utcnow(),
+            stacktrace="Previous import error",
+        )
+        session.add(prev_error)
+
+        # And import error for another file we haven't parsed (this shouldn't be deleted)
+        other_file_error = ParseImportError(
+            filename="other.py",
+            bundle_name=bundle_name,
+            timestamp=tz.utcnow(),
+            stacktrace="Some error",
+        )
+        session.add(other_file_error)
+        session.flush()
+
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        assert import_errors == {("no_dags.py", bundle_name), ("other.py", bundle_name)}
+
+        # Simulate parsing the file: it was parsed successfully (no import errors),
+        # but it no longer contains any DAGs. By passing files_parsed, we ensure
+        # the import error is cleared even though there are no DAGs.
+        files_parsed = {(bundle_name, filename)}
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[],  # No DAGs in this file
+            import_errors={},  # No import errors
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+            files_parsed=files_parsed,
+        )
+
+        import_errors = set(session.execute(select(ParseImportError.filename, ParseImportError.bundle_name)))
+        assert import_errors == {("other.py", bundle_name)}, "Import error for parsed file should be cleared"
 
     @pytest.mark.need_serialized_dag(False)
     @pytest.mark.parametrize(

@@ -33,13 +33,24 @@ type Props = {
   readonly variable: VariableResponse;
 };
 
+const formatValue = (value: string): string => {
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    return JSON.stringify(parsed, undefined, 2);
+  } catch {
+    return value;
+  }
+};
+
 const EditVariableButton = ({ disabled, variable }: Props) => {
   const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
+
   const initialVariableValue: VariableBody = {
     description: variable.description ?? "",
     key: variable.key,
-    value: variable.value,
+    value: formatValue(variable.value),
   };
   const { editVariable, error, isPending, setError } = useEditVariable(initialVariableValue, {
     onSuccessConfirm: onClose,

@@ -26,13 +26,14 @@ LocalExecutor.
 from __future__ import annotations
 
 import ctypes
-import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
+
+import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -47,6 +48,8 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
@@ -61,7 +64,7 @@ def _run_worker(
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    log = logging.getLogger(logger_name)
+    log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
     while True:
@@ -101,7 +104,7 @@ def _run_worker(
             output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
+def _execute_work(log: Logger, workload: workloads.ExecuteTask) -> None:
     """
     Execute command received and stores result state in queue.
 
@@ -142,6 +145,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
+    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
     serve_logs: bool = True
 
@@ -162,6 +166,11 @@ class LocalExecutor(BaseExecutor):
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
+
+        if self.is_mp_using_fork:
+            # This creates the maximum number of worker processes (parallelism) at once
+            # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+            self._spawn_workers_with_gc_freeze(self.parallelism)
 
     def _check_workers(self):
         # Reap any dead workers
@@ -186,9 +195,14 @@ class LocalExecutor(BaseExecutor):
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
         if num_outstanding and len(self.workers) < self.parallelism:
-            # This only creates one worker, which is fine as we call this directly after putting a message on
-            # activity_queue in execute_async
-            self._spawn_worker()
+            if self.is_mp_using_fork:
+                # This creates the maximum number of worker processes at once
+                # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+                self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
+            else:
+                # This only creates one worker, which is fine as we call this directly after putting a message on
+                # activity_queue in execute_async when using spawn in multiprocessing
+                self._spawn_worker()
 
     def _spawn_worker(self):
         p = multiprocessing.Process(
@@ -204,6 +218,26 @@ class LocalExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
+
+    def _spawn_workers_with_gc_freeze(self, spawn_number):
+        """
+        Freeze the GC before forking worker process and unfreeze it after forking.
+
+        This is done to prevent memory increase due to COW (Copy-on-Write) by moving all
+        existing objects to the permanent generation before forking the process. After forking,
+        unfreeze is called to ensure there is no impact on gc operations
+        in the original running process.
+
+        Ref: https://docs.python.org/3/library/gc.html#gc.freeze
+        """
+        import gc
+
+        gc.freeze()
+        try:
+            for _ in range(spawn_number):
+                self._spawn_worker()
+        finally:
+            gc.unfreeze()
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""

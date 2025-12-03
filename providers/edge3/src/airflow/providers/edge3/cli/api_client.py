@@ -27,10 +27,13 @@ from urllib.parse import quote, urljoin
 
 import requests
 from retryhttp import retry, wait_retry_after
-from tenacity import before_log, wait_random_exponential
+from tenacity import before_sleep_log, wait_random_exponential
 
 from airflow.configuration import conf
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerVersionException
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerVersionException,
+)
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
@@ -78,7 +81,7 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
     wait_network_errors=_default_wait,
     wait_timeouts=_default_wait,
     wait_rate_limited=wait_retry_after(fallback=_default_wait),  # No infinite timeout on HTTP 429
-    before_sleep=before_log(logger, logging.WARNING),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     if AIRFLOW_V_3_0_PLUS:
@@ -132,6 +135,11 @@ def worker_register(
     except requests.HTTPError as e:
         if e.response.status_code == 400:
             raise EdgeWorkerVersionException(str(e))
+        if e.response.status_code == 409:
+            raise EdgeWorkerDuplicateException(
+                f"A worker with the name '{hostname}' is already active. "
+                "Please ensure worker names are unique, or stop the existing worker before starting a new one."
+            )
         raise e
     return WorkerRegistrationReturn(**result)
 

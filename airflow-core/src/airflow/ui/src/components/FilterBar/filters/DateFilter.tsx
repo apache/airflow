@@ -22,10 +22,12 @@ import { DateTimeInput } from "src/components/DateTimeInput";
 
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
+import { isValidFilterValue } from "../utils";
 
 export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const hasValue = filter.value !== null && filter.value !== undefined && String(filter.value).trim() !== "";
-  const displayValue = hasValue ? dayjs(String(filter.value)).format("MMM DD, YYYY, hh:mm A") : "";
+  const hasValue = isValidFilterValue(filter.config.type, filter.value);
+  const displayValue =
+    hasValue && typeof filter.value === "string" ? dayjs(filter.value).format("MMM DD, YYYY, hh:mm A") : "";
 
   const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = event.target;
@@ -46,7 +48,7 @@ export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
         onChange={handleDateChange}
         placeholder={filter.config.placeholder}
         size="sm"
-        value={filter.value !== null && filter.value !== undefined ? String(filter.value) : ""}
+        value={typeof filter.value === "string" ? filter.value : ""}
         width="200px"
       />
     </FilterPill>

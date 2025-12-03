@@ -62,14 +62,15 @@ def test_airflowctl_commands(login_command, login_output, test_commands):
 
         # This is a common error message that is thrown by client when something is wrong
         # Please ensure it is aligning with airflowctl.api.client.get_json_error
-        airflowctl_client_server_response_error = "Server error"
-        airflowctl_command_error = "command error: argument GROUP_OR_COMMAND: invalid choice"
-        if (
-            airflowctl_client_server_response_error in stdout_result
-            or airflowctl_command_error in stdout_result
-        ):
+        error_strings = [
+            "Server error",
+            "command error",
+            "unrecognized arguments",
+            "invalid choice",
+        ]
+        if any(error in stdout_result for error in error_strings):
             console.print(f"[red]❌ Output contained unexpected text for command '{command_from_config}'")
-            console.print(f"[red]Did not expect to find:\n{airflowctl_client_server_response_error}\n")
+            console.print("[red]Did not expect to find this error.\n")
             console.print(f"[red]But got:\n{stdout_result}\n")
             raise AssertionError(f"Output contained unexpected text\nOutput:\n{stdout_result}")
         console.print(f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'")

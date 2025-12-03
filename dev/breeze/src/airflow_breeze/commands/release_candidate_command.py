@@ -30,7 +30,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
     option_version_suffix,
 )
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
     TarBallType,
     get_airflow_version,
@@ -332,6 +332,11 @@ def create_tarball_release(
         if not version:
             version = date.strftime(date.today(), "%Y-%m-%d")
             console_print(f"\n[info]Using current date {version} as tarball version\n")
+    elif tarball_type == TarBallType.PYTHON_CLIENT:
+        tag = f"python-client/{version + version_suffix}" if version else "HEAD"
+        if not version:
+            version = date.strftime(date.today(), "%Y-%m-%d")
+            console_print(f"\n[info]Using current date {version} as tarball version\n")
     else:  # pragma: no cover
         console_print(f"[error]Unsupported tarball type: {tarball_type}")
         exit(1)
@@ -597,7 +602,7 @@ def remove_old_releases(version, repo_root):
     os.chdir(repo_root)
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-tarball",
     help="Prepare source tarball.",
 )
@@ -632,7 +637,7 @@ def prepare_tarball(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",

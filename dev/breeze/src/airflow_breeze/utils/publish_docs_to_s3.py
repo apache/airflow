@@ -36,7 +36,19 @@ NON_SHORT_NAME_PACKAGES = ["apache-airflow", "apache-airflow-ctl", "docker-stack
 s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")
 
-version_error = False
+
+class VersionError:
+    """Class to track version errors during processing."""
+
+    version_error: bool = False
+
+    @staticmethod
+    def has_any_error() -> bool:
+        return VersionError.version_error
+
+    @staticmethod
+    def set_version_error(value: bool):
+        VersionError.version_error = value
 
 
 def get_cloudfront_distribution(destination_location):
@@ -79,7 +91,7 @@ class S3DocsPublish:
     def get_all_excluded_docs(self):
         if not self.exclude_docs:
             return []
-        excluded_docs = self.exclude_docs.split(",")
+        excluded_docs = self.exclude_docs.split(" ")
 
         # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
         if "no-docs-excluded" in excluded_docs:
@@ -326,8 +338,7 @@ class S3DocsPublish:
                 all_versions.append(Version(v))
             except ValueError as e:
                 get_console().print(f"[error]Invalid version {v}: {e}\n")
-                global version_error
-                version_error = True
+                VersionError.set_version_error(True)
         all_versions.sort(reverse=True)
         minor_versions: list[str] = []
         good_versions = []

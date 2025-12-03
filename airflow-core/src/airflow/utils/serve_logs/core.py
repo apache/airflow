@@ -18,15 +18,15 @@
 
 from __future__ import annotations
 
-import logging
 import socket
 import sys
 
+import structlog
 import uvicorn
 
 from airflow.configuration import conf
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def serve_logs(port=None):
