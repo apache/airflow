@@ -20,10 +20,10 @@ Databricks hook.
 
 This hook enable the submitting and running of jobs to the Databricks platform. Internally the
 operators talk to the
-``api/2.1/jobs/run-now``
-`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>_`
-or the ``api/2.1/jobs/runs/submit``
-`endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
+``api/2.2/jobs/run-now``
+`endpoint <https://docs.databricks.com/api/workspace/jobs/runnow>_`
+or the ``api/2.2/jobs/runs/submit``
+`endpoint <https://docs.databricks.com/api/workspace/jobs/submit>`_.
 """
 
 from __future__ import annotations
