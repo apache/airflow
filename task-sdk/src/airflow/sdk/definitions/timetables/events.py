@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 import attrs
 
-from airflow.sdk.definitions.timetables.base import BaseTimetable
+from airflow.sdk.bases.timetable import BaseTimetable
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

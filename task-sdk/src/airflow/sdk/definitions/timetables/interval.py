@@ -20,9 +20,9 @@ import datetime
 
 from dateutil.relativedelta import relativedelta
 
+from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.timetables._cron import CronMixin
 from airflow.sdk.definitions.timetables._delta import DeltaMixin
-from airflow.sdk.definitions.timetables.base import BaseTimetable
 
 Delta = datetime.timedelta | relativedelta
 

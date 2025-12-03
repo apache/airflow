@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
-from airflow.sdk.definitions.timetables.base import NullAsset  # TODO: Separate asset definitions.
+from airflow.sdk.bases.timetable import NullAsset  # TODO: Separate asset definitions.
 
 if TYPE_CHECKING:
     from pendulum import DateTime

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.sdk.definitions.timetables.base import BaseTimetable
+from airflow.sdk.bases.timetable import BaseTimetable
 
 
 class NullTimetable(BaseTimetable):

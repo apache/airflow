@@ -21,8 +21,8 @@ import typing
 
 import attrs
 
+from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
-from airflow.sdk.definitions.timetables.base import BaseTimetable
 
 if typing.TYPE_CHECKING:
     from collections.abc import Collection

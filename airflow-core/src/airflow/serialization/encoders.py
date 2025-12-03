@@ -38,9 +38,9 @@ from airflow.sdk import (
     EventsTimetable,
     MultipleCronTriggerTimetable,
 )
+from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
-from airflow.sdk.definitions.timetables.base import BaseTimetable
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
