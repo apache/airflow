@@ -792,8 +792,3 @@ class GithubEvents(Enum):
 @clearable_cache
 def github_events() -> list[str]:
     return [e.value for e in GithubEvents]
-
-
-def get_image_path_from_branch(airflow_branch: str, python_major_minor_version="3.10") -> str:
-    """Get the image path (folder) from the Airflow branch name."""
-    return f"ghcr.io/apache/airflow/{airflow_branch}/prod/python{python_major_minor_version}"
