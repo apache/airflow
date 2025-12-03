@@ -241,8 +241,8 @@ def send_mime_email(
     smtp_ssl = conf.getboolean("smtp", "SMTP_SSL")
     smtp_retry_limit = conf.getint("smtp", "SMTP_RETRY_LIMIT")
     smtp_timeout = conf.getint("smtp", "SMTP_TIMEOUT")
-    smtp_user = None
-    smtp_password = None
+    smtp_user = conf.get("smtp", "SMTP_USER", fallback=None)
+    smtp_password = conf.get("smtp", "SMTP_PASSWORD", fallback=None)
 
     if conn_id is not None:
         try:
