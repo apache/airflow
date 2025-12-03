@@ -47,15 +47,14 @@ class _TrivialTimetable(Timetable):
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        if not isinstance(other := coerce_to_core_timetable(other), type(self)):
             return NotImplemented
         return True
 
     def __hash__(self):
         return hash(self.__class__.__name__)
-
-    def serialize(self) -> dict[str, Any]:
-        return {}
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
@@ -68,7 +67,7 @@ class NullTimetable(_TrivialTimetable):
     This corresponds to ``schedule=None``.
     """
 
-    can_be_scheduled = False
+    can_be_scheduled = False  # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     description: str = "Never, external triggers only"
 
     @property
@@ -124,6 +123,7 @@ class ContinuousTimetable(_TrivialTimetable):
 
     description: str = "As frequently as possible, but only one run at a time."
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     active_runs_limit = 1  # Continuous DAGRuns should be constrained to one run at a time
 
     @property
@@ -177,7 +177,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition
+        from airflow.serialization.decoders import decode_asset_condition
 
         return cls(decode_asset_condition(data["asset_condition"]))
 
@@ -186,7 +186,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition
+        from airflow.serialization.encoders import encode_asset_condition
 
         return {"asset_condition": encode_asset_condition(self.asset_condition)}
 
