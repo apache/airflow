@@ -132,6 +132,10 @@ dependencies = [
 "mongo" = [
     "apache-airflow-providers-mongo"
 ]
+"pandas" = [
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]

@@ -48,6 +48,7 @@ Features
 * ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
 * ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
 * ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+* ``Add source to Param (#58615)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -60,10 +61,13 @@ Misc
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Remove global from task instance session (#58601)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
 
 1.9.2
 .....

@@ -87,8 +87,6 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
         return value
 
     if not is_localized(value):
-        from airflow.settings import TIMEZONE
-
         value = pendulum.instance(value, TIMEZONE)
 
     return pendulum.instance(value.astimezone(utc))
@@ -115,8 +113,6 @@ def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> 
     :return: localized datetime in settings.TIMEZONE or timezone
     """
     if timezone is None:
-        from airflow.settings import TIMEZONE
-
         timezone = TIMEZONE
 
     if not value:
@@ -150,8 +146,6 @@ def make_naive(value, timezone=None):
     :return: naive datetime
     """
     if timezone is None:
-        from airflow.settings import TIMEZONE
-
         timezone = TIMEZONE
 
     # Emulate the behavior of astimezone() on Python < 3.6.
@@ -175,8 +169,6 @@ def datetime(*args, **kwargs):
     :return: datetime.datetime
     """
     if "tzinfo" not in kwargs:
-        from airflow.settings import TIMEZONE
-
         kwargs["tzinfo"] = TIMEZONE
 
     return dt.datetime(*args, **kwargs)
@@ -190,8 +182,6 @@ def parse(string: str, timezone=None, *, strict=False) -> DateTime:
     :param timezone: the timezone
     :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
-    from airflow.settings import TIMEZONE
-
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=strict)  # type: ignore
 
 
@@ -287,6 +277,22 @@ def local_timezone() -> FixedTimezone | Timezone:
     :meta private:
     """
     return pendulum.tz.local_timezone()
+
+
+TIMEZONE: FixedTimezone | Timezone = utc
+
+
+def initialize(default_timezone: str) -> None:
+    """
+    Initialize the default timezone for the timezone library.
+
+    Automatically called by airflow-core and task-sdk during their initialization.
+    """
+    global TIMEZONE
+    if default_timezone == "system":
+        TIMEZONE = local_timezone()
+    else:
+        TIMEZONE = parse_timezone(default_timezone)
 
 
 def from_timestamp(timestamp: int | float, tz: str | FixedTimezone | Timezone = utc) -> DateTime:

@@ -551,6 +551,9 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original Dag, and honor all the Dag settings and pool configurations.
 
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
+
 .. image:: /img/ui-light/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:

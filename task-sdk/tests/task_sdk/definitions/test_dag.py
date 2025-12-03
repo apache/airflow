@@ -339,7 +339,7 @@ class TestDag:
             dag.validate()
 
     def test_continuous_schedule_linmits_max_active_runs(self):
-        from airflow.timetables.simple import ContinuousTimetable
+        from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
@@ -471,7 +471,7 @@ def test_create_dag_while_active_context():
 
 @pytest.mark.parametrize("max_active_runs", [0, 1])
 def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
-    from airflow.timetables.simple import ContinuousTimetable
+    from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
     dag = DAG(dag_id="continuous", schedule="@continuous", max_active_runs=max_active_runs)
     assert isinstance(dag.timetable, ContinuousTimetable)

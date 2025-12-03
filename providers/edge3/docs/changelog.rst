@@ -55,10 +55,12 @@ Misc
 * ``Move out some exceptions to TaskSDK (#54505)``
 * ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
 * ``Upgrade Edge TS dependencies (#58413)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
 
 1.5.0
 .....

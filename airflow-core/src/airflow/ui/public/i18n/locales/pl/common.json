@@ -102,6 +102,7 @@
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },

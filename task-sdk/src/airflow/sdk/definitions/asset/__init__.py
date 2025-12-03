@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.models.asset import AssetModel
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.serialization.serialized_objects import SerializedAssetWatcher
+    from airflow.serialization.definitions.assets import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
     AttrsInstance = attrs.AttrsInstance

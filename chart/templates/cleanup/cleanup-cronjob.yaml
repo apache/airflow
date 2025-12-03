@@ -20,7 +20,7 @@
 ################################
 ## Airflow Cleanup Pods CronJob
 #################################
-{{- if .Values.cleanup.enabled }}
+{{- if (and .Values.cleanup.enabled (contains "KubernetesExecutor" .Values.executor)) }}
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
@@ -66,7 +66,6 @@ spec:
               {{- mustMerge .Values.cleanup.labels .Values.labels | toYaml | nindent 12 }}
             {{- end }}
           annotations:
-            sidecar.istio.io/inject: "false"
             {{- if .Values.airflowPodAnnotations }}
               {{- toYaml .Values.airflowPodAnnotations | nindent 12 }}
             {{- end }}
