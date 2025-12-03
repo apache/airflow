@@ -20,28 +20,35 @@ Performance tuning (API and UI)
 
 This guide collects pragmatic tips that improve Airflow performance for API and UI workloads.
 
-Configurable metadata indexes
------------------------------
+Custom metadata indexes
+-----------------------
 
-Airflow can create additional database indexes on API startup to accelerate common queries used by the API and UI.
-This is helpful in larger deployments where filtering and lookups on high‑cardinality columns become hot paths.
+If you observe slowness in some API calls or specific UI views, you should inspect query plans and add indexes yourself
+that match your workload. Listing endpoints and UI table views with specific ordering criteria are likely
+to benefit from additional indexes if you have a large volume of metadata.
 
-Use :ref:`config:database__metadata_indexes` to declare a list of index specifications.
-Each entry must follow the ``table(column1, column2, ...)`` syntax (no schema qualification).
+When to use
+^^^^^^^^^^^
 
-- Indexes are created at API server startup. Existing indexes are detected and skipped.
-- On PostgreSQL, indexes are created ``CONCURRENTLY`` to avoid blocking writes during creation.
-- On other databases (e.g. MySQL, SQLite), a best‑effort non‑blocking creation is attempted; if not supported,
-  a standard index creation is used.
-- Only Airflow metadata tables should be targeted. Do not include schema qualifiers.
-
-When to use:
-
-- Slow API list/detail endpoints caused by frequent scans or lookups on columns like ``dag_id``, ``task_id``,
-  ``run_id``, timestamps (e.g. ``dttm``), or status fields.
+- Slow API list/detail endpoints caused by frequent scans or lookups on columns like ``start_date``, timestamps (e.g. ``dttm``), or status fields.
 - UI pages that load large lists or perform heavy filtering on metadata tables.
 
-Additional Notes:
+Guidance
+^^^^^^^^
+
+- Inspect the query planner (e.g., ``EXPLAIN``/``EXPLAIN ANALYZE``) for slow endpoints and identify missing indexes.
+- Prefer single or composite indexes that match your most common ordering logic, typically the ``order_by``
+  query parameter used in API calls. Composite indexes can cover multi criteria ordering.
+- Your optimal indexes depend on how you use the API and UI; there is no one-size-fits-all set we can ship by default.
+
+Upgrade considerations
+^^^^^^^^^^^^^^^^^^^^^^
+
+To avoid conflicts with Airflow database upgrades, delete your custom indexes before running an Airflow DB upgrade
+and re-apply them after the upgrade succeeds.
+
+Notes
+^^^^^
 
 - Review query plans (e.g. via ``EXPLAIN``) to choose effective column sets and ordering for your workload.
 - Composite indexes should list columns in selectivity order appropriate to your most common predicates.
