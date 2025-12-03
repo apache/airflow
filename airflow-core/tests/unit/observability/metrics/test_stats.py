@@ -185,6 +185,29 @@ class TestStats:
         # Avoid side-effects
         importlib.reload(airflow.observability.stats)
 
+    def test_deprecation_warning_for_old_path(self):
+        # TODO: remove this test once the deprecation warning is removed.
+        import warnings
+
+        from airflow.observability.stats import Stats
+        from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+        # Clear any cached value.
+        airflow.__dict__.pop("Stats", None)
+
+        # Old path should warn.
+        warning_pattern = "Import 'Stats' directly from the airflow module is deprecated"
+        with pytest.warns(DeprecatedImportWarning, match=warning_pattern):
+            assert getattr(airflow, "Stats") is Stats
+
+        # Clear cache again.
+        airflow.__dict__.pop("Stats", None)
+
+        # There shouldn't be a warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecatedImportWarning)
+            assert getattr(airflow.observability.stats, "Stats") is Stats
+
 
 class TestDogStats:
     def setup_method(self):
