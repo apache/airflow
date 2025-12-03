@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,35 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-# We don't want to `import *` here to avoid the risk of making adding too much to Public python API
-from airflow.sdk._shared.timezones.timezone import (
-    coerce_datetime,
-    convert_to_utc,
-    datetime,
-    initialize,
-    make_naive,
-    parse,
-    utc,
-    utcnow,
-)
+from unittest import mock
 
-try:
-    from airflow.sdk.configuration import conf
+from airflow_shared.logging.percent_formatter import PercentFormatRender
 
-    tz_str = conf.get_mandatory_value("core", "default_timezone")
-    initialize(tz_str)
-except Exception:
-    initialize("UTC")
 
-__all__ = [
-    "coerce_datetime",
-    "convert_to_utc",
-    "datetime",
-    "make_naive",
-    "parse",
-    "utc",
-    "utcnow",
-]
+class TestPercentFormatRender:
+    def test_no_callsite(self):
+        fmter = PercentFormatRender("%(filename)s:%(lineno)d %(message)s")
+
+        formatted = fmter(mock.Mock(name="Logger"), "info", {"event": "our msg"})
+
+        assert formatted == "(unknown file):0 our msg"
