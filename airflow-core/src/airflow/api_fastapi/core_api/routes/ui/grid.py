@@ -268,16 +268,22 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
-    base_query = select(
-        DagRun.dag_id,
-        DagRun.run_id,
-        DagRun.queued_at,
-        DagRun.start_date,
-        DagRun.end_date,
-        DagRun.run_after,
-        DagRun.state,
-        DagRun.run_type,
-    ).where(DagRun.dag_id == dag_id)
+    base_query = (
+        select(
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.queued_at,
+            DagRun.start_date,
+            DagRun.end_date,
+            DagRun.run_after,
+            DagRun.state,
+            DagRun.run_type,
+            DagRun.bundle_version,
+            DagVersion.version_number.label("dag_version_number"),
+        )
+        .outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+        .where(DagRun.dag_id == dag_id)
+    )
 
     # This comparison is to fall back to DAG timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:

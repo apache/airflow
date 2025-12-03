@@ -19,7 +19,6 @@
 import { Flex, Box } from "@chakra-ui/react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { BundleVersionIndicator, DagVersionIndicator } from "src/components/ui/VersionIndicator";
 import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
@@ -28,37 +27,21 @@ import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
+import type { GridRunWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import type { GridTask } from "./utils";
 
 const BAR_HEIGHT = 100;
 
 type Props = {
-  readonly bundleVersion?: string;
-  readonly dagVersionNumber?: number;
-  readonly hasMixedVersions?: boolean;
-  readonly isBundleVersionChange?: boolean;
-  readonly isDagVersionChange?: boolean;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly onColumnClick?: () => void;
-  readonly run: GridRunsResponse;
+  readonly run: GridRunWithVersionFlags;
   readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
 };
 
-export const Bar = ({
-  bundleVersion,
-  dagVersionNumber,
-  hasMixedVersions,
-  isBundleVersionChange,
-  isDagVersionChange,
-  max,
-  nodes,
-  onCellClick,
-  onColumnClick,
-  run,
-  showVersionIndicatorMode,
-}: Props) => {
+export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showVersionIndicatorMode }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
@@ -79,15 +62,15 @@ export const Bar = ({
       position="relative"
       transition="background-color 0.2s"
     >
-      {isBundleVersionChange === true &&
+      {run.isBundleVersionChange &&
       (showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
         showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
-        <BundleVersionIndicator bundleVersion={bundleVersion} />
+        <BundleVersionIndicator bundleVersion={run.bundle_version ?? undefined} />
       ) : undefined}
-      {isDagVersionChange === true &&
+      {run.isDagVersionChange &&
       (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
         showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) ? (
-        <DagVersionIndicator dagVersionNumber={dagVersionNumber} orientation="vertical" />
+        <DagVersionIndicator dagVersionNumber={run.dag_version_number ?? undefined} orientation="vertical" />
       ) : undefined}
 
       <Flex
@@ -119,7 +102,6 @@ export const Bar = ({
       </Flex>
 
       <TaskInstancesColumn
-        hasMixedVersions={hasMixedVersions}
         nodes={nodes}
         onCellClick={onCellClick}
         runId={run.run_id}

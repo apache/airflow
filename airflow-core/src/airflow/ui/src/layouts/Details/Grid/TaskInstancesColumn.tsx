@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
@@ -28,8 +29,6 @@ import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
 
 type Props = {
-  readonly depth?: number;
-  readonly hasMixedVersions?: boolean;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
@@ -38,7 +37,6 @@ type Props = {
 };
 
 export const TaskInstancesColumn = ({
-  hasMixedVersions,
   nodes,
   onCellClick,
   runId,
@@ -46,6 +44,14 @@ export const TaskInstancesColumn = ({
   taskInstances,
 }: Props) => {
   const { dagId = "" } = useParams();
+
+  const hasMixedVersions = useMemo(() => {
+    const versionNumbers = new Set(
+      taskInstances.map((ti) => ti.dag_version_number).filter((vn) => vn !== null && vn !== undefined),
+    );
+
+    return versionNumbers.size > 1;
+  }, [taskInstances]);
 
   return nodes.map((node, idx) => {
     // todo: how does this work with mapped? same task id for multiple tis
@@ -73,12 +79,12 @@ export const TaskInstancesColumn = ({
 
     return (
       <Box key={node.id} position="relative">
-        {hasVersionChangeFlag ? (
+        {hasVersionChangeFlag && (
           <DagVersionIndicator
             dagVersionNumber={taskInstance.dag_version_number ?? undefined}
             orientation="horizontal"
           />
-        ) : undefined}
+        )}
         <GridTI
           dagId={dagId}
           instance={taskInstance}

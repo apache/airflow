@@ -146,9 +146,8 @@ export const Grid = ({
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  // Fetch version info and calculate version change flags
+  // calculate version change flags
   const runsWithVersionFlags = useGridRunsWithVersionFlags({
-    dagId,
     gridRuns,
     showVersionIndicatorMode,
   });
@@ -203,11 +202,6 @@ export const Grid = ({
           <Flex flexDirection="row-reverse">
             {runsWithVersionFlags?.map((dr) => (
               <Bar
-                bundleVersion={dr.bundleVersion}
-                dagVersionNumber={dr.dagVersionNumber}
-                hasMixedVersions={dr.hasMixedVersions}
-                isBundleVersionChange={dr.isBundleVersionChange}
-                isDagVersionChange={dr.isDagVersionChange}
                 key={dr.run_id}
                 max={max}
                 nodes={flatNodes}

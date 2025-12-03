@@ -16,97 +16,56 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueries } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { UseDagRunServiceGetDagRunKeyFn } from "openapi/queries";
 import type { GridRunsResponse } from "openapi/requests";
-import { DagRunService } from "openapi/requests/services.gen";
 import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 
 export type GridRunWithVersionFlags = {
-  bundleVersion?: string;
-  dagVersionNumber?: number;
-  hasMixedVersions: boolean;
   isBundleVersionChange: boolean;
   isDagVersionChange: boolean;
 } & GridRunsResponse;
 
 type UseGridRunsWithVersionFlagsParams = {
-  dagId: string;
   gridRuns: Array<GridRunsResponse> | undefined;
   showVersionIndicatorMode?: VersionIndicatorDisplayOption;
 };
 
-// Hook to fetch version information and calculate version change flags for grid runs.
-// Skips API calls when version indicators are disabled.
+// Hook to calculate version change flags for grid runs.
 export const useGridRunsWithVersionFlags = ({
-  dagId,
   gridRuns,
   showVersionIndicatorMode,
 }: UseGridRunsWithVersionFlagsParams): Array<GridRunWithVersionFlags> | undefined => {
-  // Skip API calls when version indicators are disabled
   const isVersionIndicatorEnabled = showVersionIndicatorMode !== VersionIndicatorDisplayOptions.NONE;
-
-  const dagRunQueries = useQueries({
-    queries: (gridRuns ?? []).map((run) => ({
-      enabled: isVersionIndicatorEnabled && Boolean(dagId) && Boolean(run.run_id),
-      queryFn: () => DagRunService.getDagRun({ dagId, dagRunId: run.run_id }),
-      queryKey: UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId: run.run_id }),
-    })),
-  });
 
   return useMemo(() => {
     if (!gridRuns) {
       return undefined;
     }
 
-    // When NONE mode, skip all version calculations and API calls
     if (!isVersionIndicatorEnabled) {
-      return gridRuns.map((run) => ({
-        ...run,
-        bundleVersion: undefined,
-        dagVersionNumber: undefined,
-        hasMixedVersions: false,
-        isBundleVersionChange: false,
-        isDagVersionChange: false,
-      }));
+      return gridRuns.map((run) => ({ ...run, isBundleVersionChange: false, isDagVersionChange: false }));
     }
 
     return gridRuns.map((run, index) => {
-      const currentDagRunData = dagRunQueries[index]?.data;
-      const prevDagRunData = dagRunQueries[index + 1]?.data;
+      const prevRun = gridRuns[index + 1];
 
-      // Get Dag versions info
-      const currentDagVersions = currentDagRunData?.dag_versions;
-      const prevDagVersions = prevDagRunData?.dag_versions;
-      const currentDagVersionNumber = currentDagVersions?.at(-1)?.version_number;
-      const prevDagVersionNumber = prevDagVersions?.at(-1)?.version_number;
-      const hasMixedVersions = (currentDagVersions?.length ?? 0) > 1;
+      const isBundleVersionChange = Boolean(
+        prevRun &&
+          run.bundle_version !== null &&
+          prevRun.bundle_version !== null &&
+          run.bundle_version !== prevRun.bundle_version,
+      );
 
-      // Get Bundle version info
-      const currentBundleVersion = currentDagRunData?.bundle_version ?? undefined;
-      const prevBundleVersion = prevDagRunData?.bundle_version ?? undefined;
+      const isDagVersionChange = Boolean(
+        prevRun &&
+          run.dag_version_number !== null &&
+          prevRun.dag_version_number !== null &&
+          run.dag_version_number !== prevRun.dag_version_number,
+      );
 
-      return {
-        ...run,
-        bundleVersion: currentBundleVersion,
-        dagVersionNumber: currentDagVersionNumber,
-        hasMixedVersions,
-        isBundleVersionChange: Boolean(
-          prevDagRunData &&
-            currentBundleVersion !== undefined &&
-            prevBundleVersion !== undefined &&
-            currentBundleVersion !== prevBundleVersion,
-        ),
-        isDagVersionChange: Boolean(
-          prevDagRunData &&
-            currentDagVersionNumber !== undefined &&
-            prevDagVersionNumber !== undefined &&
-            currentDagVersionNumber !== prevDagVersionNumber,
-        ),
-      };
+      return { ...run, isBundleVersionChange, isDagVersionChange };
     });
-  }, [gridRuns, dagRunQueries, isVersionIndicatorEnabled]);
+  }, [gridRuns, isVersionIndicatorEnabled]);
 };
