@@ -27,14 +27,15 @@ if TYPE_CHECKING:
 
 
 def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
-    host = conf.get("traces", "otel_host")
-    port = conf.getint("traces", "otel_port")
-    ssl_active = conf.getboolean("traces", "otel_ssl_active")
-
-    otel_service = conf.get("traces", "otel_service")
-    debug = conf.getboolean("traces", "otel_debugging_on")
-
-    return otel_tracer.get_otel_tracer(cls, use_simple_processor, host, port, ssl_active, otel_service, debug)
+    return otel_tracer.get_otel_tracer(
+        cls,
+        use_simple_processor,
+        host=conf.get("traces", "otel_host"),
+        port=conf.getint("traces", "otel_port"),
+        ssl_active=conf.getboolean("traces", "otel_ssl_active"),
+        otel_service=conf.get("traces", "otel_service"),
+        debug=conf.getboolean("traces", "otel_debugging_on"),
+    )
 
 
 def get_otel_tracer_for_task(cls) -> OtelTrace:

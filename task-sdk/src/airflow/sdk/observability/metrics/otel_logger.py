@@ -26,32 +26,18 @@ if TYPE_CHECKING:
 
 
 def get_otel_logger(cls) -> SafeOtelLogger:
-    host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
-    port = conf.getint("metrics", "otel_port")  # ex: 4318
-    prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
-    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
-    # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
-    debug = conf.getboolean("metrics", "otel_debugging_on")
-    service_name = conf.get("metrics", "otel_service")
-
-    metrics_allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
-    metrics_block_list = conf.get("metrics", "metrics_block_list", fallback=None)
-
-    stat_name_handler = conf.getimport("metrics", "stat_name_handler")
-    statsd_influxdb_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
-
     return otel_logger.get_otel_logger(
         cls,
-        host,
-        port,
-        prefix,
-        ssl_active,
-        conf_interval,
-        debug,
-        service_name,
-        metrics_allow_list,
-        metrics_block_list,
-        stat_name_handler,
-        statsd_influxdb_enabled,
+        host=conf.get("metrics", "otel_host"),  # ex: "breeze-otel-collector"
+        port=conf.getint("metrics", "otel_port"),  # ex: 4318
+        prefix=conf.get("metrics", "otel_prefix"),  # ex: "airflow"
+        ssl_active=conf.getboolean("metrics", "otel_ssl_active"),
+        # PeriodicExportingMetricReader will default to an interval of 60000 millis.
+        conf_interval=conf.getfloat("metrics", "otel_interval_milliseconds", fallback=None),  # ex: 30000
+        debug=conf.getboolean("metrics", "otel_debugging_on"),
+        service_name=conf.get("metrics", "otel_service"),
+        metrics_allow_list=conf.get("metrics", "metrics_allow_list", fallback=None),
+        metrics_block_list=conf.get("metrics", "metrics_block_list", fallback=None),
+        stat_name_handler=conf.getimport("metrics", "stat_name_handler"),
+        statsd_influxdb_enabled=conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False),
     )
