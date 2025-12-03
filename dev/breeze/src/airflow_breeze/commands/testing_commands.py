@@ -922,14 +922,15 @@ def airflowctl_integration_tests(
         os.environ["AIRFLOW_CORE_BRANCH"] = airflow_core_branch
 
     image_name = image_name or os.getenv("DOCKER_IMAGE")
-    get_console().print(f"[info]Using Airflow Core Branch: {os.getenv('AIRFLOW_CORE_BRANCH', 'main')}[/]")
-    get_console().print(f"[info]Using Docker image: {image_name}[/]")
     if image_name is None:
-        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        build_params = BuildProdParams(
+            python=python, github_repository=github_repository, airflow_branch=airflow_core_branch
+        )
         image_name = build_params.airflow_image_name
 
     get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
     get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
+    get_console().print(f"[info]Using Airflow core branch: {os.getenv('AIRFLOW_CORE_BRANCH', 'main')}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
