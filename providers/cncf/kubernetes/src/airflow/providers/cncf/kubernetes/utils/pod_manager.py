@@ -543,7 +543,7 @@ class PodManager(LoggingMixin):
                     "Pod %s log read interrupted but container %s still running. Error: %s. Logs generated in the last one second might get duplicated.",
                     pod.metadata.name,
                     container_name,
-                    str(exc),
+                    exc,
                 )
             time.sleep(1)
 
