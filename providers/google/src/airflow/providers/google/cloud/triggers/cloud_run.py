@@ -21,6 +21,8 @@ from collections.abc import AsyncIterator, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from google.cloud.run_v2.types import Execution
+
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -116,10 +118,21 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                         }
                     )
                 else:
+                    # Parse the Execution object from operation.response to get execution details
+                    execution = Execution()
+                    if not operation.response.Unpack(execution):
+                        raise AirflowException(
+                            f"Failed to unpack Execution from operation response. "
+                            f"Operation: {self.operation_name}, Job: {self.job_name}"
+                        )
+
                     yield TriggerEvent(
                         {
                             "status": RunJobStatus.SUCCESS.value,
                             "job_name": self.job_name,
+                            "task_count": execution.task_count,
+                            "succeeded_count": execution.succeeded_count,
+                            "failed_count": execution.failed_count,
                         }
                     )
                 return
