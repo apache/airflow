@@ -19,12 +19,12 @@
 from __future__ import annotations
 
 # Re-export all listener functionality for SDK usage
-from airflow.sdk._shared.listeners import *  # noqa: F403, F401
-from airflow.sdk._shared.listeners import hookimpl  # noqa: F401
-from airflow.sdk._shared.listeners.listener import ListenerManager, get_listener_manager  # noqa: F401
-
 # Re-export spec modules
-from airflow.sdk._shared.listeners import spec  # noqa: F401
+from airflow.sdk._shared.listeners import (
+    hookimpl,
+    spec,
+)
+from airflow.sdk._shared.listeners.listener import ListenerManager, get_listener_manager
 
 __all__ = [
     "hookimpl",
