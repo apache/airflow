@@ -25,7 +25,6 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
-import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import { CELL_HEIGHT } from "./utils";
