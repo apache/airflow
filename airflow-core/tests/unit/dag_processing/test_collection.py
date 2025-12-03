@@ -53,7 +53,7 @@ from airflow.models.dag import DagTag
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
@@ -140,10 +140,9 @@ class TestAssetModelOperation:
     def test_add_asset_trigger_references(
         self, dag_maker, session, is_active, is_paused, expected_num_triggers
     ):
-        classpath, kwargs = TimeDeltaTrigger(timedelta(seconds=0)).serialize()
         asset = Asset(
             "test_add_asset_trigger_references_asset",
-            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
+            watchers=[AssetWatcher(name="test", trigger=FileDeleteTrigger(mock.Mock()))],
         )
 
         with dag_maker(dag_id="test_add_asset_trigger_references_dag", schedule=[asset]) as dag:

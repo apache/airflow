@@ -78,7 +78,7 @@ from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
@@ -6907,7 +6907,7 @@ class TestSchedulerJob:
             pytest.param(
                 False,
                 False,
-                "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                "airflow.providers.standard.triggers.file.FileDeleteTrigger",
                 id="active",
             ),
             pytest.param(False, True, None, id="stale"),
@@ -6917,13 +6917,12 @@ class TestSchedulerJob:
     )
     @pytest.mark.need_serialized_dag(False)
     def test_delete_unreferenced_triggers(self, dag_maker, session, paused, stale, expected_classpath):
+        trigger = FileDeleteTrigger(mock.Mock())
+        classpath = "airflow.providers.standard.triggers.file.FileDeleteTrigger"
+
         self.job_runner = SchedulerJobRunner(job=Job())
 
-        classpath, kwargs = DateTimeTrigger(timezone.utcnow()).serialize()
-        asset1 = Asset(
-            name="test_asset_1",
-            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
-        )
+        asset1 = Asset(name="test_asset_1", watchers=[AssetWatcher(name="test", trigger=trigger)])
         with dag_maker(dag_id="dag", schedule=[asset1], session=session) as dag:
             EmptyOperator(task_id="task")
         dags = {"dag": LazyDeserializedDAG.from_dag(dag)}
