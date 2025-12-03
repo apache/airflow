@@ -199,7 +199,6 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                   justifyContent="center"
                   position="relative"
                   w={0.5}
-                  // onClick={(e) => console.log(e)}
                 />
               </PanelResizeHandle>
 

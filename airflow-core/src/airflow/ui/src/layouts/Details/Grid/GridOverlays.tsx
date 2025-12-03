@@ -52,7 +52,7 @@ export const GridOverlays = ({
       zIndex={0}
     >
       <Box
-        bg="blue.500/20"
+        bg="blue.solid/20"
         height={`${CELL_HEIGHT}px`}
         left={0}
         opacity={0}
@@ -66,7 +66,7 @@ export const GridOverlays = ({
         zIndex={0}
       />
       <Box
-        bg="blue.500/20"
+        bg="blue.solid/20"
         height={`${gridHeight + BAR_HEADER_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"
@@ -81,7 +81,7 @@ export const GridOverlays = ({
       />
 
       <Box
-        bg="blue.500/20"
+        bg="blue.solid/20"
         height={`${CELL_HEIGHT}px`}
         left={0}
         opacity={0}
@@ -95,7 +95,7 @@ export const GridOverlays = ({
         zIndex={0}
       />
       <Box
-        bg="blue.500/20"
+        bg="blue.solid/20"
         height={`${gridHeight + BAR_HEADER_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"
@@ -109,9 +109,7 @@ export const GridOverlays = ({
         zIndex={0}
       />
       <Box
-        border="2px solid"
-        borderColor="blue.500"
-        borderRadius="sm"
+        bg="blue.solid/20"
         height={`${CELL_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"

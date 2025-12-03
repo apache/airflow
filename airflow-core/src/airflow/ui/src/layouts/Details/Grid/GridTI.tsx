@@ -69,7 +69,6 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     <Flex
       alignItems="center"
       bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
-      data-grid-cell
       height={`${CELL_HEIGHT}px`}
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
