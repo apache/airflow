@@ -25,7 +25,7 @@ from sqlalchemy import exc, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow.configuration import conf
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,

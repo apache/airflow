@@ -25,7 +25,7 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow.assets.manager import AssetManager
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,

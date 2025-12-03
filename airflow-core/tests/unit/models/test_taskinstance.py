@@ -2417,7 +2417,7 @@ class TestTaskInstance:
         start_date = timezone.datetime(2016, 6, 1)
         clear_db_runs()
 
-        from airflow.listeners.listener import get_listener_manager
+        from airflow.listeners import get_listener_manager
 
         listener_callback_on_error = mock.MagicMock()
         get_listener_manager().pm.hook.on_task_instance_failed = listener_callback_on_error

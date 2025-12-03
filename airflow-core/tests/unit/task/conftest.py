@@ -28,6 +28,6 @@ def reset_to_default_logging():
     """
     yield
 
-    from airflow.listeners.listener import get_listener_manager
+    from airflow.listeners import get_listener_manager
 
     get_listener_manager().clear()

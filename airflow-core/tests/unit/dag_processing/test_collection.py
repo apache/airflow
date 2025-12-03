@@ -41,7 +41,7 @@ from airflow.dag_processing.collection import (
     update_dag_parsing_results_in_db,
 )
 from airflow.exceptions import SerializationError
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import (
     AssetActive,

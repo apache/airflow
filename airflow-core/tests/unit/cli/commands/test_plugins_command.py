@@ -26,7 +26,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sdk import BaseOperatorLink
 

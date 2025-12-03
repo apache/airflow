@@ -28,7 +28,7 @@ from sqlalchemy.exc import OperationalError
 from airflow._shared.timezones import timezone
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, most_recent_job, perform_heartbeat, run_job
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
