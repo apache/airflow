@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import logging
 import os
 import random
@@ -260,7 +259,7 @@ class OtelTrace:
         tracer = self.get_tracer(component=component)
 
         if start_time is None:
-            start_time = datetime.datetime.now(tz=pendulum.UTC)
+            start_time = pendulum.now(tz=pendulum.UTC)
 
         if links is None:
             links = []
