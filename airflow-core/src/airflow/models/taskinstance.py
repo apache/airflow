@@ -1297,10 +1297,11 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sdk.definitions.dag import _run_task
 
         if mark_success:
+            previous_state = self.state
             self.set_state(TaskInstanceState.SUCCESS)
             try:
                 get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=self
+                    previous_state=previous_state, task_instance=self
                 )
             except Exception:
                 log.exception("error calling listener")
