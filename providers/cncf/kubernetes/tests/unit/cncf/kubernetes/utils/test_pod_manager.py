@@ -47,6 +47,33 @@ if TYPE_CHECKING:
     from pendulum import DateTime
 
 
+@pytest.fixture
+def pod_factory():
+    def _make(
+        *,
+        pod_phase: PodPhase = PodPhase.RUNNING,
+        container_name: str = "base",
+        terminated: bool = False,
+        waiting_reason: str | None = None,
+        waiting_message: str | None = None,
+    ) -> mock.MagicMock:
+        pod = mock.MagicMock()
+        pod.status.phase = pod_phase
+        cs = mock.MagicMock()
+        cs.name = container_name
+        cs.state = mock.MagicMock()
+        cs.state.terminated = mock.MagicMock(finished_at=pendulum.now()) if terminated else None
+        cs.state.waiting = (
+            mock.MagicMock(reason=waiting_reason, message=waiting_message or "") if waiting_reason else None
+        )
+        pod.status.container_statuses = [cs]
+        c_spec = mock.MagicMock(name=container_name)
+        pod.spec.containers = [c_spec]
+        return pod
+
+    return _make
+
+
 def test_parse_log_line():
     log_message = "This should return no timestamp"
     timestamp, line = parse_log_line(log_message)
@@ -654,12 +681,13 @@ class TestPodManager:
             )
 
     @pytest.mark.asyncio
-    async def test_start_pod_raises_fast_error_on_image_error(self):
+    @pytest.mark.parametrize("fail_reason", ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"])
+    async def test_start_pod_raises_fast_error_on_image_error(self, fail_reason):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         container_statuse = mock.MagicMock()
         waiting_state = mock.MagicMock()
-        waiting_state.reason = "ErrImagePull"
+        waiting_state.reason = fail_reason
         waiting_state.message = "Test error"
         container_statuse.state.waiting = waiting_state
         pod_response.status.container_statuses = [container_statuse]
@@ -904,6 +932,49 @@ class TestPodManager:
         self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod)
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
 
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_terminal_phase(self, mock_sleep, pod_factory):
+        pending = pod_factory(pod_phase=PodPhase.PENDING)
+        running = pod_factory(pod_phase=PodPhase.RUNNING)
+        succeeded = pod_factory(pod_phase=PodPhase.SUCCEEDED)
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[pending, running, succeeded])
+
+        result = self.pod_manager.await_pod_completion(pod=mock.MagicMock(), istio_enabled=False)
+
+        assert result is succeeded
+        assert mock_sleep.call_count == 2
+
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_istio_container_completed(self, mock_sleep, pod_factory):
+        running1 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=False)
+        running2 = pod_factory(pod_phase=PodPhase.RUNNING, container_name="base", terminated=True)
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, running2])
+
+        result = self.pod_manager.await_pod_completion(
+            pod=mock.MagicMock(), istio_enabled=True, container_name="base"
+        )
+
+        assert result is running2
+        assert mock_sleep.call_count == 1
+
+    @mock.patch("time.sleep")
+    def test_await_pod_completion_breaks_on_early_termination_issue(self, mock_sleep, pod_factory):
+        running1 = pod_factory(pod_phase=PodPhase.PENDING, container_name="base")
+        running2 = pod_factory(
+            pod_phase=PodPhase.PENDING,
+            container_name="base",
+            waiting_reason="ImagePullBackOff",
+            waiting_message="Back-off pulling image",
+        )
+
+        self.pod_manager.read_pod = mock.MagicMock(side_effect=[running1, running2])
+
+        result = self.pod_manager.await_pod_completion(pod=mock.MagicMock(), istio_enabled=False)
+
+        assert result is running2
+        assert mock_sleep.call_count == 1
+
 
 class TestAsyncPodManager:
     @pytest.fixture
@@ -1125,12 +1196,13 @@ class TestAsyncPodManager:
         self.mock_async_hook.get_pod.assert_called()
 
     @pytest.mark.asyncio
-    async def test_start_pod_raises_fast_error_on_image_error(self):
+    @pytest.mark.parametrize("fail_reason", ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"])
+    async def test_start_pod_raises_fast_error_on_image_error(self, fail_reason):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
         container_status = mock.MagicMock()
         waiting_state = mock.MagicMock()
-        waiting_state.reason = "ErrImagePull"
+        waiting_state.reason = fail_reason
         waiting_state.message = "Test error"
         container_status.state.waiting = waiting_state
         pod_response.status.container_statuses = [container_status]
