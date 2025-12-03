@@ -105,9 +105,20 @@ def get_xcom_entry(
         # used on workers during task execution. The API reads directly from the database and uses
         # stringify() to convert DB values (references or serialized data) to human readable
         # format for UI display or for API users.
+        import json
+
         from airflow.serialization.stringify import stringify as stringify_xcom
 
-        item.value = stringify_xcom(result.value)
+        try:
+            parsed_value = json.loads(result.value)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            parsed_value = result.value
+
+        try:
+            item.value = stringify_xcom(parsed_value)
+        except ValueError:
+            item.value = XComModel.deserialize_value(result)
     else:
         # For native format, return the raw serialized value from the database
         # This preserves the JSON string format that the API expects

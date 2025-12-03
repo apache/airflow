@@ -106,6 +106,13 @@ def stringify(o: T | None) -> object:
     if not classname:
         raise TypeError("classname cannot be empty")
 
+    # Early detection for `airflow.` classes. These classes will need full deserialization, not just stringification
+    if isinstance(classname, str) and classname.startswith("airflow."):
+        raise ValueError(
+            f"Cannot stringify Airflow class '{classname}'. "
+            f"Use XComModel.deserialize_value() to deserialize Airflow classes."
+        )
+
     result = _stringify_builtin_collection(classname, value)
     if result is not None:
         return result

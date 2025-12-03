@@ -228,3 +228,10 @@ class TestStringify:
         }
         result = stringify(e)
         assert result == {"key1": "(1,2)", "key2": "value"}
+
+    def test_error_thrown_for_airflow_classes(self):
+        from airflow.sdk import AssetAlias
+
+        e = serialize(AssetAlias("x"))
+        with pytest.raises(ValueError, match="Cannot stringify Airflow class"):
+            stringify(e)
