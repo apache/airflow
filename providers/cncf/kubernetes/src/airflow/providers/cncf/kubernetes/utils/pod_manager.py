@@ -522,8 +522,9 @@ class PodManager(LoggingMixin):
                 # Log only if more than 2 errors occurred in the last 60 seconds
                 if len(self._http_error_timestamps) > 2:
                     self.log.exception(
-                        "Reading of logs interrupted for container %r; will retry.",
+                        "Reading of logs interrupted for container %r; will retry. Error: %s",
                         container_name,
+                        str(e),
                     )
             return last_captured_timestamp or since_time, exception
 
@@ -540,9 +541,10 @@ class PodManager(LoggingMixin):
             # a timeout is a normal thing and we ignore it and resume following logs
             if not isinstance(exc, TimeoutError):
                 self.log.warning(
-                    "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
+                    "Pod %s log read interrupted but container %s still running. Error: %s. Logs generated in the last one second might get duplicated.",
                     pod.metadata.name,
                     container_name,
+                    str(exc) if exc else "Unknown error",
                 )
             time.sleep(1)
 
