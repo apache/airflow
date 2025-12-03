@@ -889,7 +889,6 @@ def task_sdk_integration_tests(
 @option_include_success_outputs
 @option_verbose
 @option_dry_run
-@option_airflow_core_branch
 @click.option(
     "--airflow-ctl-version",
     help="Version of airflowctl to test",
@@ -897,6 +896,7 @@ def task_sdk_integration_tests(
     show_default=True,
     envvar="AIRFLOW_CTL_VERSION",
 )
+@option_airflow_core_branch
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflowctl_integration_tests(
     python: str,
@@ -915,8 +915,15 @@ def airflowctl_integration_tests(
     perform_environment_checks()
     if airflow_ctl_version:
         os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
-    image_name = image_name or get_image_path_from_branch(airflow_branch=airflow_core_branch)
 
+    if airflow_core_branch:
+        # Taking precedence over image_name passed because we are generating image path from branch
+        image_name = get_image_path_from_branch(airflow_branch=airflow_core_branch)
+        os.environ["AIRFLOW_CORE_BRANCH"] = airflow_core_branch
+
+    image_name = image_name or os.getenv("DOCKER_IMAGE")
+    get_console().print(f"[info]Using Airflow Core Branch: {os.getenv('AIRFLOW_CORE_BRANCH', 'main')}[/]")
+    get_console().print(f"[info]Using Docker image: {image_name}[/]")
     if image_name is None:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
