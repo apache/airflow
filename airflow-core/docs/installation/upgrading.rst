@@ -58,7 +58,7 @@ How to upgrade
 ==============
 
 To upgrade Apache Airflow® installed as PyPI package, rerun the ``pip install`` command in your environment using the desired version set in ``AIRFLOW_VERSION`` environment variable
-as a constraint. For more detailed guidance, see chapter "Installation and upgrade scenarios" from :doc:`/installation/installing-from-pypi.html#installation-and-upgrade-scenarios`.
+as a constraint. For more detailed guidance, see chapter "Installation and upgrade scenarios" from :doc:`/installation/installing-from-pypi`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
