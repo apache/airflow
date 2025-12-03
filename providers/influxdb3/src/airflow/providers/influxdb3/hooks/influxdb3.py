@@ -63,7 +63,7 @@ class InfluxDB3Hook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.influxdb3_conn_id = conn_id
-        self.connection: Connection | None = kwargs.pop("connection", None)
+        self.connection = kwargs.pop("connection", None)
         self.client: InfluxDBClient3 | None = None
         self.extras: dict[str, Any] = {}
         self.uri: str | None = None
