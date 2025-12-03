@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 import structlog
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -268,6 +268,18 @@ def get_grid_runs(
     triggering_user: QueryDagRunTriggeringUserSearch,
 ) -> list[GridRunsResponse]:
     """Get info about a run for the grid."""
+    # get the highest dag_version_number from TIs for each run
+    latest_ti_version = (
+        select(
+            TaskInstance.run_id,
+            func.max(DagVersion.version_number).label("version_number"),
+        )
+        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+        .where(TaskInstance.dag_id == dag_id)
+        .group_by(TaskInstance.run_id)
+        .subquery()
+    )
+
     base_query = (
         select(
             DagRun.dag_id,
@@ -279,9 +291,9 @@ def get_grid_runs(
             DagRun.state,
             DagRun.run_type,
             DagRun.bundle_version,
-            DagVersion.version_number.label("dag_version_number"),
+            latest_ti_version.c.version_number.label("dag_version_number"),
         )
-        .outerjoin(DagVersion, DagRun.created_dag_version_id == DagVersion.id)
+        .outerjoin(latest_ti_version, DagRun.run_id == latest_ti_version.c.run_id)
         .where(DagRun.dag_id == dag_id)
     )
 
