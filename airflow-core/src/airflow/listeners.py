@@ -14,7 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Compatibility imports for listeners module.
+"""
+Compatibility imports for listeners module.
 
 This module provides backwards compatibility for imports from airflow.listeners.
 The actual implementation is now in airflow._shared.listeners.
@@ -23,12 +24,12 @@ The actual implementation is now in airflow._shared.listeners.
 from __future__ import annotations
 
 # Re-export all listener functionality for backwards compatibility
-from airflow._shared.listeners import *  # noqa: F403, F401
-from airflow._shared.listeners import hookimpl  # noqa: F401
-from airflow._shared.listeners.listener import ListenerManager, get_listener_manager  # noqa: F401
-
 # Re-export spec modules for backwards compatibility
-from airflow._shared.listeners import spec  # noqa: F401
+from airflow._shared.listeners import (
+    hookimpl,
+    spec,
+)
+from airflow._shared.listeners.listener import ListenerManager, get_listener_manager
 
 __all__ = [
     "hookimpl",

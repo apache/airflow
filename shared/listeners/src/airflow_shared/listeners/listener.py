@@ -42,7 +42,7 @@ class ListenerManager:
     """Manage listener registration and provides hook property for calling them."""
 
     def __init__(self):
-        from .spec import (  # noqa: TID252
+        from .spec import (
             asset,
             dagrun,
             importerrors,
@@ -82,14 +82,16 @@ class ListenerManager:
 def get_listener_manager() -> ListenerManager:
     """Get singleton listener manager."""
     _listener_manager = ListenerManager()
-    
+
     # Only integrate plugins in server context (scheduler, API, etc.)
     # Skip in client context (workers, task-sdk) as they don't need plugins
     import os
+
     process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
     if process_context != "client":
         # Late import to avoid dependency in client context
         from airflow.plugins_manager import integrate_listener_plugins
+
         integrate_listener_plugins(_listener_manager)
-    
+
     return _listener_manager

@@ -18,8 +18,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from airflow_shared.listeners import hookimpl
 from airflow_shared.listeners.listener import ListenerManager, get_listener_manager
 
@@ -42,42 +40,42 @@ class TestListenerManager:
     def test_add_listener(self):
         """Test adding a listener module."""
         lm = get_listener_manager()
-        
+
         # Create a simple test listener module
         class TestListener:
             @hookimpl
             def on_task_instance_running(self, previous_state, task_instance):
                 pass
-        
+
         test_listener = TestListener()
-        
+
         # Clear existing listeners first
         lm.clear()
-        
+
         # Add the listener
         lm.add_listener(test_listener)
-        
+
         # Verify it was added
         assert test_listener in lm.pm.get_plugins()
 
     def test_clear_listeners(self):
         """Test clearing all listeners."""
         lm = get_listener_manager()
-        
+
         # Create a simple test listener module
         class TestListener:
             @hookimpl
             def on_task_instance_running(self, previous_state, task_instance):
                 pass
-        
+
         test_listener = TestListener()
-        
+
         # Add a listener
         lm.add_listener(test_listener)
-        
+
         # Clear all listeners
         lm.clear()
-        
+
         # Verify no plugins remain (except built-in ones)
         plugins = lm.pm.get_plugins()
         assert test_listener not in plugins
@@ -85,22 +83,22 @@ class TestListenerManager:
     def test_has_listeners(self):
         """Test checking if listeners are registered."""
         lm = get_listener_manager()
-        
+
         # Clear first
         lm.clear()
-        
+
         # Should have no listeners initially (except built-in)
         # Note: has_listeners checks if there are any hook implementations
         # We can't easily test this without actual hook implementations
-        
+
         # Create a listener with actual hook implementation
         class TestListener:
             @hookimpl
             def on_task_instance_running(self, previous_state, task_instance):
                 pass
-        
+
         test_listener = TestListener()
         lm.add_listener(test_listener)
-        
+
         # Now it should have listeners
         assert lm.has_listeners
