@@ -181,7 +181,6 @@ export const Grid = ({
     tasks: flatNodes,
   });
 
-  // Event Delegation: Handle all mouse movement in one place
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!gridRef.current) {
       return;
@@ -193,7 +192,6 @@ export const Grid = ({
     const mouseY = event.clientY - rect.top;
 
     // Calculate indices
-    // Cells start after GRID_PADDING_TOP + BAR_HEADER_HEIGHT
     const cellsTopPosition = GRID_PADDING_TOP + BAR_HEADER_HEIGHT;
     const rowIndex = Math.floor((mouseY - cellsTopPosition) / CELL_HEIGHT);
 

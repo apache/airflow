@@ -305,7 +305,7 @@ export const Gantt = ({
     >
       {/* Local hover overlay for Gantt - binds to hoverRowRef from parent */}
       <Box
-        bg="blue.500/20"
+        bg="info.muted"
         height={`${CHART_ROW_HEIGHT}px`}
         left={0}
         opacity={0}

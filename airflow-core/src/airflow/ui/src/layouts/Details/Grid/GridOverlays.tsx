@@ -49,10 +49,10 @@ export const GridOverlays = ({
       position="absolute"
       right={0}
       top={0}
-      zIndex={0}
+      zIndex={-1}
     >
       <Box
-        bg="blue.solid/20"
+        bg="info.muted"
         height={`${CELL_HEIGHT}px`}
         left={0}
         opacity={0}
@@ -63,10 +63,10 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width="100%"
         willChange="transform, opacity"
-        zIndex={0}
+        zIndex={-1}
       />
       <Box
-        bg="blue.solid/20"
+        bg="info.muted"
         height={`${gridHeight + BAR_HEADER_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"
@@ -77,11 +77,11 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={0}
+        zIndex={-1}
       />
 
       <Box
-        bg="blue.solid/20"
+        bg="info.muted"
         height={`${CELL_HEIGHT}px`}
         left={0}
         opacity={0}
@@ -92,10 +92,10 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width="100%"
         willChange="transform, opacity"
-        zIndex={0}
+        zIndex={-1}
       />
       <Box
-        bg="blue.solid/20"
+        bg="info.muted"
         height={`${gridHeight + BAR_HEADER_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"
@@ -106,10 +106,10 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={0}
+        zIndex={-1}
       />
       <Box
-        bg="blue.solid/20"
+        bg="info.muted"
         height={`${CELL_HEIGHT}px`}
         opacity={0}
         pointerEvents="none"
@@ -120,7 +120,7 @@ export const GridOverlays = ({
         transition="transform 0.05s linear, opacity 0.1s ease-out"
         width={`${CELL_WIDTH}px`}
         willChange="transform, opacity"
-        zIndex={0}
+        zIndex={-1}
       />
     </Box>
   );
