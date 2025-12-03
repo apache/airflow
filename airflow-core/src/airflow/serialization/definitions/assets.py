@@ -18,10 +18,12 @@
 
 from __future__ import annotations
 
-from airflow.sdk import AssetWatcher  # TODO: Implement serialized assets.
+import attrs
 
 
-class SerializedAssetWatcher(AssetWatcher):
+@attrs.define
+class SerializedAssetWatcher:
     """JSON serializable representation of an asset watcher."""
 
+    name: str
     trigger: dict
