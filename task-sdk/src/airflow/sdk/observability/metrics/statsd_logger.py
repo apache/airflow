@@ -49,7 +49,7 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
 
     return statsd_logger.get_statsd_logger(
         cls,
-        stats_class,
+        stats_class=stats_class,
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
         prefix=conf.get("metrics", "statsd_prefix"),
