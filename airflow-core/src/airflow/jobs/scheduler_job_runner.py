@@ -62,6 +62,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
@@ -2733,20 +2734,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Check assets orphanization and update their active entry.
 
-        An orphaned asset is no longer referenced in any DAG schedule parameters
-        or task outlets. Active assets (non-orphaned) have entries in AssetActive
-        and must have unique names and URIs.
+        An orphaned asset is no longer referenced in any DAG schedule parameters,
+        task outlets, or task inlets. Active assets (non-orphaned) have entries in
+        AssetActive and must have unique names and URIs.
 
         :seealso: :meth:`AssetModelOperation.activate_assets_if_possible`.
         """
         # Group assets into orphaned=True and orphaned=False groups.
         orphaned = (
-            (func.count(DagScheduleAssetReference.dag_id) + func.count(TaskOutletAssetReference.dag_id)) == 0
+            (
+                func.count(DagScheduleAssetReference.dag_id)
+                + func.count(TaskOutletAssetReference.dag_id)
+                + func.count(TaskInletAssetReference.dag_id)
+            )
+            == 0
         ).label("orphaned")
         asset_reference_query = session.execute(
             select(orphaned, AssetModel)
             .outerjoin(DagScheduleAssetReference)
             .outerjoin(TaskOutletAssetReference)
+            .outerjoin(TaskInletAssetReference)
             .group_by(AssetModel.id)
             .order_by(orphaned)
         )
