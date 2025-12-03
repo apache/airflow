@@ -86,7 +86,7 @@ def _prepare_app(broker_url=None, execute=None):
         execute_name = "execute_command"
         execute = execute or celery_executor_utils.execute_command.__wrapped__
 
-    test_config = dict(celery_executor_utils.celery_configuration)
+    test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)

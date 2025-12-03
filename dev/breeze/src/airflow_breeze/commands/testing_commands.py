@@ -1470,10 +1470,12 @@ def ui_e2e_tests(
     from pathlib import Path
 
     from airflow_breeze.utils.console import get_console
-    from airflow_breeze.utils.run_utils import run_command
+    from airflow_breeze.utils.run_utils import check_pnpm_installed, run_command
     from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
     perform_environment_checks()
+
+    check_pnpm_installed()
 
     airflow_root = Path(__file__).resolve().parents[5]
     ui_dir = airflow_root / "airflow-core" / "src" / "airflow" / "ui"

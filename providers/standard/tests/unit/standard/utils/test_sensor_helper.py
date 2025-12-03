@@ -25,7 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.models import DAG, DagBag, TaskInstance
+from airflow.models import DagBag, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.sensor_helper import (
     _count_stmt,
@@ -36,7 +36,6 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
@@ -51,6 +50,7 @@ except ImportError:  # Fallback for Airflow < 3.1
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 TI = TaskInstance
 
@@ -84,7 +84,7 @@ class TestSensorHelper:
 
     @staticmethod
     def create_dag_run(
-        dag: DAG,
+        dag: SerializedDAG,
         *,
         task_states: Mapping[str, TaskInstanceState] | None = None,
         execution_date: datetime.datetime | None = None,
@@ -94,7 +94,7 @@ class TestSensorHelper:
         execution_date = pendulum.instance(execution_date or now)
         run_type = DagRunType.MANUAL
         data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
-        dag_run = create_scheduler_dag(dag).create_dagrun(
+        dag_run = dag.create_dagrun(
             run_id=dag.timetable.generate_run_id(
                 run_type=run_type,
                 run_after=execution_date,
@@ -162,6 +162,7 @@ class TestSensorHelper:
             },
         ],  # these can be any TaskInstanceState
     )
+    @pytest.mark.need_serialized_dag
     def test_count_stmt(self, dttm_to_task_state, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID, session=session) as dag:
             for task_id in self.TASK_ID_LIST:
@@ -193,6 +194,7 @@ class TestSensorHelper:
         allowed_state_count = len(allowed_task_instance_states)
         assert count == allowed_state_count
 
+    @pytest.mark.need_serialized_dag
     def test_get_external_task_group_task_ids(self, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID) as dag:
             with TaskGroup(group_id=self.TASK_GROUP_ID):
@@ -225,6 +227,7 @@ class TestSensorHelper:
             TaskInstanceState.FAILED.value,
         ],
     )
+    @pytest.mark.need_serialized_dag
     def test_get_count_with_different_states(self, state, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID) as dag:
             EmptyOperator(task_id=self.TASK_ID)
@@ -258,6 +261,7 @@ class TestSensorHelper:
             },
         ],  # these can be any TaskInstanceState
     )
+    @pytest.mark.need_serialized_dag
     def test_get_count_with_one_task(self, task_states, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID) as dag:
             EmptyOperator(task_id=self.TASK_ID)
@@ -313,6 +317,7 @@ class TestSensorHelper:
             },
         ],  # these can be any TaskInstanceState
     )
+    @pytest.mark.need_serialized_dag
     def test_get_count_with_multiple_tasks(self, dttm_to_task_state, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID) as dag:
             for task_id in self.TASK_ID_LIST:
@@ -376,6 +381,7 @@ class TestSensorHelper:
             },
         ],  # these can be any TaskInstanceState
     )
+    @pytest.mark.need_serialized_dag
     def test_get_count_with_task_group(self, dttm_to_subtask_state, dag_maker, session):
         with dag_maker(dag_id=self.DAG_ID, session=session) as dag:
             with TaskGroup(group_id=self.TASK_GROUP_ID):
