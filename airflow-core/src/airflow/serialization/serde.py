@@ -133,6 +133,23 @@ def serialize(o: object, depth: int = 0) -> U | None:
     qn = qualname(o)
     classname = None
 
+    # custom serializers
+    dct = {
+        CLASSNAME: qn,
+        VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
+    }
+
+    # object / class brings their own. Prioritize over built-in serializers
+    if hasattr(o, "serialize"):
+        data = getattr(o, "serialize")()
+
+        # if we end up with a structure, ensure its values are serialized
+        if isinstance(data, dict):
+            data = serialize(data, depth + 1)
+
+        dct[DATA] = data
+        return dct
+
     # Serialize namedtuple like tuples
     # We also override the classname returned by the builtin.py serializer. The classname
     # has to be "builtins.tuple", so that the deserializer can deserialize the object into tuple.
@@ -153,28 +170,12 @@ def serialize(o: object, depth: int = 0) -> U | None:
             return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # primitive types are returned as is
+    # Need to come after registered built-ins - else numpy float64 won't be serialized as numpy class, because isinstance(np.float64(0.234), float) == True
     if isinstance(o, _primitives):
         if isinstance(o, enum.Enum):
             return o.value
 
         return o
-
-    # custom serializers
-    dct = {
-        CLASSNAME: qn,
-        VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
-    }
-
-    # object / class brings their own
-    if hasattr(o, "serialize"):
-        data = getattr(o, "serialize")()
-
-        # if we end up with a structure, ensure its values are serialized
-        if isinstance(data, dict):
-            data = serialize(data, depth + 1)
-
-        dct[DATA] = data
-        return dct
 
     # dataclasses
     if dataclasses.is_dataclass(cls):
@@ -262,16 +263,16 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     cls = import_string(classname)
 
+    # class has deserialization function
+    if hasattr(cls, "deserialize"):
+        return getattr(cls, "deserialize")(deserialize(value), version)
+
     # registered deserializer
     if classname in _deserializers:
         return _deserializers[classname].deserialize(cls, version, deserialize(value))
     if is_pydantic_model(cls):
         if PYDANTIC_MODEL_QUALNAME in _deserializers:
             return _deserializers[PYDANTIC_MODEL_QUALNAME].deserialize(cls, version, deserialize(value))
-
-    # class has deserialization function
-    if hasattr(cls, "deserialize"):
-        return getattr(cls, "deserialize")(deserialize(value), version)
 
     # attr or dataclass
     if attr.has(cls) or dataclasses.is_dataclass(cls):
