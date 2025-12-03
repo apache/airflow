@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-from functools import cache
 from typing import TYPE_CHECKING
 
 import pluggy
@@ -41,7 +40,19 @@ def _after_hookcall(outcome, hook_name, hook_impls, kwargs):
 class ListenerManager:
     """Manage listener registration and provides hook property for calling them."""
 
+    # Class-level singleton instance shared across all import paths
+    _instance: ListenerManager | None = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        # Only initialize if this is the first time (check if pm attribute exists)
+        if hasattr(self, "pm"):
+            return
+
         from .spec import (
             asset,
             dagrun,
@@ -57,6 +68,17 @@ class ListenerManager:
         self.pm.add_hookspecs(asset)
         self.pm.add_hookspecs(taskinstance)
         self.pm.add_hookspecs(importerrors)
+
+        # Integrate plugins only in server context (scheduler, API, etc.)
+        # Skip in client context (workers, task-sdk) as they don't need plugins
+        import os
+
+        process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
+        if process_context != "client":
+            # Late import to avoid dependency in client context
+            from airflow.plugins_manager import integrate_listener_plugins
+
+            integrate_listener_plugins(self)
 
     @property
     def has_listeners(self) -> bool:
@@ -78,20 +100,6 @@ class ListenerManager:
             self.pm.unregister(plugin)
 
 
-@cache
 def get_listener_manager() -> ListenerManager:
     """Get singleton listener manager."""
-    _listener_manager = ListenerManager()
-
-    # Only integrate plugins in server context (scheduler, API, etc.)
-    # Skip in client context (workers, task-sdk) as they don't need plugins
-    import os
-
-    process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
-    if process_context != "client":
-        # Late import to avoid dependency in client context
-        from airflow.plugins_manager import integrate_listener_plugins
-
-        integrate_listener_plugins(_listener_manager)
-
-    return _listener_manager
+    return ListenerManager()
