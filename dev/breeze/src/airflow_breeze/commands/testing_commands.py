@@ -90,7 +90,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_TEST_TYPE_CHOICES,
     GroupOfTests,
     all_selective_core_test_types,
-    get_image_path_from_branch,
     providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -917,8 +916,6 @@ def airflowctl_integration_tests(
         os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
 
     if airflow_core_branch:
-        # Taking precedence over image_name passed because we are generating image path from branch
-        image_name = get_image_path_from_branch(airflow_branch=airflow_core_branch)
         os.environ["AIRFLOW_CORE_BRANCH"] = airflow_core_branch
 
     image_name = image_name or os.getenv("DOCKER_IMAGE")

@@ -223,12 +223,12 @@ jobs:
       e2e_test_mode: "remote_log"
 
   airflow-ctl-integration-tests:
+    name: Airflow CTL integration tests with PROD image ${{ matrix.airflow-core-branch }}
     strategy:
       fail-fast: false
       matrix:
         airflow-core-branch: "${{fromJSON(inputs.airflowctl-core-branches)}}"
     timeout-minutes: 60
-    name: "Airflow CTL integration tests with PROD image"
     runs-on: ${{ fromJSON(inputs.runners) }}
     env:
       AIRFLOW_CORE_BRANCH: "${{ matrix.airflow-core-branch }}"
