@@ -90,13 +90,13 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
     <>
       <Menu.Root positioning={{ placement: "right" }}>
         <Menu.Trigger asChild>
-          <NavButton icon={FiUser} title={translate("userSettings.user")} />
+          <NavButton icon={FiUser} title={translate("navUserSettings.user")} />
         </Menu.Trigger>
         <Menu.Content>
           {currentUser ? (
             <Box borderBottom="1px solid" borderColor="border.muted" p={3}>
               <Box color="fg.muted" fontSize="sm">
-                {translate("userSettings.signedInAs")}
+                {translate("navUserSettings.signedInAs")}
               </Box>
               <Box fontSize="md" fontWeight="semibold">
                 {currentUser.username}

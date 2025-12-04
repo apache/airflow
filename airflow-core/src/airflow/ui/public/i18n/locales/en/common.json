@@ -141,6 +141,10 @@
     "plugins": "Plugins",
     "security": "Security"
   },
+  "navUserSettings": {
+    "signedInAs": "Signed in as",
+    "user": "User"
+  },
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
@@ -318,10 +322,6 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
-  "userSettings": {
-    "signedInAs": "Signed in as",
-    "user": "User"
-  },
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
