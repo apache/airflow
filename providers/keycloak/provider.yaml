@@ -49,6 +49,7 @@ config:
         description: |
           Secret associated to the client configured in Keycloak to integrate with Airflow.
         type: string
+        sensitive: true
         version_added: 0.0.1
         example: ~
         default: ~
