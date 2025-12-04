@@ -27,8 +27,8 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, select
-from sqlalchemy.orm import declared_attr, reconstructor, synonym
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
+from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
@@ -42,6 +42,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -126,19 +127,21 @@ class Connection(Base, LoggingMixin):
 
     __tablename__ = "connection"
 
-    id = Column(Integer(), primary_key=True)
-    conn_id = Column(String(ID_LEN), unique=True, nullable=False)
-    conn_type = Column(String(500), nullable=False)
-    description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
-    host = Column(String(500))
-    schema = Column(String(500))
-    login = Column(Text())
-    _password = Column("password", Text())
-    port = Column(Integer())
-    is_encrypted = Column(Boolean, unique=False, default=False)
-    is_extra_encrypted = Column(Boolean, unique=False, default=False)
-    team_id = Column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
-    _extra = Column("extra", Text())
+    id: Mapped[int] = mapped_column(Integer(), primary_key=True)
+    conn_id: Mapped[str] = mapped_column(String(ID_LEN), unique=True, nullable=False)
+    conn_type: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(
+        Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"), nullable=True
+    )
+    host: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    schema: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    login: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    _password: Mapped[str | None] = mapped_column("password", Text(), nullable=True)
+    port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
+    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
         self,
@@ -155,7 +158,6 @@ class Connection(Base, LoggingMixin):
         team_id: str | None = None,
     ):
         super().__init__()
-        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -168,13 +170,20 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
-            self.conn_type = conn_type
+            if conn_type is not None:
+                self.conn_type = conn_type
+
             self.host = host
             self.login = login
             self.password = password
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if conn_id is not None:
+            sanitized_id = sanitize_conn_id(conn_id)
+            if sanitized_id is not None:
+                self.conn_id = sanitized_id
         if self.extra:
             self._validate_extra(self.extra, self.conn_id)
 
@@ -271,6 +280,9 @@ class Connection(Base, LoggingMixin):
         else:
             uri = "//"
 
+        host_to_use: str | None
+        protocol_to_add: str | None
+
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
@@ -351,8 +363,9 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> str:
+    def get_extra(self) -> str | None:
         """Return encrypted extra-data."""
+        extra_val: str | None
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:

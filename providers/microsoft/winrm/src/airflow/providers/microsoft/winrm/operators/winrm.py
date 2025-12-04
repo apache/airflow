@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.providers.microsoft.winrm.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -50,10 +50,14 @@ class WinRMOperator(BaseOperator):
     :param output_encoding: the encoding used to decode stout and stderr
     :param timeout: timeout for executing the command.
     :param expected_return_code: expected return code value(s) of command.
+    :param working_directory: specify working directory.
     """
 
-    template_fields: Sequence[str] = ("command",)
-    template_fields_renderers = {"command": "powershell"}
+    template_fields: Sequence[str] = (
+        "command",
+        "working_directory",
+    )
+    template_fields_renderers = {"command": "powershell", "working_directory": "powershell"}
 
     def __init__(
         self,
@@ -66,6 +70,7 @@ class WinRMOperator(BaseOperator):
         output_encoding: str = "utf-8",
         timeout: int = 10,
         expected_return_code: int | list[int] | range = 0,
+        working_directory: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,6 +82,7 @@ class WinRMOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.timeout = timeout
         self.expected_return_code = expected_return_code
+        self.working_directory = working_directory
 
     def execute(self, context: Context) -> list | str:
         if self.ssh_conn_id and not self.winrm_hook:
@@ -97,6 +103,7 @@ class WinRMOperator(BaseOperator):
             ps_path=self.ps_path,
             output_encoding=self.output_encoding,
             return_output=self.do_xcom_push,
+            working_directory=self.working_directory,
         )
 
         success = False

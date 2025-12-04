@@ -88,6 +88,10 @@
     "taskGroup": "टास्क ग्रुप"
   },
   "limitedList": "+{{count}} और",
+  "limitedList.allItems": "सभी {{count}} आइटम:",
+  "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
+  "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
+  "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
   "logs": {
     "file": "फ़ाइल",
     "location": "{{name}} में लाइन {{line}}"

@@ -24,10 +24,12 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { renderStructuredLog } from "src/components/renderStructuredLog";
 import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
+import { parseStreamingLogContent } from "src/utils/logs";
 
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent } from "./TaskLogContent";
@@ -79,9 +81,51 @@ export const Logs = () => {
     "log_show_timestamp",
     defaultShowTimestamp,
   );
-  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", true);
+  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+
+  const {
+    error: logError,
+    fetchedData,
+    isLoading: isLoadingLogs,
+    parsedData,
+  } = useLogs({
+    dagId,
+    expanded,
+    logLevelFilters,
+    showSource,
+    showTimestamp,
+    sourceFilters,
+    taskInstance,
+    tryNumber,
+  });
+
+  const downloadLogs = () => {
+    const lines = parseStreamingLogContent(fetchedData);
+    const parsedLines = lines.map((line) =>
+      renderStructuredLog({
+        index: 0,
+        logLevelFilters,
+        logLink: "",
+        logMessage: line,
+        renderingMode: "text",
+        showSource,
+        showTimestamp,
+        sourceFilters,
+        translate,
+      }),
+    );
+
+    const logContent = parsedLines.join("\n");
+    const element = document.createElement("a");
+
+    element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
+    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}.txt`;
+    document.body.append(element);
+    element.click();
+    element.remove();
+  };
 
   const toggleWrap = () => setWrap(!wrap);
   const toggleTimestamp = () => setShowTimestamp(!showTimestamp);
@@ -94,25 +138,11 @@ export const Logs = () => {
   useHotkeys("e", toggleExpanded);
   useHotkeys("t", toggleTimestamp);
   useHotkeys("s", toggleSource);
+  useHotkeys("d", downloadLogs);
 
   const onOpenChange = () => {
     setFullscreen(false);
   };
-
-  const {
-    data,
-    error: logError,
-    isLoading: isLoadingLogs,
-  } = useLogs({
-    dagId,
-    expanded,
-    logLevelFilters,
-    showSource,
-    showTimestamp,
-    sourceFilters,
-    taskInstance,
-    tryNumber,
-  });
 
   const externalLogName = useConfig("external_log_name") as string;
   const showExternalLogRedirect = Boolean(useConfig("show_external_log_redirect"));
@@ -120,11 +150,12 @@ export const Logs = () => {
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
       <TaskLogHeader
+        downloadLogs={downloadLogs}
         expanded={expanded}
         onSelectTryNumber={onSelectTryNumber}
         showSource={showSource}
         showTimestamp={showTimestamp}
-        sourceOptions={data.sources}
+        sourceOptions={parsedData.sources}
         taskInstance={taskInstance}
         toggleExpanded={toggleExpanded}
         toggleFullscreen={toggleFullscreen}
@@ -149,7 +180,7 @@ export const Logs = () => {
         error={error}
         isLoading={isLoading || isLoadingLogs}
         logError={logError}
-        parsedLogs={data.parsedLogs ?? []}
+        parsedLogs={parsedData.parsedLogs ?? []}
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
@@ -158,6 +189,7 @@ export const Logs = () => {
             <VStack alignItems="flex-start" gap={2}>
               <Heading size="xl">{taskId}</Heading>
               <TaskLogHeader
+                downloadLogs={downloadLogs}
                 expanded={expanded}
                 isFullscreen
                 onSelectTryNumber={onSelectTryNumber}
@@ -182,7 +214,7 @@ export const Logs = () => {
               error={error}
               isLoading={isLoading || isLoadingLogs}
               logError={logError}
-              parsedLogs={data.parsedLogs ?? []}
+              parsedLogs={parsedData.parsedLogs ?? []}
               wrap={wrap}
             />
           </Dialog.Body>

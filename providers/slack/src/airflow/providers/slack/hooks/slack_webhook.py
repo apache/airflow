@@ -27,8 +27,9 @@ from slack_sdk import WebhookClient
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
-from airflow.providers.slack.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
@@ -152,9 +153,8 @@ class SlackWebhookHook(BaseHook):
         """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
         return WebhookClient(**self._get_conn_params())
 
-    @cached_property
-    async def async_client(self) -> AsyncWebhookClient:
-        """Get the underlying `slack_sdk.webhook.async_client.AsyncWebhookClient` (cached)."""
+    async def get_async_client(self) -> AsyncWebhookClient:
+        """Get the underlying `slack_sdk.webhook.async_client.AsyncWebhookClient`."""
         return AsyncWebhookClient(**await self._async_get_conn_params())
 
     def get_conn(self) -> WebhookClient:
@@ -168,7 +168,7 @@ class SlackWebhookHook(BaseHook):
 
     async def _async_get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters (async)."""
-        conn = await self.aget_connection(self.slack_webhook_conn_id)
+        conn = await get_async_connection(self.slack_webhook_conn_id)
         return self._build_conn_params(conn)
 
     def _build_conn_params(self, conn) -> dict[str, Any]:
@@ -251,7 +251,7 @@ class SlackWebhookHook(BaseHook):
         :param headers: Request headers for this request.
         """
         body = self._process_body(body)
-        async_client = await self.async_client
+        async_client = await self.get_async_client()
         return await async_client.send_dict(body, headers=headers)
 
     def send(

@@ -24,16 +24,17 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
 import psycopg2
-import psycopg2.extensions
 import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
 )
+from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -63,11 +64,6 @@ if TYPE_CHECKING:
 
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
-
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
 CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
@@ -156,7 +152,9 @@ class PostgresHook(DbApiHook):
         "aws_conn_id",
         "sqlalchemy_scheme",
         "sqlalchemy_query",
+        "azure_conn_id",
     }
+    default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
@@ -177,6 +175,8 @@ class PostgresHook(DbApiHook):
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+        if conn.extra_dejson.get("iam", False):
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
             drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
             username=self.__cast_nullable(conn.login, str),
@@ -441,8 +441,14 @@ class PostgresHook(DbApiHook):
         return PostgresHook._serialize_cell_ppg2(cell, conn)
 
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """Get the IAM token from different identity providers."""
+        if conn.extra_dejson.get("azure_conn_id"):
+            return self.get_azure_iam_token(conn)
+        return self.get_aws_iam_token(conn)
+
+    def get_aws_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
-        Get the IAM token.
+        Get the AWS IAM token.
 
         This uses AWSHook to retrieve a temporary password to connect to
         Postgres or Redshift. Port is required. If none is provided, the default
@@ -499,6 +505,34 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return cast("str", login), cast("str", token), port
+
+    def get_azure_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """
+        Get the Azure IAM token.
+
+        This uses AzureBaseHook to retrieve an OAUTH token to connect to Postgres.
+        Scope for the OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[postgres]``.
+        """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+        azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
+        try:
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
+        try:
+            azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        except TypeError as e:
+            if "required positional argument: 'sdk_client'" in str(e):
+                raise AirflowOptionalProviderFeatureException(
+                    "Getting azure token is not supported by current version of 'AzureBaseHook'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
+                ) from e
+            raise
+        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
+        return cast("str", conn.login or azure_conn.login), token, conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """

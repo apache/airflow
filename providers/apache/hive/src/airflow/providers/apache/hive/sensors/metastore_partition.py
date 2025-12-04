@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class MetastorePartitionSensor(SqlSensor):

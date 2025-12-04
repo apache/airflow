@@ -95,13 +95,13 @@ class TestQuicksight:
         assert hook.conn is not None
 
     @pytest.mark.parametrize(
-        "response, expected_status",
+        ("response", "expected_status"),
         [
             pytest.param(MOCK_DESCRIBE_INGESTION_SUCCESS, "COMPLETED", id="completed"),
             pytest.param(MOCK_DESCRIBE_INGESTION_FAILURE, "Failed", id="failed"),
         ],
     )
-    @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
+    @pytest.mark.parametrize(("aws_account_id", "expected_account_id"), ACCOUNT_TEST_CASES)
     def test_get_job_status(
         self, response, expected_status, aws_account_id, expected_account_id, mocked_account_id, mocked_client
     ):
@@ -124,7 +124,7 @@ class TestQuicksight:
         )
 
     @pytest.mark.parametrize(
-        "exception, error_match",
+        ("exception", "error_match"),
         [
             pytest.param(KeyError("Foo"), "Could not get status", id="key-error"),
             pytest.param(
@@ -152,7 +152,7 @@ class TestQuicksight:
             pytest.param(None, id="error-info-not-exists"),
         ],
     )
-    @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
+    @pytest.mark.parametrize(("aws_account_id", "expected_account_id"), ACCOUNT_TEST_CASES)
     def test_get_error_info(
         self, error_info, aws_account_id, expected_account_id, mocked_client, mocked_account_id
     ):
@@ -171,7 +171,7 @@ class TestQuicksight:
 
     @mock.patch.object(QuickSightHook, "get_status", return_value="FAILED")
     @mock.patch.object(QuickSightHook, "get_error_info")
-    @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
+    @pytest.mark.parametrize(("aws_account_id", "expected_account_id"), ACCOUNT_TEST_CASES)
     def test_wait_for_state_failure(
         self,
         mocked_get_error_info,
@@ -213,7 +213,7 @@ class TestQuicksight:
     @pytest.mark.parametrize(
         "wait_for_completion", [pytest.param(True, id="wait"), pytest.param(False, id="no-wait")]
     )
-    @pytest.mark.parametrize("aws_account_id, expected_account_id", ACCOUNT_TEST_CASES)
+    @pytest.mark.parametrize(("aws_account_id", "expected_account_id"), ACCOUNT_TEST_CASES)
     def test_create_ingestion(
         self, wait_for_completion, aws_account_id, expected_account_id, mocked_account_id, mocked_client
     ):

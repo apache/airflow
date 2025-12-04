@@ -171,7 +171,7 @@ class TestHdfsTaskHandler:
         assert logs == []
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     def test_close_with_delete_local_logs_conf(

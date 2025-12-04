@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-pgvector``
 
-Release: ``1.5.2``
+Release: ``1.6.0``
 
 
 `pgvector <https://github.com/pgvector/pgvector>`__
@@ -36,7 +36,7 @@ This is a provider package for ``pgvector`` provider. All classes for this provi
 are in ``airflow.providers.pgvector`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.6.0/>`_.
 
 Installation
 ------------
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=====================================  ==================
-PIP package                            Version required
-=====================================  ==================
-``apache-airflow``                     ``>=2.10.0``
-``apache-airflow-providers-postgres``  ``>=5.7.1``
-``pgvector``                           ``>=0.3.1``
-=====================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-postgres``       ``>=5.7.1``
+``pgvector``                                ``>=0.3.1``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -78,5 +79,14 @@ Dependent package                                                               
 `apache-airflow-providers-postgres <https://airflow.apache.org/docs/apache-airflow-providers-postgres>`_      ``postgres``
 ============================================================================================================  ==============
 
+Optional dependencies
+----------------------
+
+==============  =======================================
+Extra           Dependencies
+==============  =======================================
+``common.sql``  ``apache-airflow-providers-common-sql``
+==============  =======================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.5.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pgvector/1.6.0/changelog.html>`_.

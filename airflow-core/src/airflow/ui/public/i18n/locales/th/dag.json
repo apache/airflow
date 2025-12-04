@@ -1,0 +1,154 @@
+{
+  "allRuns": "การทำงานทั้งหมด",
+  "blockingDeps": {
+    "dependency": "การพึ่งพา",
+    "reason": "เหตุผล",
+    "title": "การพึ่งพาที่บล็อกงานไม่ให้ถูกกำหนดเวลาทำงาน"
+  },
+  "calendar": {
+    "daily": "รายวัน",
+    "hourly": "รายชั่วโมง",
+    "legend": {
+      "less": "น้อย",
+      "mixed": "ผสม",
+      "more": "มาก"
+    },
+    "navigation": {
+      "nextMonth": "เดือนถัดไป",
+      "nextYear": "ปีถัดไป",
+      "previousMonth": "เดือนก่อนหน้า",
+      "previousYear": "ปีก่อนหน้า"
+    },
+    "noData": "ไม่มีข้อมูล",
+    "noFailedRuns": "ไม่มีการทำงานที่ล้มเหลว",
+    "noRuns": "ไม่มีการทำงาน",
+    "totalRuns": "การทำงานทั้งหมด",
+    "week": "สัปดาห์ที่ {{weekNumber}}",
+    "weekdays": {
+      "friday": "ศ.",
+      "monday": "จ.",
+      "saturday": "ส.",
+      "sunday": "อา.",
+      "thursday": "พฤ.",
+      "tuesday": "อ.",
+      "wednesday": "พ."
+    }
+  },
+  "code": {
+    "bundleUrl": "URL ของ Bundle",
+    "noCode": "ไม่พบโค้ด",
+    "parseDuration": "ระยะเวลาการประมวลผล:",
+    "parsedAt": "ประมวลผลเมื่อ:"
+  },
+  "extraLinks": "ลิงก์เพิ่มเติม",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "รีเซ็ตเป็นล่าสุด",
+      "toggleGroup": "สลับกลุ่ม"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "ขั้นสูง",
+      "dagDocs": "เอกสาร Dag"
+    }
+  },
+  "logs": {
+    "allLevels": "ทุกระดับ Log",
+    "allSources": "ทุกแหล่งที่มา",
+    "critical": "ร้ายแรง (CRITICAL)",
+    "debug": "ดีบัก (DEBUG)",
+    "error": "ข้อผิดพลาด (ERROR)",
+    "fullscreen": {
+      "button": "เต็มจอ",
+      "tooltip": "กด {{hotkey}} เพื่อเข้าสู่โหมดเต็มจอ"
+    },
+    "info": "ข้อมูล (INFO)",
+    "noTryNumber": "ไม่มีหมายเลขการลอง",
+    "settings": "การตั้งค่า Log",
+    "viewInExternal": "ดู log ใน {{name}} (ความพยายามครั้งที่ {{attempt}})",
+    "warning": "คำเตือน (WARNING)"
+  },
+  "navigation": {
+    "navigation": "การนำทาง: Shift+{{arrow}}",
+    "toggleGroup": "สลับกลุ่ม: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "การทำงานที่ล้มเหลว",
+      "failedRun_other": "การทำงานที่ล้มเหลว",
+      "failedTask_one": "งานที่ล้มเหลว",
+      "failedTask_other": "งานที่ล้มเหลว",
+      "failedTaskInstance_one": "Task Instance ที่ล้มเหลว",
+      "failedTaskInstance_other": "Task Instances ที่ล้มเหลว"
+    },
+    "charts": {
+      "assetEvent_one": "การสร้างอีเวนต์ให้กับ Asset",
+      "assetEvent_other": "การสร้างอีเวนต์ให้กับ Asset"
+    },
+    "failedLogs": {
+      "hideLogs": "ซ่อน Logs",
+      "showLogs": "แสดง Logs",
+      "title": "Logs ของงานที่ล้มเหลวล่าสุด",
+      "viewFullLogs": "ดู Logs แบบเต็ม"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "ตัวเลือก",
+      "showGantt": "แสดง Gantt",
+      "showGraphShortcut": "แสดงกราฟ (กด g)",
+      "showGridShortcut": "แสดงกริด (กด g)"
+    },
+    "dagRuns": {
+      "label": "จำนวน Dag Runs"
+    },
+    "dependencies": {
+      "label": "การพึ่งพา",
+      "options": {
+        "allDagDependencies": "การพึ่งพาของ Dag ทั้งหมด",
+        "externalConditions": "เงื่อนไขภายนอก",
+        "onlyTasks": "เฉพาะงาน"
+      },
+      "placeholder": "การพึ่งพา"
+    },
+    "graphDirection": {
+      "label": "ทิศทางของกราฟ"
+    }
+  },
+  "paramsFailed": "โหลดพารามิเตอร์ไม่สำเร็จ",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "การร้องขอประมวลผล Dag ล้มเหลว อาจมีคำขอการประมวลผลที่รอดำเนินการอยู่",
+        "title": "การประมวลผล DAG ล้มเหลว"
+      },
+      "success": {
+        "description": "DAG จะถูกประมวลผลใหม่ในเร็ว ๆ นี้",
+        "title": "ส่งคำขอประมวลผลใหม่สำเร็จแล้ว"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "อีเวนต์ของ Asset",
+    "auditLog": "บันทึกการตรวจสอบ",
+    "backfills": "Backfills",
+    "calendar": "ปฏิทิน",
+    "code": "โค้ด",
+    "details": "รายละเอียด",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "overview": "ภาพรวม",
+    "renderedTemplates": "เทมเพลตที่เรนเดอร์แล้ว",
+    "requiredActions": "การดำเนินการที่จำเป็น",
+    "runs": "การทำงาน",
+    "taskInstances": "Task Instances",
+    "tasks": "งาน",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "ย่อกลุ่มงานทั้งหมด",
+    "expandAll": "ขยายกลุ่มงานทั้งหมด"
+  }
+}

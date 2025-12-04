@@ -38,10 +38,13 @@ def bundle_temp_dir(tmp_path):
 GIT_DEFAULT_BRANCH = "main"
 
 AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
+AIRFLOW_HTTP_URL = "http://github.com/apache/airflow.git"
 AIRFLOW_GIT = "git@github.com:apache/airflow.git"
 ACCESS_TOKEN = "my_access_token"
 CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
+CONN_HTTP = "my_git_conn_http"
+CONN_HTTP_NO_AUTH = "my_git_conn_http_no_auth"
 CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
 CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
@@ -87,6 +90,21 @@ class TestGitHook:
         )
         create_connection_without_db(
             Connection(
+                conn_id=CONN_HTTP,
+                host=AIRFLOW_HTTP_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id=CONN_HTTP_NO_AUTH,
+                host=AIRFLOW_HTTP_URL,
+                conn_type="git",
+            )
+        )
+        create_connection_without_db(
+            Connection(
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
@@ -104,7 +122,7 @@ class TestGitHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, hook_kwargs, expected_repo_url",
+        ("conn_id", "hook_kwargs", "expected_repo_url"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT),
             (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),
@@ -112,6 +130,18 @@ class TestGitHook:
                 CONN_HTTPS,
                 {"repo_url": "https://github.com/apache/zzzairflow"},
                 f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+            ),
+            (CONN_HTTP, {}, f"http://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (
+                CONN_HTTP,
+                {"repo_url": "http://github.com/apache/zzzairflow"},
+                f"http://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+            ),
+            (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL),
+            (
+                CONN_HTTP_NO_AUTH,
+                {"repo_url": "http://github.com/apache/zzzairflow"},
+                "http://github.com/apache/zzzairflow",
             ),
             (CONN_ONLY_PATH, {}, "path/to/repo"),
         ],

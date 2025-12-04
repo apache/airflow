@@ -482,6 +482,8 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                     # It may also be that permissions haven't even propagated yet to check for the index
                     or "server returned 401" in error_message
                     or "user does not have permissions" in error_message
+                    or "status code: 403" in error_message
+                    or "bad authorization" in error_message
                 )
                 if all(
                     [

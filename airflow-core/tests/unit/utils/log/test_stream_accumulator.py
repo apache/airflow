@@ -127,7 +127,7 @@ class TestLogStreamAccumulator:
                 assert not os.path.exists(tmpfile_name) if tmpfile_name else True
 
     @pytest.mark.parametrize(
-        "threshold, expected_buffer_size, expected_disk_lines",
+        ("threshold", "expected_buffer_size", "expected_disk_lines"),
         [
             pytest.param(30, 20, 0, id="no_flush_needed"),
             pytest.param(10, 0, 20, id="single_flush_needed"),

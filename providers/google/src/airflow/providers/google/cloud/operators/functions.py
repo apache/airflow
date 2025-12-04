@@ -40,7 +40,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _validate_available_memory_in_mb(value):

@@ -134,7 +134,7 @@ def parametrize_kubernetes_decorators_commons(cls):
         if not name.startswith("test_") or not callable(method):
             continue
         new_method = pytest.mark.parametrize(
-            "task_decorator,decorator_name",
+            ("task_decorator", "decorator_name"),
             [
                 (task.kubernetes, "kubernetes"),
                 (task.kubernetes_cmd, "kubernetes_cmd"),

@@ -21,8 +21,6 @@ from unittest import mock
 
 import pytest
 
-pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor

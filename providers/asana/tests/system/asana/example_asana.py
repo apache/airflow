@@ -48,6 +48,7 @@ DAG_ID = "example_asana"
 
 with DAG(
     DAG_ID,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     default_args={"conn_id": CONN_ID},
     tags=["example"],

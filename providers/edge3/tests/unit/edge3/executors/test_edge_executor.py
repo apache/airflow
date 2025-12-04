@@ -25,14 +25,10 @@ import time_machine
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -71,7 +67,7 @@ class TestEdgeExecutor:
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
     @pytest.mark.parametrize(
-        "pool_slots, expected_concurrency",
+        ("pool_slots", "expected_concurrency"),
         [
             pytest.param(1, 1, id="default_pool_size"),
             pytest.param(5, 5, id="increased_pool_size"),

@@ -17,12 +17,10 @@
 
 from __future__ import annotations
 
-import contextlib
-import importlib
 import logging
 from collections.abc import MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookFieldBehavior,
@@ -70,6 +68,7 @@ class HookMetaService:
             description: str = "",
             default: str | None = None,
             widget=None,
+            source: Literal["dag", "task"] | None = None,
         ):
             type: str | list[str] = [self.param_type, "null"]
             enum = {}
@@ -84,6 +83,7 @@ class HookMetaService:
                 default=default,
                 title=label,
                 description=description or None,
+                source=source or None,
                 type=type,
                 **format,
                 **enum,
@@ -132,68 +132,46 @@ class HookMetaService:
             """Mock for wtforms.validators.any_of."""
             return HookMetaService.MockEnum(allowed_values)
 
-        with contextlib.ExitStack() as stack:
+        # Before importing ProvidersManager, we need to mock all FAB and WTForms
+        # dependencies to avoid ImportErrors when FAB is not installed.
+        import sys
+        from importlib.util import find_spec
+        from unittest.mock import MagicMock
+
+        for mod_name in [
+            "wtforms",
+            "wtforms.csrf",
+            "wtforms.fields",
+            "wtforms.fields.simple",
+            "wtforms.validators",
+            "flask_babel",
+            "flask_appbuilder",
+            "flask_appbuilder.fieldwidgets",
+        ]:
             try:
-                importlib.import_module("wtforms")
-                stack.enter_context(mock.patch("wtforms.StringField", HookMetaService.MockStringField))
-                stack.enter_context(mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField)
-                )
-
-                stack.enter_context(mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField)
-                )
-                stack.enter_context(mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField))
-                stack.enter_context(mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField))
-                stack.enter_context(
-                    mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField)
-                )
-                stack.enter_context(
-                    mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField)
-                )
-                stack.enter_context(mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional))
-                stack.enter_context(mock.patch("wtforms.validators.any_of", mock_any_of))
-            except ImportError:
-                pass
-
-            try:
-                importlib.import_module("flask_babel")
-                stack.enter_context(mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext))
-            except ImportError:
-                pass
-
-            try:
-                importlib.import_module("flask_appbuilder")
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-                stack.enter_context(
-                    mock.patch(
-                        "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget
-                    )
-                )
-            except ImportError:
-                pass
-
+                if not find_spec(mod_name):
+                    raise ModuleNotFoundError
+            except ModuleNotFoundError:
+                sys.modules[mod_name] = MagicMock()
+        with (
+            mock.patch("wtforms.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.fields.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.fields.simple.StringField", HookMetaService.MockStringField),
+            mock.patch("wtforms.IntegerField", HookMetaService.MockIntegerField),
+            mock.patch("wtforms.fields.IntegerField", HookMetaService.MockIntegerField),
+            mock.patch("wtforms.PasswordField", HookMetaService.MockPasswordField),
+            mock.patch("wtforms.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("wtforms.fields.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("wtforms.fields.simple.BooleanField", HookMetaService.MockBooleanField),
+            mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3TextFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", HookMetaService.MockAnyWidget),
+            mock.patch("wtforms.validators.Optional", HookMetaService.MockOptional),
+            mock.patch("wtforms.validators.any_of", mock_any_of),
+        ):
             pm = ProvidersManager()
-            pm._cleanup()  # Remove any cached hooks with non mocked FAB
-            pm._init_airflow_core_hooks()  # Initialize core hooks
             return pm.hooks, pm.connection_form_widgets, pm.field_behaviours  # Will init providers hooks
-
-        return (
-            {},
-            {},
-            {},
-        )  # Make mypy happy, should never been reached https://github.com/python/mypy/issues/7726
 
     @staticmethod
     def _make_standard_fields(field_behaviour: dict | None) -> StandardHookFields | None:

@@ -84,6 +84,33 @@ Finally, configure the chart to use the secret you created:
 
 .. _production-guide:pgbouncer:
 
+Metadata DB cleanup
+^^^^^^^^^^^^^^^^^^^
+
+It is recommended to periodically clean up the Airflow metadata database to remove old records and keep the database size manageable. A Kubernetes CronJob can be enabled for this purpose:
+
+.. code-block:: yaml
+
+  databaseCleanup:
+    enabled: true
+    retentionDays: 90
+
+Several additional options can be configured and passed to the ``airflow db clean`` command:
+
++-------------------------------------------------------+------------------------------------------+
+| Helm chart value                                      | ``airflow db clean`` option              |
++=======================================================+==========================================+
+| ``.Values.databaseCleanup.skipArchive``               | ``--skip-archive``                       |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.tables``                    | ``--tables``                             |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.batchSize``                 | ``--batch-size``                         |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.verbose``                   | ``--verbose``                            |
++-------------------------------------------------------+------------------------------------------+
+
+See :ref:`db clean usage <cli-db-clean>` for more details.
+
 PgBouncer
 ---------
 
@@ -157,7 +184,7 @@ Two additional Kubernetes Secret required to PgBouncer able to properly work in 
 
 .. code-block:: text
 
-  "{ external_database_host }" "{ external_database_pass }"
+  "{ external_database_username }" "{ external_database_pass }"
 
 The ``values.yaml`` should looks like this
 
@@ -182,11 +209,14 @@ Depending on the size of your Airflow instance, you may want to adjust the follo
     # The maximum number of server connections to the result backend database from PgBouncer
     resultBackendPoolSize: 5
 
-Webserver Secret Key
---------------------
+API Secret Key
+---------------
 
-You should set a static webserver secret key when deploying with this chart as it will help ensure
+You should set a static API secret key when deploying with this chart as it will help ensure
 your Airflow components only restart when necessary.
+
+.. note::
+  This section also applies to the webserver for Airflow <3 -- simply replace "API" with "webserver."
 
 .. warning::
   You should use a different secret key for every instance you run, as this key is used to sign
@@ -202,22 +232,22 @@ Now add the secret to your values file:
 
 .. code-block:: yaml
 
-    webserverSecretKey: <secret_key>
+    apiSecretKey: <secret_key>
 
-Alternatively, create a Kubernetes Secret and use ``webserverSecretKeySecretName``:
+Alternatively, create a Kubernetes Secret and use ``apiSecretKeySecretName``:
 
 .. code-block:: yaml
 
-    webserverSecretKeySecretName: my-webserver-secret
+    apiSecretKeySecretName: my-api-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
 
 Example to create a Kubernetes Secret from ``kubectl``:
 
 .. code-block:: bash
 
-    kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+    kubectl create secret generic my-api-secret --from-literal="api-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
 
-The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+The API secret is also used to authorize requests to Celery workers when logs are retrieved. The token
 generated using the secret key has a short expiry time though - make sure that time on ALL the machines
 that you run Airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
@@ -628,6 +658,10 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-api-secret-key``                     | ``.Values.apiSecretKeySecretName``       | ``AIRFLOW__API__SECRET_KEY``                     |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-jwt-secret``                         | ``.Values.jwtSecretName``                | ``AIRFLOW__API_AUTH__JWT_SECRET``                |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
@@ -658,12 +692,14 @@ flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling th
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-pgbouncer-certificates``             |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-registry``                           | ``.Values.registry.secretName``          |                                                |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-kerberos-keytab``                    |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-flower``                             | ``.Values.flower.secretName``            | ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``         |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+
+A secret named ``<RELEASE_NAME>-registry`` is also created when ``.Values.registry.connection`` is
+defined and neither ``.Values.registry.secretName`` nor ``.Values.imagePullSecrets`` is set. However,
+this behavior is deprecated in favor of explicitly defining ``.Values.imagePullSecrets``.
 
 You can read more about advanced ways of setting configuration variables in the
 :doc:`apache-airflow:howto/set-config`.

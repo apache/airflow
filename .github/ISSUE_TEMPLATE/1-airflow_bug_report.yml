@@ -25,15 +25,15 @@ body:
         the latest release or main to see if the issue is fixed before reporting it.
       multiple: false
       options:
-        - "3.1.0"
+        - "3.1.3"
         - "2.11.0"
         - "main (development)"
-        - "Other Airflow 2 version (please specify below)"
+        - "Other Airflow 2/3 version (please specify below)"
     validations:
       required: true
   - type: input
     attributes:
-      label: If "Other Airflow 2 version" selected, which one?
+      label: If "Other Airflow 2/3 version" selected, which one?
       # yamllint disable rule:line-length
       description: >
         On what 2.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to

@@ -85,7 +85,7 @@ export const SearchBar = ({
             />
           ) : undefined}
           {Boolean(hideAdvanced) ? undefined : (
-            <Button fontWeight="normal" height={28} variant="ghost" width={140} {...buttonProps}>
+            <Button fontWeight="normal" height={28} variant="ghost" {...buttonProps}>
               {translate("search.advanced")}
             </Button>
           )}

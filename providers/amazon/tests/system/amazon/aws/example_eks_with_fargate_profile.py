@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from pendulum import duration
 
@@ -30,19 +29,8 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksPodOperator,
 )
 from airflow.providers.amazon.aws.sensors.eks import EksClusterStateSensor, EksFargateProfileStateSensor
+from airflow.providers.common.compat.sdk import DAG, chain
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if TYPE_CHECKING:
-    from airflow.models.baseoperator import chain
-    from airflow.models.dag import DAG
-else:
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.sdk import DAG, chain
-    else:
-        # Airflow 2.10 compat
-        from airflow.models.baseoperator import chain
-        from airflow.models.dag import DAG
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
@@ -145,6 +133,15 @@ with DAG(
     # only describe the pod if the task above failed, to help diagnose
     describe_pod.trigger_rule = TriggerRule.ONE_FAILED
 
+    # Wait for fargate profile to be in stable state before deletion
+    await_fargate_profile_stable = EksFargateProfileStateSensor(
+        task_id="await_fargate_profile_stable",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        fargate_profile_name=fargate_profile_name,
+        target_state=FargateProfileStates.ACTIVE,
+    )
+
     # [START howto_operator_eks_delete_fargate_profile]
     delete_fargate_profile = EksDeleteFargateProfileOperator(
         task_id="delete_eks_fargate_profile",
@@ -164,6 +161,14 @@ with DAG(
         target_state=FargateProfileStates.NONEXISTENT,
         trigger_rule=TriggerRule.ALL_DONE,
         poke_interval=10,
+    )
+
+    # Wait for cluster to be in stable state before deletion
+    await_cluster_stable = EksClusterStateSensor(
+        task_id="await_cluster_stable",
+        trigger_rule=TriggerRule.ALL_DONE,
+        cluster_name=cluster_name,
+        target_state=ClusterStates.ACTIVE,
     )
 
     delete_cluster = EksDeleteClusterOperator(
@@ -190,8 +195,10 @@ with DAG(
         start_pod,
         # TEARDOWN
         describe_pod,
+        await_fargate_profile_stable,
         delete_fargate_profile,  # part of the test AND teardown
         await_delete_fargate_profile,
+        await_cluster_stable,
         delete_cluster,
         await_delete_cluster,
     )

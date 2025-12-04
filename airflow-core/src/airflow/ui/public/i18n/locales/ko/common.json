@@ -59,6 +59,7 @@
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
+    "partitionKey": "파티션 키",
     "queuedAt": "대기열에 추가된 시간",
     "runAfter": "다음 실행",
     "runType": "실행 유형",
@@ -77,6 +78,11 @@
     "documentation": "문서",
     "githubRepo": "GitHub 저장소",
     "restApiReference": "REST API 참조"
+  },
+  "download": {
+    "download": "다운로드",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} 키를 눌러 로그를 다운로드하세요."
   },
   "duration": "기간",
   "endDate": "종료일",
@@ -101,6 +107,8 @@
   },
   "filter": "필터",
   "filters": {
+    "durationFrom": "기간 (시작)",
+    "durationTo": "기간 (종료)",
     "logicalDateFrom": "논리적 날짜 (시작)",
     "logicalDateTo": "논리적 날짜 (종료)",
     "runAfterFrom": "실행 이후 (시작)",

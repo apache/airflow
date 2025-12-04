@@ -23,12 +23,11 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.configuration import initialize_secrets_backends
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 
@@ -190,23 +189,6 @@ class TestConnections:
         assert connection.host == "localhost"
         assert connection.port == 5432
 
-    def test_from_json_missing_conn_type(self):
-        """Test that missing conn_type throws an error while using from_json."""
-        import re
-
-        json_data = {
-            "host": "localhost",
-            "port": "5432",
-        }
-
-        with pytest.raises(
-            ValueError,
-            match=re.escape(
-                "Connection type (conn_type) is required but missing from connection configuration. Please add 'conn_type' field to your connection definition."
-            ),
-        ):
-            Connection.from_json(json.dumps(json_data), conn_id="test_conn")
-
     def test_extra_dejson_property(self):
         """Test that extra_dejson property correctly deserializes JSON extra field."""
         connection = Connection(
@@ -265,7 +247,7 @@ class TestConnectionsFromSecrets:
         mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")
 
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        assert len(backends) == 2
+        assert len(backends) == 3
         backend_classes = [backend.__class__.__name__ for backend in backends]
         assert "LocalFilesystemBackend" in backend_classes
 

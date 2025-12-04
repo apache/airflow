@@ -20,19 +20,15 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
     TableauJobFinishCode,
 )
-from airflow.providers.tableau.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 RESOURCES_METHODS = {
     "datasources": ["delete", "refresh"],
@@ -143,6 +139,10 @@ class TableauOperator(BaseOperator):
             if getattr(resource, self.match_with) == self.find:
                 resource_id = resource.id
                 self.log.info("Found matching with id %s", resource_id)
+                self.log.info("Resource object %s", resource)
+                self.log.info("Content Name : %s", resource.name)
+                self.log.info("Content Folder : %s", resource.project_name)
+                self.log.info("Content URL : %s", resource.webpage_url)
                 return resource_id
 
         raise AirflowException(f"{self.resource} with {self.match_with} {self.find} not found!")

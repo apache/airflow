@@ -397,6 +397,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -463,6 +469,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -523,6 +535,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -553,6 +571,36 @@ paths:
       summary: Worker
       description: Return Edge Workers.
       operationId: worker
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: worker_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Worker Name Pattern
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue Name Pattern
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/EdgeWorkerState'
+          - type: 'null'
+          title: State
       responses:
         '200':
           description: Successful Response
@@ -560,9 +608,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WorkerCollectionResponse'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /edge_worker/ui/jobs:
     get:
       tags:
@@ -886,8 +937,6 @@ components:
         token:
           type: string
           title: Token
-        ti:
-          $ref: '#/components/schemas/TaskInstance'
         dag_rel_path:
           type: string
           format: path
@@ -899,6 +948,12 @@ components:
           - type: string
           - type: 'null'
           title: Log Path
+        ti:
+          $ref: '#/components/schemas/TaskInstance'
+        sentry_integration:
+          type: string
+          title: Sentry Integration
+          default: ''
         type:
           type: string
           const: ExecuteTask
@@ -907,10 +962,10 @@ components:
       type: object
       required:
       - token
-      - ti
       - dag_rel_path
       - bundle_info
       - log_path
+      - ti
       title: ExecuteTask
       description: Execute the given Task.
     HTTPExceptionResponse:

@@ -479,7 +479,7 @@ NEW_VAR=fresh_value"""
         assert Variable.get("NEW_VAR") == "fresh_value"
 
     @pytest.mark.parametrize(
-        "format,invalid_content,error_pattern",
+        ("format", "invalid_content", "error_pattern"),
         [
             ("json", '{"invalid": "json", missing_quotes: true}', "Failed to load the secret file"),
             ("yaml", "invalid:\n  - yaml\n  content: {missing", "Failed to load the secret file"),

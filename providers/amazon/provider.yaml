@@ -22,12 +22,15 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1759300651
+source-date-epoch: 1764109431
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.18.0
+  - 9.17.0
+  - 9.16.0
   - 9.15.0
   - 9.14.0
   - 9.13.0
@@ -359,6 +362,19 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/neptune.rst
     tags: [aws]
+  - integration-name: Amazon Kinesis Data Stream
+    external-doc-url: https://aws.amazon.com/kinesis/
+    logo: /docs/integration-logos/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst
+    tags: [aws]
+  - integration-name: Amazon Managed Workflows for Apache Airflow (MWAA)
+    external-doc-url: https://aws.amazon.com/managed-workflows-for-apache-airflow/
+    logo: /docs/integration-logos/Amazon-MWAA.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/mwaa.rst
+    tags: [aws]
+
 
 operators:
   - integration-name: Amazon Athena
@@ -630,9 +646,12 @@ hooks:
       - airflow.providers.amazon.aws.hooks.glue
       - airflow.providers.amazon.aws.hooks.glue_crawler
       - airflow.providers.amazon.aws.hooks.glue_catalog
-  - integration-name: Amazon Kinesis Data Firehose
+  - integration-name: Amazon Kinesis Data Stream
     python-modules:
       - airflow.providers.amazon.aws.hooks.kinesis
+  - integration-name: Amazon Kinesis Data Firehose
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.firehose
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function

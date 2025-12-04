@@ -25,11 +25,7 @@ from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import HttpOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DiscordWebhookOperator(HttpOperator):
@@ -97,5 +93,10 @@ class DiscordWebhookOperator(HttpOperator):
         return hook
 
     def execute(self, context: Context) -> None:
-        """Call the DiscordWebhookHook to post a message."""
+        """
+        Call the DiscordWebhookHook to post a message.
+
+        :param context: the context object
+        :return: None
+        """
         self.hook.execute()

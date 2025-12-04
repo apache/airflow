@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 
 class TestComprehendHook:
     @pytest.mark.parametrize(
-        "test_hook, service_name",
+        ("test_hook", "service_name"),
         [pytest.param(ComprehendHook(), "comprehend", id="comprehend")],
     )
     def test_comprehend_hook(self, test_hook, service_name):

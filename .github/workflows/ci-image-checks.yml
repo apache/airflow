@@ -153,16 +153,19 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ inputs.platform }}
-          save-cache: false
+          save-cache: true
       - name: "Static checks"
         run: prek --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: "false"
+          VERBOSE: "true"
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+      - name: "Show prek log on failure"
+        run: cat ~/.cache/prek/prek.log || true
+        if: failure()
 
   mypy:
     timeout-minutes: 45
@@ -184,6 +187,9 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

@@ -88,7 +88,7 @@ class TestStatsd:
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -350,7 +350,7 @@ class TestStatsd:
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
     @pytest.mark.parametrize(
-        "statsd_values, expected",
+        ("statsd_values", "expected"),
         [
             ({}, 30),
             ({"statsd": {"terminationGracePeriodSeconds": 1200}}, 1200),

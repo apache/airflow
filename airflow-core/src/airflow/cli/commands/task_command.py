@@ -54,7 +54,6 @@ from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -110,7 +109,7 @@ def _get_dag_run(
         dag_run, logical_date = fetch_dag_run_from_run_id_or_logical_date_string(
             dag_id=dag.dag_id,
             value=logical_date_or_run_id,
-            session=session,
+            session=cast("Session", session),
         )
         if dag_run is not None:
             return dag_run, False
@@ -153,7 +152,7 @@ def _get_dag_run(
             run_after=run_after,
             triggered_by=DagRunTriggeredByType.CLI,
             triggering_user_name=user,
-            session=session,
+            session=cast("Session", session),
             start_date=logical_date or run_after,
             conf=None,
         )
@@ -348,12 +347,12 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
             "dag_id": ti.dag_id,
             "logical_date": dag_run.logical_date.isoformat() if dag_run.logical_date else "",
             "task_id": ti.task_id,
-            "state": ti.state,
+            "state": ti.state or "",
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
         }
         if has_mapped_instances:
-            data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
+            data["map_index"] = str(ti.map_index) if ti.map_index is not None and ti.map_index >= 0 else ""
         return data
 
     AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
@@ -441,7 +440,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         create_if_necessary="memory",
     )
 
-    with create_session() as session, set_current_task_instance_session(session=session):
+    with create_session() as session:
         context = ti.get_template_context(session=session)
         task = dag.get_task(args.task_id)
         # TODO (GH-52141): After sdk separation, ti.get_template_context() would

@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import os
+import shutil
 from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
 import structlog
 from git import Repo
-from git.exc import BadName, GitCommandError, NoSuchPathError
+from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
@@ -43,6 +45,12 @@ class GitDagBundle(BaseDagBundle):
     :param subdir: Subdirectory within the repository where the DAGs are stored (Optional)
     :param git_conn_id: Connection ID for SSH/token based connection to the repository (Optional)
     :param repo_url: Explicit Git repository URL to override the connection's host. (Optional)
+    :param prune_dotgit_folder: Remove .git folder from the versions after cloning.
+
+        The per-version clone is not a full "git" copy (it makes use of git's `--local` ability
+        to share the object directory via hard links, but if you have a lot of current versions
+        running, or an especially large git repo leaving this as True will save some disk space
+        at the expense of `git` operations not working in the bundle that Tasks run from.
     """
 
     supports_versioning = True
@@ -54,6 +62,7 @@ class GitDagBundle(BaseDagBundle):
         subdir: str | None = None,
         git_conn_id: str | None = None,
         repo_url: str | None = None,
+        prune_dotgit_folder: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -66,6 +75,7 @@ class GitDagBundle(BaseDagBundle):
             self.repo_path = self.base_dir / "tracking_repo"
         self.git_conn_id = git_conn_id
         self.repo_url = repo_url
+        self.prune_dotgit_folder = prune_dotgit_folder
 
         self._log = log.bind(
             bundle_name=self.name,
@@ -91,11 +101,21 @@ class GitDagBundle(BaseDagBundle):
         with self.lock():
             cm = self.hook.configure_hook_env() if self.hook else nullcontext()
             with cm:
-                self._clone_bare_repo_if_required()
+                try:
+                    self._clone_bare_repo_if_required()
+                except GitCommandError as e:
+                    raise RuntimeError("Error cloning repository") from e
+                except InvalidGitRepositoryError as e:
+                    raise RuntimeError(f"Invalid git repository at {self.bare_repo_path}") from e
                 self._ensure_version_in_bare_repo()
             self.bare_repo.close()
 
-            self._clone_repo_if_required()
+            try:
+                self._clone_repo_if_required()
+            except GitCommandError as e:
+                raise RuntimeError("Error cloning repository") from e
+            except InvalidGitRepositoryError as e:
+                raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
             self.repo.git.checkout(self.tracking_ref)
             self._log.debug("bundle initialize", version=self.version)
             if self.version:
@@ -103,6 +123,8 @@ class GitDagBundle(BaseDagBundle):
                     self.repo.remotes.origin.fetch()
                 self.repo.head.set_reference(str(self.repo.commit(self.version)))
                 self.repo.head.reset(index=True, working_tree=True)
+                if self.prune_dotgit_folder:
+                    shutil.rmtree(self.repo_path / ".git")
             else:
                 self.refresh()
             self.repo.close()
@@ -113,36 +135,68 @@ class GitDagBundle(BaseDagBundle):
         self._initialize()
         super().initialize()
 
+    @retry(
+        retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
     def _clone_repo_if_required(self) -> None:
-        if not os.path.exists(self.repo_path):
-            self._log.info("Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path)
-            try:
+        try:
+            if not os.path.exists(self.repo_path):
+                self._log.info(
+                    "Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path
+                )
                 Repo.clone_from(
                     url=self.bare_repo_path,
                     to_path=self.repo_path,
                 )
-            except NoSuchPathError as e:
-                # Protection should the bare repo be removed manually
-                raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
-        else:
-            self._log.debug("repo exists", repo_path=self.repo_path)
-        self.repo = Repo(self.repo_path)
+            else:
+                self._log.debug("repo exists", repo_path=self.repo_path)
+            self.repo = Repo(self.repo_path)
+        except NoSuchPathError as e:
+            # Protection should the bare repo be removed manually
+            raise AirflowException("Repository path: %s not found", self.bare_repo_path) from e
+        except (InvalidGitRepositoryError, GitCommandError) as e:
+            self._log.warning(
+                "Repository clone/open failed, cleaning up and retrying",
+                repo_path=self.repo_path,
+                exc=e,
+            )
+            if os.path.exists(self.repo_path):
+                shutil.rmtree(self.repo_path)
+            raise
 
+    @retry(
+        retry=retry_if_exception_type((InvalidGitRepositoryError, GitCommandError)),
+        stop=stop_after_attempt(2),
+        reraise=True,
+    )
     def _clone_bare_repo_if_required(self) -> None:
         if not self.repo_url:
             raise AirflowException(f"Connection {self.git_conn_id} doesn't have a host url")
-        if not os.path.exists(self.bare_repo_path):
-            self._log.info("Cloning bare repository", bare_repo_path=self.bare_repo_path)
-            try:
+
+        try:
+            if not os.path.exists(self.bare_repo_path):
+                self._log.info("Cloning bare repository", bare_repo_path=self.bare_repo_path)
                 Repo.clone_from(
                     url=self.repo_url,
                     to_path=self.bare_repo_path,
                     bare=True,
                     env=self.hook.env if self.hook else None,
                 )
-            except GitCommandError as e:
-                raise AirflowException("Error cloning repository") from e
-        self.bare_repo = Repo(self.bare_repo_path)
+            self.bare_repo = Repo(self.bare_repo_path)
+
+            # Fetch to ensure we have latest refs and validate repo integrity
+            self._fetch_bare_repo()
+        except (InvalidGitRepositoryError, GitCommandError) as e:
+            self._log.warning(
+                "Bare repository clone/open/fetch failed, cleaning up and retrying",
+                bare_repo_path=self.bare_repo_path,
+                exc=e,
+            )
+            if os.path.exists(self.bare_repo_path):
+                shutil.rmtree(self.bare_repo_path)
+            raise
 
     def _ensure_version_in_bare_repo(self) -> None:
         if not self.version:

@@ -23,7 +23,7 @@ from typing import Any
 from datadog import api, initialize
 
 from airflow.exceptions import AirflowException
-from airflow.providers.datadog.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

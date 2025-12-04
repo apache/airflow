@@ -669,7 +669,7 @@ ARG_SSL_KEY = Arg(
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
 )
-ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
+ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -1923,6 +1923,7 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_SKIP_SERVE_LOGS,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
         epilog=(
             "Signals:\n"
@@ -1946,6 +1947,7 @@ core_commands: list[CLICommand] = [
             ARG_CAPACITY,
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_DEV,
         ),
     ),
     ActionCommand(
@@ -1961,6 +1963,7 @@ core_commands: list[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
     ),
     ActionCommand(

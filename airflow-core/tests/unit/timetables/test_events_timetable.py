@@ -65,7 +65,7 @@ def restricted_timetable():
 
 
 @pytest.mark.parametrize(
-    "start, end",
+    ("start", "end"),
     list(zip(EVENT_DATES, EVENT_DATES)),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
@@ -101,7 +101,7 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, expected_next_info",
+    ("last_automated_data_interval", "expected_next_info"),
     [
         pytest.param(None, DagRunInfo.interval(START_DATE, START_DATE)),
         pytest.param(
@@ -212,8 +212,8 @@ def test_timetable_after_serialization_is_the_same():
 
 def test_timetable_without_description_after_serialization_is_the_same():
     timetable = EventsTimetable(event_dates=EVENT_DATES, presorted=True)
-    summary = f"{timetable.summary}"
-    description = f"{timetable.description}"
+    summary = timetable.summary
+    description = timetable.description
     assert timetable.event_dates == EVENT_DATES
 
     deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())

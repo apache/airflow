@@ -10,6 +10,7 @@
     "hourly": "Orario",
     "legend": {
       "less": "Meno",
+      "mixed": "Misto",
       "more": "Più"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Anno precedente"
     },
     "noData": "Nessun dato disponibile",
+    "noFailedRuns": "Nessuna esecuzione non riuscita",
     "noRuns": "Nessun run",
     "totalRuns": "Run Totali",
     "week": "Settimana {{weekNumber}}",

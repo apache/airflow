@@ -288,7 +288,7 @@ class TestBranchDayOfWeekOperator:
                 )
 
     @pytest.mark.parametrize(
-        "_,week_day,fail_msg",
+        ("_", "week_day", "fail_msg"),
         [
             ("string", "Thsday", "Thsday"),
             ("list", ["Monday", "Thsday"], "Thsday"),

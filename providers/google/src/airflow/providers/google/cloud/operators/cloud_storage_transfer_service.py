@@ -65,14 +65,15 @@ from airflow.providers.google.cloud.links.cloud_storage_transfer import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
+    CloudDataTransferServiceRunJobTrigger,
     CloudStorageTransferServiceCheckJobStatusTrigger,
 )
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 class TransferJobPreprocessor:
@@ -469,6 +470,8 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param timeout: Time to wait for the operation to end in seconds. Defaults to 60 seconds if not specified.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     # [START gcp_transfer_job_run_template_fields]
@@ -490,6 +493,8 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         api_version: str = "v1",
         project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
+        timeout: float | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -498,6 +503,8 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
+        self.timeout = timeout
+        self.deferrable = deferrable
 
     def _validate_inputs(self) -> None:
         if not self.job_name:
@@ -519,7 +526,31 @@ class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
                 job_name=self.job_name,
             )
 
+        if self.deferrable:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout or 60),
+                trigger=CloudDataTransferServiceRunJobTrigger(
+                    job_name=self.job_name,
+                    project_id=project_id,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.google_impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
         return hook.run_transfer_job(job_name=self.job_name, project_id=project_id)
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Act as a callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        return event["job_result"]
 
 
 class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):

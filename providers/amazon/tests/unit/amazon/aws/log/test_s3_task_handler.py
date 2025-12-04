@@ -341,7 +341,7 @@ class TestS3TaskHandler:
             boto3.resource("s3").Object("bucket", self.remote_log_key).get()
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     def test_close_with_delete_local_logs_conf(self, delete_local_copy, expected_existence_of_local_copy):

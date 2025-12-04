@@ -72,7 +72,7 @@ export const DagCard = ({ dag }: Props) => {
             isPaused={dag.is_paused}
             withText={false}
           />
-          <FavoriteDagButton dagId={dag.dag_id} withText={false} />
+          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText={false} />
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
@@ -89,7 +89,7 @@ export const DagCard = ({ dag }: Props) => {
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
+              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
                 <DagRunInfo
                   endDate={latestRun.end_date}
                   logicalDate={latestRun.logical_date}

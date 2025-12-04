@@ -23,7 +23,7 @@ from airflow.sdk.module_loading import is_valid_dotpath
 
 class TestModuleLoading:
     @pytest.mark.parametrize(
-        "path, expected",
+        ("path", "expected"),
         [
             pytest.param("valid_path", True, id="module_no_dots"),
             pytest.param("valid.dot.path", True, id="standard_dotpath"),

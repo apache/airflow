@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -61,7 +62,8 @@ class TestGetConfig:
         """
         Test the /config endpoint to verify response matches mock data.
         """
-        response = test_client.get("/config")
+        with assert_queries_count(0):
+            response = test_client.get("/config")
 
         assert response.status_code == 200
         assert response.json() == mock_config_response

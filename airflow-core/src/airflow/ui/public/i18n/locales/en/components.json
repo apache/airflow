@@ -49,6 +49,13 @@
     "warning_one": "1 Warning",
     "warning_other": "{{count}} Warnings"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Duration (seconds)",
     "lastDagRun_one": "Last Dag Run",
@@ -86,6 +93,14 @@
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} more",
+  "limitedList.allItems": "All {{count}} items:",
+  "limitedList.allTags_one": "All Tags (1)",
+  "limitedList.allTags_other": "All Tags ({{count}})",
+  "limitedList.clickToInteract": "Click a tag to filter Dags",
+  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.copyPasteText": "You can copy and paste the text above",
+  "limitedList.showingItems_one": "Showing 1 item",
+  "limitedList.showingItems_other": "Showing {{count}} items",
   "logs": {
     "file": "File",
     "location": "line {{line}} in {{name}}"
@@ -106,6 +121,9 @@
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger DAG"
+      },
       "success": {
         "description": "Dag run has been successfully triggered.",
         "title": "Dag Run Triggered"

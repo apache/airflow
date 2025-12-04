@@ -19,9 +19,41 @@
 
 from __future__ import annotations
 
+import logging
 import os
+import shlex
+import subprocess
 
-from airflow.utils.process_utils import execute_in_subprocess
+
+def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str, str] | None = None) -> None:
+    """
+    Execute a process and stream output to logger.
+
+    :param cmd: command and arguments to run
+    :param cwd: Current working directory passed to the Popen constructor
+    :param env: Additional environment variables to set for the subprocess.
+    """
+    log = logging.getLogger(__name__)
+
+    log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
+    with subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=0,
+        close_fds=True,
+        cwd=cwd,
+        env=env,
+    ) as proc:
+        log.info("Output:")
+        if proc.stdout:
+            with proc.stdout:
+                for line in iter(proc.stdout.readline, b""):
+                    log.info("%s", line.decode().rstrip())
+
+        exit_code = proc.wait()
+    if exit_code != 0:
+        raise subprocess.CalledProcessError(exit_code, cmd)
 
 
 def init_module(go_module_name: str, go_module_path: str) -> None:
@@ -36,7 +68,7 @@ def init_module(go_module_name: str, go_module_path: str) -> None:
     if os.path.isfile(os.path.join(go_module_path, "go.mod")):
         return
     go_mod_init_cmd = ["go", "mod", "init", go_module_name]
-    execute_in_subprocess(go_mod_init_cmd, cwd=go_module_path)
+    _execute_in_subprocess(go_mod_init_cmd, cwd=go_module_path)
 
 
 def install_dependencies(go_module_path: str) -> None:
@@ -46,4 +78,4 @@ def install_dependencies(go_module_path: str) -> None:
     :param go_module_path: The path to the directory containing the Go module.
     """
     go_mod_tidy = ["go", "mod", "tidy"]
-    execute_in_subprocess(go_mod_tidy, cwd=go_module_path)
+    _execute_in_subprocess(go_mod_tidy, cwd=go_module_path)

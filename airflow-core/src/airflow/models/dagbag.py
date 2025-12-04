@@ -20,12 +20,13 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, String, inspect, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import String, inspect, select
+from sqlalchemy.orm import Mapped, joinedload
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -65,13 +66,13 @@ class DBDagBag:
         return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info = inspect(dag_run)
+        info: Any = inspect(dag_run)
         if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
             # Relationship is already loaded, safe to access
             return dag_run.created_dag_version
@@ -115,14 +116,16 @@ class DagPriorityParsingRequest(Base):
     # Adding a unique constraint to fileloc results in the creation of an index and we have a limitation
     # on the size of the string we can use in the index for MySQL DB. We also have to keep the fileloc
     # size consistent with other tables. This is a workaround to enforce the unique constraint.
-    id = Column(String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash)
+    id: Mapped[str] = mapped_column(
+        String(32), primary_key=True, default=generate_md5_hash, onupdate=generate_md5_hash
+    )
 
-    bundle_name = Column(StringID(), nullable=False)
+    bundle_name: Mapped[str] = mapped_column(StringID(), nullable=False)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
     # associated zip.
-    relative_fileloc = Column(String(2000), nullable=False)
+    relative_fileloc: Mapped[str] = mapped_column(String(2000), nullable=False)
 
     def __init__(self, bundle_name: str, relative_fileloc: str) -> None:
         super().__init__()
@@ -143,10 +146,12 @@ def __getattr__(name: str) -> Any:
     if name in {"DagBag", "FileLoadStat", "timeout"}:
         import warnings
 
+        from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
         warnings.warn(
             f"Importing {name} from airflow.models.dagbag is deprecated and will be removed in a future "
             "release. Please import from airflow.dag_processing.dagbag instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         # Import on demand to avoid import-time side effects

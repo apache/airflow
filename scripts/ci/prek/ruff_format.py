@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "ruff==0.13.3",
+#   "ruff==0.14.7",
 # ]
 # ///
 

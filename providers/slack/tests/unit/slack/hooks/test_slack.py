@@ -105,24 +105,27 @@ class TestSlackHook:
     def test_get_token_from_connection(self, conn_id):
         """Test retrieve token from Slack API Connection ID."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
+        conn = hook.get_connection(hook.slack_conn_id)
+        assert hook._get_conn_params(conn)["token"] == MOCK_SLACK_API_TOKEN
 
     def test_resolve_token(self):
         """Test that we only use token from Slack API Connection ID."""
         with pytest.warns(UserWarning, match="Provide `token` as part of .* parameters is disallowed"):
             hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
+        conn = hook.get_connection(hook.slack_conn_id)
         assert "token" not in hook.extra_client_args
-        assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
+        assert hook._get_conn_params(conn)["token"] == MOCK_SLACK_API_TOKEN
 
     def test_empty_password(self):
         """Test password field defined in the connection."""
         hook = SlackHook(slack_conn_id="empty_slack_connection")
+        conn = hook.get_connection(hook.slack_conn_id)
         error_message = r"Connection ID '.*' does not contain password \(Slack API Token\)\."
         with pytest.raises(AirflowNotFoundException, match=error_message):
-            hook._get_conn_params()
+            hook._get_conn_params(conn)
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {
@@ -228,8 +231,9 @@ class TestSlackHook:
 
         with mock.patch.dict("os.environ", values={test_conn_env: test_conn.get_uri()}):
             hook = SlackHook(slack_conn_id=test_conn.conn_id, **hook_config)
+            conn = hook.get_connection(hook.slack_conn_id)
             expected["logger"] = hook.log
-            conn_params = hook._get_conn_params()
+            conn_params = hook._get_conn_params(conn)
             assert conn_params == expected
 
             client = hook.client
@@ -319,7 +323,8 @@ class TestSlackHook:
     def test_backcompat_prefix_works(self, uri, monkeypatch):
         monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", uri)
         hook = SlackHook(slack_conn_id="my_conn")
-        params = hook._get_conn_params()
+        conn = hook.get_connection(hook.slack_conn_id)
+        params = hook._get_conn_params(conn)
         assert params["token"] == "abc"
         assert params["timeout"] == 123
         assert params["base_url"] == "base_url"
@@ -328,8 +333,9 @@ class TestSlackHook:
     def test_backcompat_prefix_both_causes_warning(self, monkeypatch):
         monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", "a://:abc@?extra__slack__timeout=111&timeout=222")
         hook = SlackHook(slack_conn_id="my_conn")
+        conn = hook.get_connection(hook.slack_conn_id)
         with pytest.warns(Warning, match="Using value for `timeout`"):
-            params = hook._get_conn_params()
+            params = hook._get_conn_params(conn)
         assert params["timeout"] == 222
 
     def test_empty_string_ignored_prefixed(self, monkeypatch):
@@ -340,7 +346,8 @@ class TestSlackHook:
             ),
         )
         hook = SlackHook(slack_conn_id="my_conn")
-        params = hook._get_conn_params()
+        conn = hook.get_connection(hook.slack_conn_id)
+        params = hook._get_conn_params(conn)
         assert "proxy" not in params
         assert "base_url" not in params
 
@@ -350,7 +357,8 @@ class TestSlackHook:
             json.dumps({"password": "hi", "extra": {"base_url": "", "proxy": ""}}),
         )
         hook = SlackHook(slack_conn_id="my_conn")
-        params = hook._get_conn_params()
+        conn = hook.get_connection(hook.slack_conn_id)
+        params = hook._get_conn_params(conn)
         assert "proxy" not in params
         assert "base_url" not in params
 
@@ -514,7 +522,7 @@ class TestSlackHook:
             )
 
     @pytest.mark.parametrize(
-        "file,content",
+        ("file", "content"),
         [
             pytest.param(None, None, id="both-none"),
             pytest.param("", "", id="both-empty"),
@@ -528,7 +536,7 @@ class TestSlackHook:
             hook.send_file_v1_to_v2(file=file, content=content)
 
     @pytest.mark.parametrize(
-        "channels, expected_calls",
+        ("channels", "expected_calls"),
         [
             pytest.param("#foo, #bar", 2, id="comma-separated-string"),
             pytest.param(["#random", "#development", "#airflow-upgrades"], 3, id="list"),
@@ -539,3 +547,36 @@ class TestSlackHook:
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(channels=channels, content="Fake")
             assert mocked_send_file_v2.call_count == expected_calls
+
+
+class TestSlackHookAsync:
+    @pytest.fixture
+    def mock_get_conn(self):
+        with mock.patch(
+            "airflow.providers.slack.hooks.slack.get_async_connection", new_callable=mock.AsyncMock
+        ) as m:
+            m.return_value = Connection(
+                conn_id=SLACK_API_DEFAULT_CONN_ID,
+                conn_type=CONN_TYPE,
+                password=MOCK_SLACK_API_TOKEN,
+            )
+            yield m
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.slack.hooks.slack.AsyncWebClient")
+    async def test_get_async_client(self, mock_client, mock_get_conn):
+        """Test get_async_client creates AsyncWebClient with correct params."""
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        await hook.get_async_client()
+        mock_get_conn.assert_called()
+        mock_client.assert_called_once_with(token=MOCK_SLACK_API_TOKEN, logger=mock.ANY)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.slack.hooks.slack.AsyncWebClient.api_call", new_callable=mock.AsyncMock)
+    async def test_async_call(self, mock_api_call, mock_get_conn):
+        """Test async_call is called correctly."""
+        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        test_api_json = {"channel": "test_channel"}
+        await hook.async_call("chat.postMessage", json=test_api_json)
+        mock_get_conn.assert_called()
+        mock_api_call.assert_called_with("chat.postMessage", json=test_api_json)

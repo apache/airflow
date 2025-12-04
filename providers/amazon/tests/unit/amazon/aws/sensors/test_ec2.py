@@ -42,7 +42,7 @@ class TestEC2InstanceStateSensor:
 
     def test_init_invalid_target_state(self):
         invalid_target_state = "target_state_test"
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match=f"Invalid target_state: {invalid_target_state}") as ctx:
             EC2InstanceStateSensor(
                 task_id="task_test",
                 target_state=invalid_target_state,

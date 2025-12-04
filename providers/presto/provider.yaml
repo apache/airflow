@@ -22,12 +22,15 @@ description: |
     `Presto <https://prestodb.io/>`__
 
 state: ready
-source-date-epoch: 1753691808
+source-date-epoch: 1764110527
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.10.0
+  - 5.9.4
+  - 5.9.3
   - 5.9.2
   - 5.9.1
   - 5.9.0
@@ -75,6 +78,8 @@ versions:
 integrations:
   - integration-name: Presto
     external-doc-url: https://prestodb.io/
+    how-to-guide:
+      - /docs/apache-airflow-providers-presto/operators.rst
     logo: /docs/integration-logos/PrestoDB.png
     tags: [software]
 
@@ -86,7 +91,7 @@ hooks:
 transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Presto
-    how-to-guide: /docs/apache-airflow-providers-presto/gcs_to_presto.rst
+    how-to-guide: /docs/apache-airflow-providers-presto/transfer/gcs_to_presto.rst
     python-module: airflow.providers.presto.transfers.gcs_to_presto
 
 

@@ -156,7 +156,7 @@ class TestEventBridgePutRuleOperator:
             event_pattern="invalid json",
         )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="`event_pattern` must be a valid JSON string."):
             operator.execute(None)
 
     def test_template_fields(self):

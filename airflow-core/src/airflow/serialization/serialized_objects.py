@@ -28,9 +28,10 @@ import itertools
 import logging
 import math
 import re
+import sys
 import weakref
 from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
-from functools import cached_property, lru_cache
+from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
 from typing import (
@@ -62,7 +63,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializationError,
     SerializationError,
-    TaskDeferred,
     TaskNotFound,
 )
 from airflow.models.connection import Connection
@@ -75,7 +75,7 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
+from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetAny, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
@@ -93,9 +93,22 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.decoders import (
+    decode_asset,
+    decode_asset_condition,
+    decode_relativedelta,
+    decode_timetable,
+)
+from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.encoders import (
+    encode_asset_condition,
+    encode_relativedelta,
+    encode_timetable,
+    encode_timezone,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import serialize_template_field
+from airflow.serialization.helpers import TimetableNotRegistered, serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
 from airflow.stats import Stats
@@ -115,12 +128,11 @@ from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -136,9 +148,8 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseEventTrigger
+    from airflow.timetables.simple import PartitionMapper
 
-    HAS_KUBERNETES: bool
     try:
         from kubernetes.client import models as k8s  # noqa: TC004
 
@@ -162,64 +173,6 @@ DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
 log = logging.getLogger(__name__)
 
 
-def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
-    """Encode a relativedelta object."""
-    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
-    if var.weekday and var.weekday.n:
-        # Every n'th Friday for example
-        encoded["weekday"] = [var.weekday.weekday, var.weekday.n]
-    elif var.weekday:
-        encoded["weekday"] = [var.weekday.weekday]
-    return encoded
-
-
-def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
-    """Dencode a relativedelta object."""
-    if "weekday" in var:
-        var["weekday"] = relativedelta.weekday(*var["weekday"])
-    return relativedelta.relativedelta(**var)
-
-
-def encode_timezone(var: Timezone | FixedTimezone) -> str | int:
-    """
-    Encode a Pendulum Timezone for serialization.
-
-    Airflow only supports timezone objects that implements Pendulum's Timezone
-    interface. We try to keep as much information as possible to make conversion
-    round-tripping possible (see ``decode_timezone``). We need to special-case
-    UTC; Pendulum implements it as a FixedTimezone (i.e. it gets encoded as
-    0 without the special case), but passing 0 into ``pendulum.timezone`` does
-    not give us UTC (but ``+00:00``).
-    """
-    if isinstance(var, FixedTimezone):
-        if var.offset == 0:
-            return "UTC"
-        return var.offset
-    if isinstance(var, Timezone):
-        return var.name
-    raise ValueError(
-        f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}. "
-        f"See {get_docs_url('timezone.html#time-zone-aware-dags')}"
-    )
-
-
-def decode_timezone(var: str | int) -> Timezone | FixedTimezone:
-    """Decode a previously serialized Pendulum Timezone."""
-    return parse_timezone(var)
-
-
-def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
-    from airflow import plugins_manager
-
-    if importable_string.startswith("airflow.timetables."):
-        return import_string(importable_string)
-    plugins_manager.initialize_timetables_plugins()
-    if plugins_manager.timetable_classes:
-        return plugins_manager.timetable_classes.get(importable_string)
-    else:
-        return None
-
-
 def _get_registered_priority_weight_strategy(
     importable_string: str,
 ) -> type[PriorityWeightStrategy] | None:
@@ -234,13 +187,13 @@ def _get_registered_priority_weight_strategy(
         return None
 
 
-class _TimetableNotRegistered(ValueError):
+class _PartitionMapperNotFound(ValueError):
     def __init__(self, type_string: str) -> None:
         self.type_string = type_string
 
     def __str__(self) -> str:
         return (
-            f"Timetable class {self.type_string!r} is not registered or "
+            f"PartitionMapper class {self.type_string!r} could not be imported or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
@@ -256,126 +209,6 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-
-
-def _encode_trigger(trigger: BaseEventTrigger | dict):
-    def _ensure_serialized(d):
-        """
-        Make sure the kwargs dict is JSON-serializable.
-
-        This is done with BaseSerialization logic. A simple check is added to
-        ensure we don't double-serialize, which is possible when a trigger goes
-        through multiple serialization layers.
-        """
-        if isinstance(d, dict) and Encoding.TYPE in d:
-            return d
-        return BaseSerialization.serialize(d)
-
-    if isinstance(trigger, dict):
-        classpath = trigger["classpath"]
-        kwargs = trigger["kwargs"]
-    else:
-        classpath, kwargs = trigger.serialize()
-    return {
-        "classpath": classpath,
-        "kwargs": {k: _ensure_serialized(v) for k, v in kwargs.items()},
-    }
-
-
-def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
-    """
-    Encode an asset condition.
-
-    :meta private:
-    """
-    if isinstance(var, Asset):
-
-        def _encode_watcher(watcher: AssetWatcher):
-            return {
-                "name": watcher.name,
-                "trigger": _encode_trigger(watcher.trigger),
-            }
-
-        asset = {
-            "__type": DAT.ASSET,
-            "name": var.name,
-            "uri": var.uri,
-            "group": var.group,
-            "extra": var.extra,
-        }
-
-        if len(var.watchers) > 0:
-            asset["watchers"] = [_encode_watcher(watcher) for watcher in var.watchers]
-
-        return asset
-    if isinstance(var, AssetAlias):
-        return {"__type": DAT.ASSET_ALIAS, "name": var.name, "group": var.group}
-    if isinstance(var, AssetAll):
-        return {
-            "__type": DAT.ASSET_ALL,
-            "objects": [encode_asset_condition(x) for x in var.objects],
-        }
-    if isinstance(var, AssetAny):
-        return {
-            "__type": DAT.ASSET_ANY,
-            "objects": [encode_asset_condition(x) for x in var.objects],
-        }
-    if isinstance(var, AssetRef):
-        return {"__type": DAT.ASSET_REF, **attrs.asdict(var)}
-    raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
-
-
-def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
-    """
-    Decode a previously serialized asset condition.
-
-    :meta private:
-    """
-    dat = var["__type"]
-    if dat == DAT.ASSET:
-        return decode_asset(var)
-    if dat == DAT.ASSET_ALL:
-        return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
-    if dat == DAT.ASSET_ANY:
-        return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
-    if dat == DAT.ASSET_ALIAS:
-        return AssetAlias(name=var["name"], group=var["group"])
-    if dat == DAT.ASSET_REF:
-        return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
-    raise ValueError(f"deserialization not implemented for DAT {dat!r}")
-
-
-def smart_decode_trigger_kwargs(d):
-    """
-    Slightly clean up kwargs for display or execution.
-
-    This detects one level of BaseSerialization and tries to deserialize the
-    content, removing some __type __var ugliness when the value is displayed
-    in UI to the user and/or while execution.
-    """
-    if not isinstance(d, dict) or Encoding.TYPE not in d:
-        return d
-    return BaseSerialization.deserialize(d)
-
-
-def decode_asset(var: dict[str, Any]):
-    watchers = var.get("watchers", [])
-    return Asset(
-        name=var["name"],
-        uri=var["uri"],
-        group=var["group"],
-        extra=var["extra"],
-        watchers=[
-            SerializedAssetWatcher(
-                name=watcher["name"],
-                trigger={
-                    "classpath": watcher["trigger"]["classpath"],
-                    "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
-                },
-            )
-            for watcher in watchers
-        ],
-    )
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
@@ -398,6 +231,8 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
                 dest_asset_key=AssetUniqueKey(
                     name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
                 ),
+                # fallback for backward compatibility
+                dest_asset_extra=e.get("dest_asset_extra", {}),
                 extra=e["extra"],
             )
             for e in asset_alias_events
@@ -425,25 +260,31 @@ def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
     return d
 
 
-def encode_timetable(var: Timetable) -> dict[str, Any]:
+def _load_partition_mapper(importable_string) -> PartitionMapper | None:
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    return None
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
     """
-    Encode a timetable instance.
+    Encode a PartitionMapper instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
 
     :meta private:
     """
-    timetable_class = type(var)
-    importable_string = qualname(timetable_class)
-    if _get_registered_timetable(importable_string) is None:
-        raise _TimetableNotRegistered(importable_string)
+    partition_mapper_class = type(var)
+    importable_string = qualname(partition_mapper_class)
+    if _load_partition_mapper(importable_string) is None:
+        raise _PartitionMapperNotFound(importable_string)
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def decode_timetable(var: dict[str, Any]) -> Timetable:
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     """
-    Decode a previously serialized timetable.
+    Decode a previously serialized PartitionMapper.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
@@ -451,10 +292,10 @@ def decode_timetable(var: dict[str, Any]) -> Timetable:
     :meta private:
     """
     importable_string = var[Encoding.TYPE]
-    timetable_class = _get_registered_timetable(importable_string)
-    if timetable_class is None:
-        raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var[Encoding.VAR])
+    partition_mapper_class = _load_partition_mapper(importable_string)
+    if partition_mapper_class is None:
+        raise _PartitionMapperNotFound(importable_string)
+    return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
 def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
@@ -735,7 +576,12 @@ class BaseSerialization:
 
         :meta private:
         """
-        if cls._is_primitive(var):
+        from airflow.sdk.definitions._internal.types import is_arg_set
+        from airflow.sdk.exceptions import TaskDeferred
+
+        if not is_arg_set(var):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
+        elif cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
@@ -866,8 +712,6 @@ class BaseSerialization:
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
-        elif isinstance(var, ArgNotSet):
-            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -923,14 +767,19 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return from_timestamp(var)
         elif type_ == DAT.POD:
-            if not _has_kubernetes():
-                raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
+            # Attempt to import kubernetes for deserialization. Using attempt_import=True allows
+            # lazy loading of kubernetes libraries only when actually needed for POD deserialization.
+            if not _has_kubernetes(attempt_import=True):
+                raise RuntimeError(
+                    "Cannot deserialize POD objects without kubernetes libraries. "
+                    "Please install the cncf.kubernetes provider."
+                )
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
-            return decode_timezone(var)
+            return parse_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
         elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
@@ -975,6 +824,8 @@ class BaseSerialization:
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
+            from airflow.serialization.definitions.notset import NOTSET
+
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
             return DeadlineAlert.deserialize_deadline_alert(var)
@@ -1025,20 +876,19 @@ class BaseSerialization:
             "default": cls.serialize(param.value),
             "description": cls.serialize(param.description),
             "schema": cls.serialize(param.schema),
+            "source": cls.serialize(getattr(param, "source", None)),
         }
 
     @classmethod
-    def _deserialize_param(cls, param_dict: dict):
+    def _deserialize_param(cls, param_dict: dict) -> SerializedParam:
         """
-        Workaround to serialize Param on older versions.
+        Deserialize an encoded Param to a server-side SerializedParam.
 
         In 2.2.0, Param attrs were assumed to be json-serializable and were not run through
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
-        class_name = param_dict["__class"]
-        class_: type[Param] = import_string(class_name)
-        attrs = ("default", "description", "schema")
+        attrs = ("default", "description", "schema", "source")
         kwargs = {}
 
         def is_serialized(val):
@@ -1054,16 +904,21 @@ class BaseSerialization:
                 if is_serialized(val):
                     val = cls.deserialize(val)
                 kwargs[attr] = val
-        return class_(**kwargs)
+
+        return SerializedParam(
+            default=kwargs.get("default"),
+            description=kwargs.get("description"),
+            source=kwargs.get("source", None),
+            **(kwargs.get("schema") or {}),
+        )
 
     @classmethod
     def _serialize_params_dict(cls, params: ParamsDict | dict) -> list[tuple[str, dict]]:
         """Serialize Params dict for a DAG or task as a list of tuples to ensure ordering."""
         serialized_params = []
-        for k, v in params.items():
-            if isinstance(params, ParamsDict):
-                # Use native param object, not resolved value if possible
-                v = params.get_param(k)
+        for k, raw_v in params.items():
+            # Use native param object, not resolved value if possible
+            v = params.get_param(k) if isinstance(params, ParamsDict) else raw_v
             try:
                 class_identity = f"{v.__module__}.{v.__class__.__name__}"
             except AttributeError:
@@ -1076,23 +931,21 @@ class BaseSerialization:
         return serialized_params
 
     @classmethod
-    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> ParamsDict:
-        """Deserialize a DAG's Params dict."""
+    def _deserialize_params_dict(cls, encoded_params: list[tuple[str, dict]]) -> SerializedParamsDict:
+        """Deserialize an encoded ParamsDict to a server-side SerializedParamsDict."""
         if isinstance(encoded_params, collections.abc.Mapping):
             # in 2.9.2 or earlier params were serialized as JSON objects
             encoded_param_pairs: Iterable[tuple[str, dict]] = encoded_params.items()
         else:
             encoded_param_pairs = encoded_params
 
-        op_params = {}
-        for k, v in encoded_param_pairs:
-            if isinstance(v, dict) and "__class" in v:
-                op_params[k] = cls._deserialize_param(v)
-            else:
-                # Old style params, convert it
-                op_params[k] = Param(v)
+        def deserialized_param(v):
+            if not isinstance(v, dict) or "__class" not in v:
+                return SerializedParam(v)  # Old style param serialization format.
+            return cls._deserialize_param(v)
 
-        return ParamsDict(op_params)
+        op_params = {k: deserialized_param(v) for k, v in encoded_param_pairs}
+        return SerializedParamsDict(op_params)
 
     @classmethod
     @lru_cache(maxsize=4)  # Cache for "operator", "dag", and a few others
@@ -1231,6 +1084,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1284,6 +1139,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     outlets: Sequence = []
     owner: str = "airflow"
+    params: SerializedParamsDict = SerializedParamsDict()
     pool: str = "default_pool"
     pool_slots: int = 1
     priority_weight: int = 1
@@ -1292,7 +1148,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     run_as_user: str | None = None
 
     start_date: datetime.datetime | None = None
@@ -1317,18 +1173,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     is_mapped = False
 
-    def __init__(
-        self,
-        *,
-        task_id: str,
-        params: Mapping[str, Any] | None = None,
-        _airflow_from_mapped: bool = False,
-    ) -> None:
+    def __init__(self, *, task_id: str, _airflow_from_mapped: bool = False) -> None:
         super().__init__()
 
         self._BaseOperator__from_mapped = _airflow_from_mapped
         self.task_id = task_id
-        self.params = ParamsDict(params)
         # Move class attributes into object attributes.
         self.deps = DEFAULT_OPERATOR_DEPS
         self._operator_name: str | None = None
@@ -1339,6 +1188,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return self.task_type == other.task_type and all(
             getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
         )
+
+    def __hash__(self):
+        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
 
     def __repr__(self) -> str:
         return f"<SerializedTask({self.task_type}): {self.task_id}>"
@@ -1585,7 +1437,9 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         deserialized_partial_kwarg_defaults = {}
 
-        for k, v in encoded_op.items():
+        for k_in, v_in in encoded_op.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             # Use centralized field deserialization logic
             if k in encoded_op.get("template_fields", []):
                 pass  # Template fields are handled separately
@@ -1603,9 +1457,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-                if op.params:  # Merge existing params if needed.
-                    v, new = op.params, v
-                    v.update(new)
             elif k == "partial_kwargs":
                 # Use unified deserializer that supports both encoded and non-encoded values
                 v = cls._deserialize_partial_kwargs(v, client_defaults)
@@ -1631,6 +1482,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             elif k == "weight_rule":
                 k = "_weight_rule"
                 v = decode_priority_weight_strategy(v)
+            elif k == "retry_exponential_backoff":
+                if isinstance(v, bool):
+                    v = 2.0 if v else 0
+                else:
+                    v = float(v)
             else:
                 # Apply centralized deserialization for all other fields
                 v = cls._deserialize_field_value(k, v)
@@ -1704,6 +1560,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         for task_id in task.downstream_task_ids:
             # Bypass set_upstream etc here - it does more than we want
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+
+    @classmethod
+    def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
+        if (schema_loader := cls._json_schema) is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const")
+        }
 
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
@@ -1860,10 +1732,39 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        # Use class-level cache for optimisation
+        if cls._const_fields is None:
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
+                # If it also matches client_defaults, exclude (optimization)
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
+                            return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
                 return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
@@ -2310,6 +2211,7 @@ def _create_orm_dagrun(
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
+    partition_key: str | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
     bundle_version = None
@@ -2336,9 +2238,11 @@ def _create_orm_dagrun(
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
         bundle_version=bundle_version,
+        partition_key=partition_key,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
-    run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
+    max_log_template_id = session.scalar(select(func.max(LogTemplate.__table__.c.id)))
+    run.log_template_id = int(max_log_template_id) if max_log_template_id is not None else 0
     run.created_dag_version = dag_version
     run.consumed_asset_events = []
     session.add(run)
@@ -2381,7 +2285,7 @@ class SerializedDAG(BaseSerialization):
     max_active_tasks: int
     max_consecutive_failed_dag_runs: int
     owner_links: dict[str, str]
-    params: ParamsDict  # TODO (GH-52141): Should use a scheduler-specific type.
+    params: SerializedParamsDict
     partial: bool
     render_template_as_native_obj: bool
     start_date: datetime.datetime | None
@@ -2416,7 +2320,7 @@ class SerializedDAG(BaseSerialization):
         self.max_active_tasks = 16  # Schema default
         self.max_consecutive_failed_dag_runs = 0  # Schema default
         self.owner_links = {}
-        self.params = ParamsDict()
+        self.params = SerializedParamsDict()
         self.partial = False
         self.render_template_as_native_obj = False
         self.start_date = None
@@ -2507,11 +2411,28 @@ class SerializedDAG(BaseSerialization):
                 serialized_dag["has_on_success_callback"] = True
             if dag.has_on_failure_callback:
                 serialized_dag["has_on_failure_callback"] = True
+
+            # TODO: Move this logic to a better place -- ideally before serializing contents of default_args.
+            #   There is some duplication with this and SerializedBaseOperator.partial_kwargs serialization.
+            #   Ideally default_args goes through same logic as fields of SerializedBaseOperator.
+            if serialized_dag.get("default_args", {}):
+                default_args_dict = serialized_dag["default_args"][Encoding.VAR]
+                callbacks_to_remove = []
+                for k, v in list(default_args_dict.items()):
+                    if k in [
+                        f"on_{x}_callback" for x in ("execute", "failure", "success", "retry", "skipped")
+                    ]:
+                        if bool(v):
+                            default_args_dict[f"has_{k}"] = True
+                        callbacks_to_remove.append(k)
+                for k in callbacks_to_remove:
+                    del default_args_dict[k]
+
             return serialized_dag
         except SerializationError:
             raise
         except Exception as e:
-            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}")
+            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}") from e
 
     @classmethod
     def deserialize_dag(
@@ -2528,7 +2449,7 @@ class SerializedDAG(BaseSerialization):
 
         try:
             return cls._deserialize_dag_internal(encoded_dag, client_defaults)
-        except (_TimetableNotRegistered, DeserializationError):
+        except (TimetableNotRegistered, DeserializationError):
             # Let specific errors bubble up unchanged
             raise
         except Exception as err:
@@ -2545,7 +2466,9 @@ class SerializedDAG(BaseSerialization):
 
         # Note: Context is passed explicitly through method parameters, no class attributes needed
 
-        for k, v in encoded_dag.items():
+        for k_in, v_in in encoded_dag.items():
+            k = k_in  # surpass PLW2901
+            v = v_in  # surpass PLW2901
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
@@ -2744,7 +2667,7 @@ class SerializedDAG(BaseSerialization):
             from airflow.sdk.definitions.dag import _create_timetable
 
             if tzs := dag_dict.get("timezone"):
-                timezone = decode_timezone(tzs)
+                timezone = parse_timezone(tzs)
             else:
                 timezone = settings.TIMEZONE
             timetable = _create_timetable(value, timezone)
@@ -2909,10 +2832,6 @@ class SerializedDAG(BaseSerialization):
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
 
-    @property
-    def timetable_summary(self) -> str:
-        return self.timetable.summary
-
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
 
@@ -2931,6 +2850,7 @@ class SerializedDAG(BaseSerialization):
         include_downstream: bool = False,
         include_upstream: bool = True,
         include_direct_upstream: bool = False,
+        exclude_original: bool = False,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 
@@ -2981,6 +2901,8 @@ class SerializedDAG(BaseSerialization):
             return copy.deepcopy(t, memo)
 
         # Compiling the unique list of tasks that made the cut
+        if exclude_original:
+            matched_tasks = []
         dag.task_dict = {
             t.task_id: _deepcopy_task(t)
             for t in itertools.chain(matched_tasks, also_include, direct_upstreams)
@@ -3200,6 +3122,7 @@ class SerializedDAG(BaseSerialization):
         start_date: datetime.datetime | None = None,
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
+        partition_key: str | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -3256,11 +3179,7 @@ class SerializedDAG(BaseSerialization):
                 )
 
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-
-        # create a copy of params before validating
-        copied_params = copy.deepcopy(self.params)
-        if conf:
-            copied_params.update(conf)
+        copied_params = self.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
@@ -3276,6 +3195,7 @@ class SerializedDAG(BaseSerialization):
             backfill_id=backfill_id,
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
+            partition_key=partition_key,
             session=session,
         )
 
@@ -3294,6 +3214,7 @@ class SerializedDAG(BaseSerialization):
                                 deadline_time=deadline_time,
                                 callback=deadline.callback,
                                 dagrun_id=orm_dagrun.id,
+                                dag_id=orm_dagrun.dag_id,
                             )
                         )
                         Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
@@ -3451,57 +3372,76 @@ class SerializedDAG(BaseSerialization):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = select(
+            tis_pk = select(
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.run_id,
                 TaskInstance.map_index,
             )
+            tis_pk = tis_pk.join(TaskInstance.dag_run)
         else:
-            tis = select(TaskInstance)
-        tis = tis.join(TaskInstance.dag_run)
+            tis_full = select(TaskInstance)
+            tis_full = tis_full.join(TaskInstance.dag_run)
 
-        if self.partial:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
-        else:
-            tis = tis.where(TaskInstance.dag_id == self.dag_id)
-        if run_id:
-            tis = tis.where(TaskInstance.run_id == run_id)
-        if start_date:
-            tis = tis.where(DagRun.logical_date >= start_date)
-        if task_ids is not None:
-            tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
-        if end_date:
-            tis = tis.where(DagRun.logical_date <= end_date)
-
-        if state:
-            if isinstance(state, (str, TaskInstanceState)):
-                tis = tis.where(TaskInstance.state == state)
-            elif len(state) == 1:
-                tis = tis.where(TaskInstance.state == state[0])
+        # Apply common filters
+        def apply_filters(query):
+            if self.partial:
+                query = query.where(
+                    TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids)
+                )
             else:
-                # this is required to deal with NULL values
-                if None in state:
-                    if all(x is None for x in state):
-                        tis = tis.where(TaskInstance.state.is_(None))
-                    else:
-                        not_none_state = [s for s in state if s]
-                        tis = tis.where(
-                            or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
-                        )
-                else:
-                    tis = tis.where(TaskInstance.state.in_(state))
+                query = query.where(TaskInstance.dag_id == self.dag_id)
+            if run_id:
+                query = query.where(TaskInstance.run_id == run_id)
+            if start_date:
+                query = query.where(DagRun.logical_date >= start_date)
+            if task_ids is not None:
+                # Use the selector condition directly without intermediate variable
+                query = query.where(TaskInstance.ti_selector_condition(task_ids))
+            if end_date:
+                query = query.where(DagRun.logical_date <= end_date)
+            return query
 
-        if exclude_run_ids:
-            tis = tis.where(TaskInstance.run_id.not_in(exclude_run_ids))
+        if as_pk_tuple:
+            tis_pk = apply_filters(tis_pk)
+        else:
+            tis_full = apply_filters(tis_full)
+
+        def apply_state_filter(query):
+            if state:
+                if isinstance(state, (str, TaskInstanceState)):
+                    query = query.where(TaskInstance.state == state)
+                elif len(state) == 1:
+                    query = query.where(TaskInstance.state == state[0])
+                else:
+                    # this is required to deal with NULL values
+                    if None in state:
+                        if all(x is None for x in state):
+                            query = query.where(TaskInstance.state.is_(None))
+                        else:
+                            not_none_state = [s for s in state if s]
+                            query = query.where(
+                                or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
+                            )
+                    else:
+                        query = query.where(TaskInstance.state.in_(state))
+
+            if exclude_run_ids:
+                query = query.where(TaskInstance.run_id.not_in(exclude_run_ids))
+            return query
+
+        if as_pk_tuple:
+            tis_pk = apply_state_filter(tis_pk)
+        else:
+            tis_full = apply_state_filter(tis_full)
 
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results
             if as_pk_tuple:
-                tis_query = session.execute(tis).all()
+                tis_query = session.execute(tis_pk).all()
                 result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
             else:
-                result.update(ti.key for ti in session.scalars(tis))
+                result.update(ti.key for ti in session.scalars(tis_full))
 
             if exclude_task_ids is not None:
                 result = {
@@ -3517,15 +3457,18 @@ class SerializedDAG(BaseSerialization):
             # We've been asked for objects, lets combine it all back in to a result set
             ti_filters = TaskInstance.filter_for_tis(result)
             if ti_filters is not None:
-                tis = select(TaskInstance).where(ti_filters)
+                tis_final = select(TaskInstance).where(ti_filters)
+                return session.scalars(tis_final)
         elif exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
-            tis = tis.where(TaskInstance.task_id.notin_(exclude_task_ids))
+            tis_full = tis_full.where(TaskInstance.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.where(tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids))
+            tis_full = tis_full.where(
+                tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids)
+            )
 
-        return tis
+        return session.scalars(tis_full)
 
     @overload
     def clear(
@@ -3637,7 +3580,7 @@ class SerializedDAG(BaseSerialization):
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
             state += [TaskInstanceState.RUNNING]
 
-        tis = self._get_task_instances(
+        tis_result = self._get_task_instances(
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
@@ -3649,11 +3592,11 @@ class SerializedDAG(BaseSerialization):
         )
 
         if dry_run:
-            return session.scalars(tis).all()
+            return list(tis_result)
 
-        tis = session.scalars(tis).all()
+        tis = list(tis_result)
 
-        count = len(list(tis))
+        count = len(tis)
         if count == 0:
             return 0
 
@@ -3803,19 +3746,20 @@ class TaskGroupSerialization(BaseSerialization):
         return group
 
 
-class SerializedAssetWatcher(AssetWatcher):
-    """JSON serializable representation of an asset watcher."""
+@cache
+def _has_kubernetes(attempt_import: bool = False) -> bool:
+    """
+    Check if kubernetes libraries are available.
 
-    trigger: dict
-
-
-def _has_kubernetes() -> bool:
-    global HAS_KUBERNETES
-    if "HAS_KUBERNETES" in globals():
-        return HAS_KUBERNETES
+    :param attempt_import: If true, attempt to import kubernetes libraries if not already loaded. If
+        False, only check if already in sys.modules (avoids expensive import).
+    :return: True if kubernetes libraries are available, False otherwise.
+    """
+    # Check if kubernetes is already imported before triggering expensive import
+    if "kubernetes.client" not in sys.modules and not attempt_import:
+        return False
 
     # Loading kube modules is expensive, so delay it until the last moment
-
     try:
         from kubernetes.client import models as k8s
 
@@ -3823,10 +3767,9 @@ def _has_kubernetes() -> bool:
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
-        HAS_KUBERNETES = True
+        return True
     except ImportError:
-        HAS_KUBERNETES = False
-    return HAS_KUBERNETES
+        return False
 
 
 AssetT = TypeVar("AssetT", bound=BaseAsset, covariant=True)
@@ -3870,6 +3813,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "jinja_environment_kwargs",
         "relative_fileloc",
         "disable_bundle_versioning",
+        "fail_fast",
         "last_loaded",
     }
 

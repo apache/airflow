@@ -20,8 +20,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
-from airflow.providers.influxdb.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     try:

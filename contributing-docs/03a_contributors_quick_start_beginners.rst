@@ -37,6 +37,7 @@ Prerequisites
 * `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
+
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
@@ -51,10 +52,12 @@ For Breeze (local development):
 
     uv tool install prek
     prek install -f
+    prek install -f --hook-type pre-push
+
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03b_contributors_quick_start_seasoned_developers.html#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
 
 Option A – Breeze on Your Laptop
 --------------------------------
@@ -123,7 +126,8 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
 
     git fetch upstream && git rebase upstream/main && git push --force-with-lease
 
-## Option B – One-Click GitHub Codespaces
+Option B – One-Click GitHub Codespaces
+---------------------------------------
 
 1. On **your fork**, click *Code → Codespaces → New codespace*.
 2. Wait for the VS Code web IDE to appear.  A terminal opens automatically.
@@ -131,37 +135,36 @@ This flag enables configuration to load example DAGs when starting Airflow, whic
 
 .. code-block:: bash
 
-```
-mkdir -p ~/.docker/cli-plugins
+    mkdir -p ~/.docker/cli-plugins
 
-# Install Docker Buildx
-BUILDX_VERSION=v0.16.2
-curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
-chmod +x ~/.docker/cli-plugins/docker-buildx
-docker buildx version
+    # Install Docker Buildx
+    BUILDX_VERSION=v0.16.2
+    curl -SL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" -o ~/.docker/cli-plugins/docker-buildx
+    chmod +x ~/.docker/cli-plugins/docker-buildx
+    docker buildx version
 
-# Install Docker Compose v2
-curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
-chmod +x ~/.docker/cli-plugins/docker-compose
-docker compose version
-```
+    # Install Docker Compose v2
+    curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)" -o ~/.docker/cli-plugins/docker-compose
+    chmod +x ~/.docker/cli-plugins/docker-compose
+    docker compose version
 
 4. Install Breeze and start the development container
 
 .. code-block:: bash
 
-```
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install prek
-prek install -f
-uv tool install -e ./dev/breeze
-uv run setup_vscode.py
-breeze start-airflow
-```
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      uv tool install prek
+      prek install -f
+      prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
+      uv tool install -e ./dev/breeze
+      uv run setup_vscode.py
+      breeze start-airflow
 
-5. Edit a file in the editor, save, and commit via the Source Control
-sidebar.  Push when prompted.
+5. Edit a file in the editor, save, and commit via the Source Control sidebar.
+   Push when prompted.
+
 6. Press **Create pull request** when GitHub offers.
+
 
 
 Review & Merge
@@ -171,7 +174,5 @@ CI is green and reviews are ✅, a committer will merge.  🎉
 
 Next Steps
 ----------
-* Need a full development environment?  See
-  :doc:`03b_contributors_quick_start_seasoned_developers`.
-* Learn about our contribution workflow:
-  :doc:`04_how_to_contribute`.
+* Need a full development environment? See the `Development Environments Guide <https://github.com/apache/airflow/blob/main/contributing-docs/06_development_environments.rst>`_.
+* Learn about our contribution workflow? Checkout the `Contribution Workflow Guide <https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst>`_.

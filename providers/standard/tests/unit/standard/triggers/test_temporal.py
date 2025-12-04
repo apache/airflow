@@ -75,7 +75,7 @@ def test_timedelta_trigger_serialization():
 
 
 @pytest.mark.parametrize(
-    "tz, end_from_trigger",
+    ("tz", "end_from_trigger"),
     [
         (pendulum.timezone("UTC"), True),
         (pendulum.timezone("UTC"), False),  # only really need to test one

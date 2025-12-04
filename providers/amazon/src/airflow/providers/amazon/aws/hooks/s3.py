@@ -43,15 +43,13 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
         Bucket as S3Bucket,
         Object as S3ResourceObject,
     )
 
-    from airflow.utils.types import ArgNotSet
-
-    with suppress(ImportError):
-        from aiobotocore.client import AioBaseClient
+    from airflow.providers.amazon.version_compat import ArgNotSet
 
 
 from asgiref.sync import sync_to_async
@@ -945,7 +943,14 @@ class S3Hook(AwsBaseHook):
             stacklevel=2,
         )
 
-        return list(self.iter_file_metadata(prefix=prefix, page_size=page_size, max_items=max_items))
+        return list(
+            self.iter_file_metadata(
+                prefix=prefix,
+                bucket_name=bucket_name,
+                page_size=page_size,
+                max_items=max_items,
+            )
+        )
 
     @provide_bucket_name
     def iter_file_metadata(
@@ -1774,6 +1779,8 @@ class S3Hook(AwsBaseHook):
         local_s3_objects = []
         s3_bucket = self.get_bucket(bucket_name)
         for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
+            if obj.key.endswith("/"):
+                continue
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             if not local_target_path.parent.exists():

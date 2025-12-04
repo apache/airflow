@@ -104,7 +104,11 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.10.0", "asana>=5.0.0"]
+    assert get_provider_requirements("asana") == [
+        "apache-airflow>=2.11.0",
+        "apache-airflow-providers-common-compat>=1.8.0",
+        "asana>=5.0.0",
+    ]
 
 
 def test_get_removed_providers():
@@ -123,7 +127,7 @@ def test_get_suspended_provider_folders():
 
 
 @pytest.mark.parametrize(
-    "short_packages, filters, long_packages",
+    ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
@@ -151,7 +155,7 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 @pytest.mark.parametrize(
-    "provider_id, pip_package_name",
+    ("provider_id", "pip_package_name"),
     [
         ("asana", "apache-airflow-providers-asana"),
         ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
@@ -162,7 +166,7 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, expected_package_name",
+    ("provider_id", "expected_package_name"),
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
@@ -173,7 +177,7 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
 
 
 @pytest.mark.parametrize(
-    "requirement_string, expected",
+    ("requirement_string", "expected"),
     [
         pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
         pytest.param(
@@ -213,7 +217,7 @@ def test_parse_pip_requirements_parse(requirement_string: str, expected: tuple[s
 
 
 @pytest.mark.parametrize(
-    "requirements, markdown, table",
+    ("requirements", "markdown", "table"),
     [
         (
             ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
@@ -249,9 +253,9 @@ def test_validate_provider_info_with_schema():
 
 
 @pytest.mark.parametrize(
-    "provider_id, min_version",
+    ("provider_id", "min_version"),
     [
-        ("amazon", "2.10.0"),
+        ("amazon", "2.11.0"),
         ("fab", "3.0.2"),
     ],
 )
@@ -261,11 +265,12 @@ def test_get_min_airflow_version(provider_id: str, min_version: str):
 
 def test_convert_cross_package_dependencies_to_table():
     EXPECTED = """
-| Dependent package                                                                   | Extra         |
-|:------------------------------------------------------------------------------------|:--------------|
-| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)   | `common.sql`  |
-| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)           | `google`      |
-| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage) | `openlineage` |
+| Dependent package                                                                       | Extra           |
+|:----------------------------------------------------------------------------------------|:----------------|
+| [apache-airflow-providers-common-compat](https://airflow.apache.org/docs/common-compat) | `common.compat` |
+| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)       | `common.sql`    |
+| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)               | `google`        |
+| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage)     | `openlineage`   |
 """
     assert (
         convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
@@ -343,7 +348,7 @@ def _check_dependencies_modified_properly(
 
 
 @pytest.mark.parametrize(
-    "provider_id, version_suffix, floored_version_suffix",
+    ("provider_id", "version_suffix", "floored_version_suffix"),
     [
         ("google", ".dev0", ".dev0"),
         ("google", ".dev1", ".dev0"),
@@ -396,8 +401,20 @@ TASK_SDK_INIT_PY = AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / 
 AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
 
 
+@pytest.fixture
+def lock_version_files():
+    from filelock import FileLock
+
+    lock_file = AIRFLOW_ROOT_PATH / ".version_files.lock"
+    with FileLock(lock_file):
+        yield
+    if lock_file.exists():
+        lock_file.unlink()
+
+
+@pytest.mark.usefixtures("lock_version_files")
 @pytest.mark.parametrize(
-    "distributions,  init_file_path, version_suffix, floored_version_suffix",
+    ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev0", ".dev0"),
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev1+testversion34", ".dev0"),
@@ -423,7 +440,10 @@ AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / 
     ],
 )
 def test_apply_version_suffix_to_non_provider_pyproject_tomls(
-    distributions: tuple[str, ...], init_file_path: Path, version_suffix: str, floored_version_suffix: str
+    distributions: tuple[str, ...],
+    init_file_path: Path,
+    version_suffix: str,
+    floored_version_suffix: str,
 ):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.

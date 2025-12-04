@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.8.2"
+version = "10.11.0"
 description = "Provider package apache-airflow-providers-cncf-kubernetes for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -58,9 +59,11 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "aiofiles>=23.2.0",
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.0",
     "asgiref>=3.5.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
     # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
     # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
@@ -69,9 +72,9 @@ dependencies = [
     # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
-    "kubernetes>=32.0.0,<34.0.0",
+    "kubernetes>=32.0.0,<35.0.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
-    "kubernetes_asyncio>=32.0.0,<34.0.0",
+    "kubernetes_asyncio>=32.0.0,<35.0.0",
 ]
 
 [dependency-groups]
@@ -79,6 +82,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
@@ -108,8 +112,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.8.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.8.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

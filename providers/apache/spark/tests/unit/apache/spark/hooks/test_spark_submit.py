@@ -536,11 +536,14 @@ class TestSparkSubmitHook:
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
 
     def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(
+            ValueError,
+            match="Please make sure your spark binary is one of the allowed ones and that it is available on the PATH",
+        ):
             SparkSubmitHook(conn_id="spark_custom_binary_set")
 
     def test_resolve_connection_spark_home_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError, match="The `spark-home` extra is not allowed any more"):
             SparkSubmitHook(conn_id="spark_home_set")
 
     def test_resolve_connection_spark_binary_default_value_override(self):
@@ -1013,7 +1016,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.parametrize(
-        "command, expected",
+        ("command", "expected"),
         [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),

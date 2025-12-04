@@ -27,6 +27,7 @@ from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun
 from airflow.exceptions import DagRunAlreadyExists
@@ -48,7 +49,7 @@ log = logging.getLogger(__name__)
         status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
         status.HTTP_409_CONFLICT: {"description": "DAG Run already exists for the given dag_id"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
 def trigger_dag_run(
@@ -100,7 +101,7 @@ def trigger_dag_run(
     responses={
         status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
-        status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload"},
+        HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
 def clear_dag_run(
@@ -129,6 +130,11 @@ def clear_dag_run(
     dag_run = session.scalar(
         select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
     )
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": f"DAG run with run_id: '{run_id}' not found"},
+        )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
     dag.clear(run_id=run_id)

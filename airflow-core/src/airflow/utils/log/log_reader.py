@@ -57,10 +57,12 @@ class TaskLogReader:
     @staticmethod
     def get_no_log_state_message(ti: TaskInstance | TaskInstanceHistory) -> Iterator[StructuredLogMessage]:
         """Yield standardized no-log messages for a given TI state."""
-        msg = {
-            TaskInstanceState.SKIPPED: "Task was skipped — no logs available.",
-            TaskInstanceState.UPSTREAM_FAILED: "Task did not run because upstream task(s) failed.",
-        }.get(ti.state, "No logs available for this task.")
+        if ti.state == TaskInstanceState.SKIPPED:
+            msg = "Task was skipped — no logs available."
+        elif ti.state == TaskInstanceState.UPSTREAM_FAILED:
+            msg = "Task did not run because upstream task(s) failed."
+        else:
+            msg = "No logs available for this task."
 
         yield StructuredLogMessage(
             timestamp=None,
@@ -147,7 +149,8 @@ class TaskLogReader:
                     empty_iterations += 1
                     if empty_iterations >= self.STREAM_LOOP_STOP_AFTER_EMPTY_ITERATIONS:
                         # we have not received any logs for a while, so we stop the stream
-                        yield "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n"
+                        # this is emitted as json to avoid breaking the ndjson stream format
+                        yield '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n'
                         return
             else:
                 # https://mypy.readthedocs.io/en/stable/typed_dict.html#supported-operations

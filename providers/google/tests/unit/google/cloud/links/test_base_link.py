@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.common.compat.sdk import XCom
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
@@ -29,9 +30,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
+
 
 TEST_LOCATION = "test-location"
 TEST_CLUSTER_ID = "test-cluster-id"

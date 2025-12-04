@@ -1,0 +1,26 @@
+{
+  "auditLog": {
+    "actions": {
+      "collapseAllExtra": "Σύμπτυξη όλων των επιπλέον json",
+      "expandAllExtra": "Ανάπτυξη όλων των επιπλέον json"
+    },
+    "columns": {
+      "event": "Συμβάν",
+      "extra": "Επιπλέον",
+      "user": "Χρήστης",
+      "when": "Πότε"
+    },
+    "filters": {
+      "eventType": "Τύπος Συμβάντος"
+    },
+    "title": "Καταγραφή Ελέγχου"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Κλειδί",
+      "value": "Τιμή"
+    },
+    "title": "XCom"
+  }
+}

@@ -28,8 +28,10 @@ import time
 import warnings
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
+from datetime import datetime
 from functools import partial
 from io import BytesIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar, cast, overload
 from urllib.parse import urlsplit
@@ -43,6 +45,7 @@ from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -50,12 +53,9 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
-from airflow.utils import timezone
 from airflow.version import version
 
 if TYPE_CHECKING:
-    from datetime import datetime
-
     from aiohttp import ClientSession
     from google.api_core.retry import Retry
     from google.cloud.storage.blob import Blob
@@ -371,8 +371,7 @@ class GCSHook(GoogleBaseHook):
                         num_max_attempts,
                     )
                     raise
-        else:
-            raise NotImplementedError  # should not reach this, but makes mypy happy
+        raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def download_as_byte_array(
         self,
@@ -1248,6 +1247,106 @@ class GCSHook(GoogleBaseHook):
             )
 
         self.log.info("Completed successfully.")
+
+    def _sync_to_local_dir_delete_stale_local_files(self, current_gcs_objects: List[Path], local_dir: Path):
+        current_gcs_keys = {key.resolve() for key in current_gcs_objects}
+
+        for item in local_dir.rglob("*"):
+            if item.is_file():
+                if item.resolve() not in current_gcs_keys:
+                    self.log.debug("Deleting stale local file: %s", item)
+                    item.unlink()
+        # Clean up empty directories
+        for root, dirs, _ in os.walk(local_dir, topdown=False):
+            for d in dirs:
+                dir_path = os.path.join(root, d)
+                if not os.listdir(dir_path):
+                    self.log.debug("Deleting stale empty directory: %s", dir_path)
+                    os.rmdir(dir_path)
+
+    def _sync_to_local_dir_if_changed(self, blob: Blob, local_target_path: Path):
+        should_download = False
+        download_msg = ""
+        if not local_target_path.exists():
+            should_download = True
+            download_msg = f"Local file {local_target_path} does not exist."
+        else:
+            local_stats = local_target_path.stat()
+            # Reload blob to get fresh metadata, including size and updated time
+            blob.reload()
+
+            if blob.size != local_stats.st_size:
+                should_download = True
+                download_msg = (
+                    f"GCS object size ({blob.size}) and local file size ({local_stats.st_size}) differ."
+                )
+
+            gcs_last_modified = blob.updated
+            if (
+                not should_download
+                and gcs_last_modified
+                and local_stats.st_mtime < gcs_last_modified.timestamp()
+            ):
+                should_download = True
+                download_msg = f"GCS object last modified ({gcs_last_modified}) is newer than local file last modified ({datetime.fromtimestamp(local_stats.st_mtime, tz=timezone.utc)})."
+
+        if should_download:
+            self.log.debug("%s Downloading %s to %s", download_msg, blob.name, local_target_path.as_posix())
+            self.download(
+                bucket_name=blob.bucket.name, object_name=blob.name, filename=str(local_target_path)
+            )
+        else:
+            self.log.debug(
+                "Local file %s is up-to-date with GCS object %s. Skipping download.",
+                local_target_path.as_posix(),
+                blob.name,
+            )
+
+    def sync_to_local_dir(
+        self,
+        bucket_name: str,
+        local_dir: str | Path,
+        prefix: str | None = None,
+        delete_stale: bool = False,
+    ) -> None:
+        """
+        Download files from a GCS bucket to a local directory.
+
+        It will download all files from the given ``prefix`` and create the corresponding
+        directory structure in the ``local_dir``.
+
+        If ``delete_stale`` is ``True``, it will delete all local files that do not exist in the GCS bucket.
+
+        :param bucket_name: The name of the GCS bucket.
+        :param local_dir: The local directory to which the files will be downloaded.
+        :param prefix: The prefix of the files to be downloaded.
+        :param delete_stale: If ``True``, deletes local files that don't exist in the bucket.
+        """
+        prefix = prefix or ""
+        local_dir_path = Path(local_dir)
+        self.log.debug("Downloading data from gs://%s/%s to %s", bucket_name, prefix, local_dir_path)
+
+        gcs_bucket = self.get_bucket(bucket_name)
+        local_gcs_objects = []
+
+        for blob in gcs_bucket.list_blobs(prefix=prefix):
+            # GCS lists "directories" as objects ending with a slash. We should skip them.
+            if blob.name.endswith("/"):
+                continue
+
+            blob_path = Path(blob.name)
+            local_target_path = local_dir_path.joinpath(blob_path.relative_to(prefix))
+            if not local_target_path.parent.exists():
+                local_target_path.parent.mkdir(parents=True, exist_ok=True)
+                self.log.debug("Created local directory: %s", local_target_path.parent)
+
+            self._sync_to_local_dir_if_changed(blob=blob, local_target_path=local_target_path)
+            local_gcs_objects.append(local_target_path)
+
+        if delete_stale:
+            self._sync_to_local_dir_delete_stale_local_files(
+                current_gcs_objects=local_gcs_objects, local_dir=local_dir_path
+            )
 
     def sync(
         self,

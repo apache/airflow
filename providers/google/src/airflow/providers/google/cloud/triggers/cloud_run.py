@@ -134,7 +134,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
 
         yield TriggerEvent(
             {
-                "status": RunJobStatus.TIMEOUT,
+                "status": RunJobStatus.TIMEOUT.value,
                 "job_name": self.job_name,
             }
         )

@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -40,7 +40,7 @@ from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
@@ -84,6 +84,14 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+        if hasattr(ParamsDict, "filter_params_by_source"):
+            # Params that exist only in Dag level does not make sense to appear in HITLOperator
+            self.params = ParamsDict.filter_params_by_source(self.params, source="task")
+        elif self.params:
+            self.log.debug(
+                "ParamsDict.filter_params_by_source not available; HITLOperator will also include Dag level params."
+            )
+
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
@@ -110,6 +118,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If `"_options"` key is present in `params`, which is not allowed.
         """
+        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
@@ -165,8 +174,10 @@ class HITLOperator(BaseOperator):
         )
 
     @property
-    def serialized_params(self) -> dict[str, Any]:
-        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+    def serialized_params(self) -> dict[str, dict[str, Any]]:
+        if not AIRFLOW_V_3_1_3_PLUS:
+            return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+        return {k: self.params.get_param(k).serialize() for k in self.params}
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
@@ -196,12 +207,11 @@ class HITLOperator(BaseOperator):
 
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
-        if (
-            self.serialized_params is not None
-            and params_input is not None
-            and set(self.serialized_params.keys()) ^ set(params_input)
-        ):
+        if self.params and params_input and set(self.serialized_params.keys()) ^ set(params_input):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+        for key, value in params_input.items():
+            self.params[key] = value
 
     def generate_link_to_ui(
         self,

@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.operators.powerbi import (
     PowerBIDatasetListOperator,
     PowerBIWorkspaceListOperator,
@@ -31,7 +32,6 @@ from airflow.providers.microsoft.azure.triggers.powerbi import (
     PowerBIDatasetListTrigger,
     PowerBIWorkspaceListTrigger,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 from unit.microsoft.azure.test_utils import get_airflow_connection
 

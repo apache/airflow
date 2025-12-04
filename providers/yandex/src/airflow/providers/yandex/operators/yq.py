@@ -20,12 +20,12 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.yandex.hooks.yq import YQHook
 from airflow.providers.yandex.links.yq import YQLink
-from airflow.providers.yandex.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.yandex.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class YQExecuteQueryOperator(BaseOperator):

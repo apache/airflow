@@ -177,7 +177,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
+{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 
 {{- if .Values.securityContext }}
 
@@ -187,15 +187,21 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+#####################################################
+#  WARNING: You should set a static API secret key  #
+#####################################################
+{{ else }}
 ###########################################################
 #  WARNING: You should set a static webserver secret key  #
 ###########################################################
-
-You are using a dynamically generated webserver secret key, which can lead to
+{{ end }}
+{{- $serverKind := ternary "API" "webserver" (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+You are using a dynamically generated {{ $serverKind }} secret key, which can lead to
 unnecessary restarts of your Airflow components.
 
-Information on how to set a static webserver secret key can be found here:
-https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
+Information on how to set a static {{ $serverKind }} secret key can be found here:
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
 
 {{- end }}
 

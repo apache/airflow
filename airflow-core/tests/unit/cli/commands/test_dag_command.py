@@ -370,7 +370,6 @@ class TestCliDags:
         dagbag = DBDagBag()
         dag_details = dag_command._get_dagbag_dag_details(
             dagbag.get_latest_version_of_dag("tutorial_dag", session=session),
-            session=session,
         )
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 
@@ -548,7 +547,7 @@ class TestCliDags:
         assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Expecting value: line \d+ column \d+ \(char \d+\)"):
             dag_command.dag_trigger(
                 self.parser.parse_args(
                     [
@@ -760,7 +759,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("airflow.utils.cli.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.DagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -784,10 +783,11 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
+            bundle_name="testing",
             include_examples=False,
         )
 
-    @mock.patch("airflow.utils.cli.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.DagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -805,10 +805,11 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 
-    @mock.patch("airflow.utils.cli.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.DagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -836,6 +837,7 @@ class TestCliDags:
         mock_dagbag.assert_called_once_with(
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
+            bundle_name="testing",
             include_examples=False,
         )
 
