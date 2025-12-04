@@ -28,6 +28,10 @@ Defining Dags
 .. autoapiclass:: airflow.sdk.DAG
 
 
+Configuration
+-------------
+.. autoapiclass:: airflow.sdk.conf
+
 Decorators
 ----------
 .. autoapifunction:: airflow.sdk.dag
