@@ -27,7 +27,9 @@ except ImportError:
     # Airflow 2 path
     from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
-from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator, \
+    CreateServerlessIndexOperator
+from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
@@ -42,14 +44,14 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    @setup
-    @task
-    def create_index():
-        from airflow.providers.pinecone.hooks.pinecone import PineconeHook
-
-        hook = PineconeHook()
-        pod_spec = hook.get_pod_spec_obj()
-        hook.create_index(index_name=index_name, dimension=1024, spec=pod_spec)
+    create_index = CreateServerlessIndexOperator(
+        task_id="pinecone_create_serverless_index",
+        index_name=index_name,
+        dimension=1024,
+        cloud="aws",
+        region="us-west-2",
+        metric="cosine",
+    )
 
     embed_task = CohereEmbeddingOperator(
         task_id="embed_task",
@@ -74,12 +76,12 @@ with DAG(
     @teardown
     @task
     def delete_index():
-        from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 
-    create_index() >> embed_task >> transformed_output >> perform_ingestion >> delete_index()
+    create_index >> embed_task >> transformed_output >> perform_ingestion >> delete_index()
+
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
