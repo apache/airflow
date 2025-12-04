@@ -20,7 +20,6 @@
 ################################
 ## Airflow Worker PodDisruptionBudget
 #################################
-{{- if .Values.workers.enabled }}
 {{- if .Values.workers.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -42,5 +41,4 @@ spec:
       component: worker
       release: {{ .Release.Name }}
   {{- toYaml .Values.workers.podDisruptionBudget.config | nindent 2 }}
-{{- end }}
 {{- end }}
