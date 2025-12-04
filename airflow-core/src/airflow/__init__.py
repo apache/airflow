@@ -90,6 +90,9 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "AirflowException": (".exceptions", "AirflowException", True),
     "Dataset": (".sdk", "Asset", True),
     "Stats": (".observability.stats", "Stats", True),
+    "Trace": (".observability.trace", "Trace", True),
+    "metrics": (".observability.metrics", "", True),
+    "traces": (".observability.traces", "", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
