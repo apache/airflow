@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack, Text } from "@chakra-ui/react";
+import { Box, Heading, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
+  useXcomServiceCreateXcomEntry,
   useXcomServiceGetXcomEntriesKey,
   useXcomServiceGetXcomEntry,
   useXcomServiceGetXcomEntryKey,
@@ -29,23 +30,37 @@ import {
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Button, Dialog, toaster, ProgressBar } from "src/components/ui";
+import { Button, Dialog, ProgressBar, toaster } from "src/components/ui";
 
-type EditXComModalProps = {
+type XComModalProps = {
   readonly dagId: string;
   readonly isOpen: boolean;
   readonly mapIndex: number;
+  readonly mode: "add" | "edit";
   readonly onClose: () => void;
   readonly runId: string;
   readonly taskId: string;
-  readonly xcomKey: string;
+  readonly xcomKey?: string;
 };
 
-const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKey }: EditXComModalProps) => {
+const XComModal = ({
+  dagId,
+  isOpen,
+  mapIndex,
+  mode,
+  onClose,
+  runId,
+  taskId,
+  xcomKey,
+}: XComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const queryClient = useQueryClient();
+  const [key, setKey] = useState("");
   const [value, setValue] = useState("");
 
+  const isEditMode = mode === "edit";
+
+  // Fetch existing XCom data when in edit mode
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>(
     {
       dagId,
@@ -53,21 +68,53 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
       deserialize: true,
       mapIndex,
       taskId,
-      xcomKey,
+      xcomKey: xcomKey ?? "",
     },
     undefined,
-    { enabled: isOpen },
+    { enabled: isOpen && isEditMode && Boolean(xcomKey) },
   );
 
+  // Populate form when editing
   useEffect(() => {
-    if (data?.value !== undefined) {
+    if (isEditMode && data?.value !== undefined) {
       const val = data.value;
 
       setValue(typeof val === "string" ? val : JSON.stringify(val, undefined, 2));
     }
-  }, [data, isOpen]);
+  }, [data, isEditMode]);
 
-  const { isPending, mutate } = useXcomServiceUpdateXcomEntry({
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setKey("");
+      setValue("");
+    }
+  }, [isOpen]);
+
+  // Create mutation
+  const { isPending: isCreating, mutate: createXCom } = useXcomServiceCreateXcomEntry({
+    onError: () => {
+      toaster.create({
+        description: translate("browse:xcom.add.error"),
+        title: translate("browse:xcom.add.errorTitle"),
+        type: "error",
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntriesKey],
+      });
+      onClose();
+      toaster.create({
+        description: translate("browse:xcom.add.success"),
+        title: translate("browse:xcom.add.successTitle"),
+        type: "success",
+      });
+    },
+  });
+
+  // Update mutation
+  const { isPending: isUpdating, mutate: updateXCom } = useXcomServiceUpdateXcomEntry({
     onError: () => {
       toaster.create({
         description: translate("browse:xcom.edit.error"),
@@ -100,23 +147,39 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
       // use string
     }
 
-    mutate({
-      dagId,
-      dagRunId: runId,
-      requestBody: {
-        map_index: mapIndex,
-        value: parsedValue,
-      },
-      taskId,
-      xcomKey,
-    });
+    if (isEditMode && xcomKey) {
+      updateXCom({
+        dagId,
+        dagRunId: runId,
+        requestBody: {
+          map_index: mapIndex,
+          value: parsedValue,
+        },
+        taskId,
+        xcomKey,
+      });
+    } else {
+      createXCom({
+        dagId,
+        dagRunId: runId,
+        requestBody: {
+          key,
+          map_index: mapIndex,
+          value: parsedValue,
+        },
+        taskId,
+      });
+    }
   };
+
+  const isPending = isCreating || isUpdating;
+  const title = isEditMode ? translate("browse:xcom.edit.title") : translate("browse:xcom.add.title");
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="lg">
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <Heading size="lg">{translate("browse:xcom.edit.title")}</Heading>
+          <Heading size="lg">{title}</Heading>
         </Dialog.Header>
         <Dialog.CloseTrigger />
         <Dialog.Body>
@@ -126,8 +189,13 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
             <VStack gap={4}>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
-                  {translate("browse:xcom.key")}: {xcomKey}
+                  {translate("browse:xcom.key")}
                 </Text>
+                {isEditMode ? (
+                  <Text>{xcomKey}</Text>
+                ) : (
+                  <Input onChange={(event) => setKey(event.target.value)} value={key} />
+                )}
               </Box>
               <Box width="100%">
                 <Text fontWeight="bold" mb={2}>
@@ -142,7 +210,7 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
           <Button onClick={onClose} variant="outline">
             {translate("common:modal.cancel")}
           </Button>
-          <Button disabled={isLoading} loading={isPending} onClick={onSave}>
+          <Button disabled={isLoading || (!isEditMode && !key)} loading={isPending} onClick={onSave}>
             {translate("common:modal.save")}
           </Button>
         </Dialog.Footer>
@@ -151,4 +219,4 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
   );
 };
 
-export default EditXComModal;
+export default XComModal;
