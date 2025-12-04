@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
@@ -66,7 +66,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
-    from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
