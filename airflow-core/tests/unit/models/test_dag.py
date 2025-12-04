@@ -71,6 +71,7 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.serialization.encoders import coerce_to_core_timetable
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -80,6 +81,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.file import list_py_file_paths
+from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -1011,9 +1013,9 @@ class TestDag:
         it is called, and not scheduled the second.
         """
         dag_id = "test_schedule_dag_once"
-        dag = DAG(dag_id=dag_id, schedule="@once", start_date=TEST_DATE)
-        assert isinstance(dag.timetable, OnceTimetable)
-        dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
+        with DAG(dag_id=dag_id, schedule="@once", start_date=TEST_DATE) as dag:
+            BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE)
+        assert qualname(dag.timetable) == "airflow.sdk.definitions.timetables.simple.OnceTimetable"
 
         _create_dagrun(
             dag,
@@ -1139,7 +1141,7 @@ class TestDag:
     ):
         dag = DAG("test_schedule_arg", schedule=schedule_arg, start_date=TEST_DATE)
         assert dag.timetable == expected_timetable
-        assert dag.timetable.description == interval_description
+        assert coerce_to_core_timetable(dag.timetable).description == interval_description
 
     def test_timetable_and_description_from_asset(self):
         uri = "test://asset"
@@ -1147,7 +1149,7 @@ class TestDag:
             "test_schedule_interval_arg", schedule=[Asset(uri=uri, group="test-group")], start_date=TEST_DATE
         )
         assert dag.timetable == AssetTriggeredTimetable(Asset(uri=uri, group="test-group"))
-        assert dag.timetable.description == "Triggered by assets"
+        assert coerce_to_core_timetable(dag.timetable).description == "Triggered by assets"
 
     @pytest.mark.parametrize(
         ("timetable", "expected_description"),
@@ -1172,7 +1174,7 @@ class TestDag:
     def test_description_from_timetable(self, timetable, expected_description):
         dag = DAG("test_schedule_description", schedule=timetable, start_date=TEST_DATE)
         assert dag.timetable == timetable
-        assert dag.timetable.description == expected_description
+        assert coerce_to_core_timetable(dag.timetable).description == expected_description
 
     def test_create_dagrun_job_id_is_set(self, testing_dag_bundle):
         job_id = 42
@@ -1621,8 +1623,8 @@ my_postgres_conn:
             def next_dagrun_info(self, last_automated_data_interval, restriction):
                 raise RuntimeError("this fails")
 
-        def _get_registered_timetable(s):
-            if s == "unit.models.test_dag.FailingTimetable":
+        def _find_registered_custom_timetable(s):
+            if s == qualname(FailingTimetable):
                 return FailingTimetable
             raise ValueError(f"unexpected class {s!r}")
 
@@ -1632,9 +1634,15 @@ my_postgres_conn:
             schedule=FailingTimetable(),
             catchup=True,
         )
-        with mock.patch(
-            "airflow.serialization.serialized_objects._get_registered_timetable",
-            _get_registered_timetable,
+        with (
+            mock.patch(
+                "airflow.serialization.encoders.find_registered_custom_timetable",
+                _find_registered_custom_timetable,
+            ),
+            mock.patch(
+                "airflow.serialization.decoders.find_registered_custom_timetable",
+                _find_registered_custom_timetable,
+            ),
         ):
             scheduler_dag = create_scheduler_dag(dag)
 
@@ -2728,9 +2736,15 @@ def test_iter_dagrun_infos_between_error(caplog):
         start_date=DEFAULT_DATE,
         schedule=FailingAfterOneTimetable(),
     )
-    with mock.patch(
-        "airflow.serialization.serialized_objects._get_registered_timetable",
-        _get_registered_timetable,
+    with (
+        mock.patch(
+            "airflow.serialization.decoders.find_registered_custom_timetable",
+            _get_registered_timetable,
+        ),
+        mock.patch(
+            "airflow.serialization.encoders.find_registered_custom_timetable",
+            _get_registered_timetable,
+        ),
     ):
         scheduler_dag = create_scheduler_dag(dag)
 
@@ -2786,7 +2800,8 @@ def test_get_next_data_interval(
         next_dagrun_data_interval_end=data_interval_end,
     )
 
-    assert get_next_data_interval(dag.timetable, dag_model) == expected_data_interval
+    core_timetable = coerce_to_core_timetable(dag.timetable)
+    assert get_next_data_interval(core_timetable, dag_model) == expected_data_interval
 
 
 @pytest.mark.need_serialized_dag
@@ -2847,7 +2862,6 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, catchup, restrict):
     assert dag._time_restriction == restrict
 
 
-@pytest.mark.need_serialized_dag
 def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
     asset1 = Asset(uri="test://asset1", name="test_asset1", group="test-group")
     asset2 = Asset(uri="test://asset2", group="test-group")
@@ -3489,9 +3503,11 @@ def test_get_run_data_interval():
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         run_type=DagRunType.MANUAL,
     )
-    assert get_run_data_interval(dag.timetable, dr) == DataInterval(start=DEFAULT_DATE, end=DEFAULT_DATE)
+    timetable = coerce_to_core_timetable(dag.timetable)
+    assert get_run_data_interval(timetable, dr) == DataInterval(start=DEFAULT_DATE, end=DEFAULT_DATE)
 
 
+@pytest.mark.need_serialized_dag
 def test_get_run_data_interval_pre_aip_39():
     with DAG(
         "dag",
@@ -3509,4 +3525,5 @@ def test_get_run_data_interval_pre_aip_39():
     )
     ds_start = current_ts.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
     ds_end = current_ts.replace(hour=0, minute=0, second=0, microsecond=0)
-    assert get_run_data_interval(dag.timetable, dr) == DataInterval(start=ds_start, end=ds_end)
+    timetable = coerce_to_core_timetable(dag.timetable)
+    assert get_run_data_interval(timetable, dr) == DataInterval(start=ds_start, end=ds_end)

@@ -56,9 +56,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset
-from airflow.timetables.assets import AssetOrTimeSchedule
-from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.sdk import DAG, Asset, AssetOrTimeSchedule, CronTriggerTimetable
 
 dag1_asset = Asset("s3://dag1/output_1.txt", extra={"hi": "bye"})
 dag2_asset = Asset("s3://dag2/output_1.txt", extra={"hi": "bye"})

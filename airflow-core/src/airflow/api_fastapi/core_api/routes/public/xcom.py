@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -314,6 +315,7 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
+    xcom_new_value = json.dumps(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
@@ -333,7 +335,7 @@ def update_xcom_entry(
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
 
-    # Update XCom entry (serialize exactly once, consistent with create)
-    xcom_entry.value = XComModel.serialize_value(patch_body.value)
+    # Update XCom entry
+    xcom_entry.value = xcom_new_value
 
     return XComResponseNative.model_validate(xcom_entry)

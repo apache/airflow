@@ -375,7 +375,9 @@ repos:
           ^src/airflow/plugins_manager\.py$|
           ^src/airflow/providers_manager\.py$|
           ^src/airflow/secrets/__init__.py$|
-          ^src/airflow/serialization/definitions/[_a-z]+\.py$|
+          ^src/airflow/serialization/decoders\.py$|
+          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
+          ^src/airflow/serialization/encoders\.py$|
           ^src/airflow/serialization/enums\.py$|
           ^src/airflow/serialization/helpers\.py$|
           ^src/airflow/serialization/serialized_objects\.py$|
