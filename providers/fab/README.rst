@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``3.0.1``
+Release: ``3.0.3``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.3/>`_.
 
 Installation
 ------------
@@ -57,12 +57,12 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``blinker``                                 ``>=1.6.2; python_version < "3.13"``
 ``flask``                                   ``>=2.2.1,<2.3; python_version < "3.13"``
-``flask-appbuilder``                        ``==5.0.0; python_version < "3.13"``
+``flask-appbuilder``                        ``==5.0.1; python_version < "3.13"``
 ``flask-login``                             ``>=0.6.2; python_version < "3.13"``
 ``flask-session``                           ``>=0.8.0; python_version < "3.13"``
 ``msgpack``                                 ``>=1.0.0; python_version < "3.13"``
 ``flask-sqlalchemy``                        ``>=3.0.5; python_version < "3.13"``
-``sqlalchemy``                              ``<2; python_version < "3.13"``
+``sqlalchemy``                              ``>=1.4.36,<2; python_version < "3.13"``
 ``flask-wtf``                               ``>=1.1.0; python_version < "3.13"``
 ``connexion[flask]``                        ``>=2.14.2,<3.0; python_version < "3.13"``
 ``jmespath``                                ``>=0.7.0; python_version < "3.13"``
@@ -100,4 +100,4 @@ Extra         Dependencies
 ============  ============================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.3/changelog.html>`_.

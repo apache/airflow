@@ -22,12 +22,14 @@ description: |
     `MongoDB <https://www.mongodb.com/>`__
 
 state: ready
-source-date-epoch: 1753691619
+source-date-epoch: 1764110379
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.3.0
+  - 5.2.3
   - 5.2.2
   - 5.2.1
   - 5.2.0

@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import delete, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
@@ -57,6 +57,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -75,6 +76,7 @@ from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dagrun import DagRun
+from airflow.utils.state import DagRunState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -177,7 +179,7 @@ def get_dags(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="GET"))],
@@ -233,8 +235,19 @@ def get_dag_details(
         is not None
     )
 
-    # Add is_favorite field to the DAG model
+    # Count active (running + queued) DAG runs for this DAG
+    active_runs_count = (
+        session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag_id, DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
+        )
+        or 0
+    )
+
+    # Add is_favorite and active_runs_count fields to the DAG model
     setattr(dag_model, "is_favorite", is_favorite)
+    setattr(dag_model, "active_runs_count", active_runs_count)
 
     return DAGDetailsResponse.model_validate(dag_model)
 
@@ -401,7 +414,7 @@ def unfavorite_dag(dag_id: str, session: SessionDep, user: GetUserDep):
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            HTTP_422_UNPROCESSABLE_CONTENT,
         ]
     ),
     dependencies=[Depends(requires_access_dag(method="DELETE")), Depends(action_logging())],

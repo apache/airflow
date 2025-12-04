@@ -56,6 +56,7 @@ from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue,
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -64,12 +65,13 @@ from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
-from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.traces.tracer import Trace
@@ -95,6 +97,7 @@ from tests_common.test_utils.db import (
     clear_db_pools,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_teams,
     clear_db_triggers,
     set_default_pool_slots,
 )
@@ -222,9 +225,13 @@ class TestSchedulerJob:
         default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
         default_executor.jwt_generator = mock_jwt_generator
+        default_executor.team_name = None  # Global executor
+        default_executor.sentry_integration = ""
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
         second_executor.jwt_generator = mock_jwt_generator
+        second_executor.team_name = None  # Global executor
+        second_executor.sentry_integration = ""
 
         # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
@@ -1084,6 +1091,94 @@ class TestSchedulerJob:
         res_ti_keys = [res_ti.key for res_ti in res]
         for ti in tis_tuple:
             assert ti.key in res_ti_keys
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_find_executable_task_instances_executor_with_teams(self, dag_maker, mock_executors, session):
+        """
+        Test that tasks are correctly routed to team-specific executors when multi-team is enabled
+        """
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle1 = DagBundleModel(name="bundle_a")
+        bundle2 = DagBundleModel(name="bundle_b")
+        bundle1.teams.append(team1)
+        bundle2.teams.append(team2)
+        session.add_all([bundle1, bundle2])
+        session.flush()
+
+        mock_executors[0].team_name = "team_a"
+        mock_executors[1].team_name = "team_b"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            op1 = EmptyOperator(task_id="task_a_default")  # No explicit executor - should use team's default
+            op2 = EmptyOperator(
+                task_id="task_a_explicit", executor="default_exec"
+            )  # Team-specific explicit executor
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="dag_b", bundle_name="bundle_b", session=session):
+            op3 = EmptyOperator(task_id="task_b_default")  # Team b's default
+            op4 = EmptyOperator(task_id="task_b_explicit", executor="secondary_exec")  # Team b explicit
+        dr2 = dag_maker.create_dagrun()
+
+        # DAG with no team (global)
+        with dag_maker(dag_id="dag_global", session=session):
+            op5 = EmptyOperator(task_id="task_global")  # Global task - any executor
+        dr3 = dag_maker.create_dagrun()
+
+        tis = [
+            dr1.get_task_instance(op1.task_id, session),
+            dr1.get_task_instance(op2.task_id, session),
+            dr2.get_task_instance(op3.task_id, session),
+            dr2.get_task_instance(op4.task_id, session),
+            dr3.get_task_instance(op5.task_id, session),
+        ]
+
+        for ti in tis:
+            ti.state = State.SCHEDULED
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        # All tasks should be queued since they have valid executor mappings
+        assert len(res) == 5
+
+        # Verify that each task is routed to the correct executor
+        executor_to_tis = self.job_runner._executor_to_tis(res, session)
+
+        # Team pi tasks should go to mock_executors[0] (configured for team_pi)
+        a_tis_in_executor = [ti for ti in executor_to_tis.get(mock_executors[0], []) if ti.dag_id == "dag_a"]
+        assert len(a_tis_in_executor) == 2
+
+        # Team rho tasks should go to mock_executors[1] (configured for team_rho)
+        b_tis_in_executor = [ti for ti in executor_to_tis.get(mock_executors[1], []) if ti.dag_id == "dag_b"]
+        assert len(b_tis_in_executor) == 2
+
+        # Global task should go to the default executor (scheduler_job.executor)
+        global_tis_in_executor = [
+            ti for ti in executor_to_tis.get(scheduler_job.executor, []) if ti.dag_id == "dag_global"
+        ]
+        assert len(global_tis_in_executor) == 1
+
+        # Verify no cross-contamination: team pi tasks should not be in team rho executor and vice versa
+        a_tis_in_wrong_executor = [
+            ti for ti in executor_to_tis.get(mock_executors[1], []) if ti.dag_id == "dag_a"
+        ]
+        assert len(a_tis_in_wrong_executor) == 0
+
+        b_tis_in_wrong_executor = [
+            ti for ti in executor_to_tis.get(mock_executors[0], []) if ti.dag_id == "dag_b"
+        ]
+        assert len(b_tis_in_wrong_executor) == 0
 
     def test_find_executable_task_instances_order_priority_with_pools(self, dag_maker):
         """
@@ -5701,6 +5796,89 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
+    def test_backfill_runs_skipped_when_lock_held_by_another_scheduler(self, dag_maker, session):
+        """Test that a scheduler skips backfill runs when another scheduler holds the lock."""
+        dag_id = "test_dag1"
+        backfill_max_active_runs = 3
+        dag_max_active_runs = 1
+
+        with dag_maker(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule=timedelta(days=1),
+            max_active_runs=dag_max_active_runs,
+            catchup=True,
+        ):
+            EmptyOperator(task_id="mytask")
+
+        from_date = pendulum.parse("2021-01-01")
+        to_date = pendulum.parse("2021-01-05")
+        _create_backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=backfill_max_active_runs,
+            reverse=False,
+            triggering_user_name="test_user",
+            dag_run_conf={},
+        )
+
+        queued_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.QUEUED,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert queued_count == 5
+
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
+        job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Simulate another scheduler holding the lock by returning empty from _lock_backfills
+        with patch.object(job_runner, "_lock_backfills", return_value={}):
+            job_runner._start_queued_dagruns(session)
+            session.flush()
+
+        # No runs should be started because we couldn't acquire the lock
+        running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.RUNNING,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert running_count == 0, f"Expected 0 running when lock not acquired, but got {running_count}. "
+        # no locks now:
+        job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        running_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.RUNNING,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        assert running_count == backfill_max_active_runs
+        queued_count = (
+            session.query(func.count(DagRun.id))
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.state == State.QUEUED,
+                DagRun.run_type == DagRunType.BACKFILL_JOB,
+            )
+            .scalar()
+        )
+        # 2 runs are still queued
+        assert queued_count == 2
+
     def test_start_queued_dagruns_do_follow_logical_date_order(self, dag_maker):
         session = settings.Session()
         with dag_maker("test_dag1", max_active_runs=1):
@@ -6645,17 +6823,21 @@ class TestSchedulerJob:
         asset3 = Asset(uri="test://asset_3", name="test_asset_3", group="test_group")
         asset4 = Asset(uri="test://asset_4", name="test_asset_4", group="test_group")
         asset5 = Asset(uri="test://asset_5", name="test_asset_5", group="test_group")
+        asset6 = Asset(uri="test://asset_5", name="test_asset_5", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4], inlets=[asset6])
 
         # asset5 is not registered (since it's not used anywhere).
         orphaned, active = self._find_assets_activation(session)
-        assert active == [asset1, asset2, asset3, asset4]
+        assert active == [asset1, asset2, asset3, asset4, asset6]
         assert orphaned == []
 
         self.job_runner._update_asset_orphanage(session=session)
         session.flush()
+
+        assert active == [asset1, asset2, asset3, asset4, asset6]
+        assert orphaned == []
 
         # Now remove 2 asset references and add asset5.
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
@@ -7187,6 +7369,432 @@ class TestSchedulerJob:
             self.job_runner._emit_running_dags_metric()
 
         assert recorded == [("scheduler.dagruns.running", 2)]
+
+    # Multi-team scheduling tests
+    def test_multi_team_get_team_names_for_dag_ids_success(self, dag_maker, session):
+        """Test successful team name resolution for multiple DAG IDs."""
+        # Setup test data
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle1 = DagBundleModel(name="bundle_a")
+        bundle2 = DagBundleModel(name="bundle_b")
+        bundle1.teams.append(team1)
+        bundle2.teams.append(team2)
+        session.add_all([bundle1, bundle2])
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a")
+
+        with dag_maker(dag_id="dag_b", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_b")
+
+        with dag_maker(dag_id="dag_no_team", session=session):
+            EmptyOperator(task_id="task_no_team")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._get_team_names_for_dag_ids(["dag_a", "dag_b", "dag_no_team"], session)
+
+        expected = {"dag_a": "team_a", "dag_b": "team_b", "dag_no_team": None}
+        assert result == expected
+
+    def test_multi_team_get_team_names_for_dag_ids_empty_input(self, session):
+        """Test that empty input returns empty dict."""
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._get_team_names_for_dag_ids([], session)
+        assert result == {}
+
+    @mock.patch("airflow.jobs.scheduler_job_runner.SchedulerJobRunner.log")
+    def test_multi_team_get_team_names_for_dag_ids_database_error(self, mock_log, dag_maker, session):
+        """Test graceful error handling when team resolution fails. This code should _not_ fail the scheduler."""
+        with dag_maker(dag_id="dag_test", session=session):
+            EmptyOperator(task_id="task")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Mock session.execute to raise an exception using context manager
+        with mock.patch.object(session, "execute", side_effect=Exception("Database error")):
+            result = self.job_runner._get_team_names_for_dag_ids(["dag_test"], session)
+
+        # Should return empty dict and log the error
+        assert result == {}
+        mock_log.exception.assert_called_once()
+
+    def test_multi_team_get_task_team_name_success(self, dag_maker, session):
+        """Test successful team name resolution for a single task."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="task_a")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._get_task_team_name(ti, session)
+        assert result == "team_a"
+
+    def test_multi_team_get_task_team_name_no_team(self, dag_maker, session):
+        """Test team resolution when no team is associated with the DAG."""
+        with dag_maker(dag_id="dag_no_team", session=session):
+            task = EmptyOperator(task_id="task_no_team")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._get_task_team_name(ti, session)
+        assert result is None
+
+    def test_multi_team_get_task_team_name_database_error(self, dag_maker, session):
+        """Test graceful error handling when individual task team resolution fails. This code should _not_ fail the scheduler."""
+        with dag_maker(dag_id="dag_test", session=session):
+            task = EmptyOperator(task_id="task_test")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Mock _get_team_names_for_dag_ids to return empty dict (simulates database error handling in that function)
+        with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids", return_value={}) as mock_batch:
+            result = self.job_runner._get_task_team_name(ti, session)
+            mock_batch.assert_called_once_with([ti.dag_id], session)
+
+        # Should return None when batch function returns empty dict
+        assert result is None
+
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_multi_team_try_to_load_executor_multi_team_disabled(self, dag_maker, mock_executors, session):
+        """Test executor selection when multi_team is disabled (legacy behavior)."""
+        with dag_maker(dag_id="test_dag", session=session):
+            task = EmptyOperator(task_id="test_task", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+            result = self.job_runner._try_to_load_executor(ti, session)
+            # Should not call team resolution when multi_team is disabled
+            mock_team_resolve.assert_not_called()
+
+        assert result == mock_executors[1]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_no_explicit_executor_no_team(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when no explicit executor and no team (should use global default)."""
+        with dag_maker(dag_id="test_dag", session=session):
+            task = EmptyOperator(task_id="test_task")  # No explicit executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the global default executor (first executor in Job)
+        assert result == scheduler_job.executor
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_no_explicit_executor_with_team(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when no explicit executor but team exists (should find team's default executor)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        # Configure one executor to be team-specific
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task")  # No explicit executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the team-specific default executor set above
+        assert result == mock_executors[1]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_explicit_executor_matches_team(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when explicit executor matches task's team."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        # Configure executor for the team
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the team-specific executor that matches the explicit executor name
+        assert result == mock_executors[1]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_explicit_executor_global_fallback(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when explicit executor is global (team_name=None)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        # Configure one executor for the team, but keep default as global
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task", executor="default_exec")  # Global executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the global executor (default) even though task has a team
+        assert result == mock_executors[0]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_explicit_executor_team_mismatch(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when explicit executor doesn't match task's team (should return None)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team1)
+        session.add(bundle)
+        session.flush()
+
+        # Configure executors for different teams
+        mock_executors[1].team_name = "team_b"  # Different team!
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):  # DAG belongs to team_a
+            task = EmptyOperator(
+                task_id="test_task", executor="secondary_exec"
+            )  # Executor for different team
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.SchedulerJobRunner.log") as mock_log:
+            result = self.job_runner._try_to_load_executor(ti, session)
+
+            # Should log a warning when no executor is found
+            mock_log.warning.assert_called_once_with(
+                "Executor, %s, was not found but a Task was configured to use it", "secondary_exec"
+            )
+
+        # Should return None since we failed to resolve an executor due to the mismatch. In practice, this
+        # should never happen since we assert this at DagBag validation time.
+        assert result is None
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_invalid_executor_name(self, dag_maker, mock_executors, session):
+        """Test executor selection with invalid executor name (should return None and log warning)."""
+        with dag_maker(dag_id="test_dag", session=session):
+            task = EmptyOperator(task_id="test_task", executor="nonexistent_executor")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with mock.patch("airflow.jobs.scheduler_job_runner.SchedulerJobRunner.log") as mock_log:
+            result = self.job_runner._try_to_load_executor(ti, session)
+
+            assert result is None
+            mock_log.warning.assert_called_once()
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_team_name_pre_resolved(self, dag_maker, mock_executors, session):
+        """Test executor selection when team_name is pre-resolved."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        mock_executors[1].team_name = "team_a"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Call with pre-resolved team name (as done in the scheduling loop)
+        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+            result = self.job_runner._try_to_load_executor(ti, session, team_name="team_a")
+            mock_team_resolve.assert_not_called()  # We don't query for the team if it is pre-resolved
+
+        assert result == mock_executors[1]
+
+    @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_scheduling_loop_batch_optimization(self, dag_maker, mock_executors, session):
+        """Test that the scheduling loop uses batch team resolution optimization."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team1 = Team(name="team_a")
+        team2 = Team(name="team_b")
+        session.add_all([team1, team2])
+        session.flush()
+
+        bundle1 = DagBundleModel(name="bundle_a")
+        bundle2 = DagBundleModel(name="bundle_b")
+        bundle1.teams.append(team1)
+        bundle2.teams.append(team2)
+        session.add_all([bundle1, bundle2])
+        session.flush()
+
+        mock_executors[0].team_name = "team_a"
+        mock_executors[1].team_name = "team_b"
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            EmptyOperator(task_id="task_a")
+        dr1 = dag_maker.create_dagrun()
+
+        with dag_maker(dag_id="dag_b", bundle_name="bundle_b", session=session):
+            EmptyOperator(task_id="task_b")
+        dr2 = dag_maker.create_dagrun()
+
+        ti1 = dr1.get_task_instance("task_a", session)
+        ti2 = dr2.get_task_instance("task_b", session)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        session.flush()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # The scheduling loop should call batch resolution and pass resolved names
+        with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch:
+            mock_batch.return_value = {"dag_a": "team_a", "dag_b": "team_b"}
+
+            res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+            # Verify batch method was called with unique DAG IDs
+            mock_batch.assert_called_once_with({"dag_a", "dag_b"}, session)
+            assert len(res) == 2
+
+    @conf_vars({("core", "multi_team"): "false"})
+    def test_multi_team_config_disabled_uses_legacy_behavior(self, dag_maker, mock_executors, session):
+        """Test that when multi_team config is disabled, legacy behavior is preserved."""
+        with dag_maker(dag_id="test_dag", session=session):
+            task1 = EmptyOperator(task_id="test_task1")  # No explicit executor
+            task2 = EmptyOperator(task_id="test_task2", executor="secondary_exec")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task1.task_id, session)
+        ti2 = dr.get_task_instance(task2.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        with mock.patch.object(self.job_runner, "_get_task_team_name") as mock_team_resolve:
+            result1 = self.job_runner._try_to_load_executor(ti1, session)
+            result2 = self.job_runner._try_to_load_executor(ti2, session)
+
+            # Should use legacy logic without calling team resolution
+            mock_team_resolve.assert_not_called()
+            assert result1 == scheduler_job.executor  # Default for no explicit executor
+            assert result2 == mock_executors[1]  # Matched by executor name
 
 
 @pytest.mark.need_serialized_dag

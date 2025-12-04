@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.9"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.9.15"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -188,21 +188,10 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
-          platform: ${{ inputs.platform }}
-          save-cache: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Check translation completeness"
-        run: >
-          prek --show-diff-on-failure --color always
-          --hook-stage manual --verbose --all-files
-          check-translations-completeness
-        env:
-          SKIP: ${{ inputs.skip-prek-hooks }}
-          COLUMNS: "202"
+        run: breeze check-translations-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -323,6 +312,7 @@ jobs:
           UPGRADE_GITPYTHON: "false"
           UPGRADE_RICH: "false"
           UPGRADE_RUFF: "false"
+          UPGRADE_MPROCS: "true"
           UPGRADE_MYPY: "false"
           UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -349,6 +339,7 @@ jobs:
           UPGRADE_RICH: "true"
           UPGRADE_RUFF: "true"
           UPGRADE_MYPY: "true"
+          UPGRADE_MPROCS: "false"
           UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

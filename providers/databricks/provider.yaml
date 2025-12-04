@@ -22,12 +22,14 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1761116588
+source-date-epoch: 1764109970
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 7.8.0
+  - 7.7.5
   - 7.7.4
   - 7.7.3
   - 7.7.2

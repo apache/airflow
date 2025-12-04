@@ -18,10 +18,12 @@
 Integration tests for Asset Event operations.
 
 These tests validate the Execution API endpoints for Asset Event operations:
-- get(): Get asset events by name or URI
+- get(): Get asset events by name, URI, or alias
 """
 
 from __future__ import annotations
+
+import pytest
 
 from airflow.sdk.api.datamodels._generated import AssetEventsResponse
 from task_sdk_tests import console
@@ -64,3 +66,27 @@ def test_asset_event_get_not_found(sdk_client_for_assets):
     assert isinstance(response, AssetEventsResponse)
     assert len(response.asset_events) == 0, "Expected empty list for non-existent asset"
     console.print("[green]✅ Asset event get (not found) test passed!")
+
+
+@pytest.mark.skip(reason="TODO: Implement Asset Event get_by_uri test")
+def test_asset_event_get_by_uri(sdk_client_for_assets, asset_test_setup):
+    """
+    Test getting asset events by URI.
+
+    Expected: AssetEventsResponse with events
+    Endpoint: GET /execution/asset-events/by-asset?uri={uri}
+    """
+    console.print("[yellow]TODO: Implement test_asset_event_get_by_uri")
+    raise NotImplementedError("test_asset_event_get_by_uri not implemented")
+
+
+@pytest.mark.skip(reason="TODO: Implement Asset Event get_by_alias test")
+def test_asset_event_get_by_alias(sdk_client_for_assets):
+    """
+    Test getting asset events by alias name.
+
+    Expected: AssetEventsResponse with events
+    Endpoint: GET /execution/asset-events/by-asset-alias?name={alias_name}
+    """
+    console.print("[yellow]TODO: Implement test_asset_event_get_by_alias")
+    raise NotImplementedError("test_asset_event_get_by_alias not implemented")

@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
-import { getDuration, renderDuration } from "./datetimeUtils";
+import { getDuration, renderDuration, getRelativeTime } from "./datetimeUtils";
 
 describe("getDuration", () => {
   it("handles durations less than 60 seconds", () => {
@@ -54,5 +54,34 @@ describe("getDuration", () => {
     expect(getDuration(null, null)).toBe(undefined);
     expect(getDuration(undefined, undefined)).toBe(undefined);
     expect(renderDuration(0.000_01)).toBe(undefined);
+  });
+});
+
+describe("getRelativeTime", () => {
+  const fixedNow = new Date("2024-03-14T10:00:10.000Z");
+
+  beforeAll(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(fixedNow);
+  });
+
+  afterAll(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns relative time for a valid date", () => {
+    const date = "2024-03-14T10:00:00.000Z";
+
+    expect(getRelativeTime(date)).toBe("a few seconds ago");
+  });
+
+  it("returns an empty string for undefined dates", () => {
+    expect(getRelativeTime(undefined)).toBe("");
+  });
+
+  it("handles future dates", () => {
+    const futureDate = "2024-03-14T10:00:20.000Z";
+
+    expect(getRelativeTime(futureDate)).toBe("in a few seconds");
   });
 });

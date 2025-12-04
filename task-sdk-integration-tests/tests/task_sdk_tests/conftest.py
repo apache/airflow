@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 import sys
 from collections.abc import Callable
@@ -25,6 +26,7 @@ from pathlib import Path
 
 import pytest
 import requests
+from packaging import version
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -37,11 +39,151 @@ from task_sdk_tests import console
 from task_sdk_tests.constants import (
     AIRFLOW_ROOT_PATH,
     DOCKER_IMAGE,
+    MIN_DOCKER_COMPOSE_VERSION,
+    MIN_DOCKER_VERSION,
     TASK_SDK_HOST_PORT,
     TASK_SDK_INTEGRATION_DOCKER_COMPOSE_FILE_PATH,
     TASK_SDK_INTEGRATION_ENV_FILE,
     TASK_SDK_INTEGRATION_LOCAL_DOCKER_COMPOSE_FILE_PATH,
 )
+
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
+
+def compare_gte(a: str, b: str) -> bool:
+    """Compare two versions for greater than equal to. Validates a>=b"""
+    try:
+        return version.parse(a) >= version.parse(b)
+    except Exception:
+        return False
+
+
+def check_docker_is_running() -> bool:
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            text=False,
+            check=False,
+            timeout=10,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def check_docker_version() -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ["docker", "version", "--format", "{{.Client.Version}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            return False, "unknown"
+
+        docker_version_str = result.stdout.strip()
+        # extract version number (e.g., "25.0.0" from "25.0.0" or "25.0.0-ce")
+        version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+        version_match = version_pattern.search(docker_version_str)
+
+        if version_match:
+            docker_version_str = ".".join(version_match.groups())
+            is_valid = compare_gte(docker_version_str, MIN_DOCKER_VERSION)
+            return is_valid, docker_version_str
+
+        return False, "unknown"
+    except Exception:
+        return False, "unknown"
+
+
+def check_docker_compose_version() -> tuple[bool, str]:
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+
+        if result.returncode != 0:
+            return False, "unknown"
+
+        docker_compose_output = result.stdout.strip()
+        # extract version number from output like "Docker Compose version v2.20.2"
+        version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+        version_match = version_pattern.search(docker_compose_output)
+
+        if version_match:
+            compose_version_str = ".".join(version_match.groups())
+            is_valid = compare_gte(compose_version_str, MIN_DOCKER_COMPOSE_VERSION)
+            return is_valid, compose_version_str
+
+        return False, "unknown"
+    except Exception:
+        return False, "unknown"
+
+
+def check_docker_requirements():
+    """
+    Verify docker and docker Compose meet minimum version crieteria.
+
+    1. Check if Docker is running
+    2. Check Docker version
+    3. Check Docker Compose version
+    """
+    console.print("[yellow]Checking Docker requirements...[/]")
+
+    if not check_docker_is_running():
+        console.print(
+            "[red]Docker is not running.[/]\n"
+            "[yellow]Please make sure Docker is installed and running.[/]\n"
+            "Installation instructions: https://docs.docker.com/engine/install/"
+        )
+        sys.exit(1)
+
+    valid, docker_version_str = check_docker_version()
+    if not valid:
+        if docker_version_str == "unknown":
+            console.print(
+                f"[red]Could not determine Docker version.[/]\n"
+                f"[yellow]Please make sure Docker is at least version {MIN_DOCKER_VERSION}.[/]\n"
+                "Installation instructions: https://docs.docker.com/engine/install/"
+            )
+        else:
+            console.print(
+                f"[red]Docker version {docker_version_str} is too old.[/]\n"
+                f"[yellow]Minimum required version: {MIN_DOCKER_VERSION}[/]\n"
+                "Installation instructions: https://docs.docker.com/engine/install/"
+            )
+        sys.exit(1)
+
+    console.print(f"[green]Docker version {docker_version_str} meets requirements[/]")
+
+    valid, compose_version_str = check_docker_compose_version()
+    if not valid:
+        if compose_version_str == "unknown":
+            console.print(
+                "[red]Could not determine Docker Compose version.[/]\n"
+                "[yellow]You either do not have docker-compose or have docker-compose v1 installed.[/]\n"
+                "[yellow]Breeze does not support docker-compose v1 any more as it has been replaced by v2.[/]\n"
+                f"[yellow]Minimum required version: {MIN_DOCKER_COMPOSE_VERSION}[/]\n"
+                "Follow https://docs.docker.com/compose/migrate/ to migrate to v2\n"
+                "Installation instructions: https://docs.docker.com/compose/install/"
+            )
+        else:
+            console.print(
+                f"[red]Docker Compose version {compose_version_str} is too old.[/]\n"
+                f"[yellow]Minimum required version: {MIN_DOCKER_COMPOSE_VERSION}[/]\n"
+                "Installation instructions: https://docs.docker.com/compose/install/"
+            )
+        sys.exit(1)
+
+    console.print(f"[green]Docker Compose version {compose_version_str} meets requirements[/]")
 
 
 def print_diagnostics(compose, compose_version, docker_version):
@@ -126,6 +268,12 @@ def docker_compose_setup(tmp_path_factory):
         print(f"AIRFLOW_IMAGE_NAME={DOCKER_IMAGE}", file=f)
         print(f"AIRFLOW_UID={os.getuid()}", file=f)
         print(f"HOST_OS={platform.system().lower()}", file=f)
+        #
+        # Please Do not use this Fernet key in any deployments! Please generate your own key.
+        # This is specifically generated for integration tests and not as default.
+        #
+        print(f"FERNET_KEY={generate_fernet_key_string()}", file=f)
+
     docker_compose_files = [TASK_SDK_INTEGRATION_DOCKER_COMPOSE_FILE_PATH.as_posix()]
     log_level = "debug" if debugging_on else "info"
     if mount_volumes:
@@ -184,6 +332,9 @@ def docker_compose_setup(tmp_path_factory):
 
 def pytest_sessionstart(session):
     """Install Task SDK at the very start of the pytest session."""
+
+    # Check Docker requirements first (similar to what Breeze does)
+    check_docker_requirements()
 
     console.print("[yellow]Installing apache-airflow-task-sdk via pytest_sessionstart...")
 

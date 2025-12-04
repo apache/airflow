@@ -2513,6 +2513,11 @@ dag_processor:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
         be stored on the dag run and therefore, the latest code will always be used.
+
+        .. note::
+
+          This setting only applies to bundles that support versioning and does not affect
+          DAG versions displayed in the UI.
       version_added: ~
       type: boolean
       example: ~

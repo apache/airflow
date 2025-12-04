@@ -232,7 +232,18 @@ describe("buildTaskInstanceUrl", () => {
       }),
     ).toBe("/dags/my_dag/runs/run_123/tasks/mapped_task/mapped");
 
-    // Complex: group + mapped + sub-routes
+    // Groups should never preserve tabs (only have "Task Instances" tab)
+    expect(
+      buildTaskInstanceUrl({
+        currentPathname: "/dags/old/runs/old/tasks/old_task/rendered_templates",
+        dagId: "new_dag",
+        isGroup: true,
+        runId: "new_run",
+        taskId: "new_group",
+      }),
+    ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group");
+
+    // Groups should never preserve tabs even for mapped groups
     expect(
       buildTaskInstanceUrl({
         currentPathname: "/dags/old/runs/old/tasks/group/old_group/events",
@@ -243,6 +254,6 @@ describe("buildTaskInstanceUrl", () => {
         runId: "new_run",
         taskId: "new_group",
       }),
-    ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group/mapped/3/events");
+    ).toBe("/dags/new_dag/runs/new_run/tasks/group/new_group/mapped/3");
   });
 });

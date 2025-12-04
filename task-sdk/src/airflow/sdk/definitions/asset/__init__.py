@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.models.asset import AssetModel
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.serialization.serialized_objects import SerializedAssetWatcher
+    from airflow.serialization.definitions.assets import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
     AttrsInstance = attrs.AttrsInstance
@@ -60,7 +60,7 @@ __all__ = [
     "AssetWatcher",
 ]
 
-from airflow.configuration import conf
+from airflow.sdk.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -166,15 +166,16 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
         return uri
     if normalized_scheme == "airflow":
         raise ValueError("Asset scheme 'airflow' is reserved")
-    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
-    if auth_exists:
+    if parsed.password:
         # TODO: Collect this into a DagWarning.
         warnings.warn(
-            "An Asset URI should not contain auth info (e.g. username or "
-            "password). It has been automatically dropped.",
+            "An Asset URI should not contain a password. User info has been automatically dropped.",
             UserWarning,
             stacklevel=3,
         )
+        _, _, normalized_netloc = parsed.netloc.rpartition("@")
+    else:
+        normalized_netloc = parsed.netloc
     if parsed.query:
         normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:
@@ -688,4 +689,5 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
+    dest_asset_extra: dict[str, JsonValue]
     extra: dict[str, JsonValue]

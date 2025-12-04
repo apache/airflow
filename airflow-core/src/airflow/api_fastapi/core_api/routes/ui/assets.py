@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, select, true
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -48,7 +48,7 @@ def next_run_assets(
     if latest_run and latest_run.logical_date:
         on_clause = AssetEvent.timestamp >= latest_run.logical_date
     else:
-        on_clause = True
+        on_clause = true()
 
     query_result = session.execute(
         select(

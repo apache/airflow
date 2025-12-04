@@ -96,7 +96,7 @@ def create_app(enable_plugins: bool):
     with flask_app.app_context():
         AirflowAppBuilder(
             app=flask_app,
-            session=db.session,
+            session=db.session(),
             base_template="airflow/main.html",
             enable_plugins=enable_plugins,
         )

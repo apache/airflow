@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
+from typing import Any, TypedDict
 
 from botocore.exceptions import ClientError
 
@@ -33,6 +33,14 @@ from airflow.utils.helpers import prune_dict
 # are empty.
 # See PR https://github.com/apache/airflow/pull/20814
 NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD = 3
+
+
+class CloudWatchLogEvent(TypedDict):
+    """TypedDict for CloudWatch Log Event."""
+
+    timestamp: int
+    message: str
+    ingestionTime: int
 
 
 class AwsLogsHook(AwsBaseHook):
@@ -67,7 +75,7 @@ class AwsLogsHook(AwsBaseHook):
         start_from_head: bool | None = None,
         continuation_token: ContinuationToken | None = None,
         end_time: int | None = None,
-    ) -> Generator:
+    ) -> Generator[CloudWatchLogEvent, None, None]:
         """
         Return a generator for log items in a single stream; yields all items available at the current moment.
 

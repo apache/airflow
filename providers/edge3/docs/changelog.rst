@@ -27,6 +27,61 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Send executor integration info in workload (#57800)``
+* ``Prevent duplicate edge workers unless existing worker is offline or unkown (#58586)``
+* ``Add multi-select state filter to worker page (#58505)``
+* ``Add queue name filtering to Edge Worker tab (#58416)``
+* ``Add search functionality to Edge Worker tab (#58331)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use 'before_sleep_log' in retries of Edge Worker (#58480)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#58780)``
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Upgrade Edge TS dependencies (#58413)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* `` Add push_logs configuration option to Edge executor (#58125)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#58235)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 6 files in providers (edge3,git) (#58018)``
+   * ``Synchronize default versions in all split .pre-commit-config.yaml (#57851)``
+
 1.4.1
 .....
 

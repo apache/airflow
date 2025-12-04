@@ -35,12 +35,7 @@ description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-# We know that it will take a while before we can support Python 3.14 because of all our dependencies
-# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
-# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
-# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
-# also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -543,7 +538,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.9",
+    "uv>=0.9.15",
 ]
 
 
@@ -787,7 +782,11 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 
-# All of the modules which have an extra license header (i.e. that we copy from another project) need to
+# Shared distributions SHOULD use relative imports when referencing each other
+# This one disables 'ban-relative-imports'.
+"shared/*/src/**" = ["TID252"]
+
+# All the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
 "scripts/ci/prek/*.py" = [ "E402" ]
 "airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]
@@ -1298,7 +1297,9 @@ dev = [
     "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
+    "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
 ]
@@ -1349,7 +1350,9 @@ apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1470,7 +1473,9 @@ members = [
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "shared/configuration",
     "shared/logging",
+    "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

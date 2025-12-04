@@ -150,7 +150,7 @@ def _execute_in_subprocess(cmd: list[str], cwd: str | None = None, env: dict[str
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         bufsize=0,
-        close_fds=True,
+        close_fds=False,
         cwd=cwd,
         env=env,
     ) as proc:
