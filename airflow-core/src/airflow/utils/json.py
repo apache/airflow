@@ -26,7 +26,7 @@ class XComEncoder(json.JSONEncoder):
 
     def default(self, o: object) -> Any:
         try:
-            from airflow.sdk.serialization.serde import serialize
+            from airflow.sdk.serde import serialize
         except ImportError as e:
             raise ImportError(
                 "apache-airflow-task-sdk is required for XCom serialization. "
@@ -39,7 +39,7 @@ class XComEncoder(json.JSONEncoder):
 
     def encode(self, o: Any) -> str:
         try:
-            from airflow.sdk.serialization.serde import CLASSNAME, SCHEMA_ID
+            from airflow.sdk.serde import CLASSNAME, SCHEMA_ID
         except ImportError as e:
             raise ImportError(
                 "apache-airflow-task-sdk is required for XCom serialization. "
@@ -61,7 +61,7 @@ class XComDecoder(json.JSONDecoder):
 
     def __init__(self, *args, **kwargs) -> None:
         try:
-            import airflow.sdk.serialization.serde  # noqa: F401
+            import airflow.sdk.serde  # noqa: F401
         except (ImportError, AttributeError, ModuleNotFoundError) as e:
             raise ImportError(
                 "apache-airflow-task-sdk is required for XCom serialization. "
@@ -74,7 +74,7 @@ class XComDecoder(json.JSONDecoder):
 
     def object_hook(self, dct: dict) -> object:
         try:
-            from airflow.sdk.serialization.serde import deserialize
+            from airflow.sdk.serde import deserialize
         except ImportError as e:
             raise ImportError(
                 "apache-airflow-task-sdk is required for XCom serialization. "
@@ -86,7 +86,7 @@ class XComDecoder(json.JSONDecoder):
     def orm_object_hook(dct: dict) -> object:
         """Create a readable representation of a serialized object."""
         try:
-            from airflow.sdk.serialization.serde import deserialize
+            from airflow.sdk.serde import deserialize
         except ImportError as e:
             raise ImportError(
                 "apache-airflow-task-sdk is required for XCom serialization. "

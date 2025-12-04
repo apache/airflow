@@ -30,7 +30,7 @@ from packaging import version
 from pydantic import BaseModel
 
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.serialization.serde import (
+from airflow.sdk.serde import (
     CLASSNAME,
     DATA,
     SCHEMA_ID,
@@ -67,28 +67,28 @@ def generate_serializers_importable_tests():
     """
     Generate test cases for `test_serializers_importable_and_str`.
 
-    The function iterates through all the modules defined under `airflow.sdk.serialization.serializers`. It loads
+    The function iterates through all the modules defined under `airflow.sdk.serde.serializers`. It loads
     the import strings defined in the `serializers` from each module, and create a test case to verify that the
     serializer is importable.
     """
-    import airflow.sdk.serialization.serializers
+    import airflow.sdk.serde.serializers
 
     NUMPY_VERSION = version.parse(metadata.version("numpy"))
 
     serializer_tests = []
 
-    for _, name, _ in iter_namespace(airflow.sdk.serialization.serializers):
+    for _, name, _ in iter_namespace(airflow.sdk.serde.serializers):
         ############################################################
         # Handle compatibility / optional dependency at module level
         ############################################################
         # https://github.com/apache/airflow/pull/37320
-        if name == "airflow.sdk.serialization.serializers.iceberg":
+        if name == "airflow.sdk.serde.serializers.iceberg":
             try:
                 import pyiceberg  # noqa: F401
             except ImportError:
                 continue
         # https://github.com/apache/airflow/pull/38074
-        if name == "airflow.sdk.serialization.serializers.deltalake":
+        if name == "airflow.sdk.serde.serializers.deltalake":
             try:
                 import deltalake  # noqa: F401
             except ImportError:

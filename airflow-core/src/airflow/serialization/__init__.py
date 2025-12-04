@@ -23,7 +23,7 @@ from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
     "serde": {
-        "*": "airflow.sdk.serialization.serde",
+        "*": "airflow.sdk.serde",
     },
 }
 

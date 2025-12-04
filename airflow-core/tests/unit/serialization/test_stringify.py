@@ -22,7 +22,7 @@ from typing import ClassVar
 
 import pytest
 
-from airflow.sdk.serialization.serde import serialize
+from airflow.sdk.serde import serialize
 from airflow.serialization.stringify import CLASSNAME, VERSION, stringify
 from airflow.utils.module_loading import qualname
 

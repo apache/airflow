@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk.serialization.typing import is_pydantic_model
+from airflow.sdk.serde.typing import is_pydantic_model
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
-    from airflow.sdk.serialization.serde import U
+    from airflow.sdk.serde import U
 
 serializers = [
     "pydantic.main.BaseModel",

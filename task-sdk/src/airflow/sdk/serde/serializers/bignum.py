@@ -24,7 +24,7 @@ from airflow.utils.module_loading import qualname
 if TYPE_CHECKING:
     import decimal
 
-    from airflow.sdk.serialization.serde import U
+    from airflow.sdk.serde import U
 
 
 serializers = ["decimal.Decimal"]

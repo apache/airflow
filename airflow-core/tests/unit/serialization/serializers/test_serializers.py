@@ -37,7 +37,7 @@ from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.serialization.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
+from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
 from airflow.utils.module_loading import qualname
 

@@ -30,7 +30,7 @@ deserializers = serializers
 if TYPE_CHECKING:
     import pandas as pd
 
-    from airflow.sdk.serialization.serde import U
+    from airflow.sdk.serde import U
 
 __version__ = 1
 

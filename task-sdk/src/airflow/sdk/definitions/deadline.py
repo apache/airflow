@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, cast
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
-from airflow.sdk.serialization.serde import deserialize, serialize
+from airflow.sdk.serde import deserialize, serialize
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 
 if TYPE_CHECKING:

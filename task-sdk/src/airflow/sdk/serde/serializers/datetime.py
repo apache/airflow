@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow._shared.timezones.timezone import parse_timezone
-from airflow.sdk.serialization.serializers.timezone import (
+from airflow.sdk.serde.serializers.timezone import (
     deserialize as deserialize_timezone,
     serialize as serialize_timezone,
 )
@@ -29,7 +29,7 @@ from airflow.utils.module_loading import qualname
 if TYPE_CHECKING:
     import datetime
 
-    from airflow.sdk.serialization.serde import U
+    from airflow.sdk.serde import U
 
 __version__ = 2
 

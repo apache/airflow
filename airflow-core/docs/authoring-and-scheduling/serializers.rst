@@ -28,7 +28,7 @@ like ``str`` and ``int`` and it loops over iterables. When things become more co
 
 Airflow out of the box supports three ways of custom serialization. Primitives are returned as is, without
 additional encoding, e.g. a ``str`` remains a ``str``. When it is not a primitive (or iterable thereof) Airflow
-looks for a registered serializer and deserializer in the namespace of ``airflow.sdk.serialization.serializers``.
+looks for a registered serializer and deserializer in the namespace of ``airflow.sdk.serde.serializers``.
 If not found it will look in the class for a ``serialize()`` method or in case of deserialization a
 ``deserialize(data, version: int)`` method. Finally, if the class is either decorated with ``@dataclass``
 or ``@attr.define`` it will use the public methods for those decorators.
@@ -92,7 +92,7 @@ Registered
     if TYPE_CHECKING:
         import decimal
 
-        from airflow.sdk.serialization.serde import U
+        from airflow.sdk.serde import U
 
 
     serializers = [

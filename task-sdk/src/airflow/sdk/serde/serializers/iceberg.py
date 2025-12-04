@@ -26,7 +26,7 @@ deserializers = serializers
 stringifiers = serializers
 
 if TYPE_CHECKING:
-    from airflow.sdk.serialization.serde import U
+    from airflow.sdk.serde import U
 
 __version__ = 1
 
