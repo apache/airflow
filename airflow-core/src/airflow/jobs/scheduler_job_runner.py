@@ -1683,7 +1683,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             asset_partition_dags.add(apdr.target_dag_id)
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
-                self.log.error("DAG '%s' not found in serialized_dag table", apdr.target_dag_id)
+                self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
             run_after = timezone.utcnow()
