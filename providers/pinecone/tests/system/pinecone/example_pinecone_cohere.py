@@ -25,11 +25,13 @@ try:
     from airflow.sdk import task, teardown
 except ImportError:
     # Airflow 2 path
-    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
+    from airflow.decorators import task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
-from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator, \
-    CreateServerlessIndexOperator
 from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+from airflow.providers.pinecone.operators.pinecone import (
+    CreateServerlessIndexOperator,
+    PineconeIngestOperator,
+)
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
@@ -43,7 +45,6 @@ with DAG(
     start_date=datetime(2023, 1, 1),
     catchup=False,
 ) as dag:
-
     create_index = CreateServerlessIndexOperator(
         task_id="pinecone_create_serverless_index",
         index_name=index_name,
@@ -76,7 +77,6 @@ with DAG(
     @teardown
     @task
     def delete_index():
-
         hook = PineconeHook()
         hook.delete_index(index_name=index_name)
 

@@ -27,7 +27,10 @@ except ImportError:
     # Airflow 2 path
     from airflow.decorators import task, teardown  # type: ignore[attr-defined,no-redef]
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
-from airflow.providers.pinecone.operators.pinecone import CreateServerlessIndexOperator, PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import (
+    CreateServerlessIndexOperator,
+    PineconeIngestOperator,
+)
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")
