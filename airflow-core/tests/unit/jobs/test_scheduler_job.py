@@ -105,7 +105,6 @@ from tests_common.test_utils.db import (
     clear_db_jobs,
     clear_db_pools,
     clear_db_runs,
-    clear_db_serialized_dags,
     clear_db_teams,
     clear_db_triggers,
     set_default_pool_slots,
@@ -201,11 +200,6 @@ def _clean_db():
     clear_db_deadline()
     clear_db_callbacks()
     clear_db_triggers()
-
-
-@pytest.fixture
-def clean_db():
-    _clean_db()
 
 
 @patch.dict(
@@ -5038,7 +5032,7 @@ class TestSchedulerJob:
                 ti.state = State.SUCCESS
                 session.flush()
 
-        self.clean_db()
+        _clean_db()
 
         # Explicitly set catchup=True as test specifically expects runs to be created in date order
         with dag_maker(max_active_runs=3, session=session, catchup=True) as dag:
@@ -6385,7 +6379,7 @@ class TestSchedulerJob:
                 assert ti1.next_method == "__fail__"
                 assert ti2.state == State.DEFERRED
             finally:
-                self.clean_db()
+                _clean_db()
 
         # Positive case, will retry until success before reach max retry times
         check_if_trigger_timeout(retry_times)
@@ -7958,24 +7952,13 @@ class TestSchedulerJobQueriesCount:
 
     scheduler_job: Job | None
 
-    @staticmethod
-    def clean_db():
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_backfills()
-        clear_db_dags()
-        clear_db_dag_bundles()
-        clear_db_import_errors()
-        clear_db_jobs()
-        clear_db_serialized_dags()
-
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
-        self.clean_db()
+        _clean_db()
 
         yield
 
-        self.clean_db()
+        _clean_db()
 
     @pytest.mark.parametrize(
         ("expected_query_count", "dag_count", "task_count"),
