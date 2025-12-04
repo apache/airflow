@@ -225,6 +225,14 @@ def create_connection_form_class() -> type[DynamicForm]:
         port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
         extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
 
+        def populate_obj(self, item):
+            """Populate the attributes of the passed obj with data from the form's not-read-only fields."""
+            for name, field in self._fields.items():
+                if not field.flags.readonly:
+                    if name.startswith("extra__") and not field.data:
+                        continue
+                    field.populate_obj(item, name)
+
     for key, value in providers_manager.connection_form_widgets.items():
         setattr(ConnectionForm, key, value.field)
 
