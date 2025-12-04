@@ -17,10 +17,11 @@
  * under the License.
  */
 import { Input, VStack, Heading, Box, Text } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useXcomServiceCreateXcomEntry } from "openapi/queries";
+import { useXcomServiceCreateXcomEntry, useXcomServiceGetXcomEntriesKey } from "openapi/queries";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Button, Dialog, toaster } from "src/components/ui";
 
@@ -35,6 +36,7 @@ type AddXComModalProps = {
 
 const AddXComModal = ({ dagId, isOpen, mapIndex = -1, onClose, runId, taskId }: AddXComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
+  const queryClient = useQueryClient();
   const [key, setKey] = useState("");
   const [value, setValue] = useState("");
 
@@ -46,7 +48,10 @@ const AddXComModal = ({ dagId, isOpen, mapIndex = -1, onClose, runId, taskId }: 
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntriesKey],
+      });
       onClose();
       setKey("");
       setValue("");
