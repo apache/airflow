@@ -158,6 +158,10 @@ Execution Time Components
 
 .. autofunction:: airflow.sdk.log.mask_secret
 
+Observability
+-------------
+.. autoapiclass:: airflow.sdk.Trace
+
 Everything else
 ---------------
 
