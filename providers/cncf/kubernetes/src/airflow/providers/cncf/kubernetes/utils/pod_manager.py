@@ -56,6 +56,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
+    from kubernetes.client.models.core_v1_event import CoreV1Event
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_state import V1ContainerState
     from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
@@ -94,34 +95,23 @@ def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
     return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
 
 
-async def watch_pod_events(
-    pod_manager: PodManager | AsyncPodManager,
-    pod: V1Pod,
-    check_interval: float = 1,
+def log_pod_event(
+    pod_manager: PodManager | AsyncPodManager, event: CoreV1Event, seen_events: set[str]
 ) -> None:
     """
-    Read pod events and write them to the log.
+    Log a pod event if not already seen.
 
-    This function supports both asynchronous and synchronous pod managers.
-
-    :param pod_manager: The pod manager instance (PodManager or AsyncPodManager).
-    :param pod: The pod object to monitor.
-    :param check_interval: Interval (in seconds) between checks.
+    :param pod_manager: The pod manager instance for logging
+    :param event: Kubernetes event
+    :param seen_events: Set of event UIDs already logged to avoid duplicates
     """
-    num_events = 0
-    is_async = isinstance(pod_manager, AsyncPodManager)
-    while not pod_manager.stop_watching_events:
-        if is_async:
-            events = await pod_manager.read_pod_events(pod)
-        else:
-            events = pod_manager.read_pod_events(pod)
-        for new_event in events.items[num_events:]:
-            involved_object: V1ObjectReference = new_event.involved_object
-            pod_manager.log.info(
-                "The Pod has an Event: %s from %s", new_event.message, involved_object.field_path
-            )
-        num_events = len(events.items)
-        await asyncio.sleep(check_interval)
+    event_uid = event.metadata.uid
+    if event_uid in seen_events:
+        return None  # Skip duplicate events
+
+    seen_events.add(event_uid)
+    involved_object: V1ObjectReference = event.involved_object
+    pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
 
 
 async def await_pod_start(
@@ -170,12 +160,14 @@ async def await_pod_start(
                 pod_manager.log.info("Waiting %ss to get the POD running...", startup_timeout)
 
             if time.time() - start_check_time >= startup_timeout:
+                pod_manager.stop_watching_events = True
                 pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
                     f"Pod took too long to start. More than {startup_timeout}s. Check the pod events in kubernetes."
                 )
         else:
             if time.time() - start_check_time >= schedule_timeout:
+                pod_manager.stop_watching_events = True
                 pod_manager.log.info("::endgroup::")
                 raise PodLaunchTimeoutException(
                     f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
@@ -188,6 +180,7 @@ async def await_pod_start(
                 container_waiting: V1ContainerStateWaiting | None = container_state.waiting
                 if container_waiting:
                     if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
+                        pod_manager.stop_watching_events = True
                         pod_manager.log.info("::endgroup::")
                         raise PodLaunchFailedException(
                             f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
@@ -354,9 +347,16 @@ class PodManager(LoggingMixin):
         """Launch the pod asynchronously."""
         return self.run_pod_async(pod)
 
-    async def watch_pod_events(self, pod: V1Pod, check_interval: int = 1) -> None:
-        """Read pod events and writes into log."""
-        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
+    async def watch_pod_events(self, pod: V1Pod, check_interval: int = 10) -> None:
+        """Read pod events and write into log."""
+        resource_version = None
+        seen_events = set()
+        while not self.stop_watching_events:
+            events = self.read_pod_events(pod, resource_version)
+            for event in events.items:
+                log_pod_event(self, event, seen_events)
+                resource_version = event.metadata.resource_version
+            await asyncio.sleep(check_interval)
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: int = 1
@@ -772,11 +772,20 @@ class PodManager(LoggingMixin):
         ]
 
     @generic_api_retry
-    def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
-        """Read events from the POD."""
+    def read_pod_events(self, pod: V1Pod, resource_version: str | None = None) -> CoreV1EventList:
+        """
+        Read events from the POD with optimization parameters to reduce API load.
+
+        :param pod: The pod to get events for
+        :param resource_version: Only return events newer than this resource version
+        :param limit: Maximum number of events to return
+        """
         try:
             return self._client.list_namespaced_event(
-                namespace=pod.metadata.namespace, field_selector=f"involvedObject.name={pod.metadata.name}"
+                namespace=pod.metadata.namespace,
+                field_selector=f"involvedObject.name={pod.metadata.name}",
+                resource_version=resource_version,
+                resource_version_match="NotOlderThan" if resource_version else None,
             )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
@@ -978,16 +987,28 @@ class AsyncPodManager(LoggingMixin):
             pod.metadata.namespace,
         )
 
-    async def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
+    async def read_pod_events(self, pod: V1Pod, resource_version: str | None = None) -> CoreV1EventList:
         """Get pod's events."""
         return await self._hook.get_pod_events(
             pod.metadata.name,
             pod.metadata.namespace,
+            resource_version=resource_version,
         )
 
-    async def watch_pod_events(self, pod: V1Pod, check_interval: float = 1) -> None:
-        """Read pod events and writes into log."""
-        await watch_pod_events(pod_manager=self, pod=pod, check_interval=check_interval)
+    async def watch_pod_events(self, pod: V1Pod, startup_check_interval: int = 30) -> None:
+        """Watch pod events and write to log."""
+        seen_events = set()
+        resource_version = None
+        while not self.stop_watching_events:
+            async for event in self._hook.watch_pod_events(
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+                resource_version=resource_version,
+                timeout_seconds=startup_check_interval,
+            ):
+                if event:
+                    log_pod_event(self, event, seen_events)
+                    resource_version = event.metadata.resource_version
 
     async def await_pod_start(
         self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1
