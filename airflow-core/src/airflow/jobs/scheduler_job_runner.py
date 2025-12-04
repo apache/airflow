@@ -2468,16 +2468,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             }
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
-                # Replace '.' with '__' in task_id to avoid StatsD metric hierarchy conflicts from task group separators
-                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id.replace('.', '__')}", count)
+                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", count)
                 Stats.gauge(f"ti.{state}", count, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
 
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
                 if prev_key not in ti_metrics:
                     dag_id, task_id, queue = prev_key
-                    # Replace '.' with '__' in task_id to avoid StatsD metric hierarchy conflicts from task group separators
-                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id.replace('.', '__')}", 0)
+                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", 0)
                     Stats.gauge(f"ti.{state}", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
 
             self.previous_ti_metrics[state] = ti_metrics
