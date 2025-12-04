@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``665854ef0536`` (head) | ``e812941398f4`` | ``3.2.0``         | Update ORM for asset partitioning.                           |
+| ``55297ae24532`` (head) | ``665854ef0536`` | ``3.2.0``         | Add required fields to enable UI integrations for the        |
+|                         |                  |                   | Deadline Alerts feature.                                     |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``665854ef0536``        | ``e812941398f4`` | ``3.2.0``         | Update ORM for asset partitioning.                           |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``e812941398f4``        | ``b87d2135fa50`` | ``3.2.0``         | Replace deadline's inline callback fields with foreign key   |
 |                         |                  |                   | to callback table.                                           |

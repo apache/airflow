@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from unittest import mock
 
 import pendulum
@@ -31,11 +32,13 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.settings import json
@@ -138,10 +141,17 @@ class TestSerializedDagModel:
             my_callable2()
         assert len(session.query(DagVersion).all()) == 4
 
-    def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle):
+    def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle, session):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
+
+        example_bash_op_dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=AsyncCallback("test.callback"),
+        )
+
         dag_updated = SDM.write_dag(
             dag=LazyDeserializedDAG.from_dag(example_bash_op_dag),
             bundle_name="testing",
@@ -169,6 +179,18 @@ class TestSerializedDagModel:
         assert s_dag.created_at == s_dag_1.created_at
         assert dag_updated is False
 
+        # If this DAG has deadlines, verify UUIDs are preserved on re-serialization
+        deadline_uuids = s_dag.data.get("dag", {}).get("deadline")
+        if deadline_uuids:
+            deadline_uuids_after = s_dag_1.data.get("dag", {}).get("deadline")
+            assert deadline_uuids == deadline_uuids_after
+            deadline_alert_count = (
+                session.query(DeadlineAlertModel)
+                .filter(DeadlineAlertModel.serialized_dag_id == s_dag_1.id)
+                .count()
+            )
+            assert deadline_alert_count > 0, "DeadlineAlert records should exist for DAGs with deadlines"
+
         # Update DAG
         example_bash_op_dag.tags.add("new_tag")
         assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
@@ -183,6 +205,13 @@ class TestSerializedDagModel:
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
+
+        # If deadlines exist, verify UUIDs are preserved
+        if deadline_uuids:
+            deadline_uuids_after_change = s_dag_2.data.get("dag", {}).get("deadline")
+            if deadline_uuids_after_change:
+                # UUIDs should be preserved since deadline definition is unchanged
+                assert deadline_uuids == deadline_uuids_after_change
 
     def test_read_dags(self):
         """DAGs can be read from database."""
