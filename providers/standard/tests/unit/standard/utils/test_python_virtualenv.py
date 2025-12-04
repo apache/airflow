@@ -125,7 +125,8 @@ class TestPrepareVirtualenv:
                 "pythonVER",
                 "--system-site-packages",
                 "/VENV",
-            ]
+            ],
+            env=mock.ANY,
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")

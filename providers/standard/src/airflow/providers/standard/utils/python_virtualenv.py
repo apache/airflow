@@ -200,9 +200,13 @@ def prepare_virtualenv(
 
     if _use_uv():
         venv_cmd = _generate_uv_cmd(venv_directory, python_bin, system_site_packages)
+        if system_site_packages:
+            _execute_in_subprocess(venv_cmd, env=os.environ.copy())
+        else:
+            _execute_in_subprocess(venv_cmd)
     else:
         venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
-    _execute_in_subprocess(venv_cmd)
+        _execute_in_subprocess(venv_cmd)
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
