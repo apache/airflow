@@ -102,7 +102,7 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
                 {currentUser.username}
               </Box>
             </Box>
-          ) : null}
+          ) : undefined}
           <Menu.Item onClick={onOpenLanguage} value="language">
             <Icon as={FiGlobe} boxSize={4} />
             <Box flex="1">{translate("selectLanguage")}</Box>
