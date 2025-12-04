@@ -30,7 +30,7 @@ Defining Dags
 
 Configuration
 -------------
-.. autoapiclass:: airflow.sdk.conf
+.. autodata:: airflow.sdk.conf
 
 Decorators
 ----------
