@@ -517,10 +517,12 @@ def configure_logging(
     )
     for section in (config["loggers"], config["handlers"]):
         for log_config in section.values():
-            # We want everything to go via structlog, remove whatever the user might have configured
             log_config.pop("stream", None)
-            log_config.pop("formatter", None)
-            # log_config.pop("handlers", None)
+            if "class" in log_config or "()" in log_config:
+                if "formatter" not in log_config:
+                    log_config["formatter"] = "structlog"
+            else:
+                log_config.pop("formatter", None)
 
     if output and not hasattr(output, "encoding"):
         # This is a BinaryIO, we need to give logging.StreamHandler a TextIO
