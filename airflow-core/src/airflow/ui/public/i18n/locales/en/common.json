@@ -318,7 +318,7 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
-  "user": {
+  "userSettings": {
     "signedInAs": "Signed in as",
     "user": "User"
   },
