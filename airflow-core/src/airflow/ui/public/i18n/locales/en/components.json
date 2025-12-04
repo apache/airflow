@@ -122,9 +122,7 @@
     "title": "Trigger Dag",
     "toaster": {
       "error": {
-        "generic": {
-          "title": "Failed to Trigger DAG"
-        }
+        "title": "Failed to Trigger DAG"
       },
       "success": {
         "description": "Dag run has been successfully triggered.",

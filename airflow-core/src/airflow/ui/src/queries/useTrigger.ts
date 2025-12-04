@@ -65,7 +65,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
   const onError = (_error: Error) => {
     toaster.create({
       description: _error.message,
-      title: translate("triggerDag.toaster.error.generic.title"),
+      title: translate("triggerDag.toaster.error.title"),
       type: "error",
     });
     setError(_error);
