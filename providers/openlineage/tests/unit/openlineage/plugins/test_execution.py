@@ -27,7 +27,7 @@ from pathlib import Path
 import pytest
 
 from airflow.jobs.job import Job
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener

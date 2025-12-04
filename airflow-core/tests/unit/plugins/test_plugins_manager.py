@@ -27,7 +27,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 

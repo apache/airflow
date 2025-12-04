@@ -14,20 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Listener hook specifications."""
 
 from __future__ import annotations
 
-import pytest
+# Re-export all spec modules so they can be imported from spec package
+from . import asset, dagrun, importerrors, lifecycle, taskinstance
 
-
-@pytest.fixture(scope="module", autouse=True)
-def reset_to_default_logging():
-    """
-    Initialize ``BaseTaskRunner`` might have side effect to another tests.
-    This fixture reset back logging to default after execution of separate module  in this test package.
-    """
-    yield
-
-    from airflow.listeners import get_listener_manager
-
-    get_listener_manager().clear()
+__all__ = [
+    "asset",
+    "dagrun",
+    "importerrors",
+    "lifecycle",
+    "taskinstance",
+]

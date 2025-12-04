@@ -25,7 +25,7 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState

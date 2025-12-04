@@ -14,20 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Compatibility imports for listeners module.
+
+This module provides backwards compatibility for imports from airflow.listeners.
+The actual implementation is now in airflow._shared.listeners.
+"""
 
 from __future__ import annotations
 
-import pytest
+# Re-export listener functionality and spec modules for backwards compatibility
+from airflow._shared.listeners import (
+    hookimpl,
+    spec,
+)
+from airflow._shared.listeners.listener import ListenerManager, get_listener_manager
 
-
-@pytest.fixture(scope="module", autouse=True)
-def reset_to_default_logging():
-    """
-    Initialize ``BaseTaskRunner`` might have side effect to another tests.
-    This fixture reset back logging to default after execution of separate module  in this test package.
-    """
-    yield
-
-    from airflow.listeners import get_listener_manager
-
-    get_listener_manager().clear()
+__all__ = [
+    "hookimpl",
+    "ListenerManager",
+    "get_listener_manager",
+    "spec",
+]

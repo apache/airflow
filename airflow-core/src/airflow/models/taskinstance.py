@@ -70,7 +70,7 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
@@ -1168,8 +1168,16 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(TaskInstanceState.RUNNING.value, ti))
 
+        previous_state = ti.state
         ti.state = TaskInstanceState.RUNNING
         ti.emit_state_change_metric(TaskInstanceState.RUNNING)
+
+        try:
+            get_listener_manager().hook.on_task_instance_running(
+                previous_state=previous_state, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
 
         if external_executor_id:
             ti.external_executor_id = external_executor_id
@@ -1289,7 +1297,14 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sdk.definitions.dag import _run_task
 
         if mark_success:
+            previous_state = self.state
             self.set_state(TaskInstanceState.SUCCESS)
+            try:
+                get_listener_manager().hook.on_task_instance_success(
+                    previous_state=previous_state, task_instance=self
+                )
+            except Exception:
+                log.exception("error calling listener")
             log.info("[DAG TEST] Marking success for %s ", self.task_id)
             return None
 

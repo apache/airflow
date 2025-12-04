@@ -283,7 +283,7 @@ def _update_import_errors(
     import_errors: dict[tuple[str, str], str],
     session: Session,
 ):
-    from airflow.listeners.listener import get_listener_manager
+    from airflow.listeners import get_listener_manager
 
     # Check existing import errors BEFORE deleting, so we can determine if we should update or create
     existing_import_error_files = set(

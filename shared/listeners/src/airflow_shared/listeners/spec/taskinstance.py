@@ -30,7 +30,9 @@ hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_task_instance_running(previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance):
+def on_task_instance_running(
+    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+):
     """Execute when task state changes to RUNNING. previous_state can be None."""
 
 

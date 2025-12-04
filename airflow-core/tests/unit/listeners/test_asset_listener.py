@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.listeners.listener import get_listener_manager
+from airflow.listeners import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset

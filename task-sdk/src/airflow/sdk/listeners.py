@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""SDK listeners module that re-exports from shared listeners."""
+
+from __future__ import annotations
+
+# Re-export listener functionality and spec modules for SDK usage
+from airflow.sdk._shared.listeners import (
+    hookimpl,
+    spec,
+)
+from airflow.sdk._shared.listeners.listener import ListenerManager, get_listener_manager
+
+__all__ = [
+    "hookimpl",
+    "ListenerManager",
+    "get_listener_manager",
+    "spec",
+]
