@@ -31,6 +31,7 @@ import sys
 import traceback
 from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
@@ -83,24 +84,24 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
-celery_configuration = None
+
+@cache
+def get_celery_configuration() -> dict[str, Any]:
+    """Get the Celery configuration dictionary."""
+    if conf.has_option("celery", "celery_config_options"):
+        return conf.getimport("celery", "celery_config_options")
+
+    from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
+
+    return DEFAULT_CELERY_CONFIG
 
 
 @providers_configuration_loaded
 def _get_celery_app() -> Celery:
     """Init providers before importing the configuration, so the _SECRET and _CMD options work."""
-    global celery_configuration
-
-    if conf.has_option("celery", "celery_config_options"):
-        celery_configuration = conf.getimport("celery", "celery_config_options")
-    else:
-        from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
-
-        celery_configuration = DEFAULT_CELERY_CONFIG
-
     celery_app_name = conf.get("celery", "CELERY_APP_NAME")
 
-    return Celery(celery_app_name, config_source=celery_configuration)
+    return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
 app = _get_celery_app()
