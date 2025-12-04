@@ -56,6 +56,7 @@ __all__ = [
     "asset",
     "chain",
     "chain_linear",
+    "conf",
     "cross_downstream",
     "dag",
     "get_current_context",
@@ -72,6 +73,9 @@ __version__ = "1.2.0"
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
+    from airflow.sdk.configuration import AirflowSDKConfigParser
+
+    conf: AirflowSDKConfigParser
     from airflow.sdk.bases.notifier import BaseNotifier
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
@@ -141,6 +145,7 @@ __lazy_imports: dict[str, str] = {
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
+    "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
