@@ -160,7 +160,7 @@ Execution Time Components
 
 Observability
 -------------
-.. autoapiclass:: airflow.sdk.Trace
+.. autoclass:: airflow.sdk.Trace
 
 Everything else
 ---------------
