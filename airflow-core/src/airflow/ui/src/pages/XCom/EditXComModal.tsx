@@ -17,10 +17,16 @@
  * under the License.
  */
 import { Box, Heading, VStack, Text } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useXcomServiceGetXcomEntry, useXcomServiceUpdateXcomEntry } from "openapi/queries";
+import {
+  useXcomServiceGetXcomEntriesKey,
+  useXcomServiceGetXcomEntry,
+  useXcomServiceGetXcomEntryKey,
+  useXcomServiceUpdateXcomEntry,
+} from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import { JsonEditor } from "src/components/JsonEditor";
 import { Button, Dialog, toaster, ProgressBar } from "src/components/ui";
@@ -37,6 +43,7 @@ type EditXComModalProps = {
 
 const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKey }: EditXComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
+  const queryClient = useQueryClient();
   const [value, setValue] = useState("");
 
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>(
@@ -68,7 +75,13 @@ const EditXComModal = ({ dagId, isOpen, mapIndex, onClose, runId, taskId, xcomKe
         type: "error",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntriesKey],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: [useXcomServiceGetXcomEntryKey],
+      });
       onClose();
       toaster.create({
         description: translate("browse:xcom.edit.success"),
