@@ -69,6 +69,29 @@ class TestAwaitMessageTrigger:
 
     @patch("airflow.providers.redis.hooks.redis.RedisHook.get_conn")
     @pytest.mark.asyncio
+    async def test_trigger_run_succeed_with_bytes(self, mock_redis_conn):
+        trigger = AwaitMessageTrigger(
+            channels="test",
+            redis_conn_id="redis_default",
+            poll_interval=0.0001,
+        )
+
+        mock_redis_conn().pubsub().get_message.return_value = {
+            "type": "message",
+            "channel": b"test",
+            "data": b"d1",
+        }
+
+        trigger_gen = trigger.run()
+        task = asyncio.create_task(trigger_gen.__anext__())
+        event = await task
+        assert task.done() is True
+        assert event.payload["data"] == "d1"
+        assert event.payload["channel"] == "test"
+        asyncio.get_event_loop().stop()
+
+    @patch("airflow.providers.redis.hooks.redis.RedisHook.get_conn")
+    @pytest.mark.asyncio
     async def test_trigger_run_fail(self, mock_redis_conn):
         trigger = AwaitMessageTrigger(
             channels="test",

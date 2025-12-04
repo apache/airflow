@@ -2804,7 +2804,8 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# This runs as a CronJob to cleanup old pods.
+# This runs as a CronJob to cleanup old pods spawned by the KubernetesExecutor.
+# It is required to have KubernetesExecutor enabled.
 cleanup:
   enabled: false
   # Run every 15 minutes (templated).

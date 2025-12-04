@@ -53,6 +53,8 @@ from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_colum
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 log = logging.getLogger(__name__)
@@ -333,7 +335,7 @@ class SerializedDagModel(Base):
 
         # serve as cache so no need to decompress and load, when accessing data field
         # when COMPRESS_SERIALIZED_DAGS is True
-        self.__data_cache = dag_data
+        self.__data_cache: dict[Any, Any] | None = dag_data
 
     def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
@@ -448,7 +450,7 @@ class SerializedDagModel(Base):
                 )
             )
 
-            if result.rowcount == 0:
+            if getattr(result, "rowcount", 0) == 0:
                 # No rows updated - serialized DAG doesn't exist
                 return False
             # The dag_version and dag_code may not have changed, still we should
@@ -491,7 +493,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_latest_serialized_dags(
         cls, *, dag_ids: list[str], session: Session = NEW_SESSION
-    ) -> list[SerializedDagModel]:
+    ) -> Sequence[SerializedDagModel]:
         """
         Get the latest serialized dags of given DAGs.
 
@@ -613,7 +615,8 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        load_json: Callable | None
+        load_json: Callable
+        data_col_to_select: ColumnElement[Any] | InstrumentedAttribute[bytes | None]
         if COMPRESS_SERIALIZED_DAGS is False:
             dialect = get_dialect_name(session)
             if dialect in ["sqlite", "mysql"]:
@@ -625,10 +628,10 @@ class SerializedDagModel(Base):
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
                 data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
-                load_json = None
+                load_json = lambda x: x
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
-                load_json = None
+                load_json = lambda x: x
         else:
             data_col_to_select = cls._data_compressed
 
@@ -648,11 +651,7 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        iterator = (
-            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
-            if load_json is not None
-            else query.all()
-        )
-        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        dag_depdendencies = [(str(dag_id), load_json(deps_data)) for dag_id, deps_data in query]
+        resolver = _DagDependenciesResolver(dag_id_dependencies=dag_depdendencies, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag

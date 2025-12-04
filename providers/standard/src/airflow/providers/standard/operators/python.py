@@ -45,11 +45,10 @@ from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import context_merge
+from airflow.providers.common.compat.sdk import AirflowSkipException, context_merge
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,

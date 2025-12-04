@@ -934,7 +934,7 @@ class AssetModelOperation(NamedTuple):
     def add_asset_trigger_references(
         self, assets: dict[tuple[str, str], AssetModel], *, session: Session
     ) -> None:
-        from airflow.serialization.serialized_objects import _encode_trigger
+        from airflow.serialization.encoders import encode_trigger
 
         # Update references from assets being used
         refs_to_add: dict[tuple[str, str], set[int]] = {}
@@ -948,7 +948,7 @@ class AssetModelOperation(NamedTuple):
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
                 [
-                    {**_encode_trigger(watcher.trigger), "watcher_name": watcher.name}
+                    {**encode_trigger(watcher.trigger), "watcher_name": watcher.name}
                     for watcher in asset.watchers
                 ]
                 if name_uri in active_assets

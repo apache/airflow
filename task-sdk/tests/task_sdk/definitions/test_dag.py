@@ -24,12 +24,11 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException
+from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
@@ -340,7 +339,7 @@ class TestDag:
             dag.validate()
 
     def test_continuous_schedule_linmits_max_active_runs(self):
-        from airflow.timetables.simple import ContinuousTimetable
+        from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
@@ -472,7 +471,7 @@ def test_create_dag_while_active_context():
 
 @pytest.mark.parametrize("max_active_runs", [0, 1])
 def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
-    from airflow.timetables.simple import ContinuousTimetable
+    from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
     dag = DAG(dag_id="continuous", schedule="@continuous", max_active_runs=max_active_runs)
     assert isinstance(dag.timetable, ContinuousTimetable)
