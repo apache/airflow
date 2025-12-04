@@ -78,7 +78,7 @@ def collect_historical_tasks(
                 }
             )
 
-    return nodes
+    return historical_nodes
 
 
 def _collect_ids(nodes: list[dict[str, Any]]) -> set[str]:
