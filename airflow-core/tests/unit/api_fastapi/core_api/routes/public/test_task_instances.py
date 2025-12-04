@@ -817,6 +817,7 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == params["limit"]
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
+    # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
         ("params", "expected_map_indexes"),
