@@ -191,7 +191,7 @@ class SqlToS3Operator(BaseOperator):
             if df[col].dtype.name == "object" and file_format == FILE_FORMAT.PARQUET:
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
-                df[col] = df[col].astype(str)
+                df[col] = cast("pd.Series", df[col].astype(str))  # type: ignore[call-overload]
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
@@ -201,13 +201,13 @@ class SqlToS3Operator(BaseOperator):
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released as currently NumPy does not consider None as valid for x/y.
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Int64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Int64Dtype()))  # type: ignore[call-overload]
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Float64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Float64Dtype()))  # type: ignore[call-overload]
 
     @staticmethod
     def _strip_suffixes(

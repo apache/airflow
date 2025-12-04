@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -375,7 +375,9 @@ repos:
           ^src/airflow/plugins_manager\.py$|
           ^src/airflow/providers_manager\.py$|
           ^src/airflow/secrets/__init__.py$|
-          ^src/airflow/serialization/definitions/[_a-z]+\.py$|
+          ^src/airflow/serialization/decoders\.py$|
+          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
+          ^src/airflow/serialization/encoders\.py$|
           ^src/airflow/serialization/enums\.py$|
           ^src/airflow/serialization/helpers\.py$|
           ^src/airflow/serialization/serialized_objects\.py$|
