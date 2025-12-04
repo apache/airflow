@@ -214,8 +214,8 @@ export const XCom = () => {
         type: "error",
       });
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
         queryKey: [useXcomServiceGetXcomEntriesKey],
       });
       onCloseDelete();
