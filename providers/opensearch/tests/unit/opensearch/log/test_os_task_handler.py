@@ -43,7 +43,7 @@ from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from unit.opensearch.conftest import MockClient
 
 opensearchpy = pytest.importorskip("opensearchpy")
@@ -72,12 +72,17 @@ class TestOpensearchTaskHandler:
 
     @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
-        if AIRFLOW_V_3_0_PLUS:
-            create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{logical_date}-{try_number}")
+        if AIRFLOW_V_3_2_PLUS:
+            # we remove the LogTemplate in 3.2.0, so we don't need to create it here
+            pass
         else:
             create_log_template(
                 self.FILENAME_TEMPLATE,
-                "{dag_id}-{task_id}-{execution_date}-{try_number}",
+                (
+                    "{dag_id}-{task_id}-{logical_date}-{try_number}"
+                    if AIRFLOW_V_3_0_PLUS
+                    else "{dag_id}-{task_id}-{execution_date}-{try_number}"
+                ),
             )
         yield get_ti(
             dag_id=self.DAG_ID,

@@ -1705,11 +1705,19 @@ def get_test_dag():
 @pytest.fixture
 def create_log_template(request):
     from airflow import settings
-    from airflow.models.tasklog import LogTemplate
 
     session = settings.Session()
 
     def _create_log_template(filename_template, elasticsearch_id=""):
+        from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+        if AIRFLOW_V_3_2_PLUS:
+            # assertion to avoid creating LogTemplate in Airflow 3.2.0+
+            raise RuntimeError("LogTemplate is removed in Airflow 3.2.0")
+
+        # only < 3.2.0 are able to import LogTemplate
+        from airflow.models.tasklog import LogTemplate
+
         log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
         session.add(log_template)
         session.commit()

@@ -66,7 +66,6 @@ from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
-from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -182,14 +181,6 @@ class DagRun(Base, LoggingMixin):
     run_after: Mapped[datetime] = mapped_column(UtcDateTime, default=_default_run_after, nullable=False)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
-    # Foreign key to LogTemplate. DagRun rows created prior to this column's
-    # existence have this set to NULL. Later rows automatically populate this on
-    # insert to point to the latest LogTemplate entry.
-    log_template_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("log_template.id", name="task_instance_log_template_id_fkey", ondelete="NO ACTION"),
-        default=select(func.max(LogTemplate.__table__.c.id)),
-    )
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow
     )
@@ -2116,25 +2107,6 @@ class DagRun(Base, LoggingMixin):
                 count += getattr(result, "rowcount", 0)
 
         return count
-
-    @provide_session
-    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
-        return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
-
-    @staticmethod
-    @provide_session
-    def _get_log_template(log_template_id: int | None, session: Session = NEW_SESSION) -> LogTemplate:
-        template: LogTemplate | None
-        if log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
-        else:
-            template = session.get(LogTemplate, log_template_id)
-        if template is None:
-            raise AirflowException(
-                f"No log_template entry found for ID {log_template_id!r}. "
-                f"Please make sure you set up the metadatabase correctly."
-            )
-        return template
 
     @staticmethod
     def _get_partial_task_ids(dag: SerializedDAG | None) -> list[str] | None:
