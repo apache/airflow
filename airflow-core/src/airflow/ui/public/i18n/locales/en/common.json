@@ -141,10 +141,6 @@
     "plugins": "Plugins",
     "security": "Security"
   },
-  "navUserSettings": {
-    "signedInAs": "Signed in as",
-    "user": "User"
-  },
   "noItemsFound": "No {{modelName}} found",
   "note": {
     "add": "Add a note",
@@ -186,6 +182,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",
@@ -322,6 +319,7 @@
   "total": "Total {{state}}",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
+  "user": "User",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Press {{hotkey}} to toggle wrap",
