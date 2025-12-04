@@ -40,10 +40,9 @@ import { Button, toaster } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
 
-import AddXComModal from "./AddXComModal";
-import EditXComModal from "./EditXComModal";
 import { XComEntry } from "./XComEntry";
 import { XComFilters } from "./XComFilters";
+import XComModal from "./XComModal";
 
 const {
   DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
@@ -305,20 +304,22 @@ export const XCom = () => {
         total={data ? data.total_entries : 0}
       />
 
-      <AddXComModal
+      <XComModal
         dagId={dagId}
         isOpen={openAdd}
         mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+        mode="add"
         onClose={onCloseAdd}
         runId={runId}
         taskId={taskId}
       />
 
       {selectedXCom ? (
-        <EditXComModal
+        <XComModal
           dagId={selectedXCom.dag_id}
           isOpen={openEdit}
           mapIndex={selectedXCom.map_index}
+          mode="edit"
           onClose={onCloseEdit}
           runId={selectedXCom.run_id}
           taskId={selectedXCom.task_id}
