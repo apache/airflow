@@ -197,6 +197,7 @@ You can change the used host port numbers by setting appropriate environment var
 * ``MSSQL_HOST_PORT``
 * ``FLOWER_HOST_PORT``
 * ``REDIS_HOST_PORT``
+* ``RABBITMQ_HOST_PORT``
 
 If you set these variables, next time when you enter the environment the new ports should be in effect.
 
@@ -379,22 +380,6 @@ in ``--from-ref`` and ``--to-ref`` flags.
     The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
     The main reason is to keep consistency in the results of static checks and to make sure that
     our code is fine when running the lowest supported version.
-
-Compiling ui assets
---------------------
-
-Before starting Airflow, Airflow API server needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
-command takes care about it. This is needed when you want to run API server inside of the breeze.
-
-.. image:: ./images/output_compile-ui-assets.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
-  :width: 100%
-  :alt: Breeze compile-ui-assets
-
-Note
-
-This command requires the ``prek`` tool, which should be installed by following `this guide <../../../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#configuring-prek>`__.
-
 
 Starting Airflow
 ----------------

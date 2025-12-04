@@ -1,1 +1,7 @@
 openapi.merged.json
+
+# Playwright E2E test results and reports
+/test-results/
+/playwright-report/
+/tests/e2e/test-results/
+/tests/e2e/playwright-report/

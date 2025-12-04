@@ -235,8 +235,8 @@ pip-wheel-metadata
 .pypirc
 
 # Dev files
-/dev/packages.txt
-/dev/Dockerfile.pmc
+packages.txt
+Dockerfile.pmc
 
 # Generated UI licenses
 3rd-party-licenses/LICENSES-ui.txt

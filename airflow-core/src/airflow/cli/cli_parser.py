@@ -60,7 +60,7 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 log = logging.getLogger(__name__)
 
 
-for executor_name in ExecutorLoader.get_executor_names():
+for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
     try:
         executor, _ = ExecutorLoader.import_executor_cls(executor_name)
         airflow_commands.extend(executor.get_cli_commands())

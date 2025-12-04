@@ -54,7 +54,6 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -66,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComSequenceIndexResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
@@ -136,9 +136,9 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.secrets import BaseSecretsBackend
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -292,6 +292,9 @@ def block_orm_access():
     conn = "airflow-db-not-allowed:///"
     if "airflow.settings" in sys.modules:
         from airflow import settings
+
+        # This one needs to be from core, because we are checking if settings is loaded to disallow ORM
+        # If settings is loaded, airflow.configuration will be too
         from airflow.configuration import conf
 
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
@@ -954,15 +957,28 @@ class ActivitySubprocess(WatchedSubprocess):
         client: Client,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
         proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
-        proc._on_child_started(ti=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info)
+        proc._on_child_started(
+            ti=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
         return proc
 
-    def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
@@ -984,6 +1000,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             ti_context=ti_context,
             start_date=start_date,
+            sentry_integration=sentry_integration,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -1072,6 +1089,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     self._process_exit_monotonic
                     and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
                 ):
+                    log.warning(
+                        "Process exited with open sockets; cleaning up after timeout",
+                        pid=self.pid,
+                        exit_code=self._exit_code,
+                        socket_types=list(self._open_sockets.values()),
+                        timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
+                    )
                     self._cleanup_open_sockets()
 
             if alive:
@@ -1870,7 +1894,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """
     import os
 
-    from airflow.configuration import ensure_secrets_loaded
+    from airflow.sdk.configuration import ensure_secrets_loaded
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
@@ -1933,6 +1957,7 @@ def supervise(
     log_path: str | None = None,
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
+    sentry_integration: str = "",
 ) -> int:
     """
     Run a single task execution to completion.
@@ -1946,6 +1971,8 @@ def supervise(
     :param log_path: Path to write logs, if required.
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :param sentry_integration: If the executor has a Sentry integration, import
+        path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
@@ -2019,6 +2046,7 @@ def supervise(
             logger=logger,
             bundle_info=bundle_info,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            sentry_integration=sentry_integration,
         )
 
         exit_code = process.wait()

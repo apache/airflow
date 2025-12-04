@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-atlassian-jira``
 
-Release: ``3.2.1``
+Release: ``3.3.0``
 
 
 `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``atlassian.jira`` provider. All classes for this
 are in ``airflow.providers.atlassian.jira`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.3.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-http``
 ``atlassian-python-api``                    ``>3.41.10``
@@ -80,4 +80,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-atlassian-jira/3.3.0/changelog.html>`_.

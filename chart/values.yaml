@@ -1414,7 +1414,7 @@ migrateDatabaseJob:
   env: []
 
 apiServer:
-
+  enabled: true
   # Number of Airflow API servers in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -2804,7 +2804,8 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# This runs as a CronJob to cleanup old pods.
+# This runs as a CronJob to cleanup old pods spawned by the KubernetesExecutor.
+# It is required to have KubernetesExecutor enabled.
 cleanup:
   enabled: false
   # Run every 15 minutes (templated).
@@ -2874,6 +2875,90 @@ cleanup:
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
+
+# This runs as a CronJob to cleanup database for old entries.
+databaseCleanup:
+  enabled: false
+  # Run every week on Sunday at midnight (templated).
+  schedule: "0 0 * * 0"
+  # Command to use when running the database cleanup cronjob (templated).
+  command:
+    - "bash"
+  # Args to use when running the database cleanup cronjob (templated).
+  args:
+    - "-c"
+    - >-
+      CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
+      echo "Cleaning up metadata DB entries older than ${CLEAN_TS}";
+      exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes
+      {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }}
+      {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }}
+      {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }}
+      {{- with .Values.databaseCleanup.tables }} --tables {{ . | join "," }}{{ end }}
+
+  # Number of days to retain entries in the metadata database.
+  retentionDays: 90
+  # Don't preserve purged records in an archive table
+  skipArchive: false
+  # Table names to perform maintenance on. Supported values in:
+  # https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#clean
+  tables: []
+  # Maximum number of rows to delete or archive in a single transaction
+  batchSize: ~
+  # Make logging output more verbose
+  verbose: true
+
+  # jobAnnotations are annotations on the database cleanup CronJob
+  jobAnnotations: {}
+
+  # Select certain nodes for airflow database cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+
+  podAnnotations: {}
+
+  # Labels specific to database cleanup objects and pods
+  labels: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Create ServiceAccount
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to database cleanup cronjob kubernetes service account.
+    annotations: {}
+
+  env: []
+
+  # Detailed default security context for database cleanup for container level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
 
 # Configuration for postgresql subchart
 # Uses bitnamilegacy images to avoid Bitnami licensing restrictions

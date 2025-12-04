@@ -163,6 +163,7 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
+    dagrun_mock.execution_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.logical_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
@@ -205,6 +206,7 @@ def test_get_airflow_dag_run_facet():
                 "start_date": "2024-06-01T01:02:04+00:00",
                 "end_date": "2024-06-01T01:02:14.034172+00:00",
                 "duration": 10.034172,
+                "execution_date": "2024-06-01T01:02:04+00:00",
                 "logical_date": "2024-06-01T01:02:04+00:00",
                 "run_after": "2024-06-01T01:02:04+00:00",
                 "dag_bundle_name": "bundle_name",
@@ -2345,6 +2347,7 @@ def test_dagrun_info_af2():
         "run_type": DagRunType.MANUAL,
         "external_trigger": False,
         "start_date": "2024-06-01T00:00:00+00:00",
+        "execution_date": "2024-06-01T00:00:00+00:00",
         "logical_date": "2024-06-01T00:00:00+00:00",
         "dag_bundle_name": None,
         "dag_bundle_version": None,
@@ -2424,10 +2427,17 @@ def test_taskinstance_info_af2():
 def test_task_info_af3():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
+            # Mock some specific attributes from different operators
             self.deferrable = True
             self.trigger_dag_id = "trigger_dag_id"
+            self.trigger_run_id = "trigger_run_id"
             self.external_dag_id = "external_dag_id"
             self.external_task_id = "external_task_id"
+            self.external_task_ids = "external_task_ids"
+            self.external_task_group_id = "external_task_group_id"
+            self.external_dates_filter = "external_dates_filter"
+            self.logical_date = "logical_date"
+            self.execution_date = "execution_date"
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2464,12 +2474,17 @@ def test_task_info_af3():
         "deferrable": True,
         "depends_on_past": False,
         "downstream_task_ids": "['task_1']",
+        "execution_date": "execution_date",
         "execution_timeout": None,
         "executor_config": {},
         "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
         "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "external_task_group_id": "external_task_group_id",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "logical_date": "logical_date",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -2488,6 +2503,7 @@ def test_task_info_af3():
         "task_group": tg_info,
         "task_id": "section_1.task_3",
         "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
@@ -2499,10 +2515,17 @@ def test_task_info_af3():
 def test_task_info_af2():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
+            # Mock some specific attributes from different operators
             self.deferrable = True
             self.trigger_dag_id = "trigger_dag_id"
+            self.trigger_run_id = "trigger_run_id"
             self.external_dag_id = "external_dag_id"
             self.external_task_id = "external_task_id"
+            self.external_task_ids = "external_task_ids"
+            self.external_task_group_id = "external_task_group_id"
+            self.external_dates_filter = "external_dates_filter"
+            self.logical_date = "logical_date"
+            self.execution_date = "execution_date"
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2539,15 +2562,20 @@ def test_task_info_af2():
         "deferrable": True,
         "depends_on_past": False,
         "downstream_task_ids": "['task_1']",
+        "execution_date": "execution_date",
         "execution_timeout": None,
         "executor_config": {},
         "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
         "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "external_task_group_id": "external_task_group_id",
         "ignore_first_depends_on_past": True,
         "is_setup": False,
         "is_teardown": False,
         "sla": None,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
+        "logical_date": "logical_date",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -2566,6 +2594,7 @@ def test_task_info_af2():
         "task_group": tg_info,
         "task_id": "section_1.task_3",
         "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
