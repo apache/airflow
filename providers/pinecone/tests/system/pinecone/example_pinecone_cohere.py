@@ -22,7 +22,7 @@ from datetime import datetime
 from airflow import DAG
 
 try:
-    from airflow.sdk import setup, task, teardown
+    from airflow.sdk import task, teardown
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
