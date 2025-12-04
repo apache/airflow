@@ -40,7 +40,7 @@ DEFAULT_DATE = timezone.datetime(2025, 1, 1)
 
 class TestTaskGroup:
     @pytest.mark.parametrize(
-        "group_id, exc_type, exc_value",
+        ("group_id", "exc_type", "exc_value"),
         [
             pytest.param(
                 123,

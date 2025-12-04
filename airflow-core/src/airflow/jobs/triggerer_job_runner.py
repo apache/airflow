@@ -27,6 +27,7 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
+from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -414,7 +415,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 to_cancel=self.cancelling_triggers,
             )
 
-            # Pull out of these deques in a thread-safe manner
+            # Pull out of these dequeues in a thread-safe manner
             while self.creating_triggers:
                 workload = self.creating_triggers.popleft()
                 response.to_create.append(workload)
@@ -600,7 +601,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         Request that we update what triggers we're running.
 
         Works out the differences - ones to add, and ones to remove - then
-        adds them to the deques so the subprocess can actually mutate the running
+        adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
         render_log_fname = log_filename_template_renderer()
@@ -627,7 +628,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
             new_trigger_orm = new_triggers[new_id]
 
-            # If the trigger is not associated to a task, an asset, or a deadline, this means the TaskInstance
+            # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
             # row was updated by either Trigger.submit_event or Trigger.submit_failure
             # and can happen when a single trigger Job is being run on multiple TriggerRunners
             # in a High-Availability setup.
@@ -936,7 +937,7 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+                from airflow.serialization.decoders import smart_decode_trigger_kwargs
 
                 # Decrypt and clean trigger kwargs before for execution
                 # Note: We only clean up serialization artifacts (__var, __type keys) here,
@@ -962,7 +963,7 @@ class TriggerRunner:
             )
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1031,7 +1032,7 @@ class TriggerRunner:
         return finished_ids
 
     async def sync_state_to_supervisor(self, finished_ids: list[int]):
-        # Copy out of our deques in threadsafe manner to sync state with parent
+        # Copy out of our dequeues in threadsafe manner to sync state with parent
         events_to_send = []
         while self.events:
             data = self.events.popleft()
@@ -1097,7 +1098,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id: int, trigger: BaseTrigger, timeout_after: datetime | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
@@ -1118,7 +1119,7 @@ class TriggerRunner:
         except asyncio.CancelledError:
             # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
             # message about it
-            if timeout := trigger.timeout_after:
+            if timeout := timeout_after:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     await self.log.aerror("Trigger cancelled due to timeout")

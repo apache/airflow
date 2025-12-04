@@ -96,9 +96,15 @@
   },
   "limitedList": "+{{count}} más",
   "limitedList.allItems": "Todos los {{count}} elementos:",
+  "limitedList.allTags_many": "Todas las etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas las etiquetas (1)",
+  "limitedList.allTags_other": "Todas las etiquetas ({{count}})",
   "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
   "limitedList.clickToOpenFull": "Haz clic en \"+{{count}} más\" para ver la lista completa",
   "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementos",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementos",
   "logs": {
     "file": "Archivo",
     "location": "línea {{line}} en {{name}}"

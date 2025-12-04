@@ -189,6 +189,71 @@ class TestListPyFilesPath:
 
         assert file_utils.might_contain_dag(file_path=file_path_with_dag, safe_mode=True)
 
+    def test_airflowignore_negation_unignore_subfolder_file_glob(self, tmp_path):
+        """Ensure negation rules can unignore a subfolder and a file inside it when using glob syntax.
+
+        Patterns:
+          *                     -> ignore everything
+          !subfolder/           -> unignore the subfolder (must match directory rule)
+          !subfolder/keep.py    -> unignore a specific file inside the subfolder
+        """
+        dags_root = tmp_path / "dags"
+        (dags_root / "subfolder").mkdir(parents=True)
+        # files
+        (dags_root / "drop.py").write_text("raise Exception('ignored')\n")
+        (dags_root / "subfolder" / "keep.py").write_text("# should be discovered\n")
+        (dags_root / "subfolder" / "drop.py").write_text("raise Exception('ignored')\n")
+
+        (dags_root / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!subfolder/",
+                    "!subfolder/keep.py",
+                ]
+            )
+        )
+
+        detected = set()
+        for raw in find_path_from_directory(dags_root, ".airflowignore", "glob"):
+            p = Path(raw)
+            if p.is_file() and p.suffix == ".py":
+                detected.add(p.relative_to(dags_root).as_posix())
+
+        assert detected == {"subfolder/keep.py"}
+
+    def test_airflowignore_negation_nested_with_globstar(self, tmp_path):
+        """Negation with ** should work for nested subfolders."""
+        dags_root = tmp_path / "dags"
+        nested = dags_root / "a" / "b" / "subfolder"
+        nested.mkdir(parents=True)
+
+        # files
+        (dags_root / "ignore_top.py").write_text("raise Exception('ignored')\n")
+        (nested / "keep.py").write_text("# should be discovered\n")
+        (nested / "drop.py").write_text("raise Exception('ignored')\n")
+
+        (dags_root / ".airflowignore").write_text(
+            "\n".join(
+                [
+                    "*",
+                    "!a/",
+                    "!a/b/",
+                    "!**/subfolder/",
+                    "!**/subfolder/keep.py",
+                    "drop.py",
+                ]
+            )
+        )
+
+        detected = set()
+        for raw in find_path_from_directory(dags_root, ".airflowignore", "glob"):
+            p = Path(raw)
+            if p.is_file() and p.suffix == ".py":
+                detected.add(p.relative_to(dags_root).as_posix())
+
+        assert detected == {"a/b/subfolder/keep.py"}
+
     @conf_vars({("core", "might_contain_dag_callable"): "unit.utils.test_file.might_contain_dag"})
     def test_might_contain_dag(self):
         """Test might_contain_dag_callable"""
@@ -262,7 +327,7 @@ class TestListPyFilesPath:
 
 
 @pytest.mark.parametrize(
-    "edge_filename, expected_modification",
+    ("edge_filename", "expected_modification"),
     [
         ("test_dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),
         ("test-dag.py", "unusual_prefix_mocked_path_hash_sha1_test_dag"),

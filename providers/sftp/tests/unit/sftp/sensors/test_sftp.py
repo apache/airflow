@@ -242,7 +242,7 @@ class TestSFTPSensor:
         assert not output
 
     @pytest.mark.parametrize(
-        "op_args, op_kwargs,",
+        ("op_args", "op_kwargs"),
         [
             pytest.param(("op_arg_1",), {"key": "value"}),
             pytest.param((), {}),
@@ -274,7 +274,7 @@ class TestSFTPSensor:
         }
 
     @pytest.mark.parametrize(
-        "op_args, op_kwargs,",
+        ("op_args", "op_kwargs"),
         [
             pytest.param(("op_arg_1",), {"key": "value"}),
             pytest.param((), {}),

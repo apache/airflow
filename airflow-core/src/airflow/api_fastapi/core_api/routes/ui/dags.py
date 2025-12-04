@@ -125,6 +125,7 @@ def get_dags(
             last_dag_run_state,
         ],
         order_by=order_by,
+        dag_ids=readable_dags_filter.value,
     )
 
     dags_select, total_entries = paginated_select(
@@ -190,7 +191,7 @@ def get_dags(
             DagRun.run_after,
             DagRun.start_date,
             DagRun.state,
-            DagRun.duration,
+            DagRun.duration.expression,  # type: ignore[attr-defined]
         )
         .join(
             DagRun,

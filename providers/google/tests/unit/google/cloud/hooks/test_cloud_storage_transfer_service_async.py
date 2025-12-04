@@ -151,7 +151,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
             (
@@ -186,7 +186,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], GcpTransferOperationStatus.ABORTED),
             (

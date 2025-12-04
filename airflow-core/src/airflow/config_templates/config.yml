@@ -121,12 +121,11 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each dag run.
+        This is also configurable per-dag with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new dag run with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
@@ -2089,6 +2088,14 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_interval:
+      description: |
+        How often (in seconds) the scheduler emits metrics on running DAG runs
+        to StatsD (if statsd_on is enabled)
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "30.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
@@ -2506,6 +2513,11 @@ dag_processor:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
         be stored on the dag run and therefore, the latest code will always be used.
+
+        .. note::
+
+          This setting only applies to bundles that support versioning and does not affect
+          DAG versions displayed in the UI.
       version_added: ~
       type: boolean
       example: ~

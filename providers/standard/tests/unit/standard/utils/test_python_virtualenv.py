@@ -206,7 +206,7 @@ class TestPrepareVirtualenv:
         )
 
     @pytest.mark.parametrize(
-        "decorators, expected_decorators",
+        ("decorators", "expected_decorators"),
         [
             (["@task.virtualenv"], []),
             (["@task.virtualenv()"], []),

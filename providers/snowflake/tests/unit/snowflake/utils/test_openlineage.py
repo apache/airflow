@@ -50,7 +50,7 @@ from airflow.utils.state import TaskInstanceState
 
 
 @pytest.mark.parametrize(
-    "source,target",
+    ("source", "target"),
     [
         (
             "snowflake://user:pass@xy123456.us-east-1.aws/database/schema",
@@ -92,7 +92,7 @@ def test_snowflake_sqlite_account_urls(source, target):
 
 # Unit Tests using pytest.mark.parametrize
 @pytest.mark.parametrize(
-    "name, expected",
+    ("name", "expected"),
     [
         ("xy12345", "xy12345.us-west-1.aws"),  # No '-' or '_' in name
         ("xy12345.us-west-1.aws", "xy12345.us-west-1.aws"),  # Already complete locator

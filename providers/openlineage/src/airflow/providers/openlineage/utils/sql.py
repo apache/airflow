@@ -29,7 +29,7 @@ from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
-    from sqlalchemy.sql import ClauseElement
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.providers.common.compat.sdk import BaseHook
 
@@ -207,7 +207,7 @@ def create_filter_clauses(
     mapping: dict,
     information_schema_table: Table,
     uppercase_names: bool = False,
-) -> ClauseElement:
+) -> ColumnElement[bool]:
     """
     Create comprehensive filter clauses for all tables in one database.
 
@@ -228,19 +228,19 @@ def create_filter_clauses(
     for db, schema_mapping in mapping.items():
         schema_level_clauses = []
         for schema, tables in schema_mapping.items():
-            filter_clause = information_schema_table.c[table_name_column_name].in_(
-                name.upper() if uppercase_names else name for name in tables
+            filter_clause: ColumnElement[bool] = information_schema_table.c[table_name_column_name].in_(
+                [name.upper() if uppercase_names else name for name in tables]
             )
             if schema:
-                schema = schema.upper() if uppercase_names else schema
+                schema_upper = schema.upper() if uppercase_names else schema
                 filter_clause = and_(
-                    information_schema_table.c[table_schema_column_name] == schema, filter_clause
+                    information_schema_table.c[table_schema_column_name] == schema_upper, filter_clause
                 )
             schema_level_clauses.append(filter_clause)
         if db and table_database_column_name:
-            db = db.upper() if uppercase_names else db
+            db_upper = db.upper() if uppercase_names else db
             filter_clause = and_(
-                information_schema_table.c[table_database_column_name] == db, or_(*schema_level_clauses)
+                information_schema_table.c[table_database_column_name] == db_upper, or_(*schema_level_clauses)
             )
             filter_clauses.append(filter_clause)
         else:

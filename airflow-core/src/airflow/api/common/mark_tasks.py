@@ -19,8 +19,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, TypeAlias, cast
+from collections.abc import Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
@@ -32,7 +32,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
-    from sqlalchemy.sql import ColumnElement
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -113,8 +112,7 @@ def get_all_dag_task_query(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
     )
-    # Apply ti_selector_condition separately to handle type issues
-    qry_dag = qry_dag.where(cast("ColumnElement[bool]", TaskInstance.ti_selector_condition(task_ids)))
+    qry_dag = qry_dag.where(TaskInstance.ti_selector_condition(task_ids))
 
     qry_dag = qry_dag.where(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
         lazyload(TaskInstance.dag_run)
@@ -122,7 +120,9 @@ def get_all_dag_task_query(
     return qry_dag
 
 
-def find_task_relatives(tasks, downstream, upstream):
+def find_task_relatives(
+    tasks: Collection[Operator | tuple[Operator, int]], downstream: bool, upstream: bool
+) -> Iterator[str | tuple[str, int]]:
     """Yield task ids and optionally ancestor and descendant ids."""
     for item in tasks:
         if isinstance(item, tuple):

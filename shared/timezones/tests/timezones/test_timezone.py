@@ -93,7 +93,7 @@ class TestTimezone:
 
 
 @pytest.mark.parametrize(
-    "input_datetime, output_datetime",
+    ("input_datetime", "output_datetime"),
     [
         pytest.param(None, None, id="None datetime"),
         pytest.param(
@@ -145,7 +145,7 @@ def test_parse_timezone_utc(tz_name):
 
 
 @pytest.mark.parametrize(
-    "tz_offset, expected_offset, expected_name",
+    ("tz_offset", "expected_offset", "expected_name"),
     [
         pytest.param(0, 0, "+00:00", id="zero-offset"),
         pytest.param(-3600, -3600, "-01:00", id="1-hour-behind"),
@@ -183,7 +183,7 @@ def test_from_timestamp_local(tz):
 
 
 @pytest.mark.parametrize(
-    "tz, iana_timezone",
+    ("tz", "iana_timezone"),
     [
         pytest.param(Timezone("Europe/Paris"), "Europe/Paris", id="pendulum-timezone"),
         pytest.param("America/New_York", "America/New_York", id="IANA-timezone"),

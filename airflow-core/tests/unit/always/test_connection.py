@@ -103,12 +103,10 @@ class UriTestCaseConfig:
 
 class TestConnection:
     def setup_method(self):
-        crypto._fernet = None
         self.patcher = mock.patch("airflow.models.connection.mask_secret", autospec=True)
         self.mask_secret = self.patcher.start()
 
     def teardown_method(self):
-        crypto._fernet = None
         self.patcher.stop()
 
     @conf_vars({("core", "fernet_key"): ""})
@@ -118,6 +116,7 @@ class TestConnection:
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
+        crypto.get_fernet.cache_clear()
         test_connection = Connection(extra='{"apache": "airflow"}')
         assert not test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
@@ -127,6 +126,7 @@ class TestConnection:
         """
         Tests extras on a new connection with encryption.
         """
+        crypto.get_fernet.cache_clear()
         test_connection = Connection(extra='{"apache": "airflow"}')
         assert test_connection.is_extra_encrypted
         assert test_connection.extra == '{"apache": "airflow"}'
@@ -139,6 +139,7 @@ class TestConnection:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
+            crypto.get_fernet.cache_clear()
             test_connection = Connection(extra='{"apache": "airflow"}')
             assert test_connection.is_extra_encrypted
             assert test_connection.extra == '{"apache": "airflow"}'
@@ -146,7 +147,7 @@ class TestConnection:
 
         # Test decrypt of old value with new key
         with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
-            crypto._fernet = None
+            crypto.get_fernet.cache_clear()
             assert test_connection.extra == '{"apache": "airflow"}'
 
             # Test decrypt of new value with new key
@@ -420,7 +421,7 @@ class TestConnection:
                 assert actual_val == expected_val
 
     @pytest.mark.parametrize(
-        "uri,uri_parts",
+        ("uri", "uri_parts"),
         [
             (
                 "http://:password@host:80/database",
@@ -542,7 +543,7 @@ class TestConnection:
         assert connection.schema == uri_parts.schema
 
     @pytest.mark.parametrize(
-        "extra, expected",
+        ("extra", "expected"),
         [
             ('{"extra": null}', None),
             ('{"extra": {"yo": "hi"}}', '{"yo": "hi"}'),
@@ -554,7 +555,7 @@ class TestConnection:
         assert Connection.from_json(extra).extra == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('{"conn_type": "abc-abc"}', "abc_abc"),
             ('{"conn_type": "abc_abc"}', "abc_abc"),
@@ -566,7 +567,7 @@ class TestConnection:
         assert Connection.from_json(val).conn_type == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('{"port": 1}', 1),
             ('{"port": "1"}', 1),
@@ -578,7 +579,7 @@ class TestConnection:
         assert Connection.from_json(val).port == expected
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ('pass :/!@#$%^&*(){}"', 'pass :/!@#$%^&*(){}"'),  # these are the same
             (None, None),
@@ -821,7 +822,7 @@ class TestConnection:
         assert Connection(uri="//abc").host == "abc"
 
     @pytest.mark.parametrize(
-        "conn, expected_json",
+        ("conn", "expected_json"),
         [
             pytest.param("get_connection1", "{}", id="empty"),
             pytest.param("get_connection2", '{"host": "apache.org"}', id="empty-extra"),

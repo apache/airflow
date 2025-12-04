@@ -370,7 +370,7 @@ class TestSecretsMasker:
         assert caplog.messages == ["redacted: ***"]
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
             (MyEnum.testname, "testvalue"),
         ],

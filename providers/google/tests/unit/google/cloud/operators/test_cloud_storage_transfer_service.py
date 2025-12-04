@@ -387,7 +387,7 @@ class TestGcpStorageTransferJobCreateOperator:
     # fields
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "body, excepted",
+        ("body", "excepted"),
         [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
     )
     @mock.patch(
@@ -1024,7 +1024,7 @@ class TestS3ToGoogleCloudStorageTransferOperator:
             )
 
     @pytest.mark.parametrize(
-        "wait, job_name",
+        ("wait", "job_name"),
         [
             (True, "transferJobs/123"),
             (False, "transferJobs/456"),
@@ -1079,7 +1079,7 @@ class TestS3ToGoogleCloudStorageTransferOperator:
         assert run_facet.wait == wait
 
     @pytest.mark.parametrize(
-        "object_conditions, delete_source",
+        ("object_conditions", "delete_source"),
         [
             ({"includePrefixes": ["2025/"]}, True),
             (None, False),

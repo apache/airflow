@@ -16,7 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
 repos:
   - repo: local
     hooks:
@@ -49,3 +53,13 @@ repos:
           ^src/airflowctl/ctl/cli_config.py$|
           ^src/airflowctl/api/operations.py$|
           ^src/airflowctl/ctl/commands/.*\.py$
+      - id: check-airflowctl-command-coverage
+        name: Check airflowctl CLI command test coverage
+        entry: ../scripts/ci/prek/check_airflowctl_command_coverage.py
+        language: python
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflowctl/api/operations.py$|
+          ^../airflow-ctl-tests/tests/airflowctl_tests/conftest.py$|
+          ^../scripts/ci/prek/check_airflowctl_command_coverage.py$

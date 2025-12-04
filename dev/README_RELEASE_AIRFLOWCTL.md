@@ -38,6 +38,7 @@
   - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
+- [Set variables and](#set-variables-and)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
@@ -46,9 +47,10 @@
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
+  - [Announce about the release in Apache Airflow Slack](#announce-about-the-release-in-apache-airflow-slack)
+  - [Add Blog post about the release](#add-blog-post-about-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
-  - [Remove Airflow-ctl distributions scheduled for removal](#remove-airflow-ctl-distributions-scheduled-for-removal)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -93,11 +95,19 @@ We are using the [SEMVER](https://semver.org/) versioning scheme for the `airflo
 to give the users confidence about maintaining backwards compatibility in the new releases of those
 packages.
 
+Decision made in [VOTE for RC Release](https://lists.apache.org/thread/cnz3k2pox69ddkk647mt8gpfy0t70f94) made the starting version from `1.*` to `0.*`.
+This caused a side effect where we won't be able to use following versions in further releases which are yanked.
+
+- [1.0.0b1](https://pypi.org/project/apache-airflow-ctl/1.0.0b1/)
+- [1.0.0rc1](https://pypi.org/project/apache-airflow-ctl/1.0.0rc1/)
+- [1.0.0rc2](https://pypi.org/project/apache-airflow-ctl/1.0.0rc2/)
+
 Set version env variable
 
 ```shell script
-VERSION=1.0.0
-VERSION_RC=1.0.0rc1
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
 ```
 
 # Prepare Regular airflow-ctl distributions (RC)
@@ -140,15 +150,31 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 
 ```shell script
 git tag -s "airflow-ctl/${VERSION_RC}"
-git push apache --tags "airflow-ctl/${VERSION_RC}"
+git push apache "airflow-ctl/${VERSION_RC}"
 ```
 
 * Release candidate packages:
 
 ```shell script
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl --version ${VERSION_RC}
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
+
+The `prepare-*-distributions` by default will use Dockerized approach and building of the packages
+will be done in a docker container.  However, if you have  `hatch` installed locally you can use
+`--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
+
+
+```shell script
+breeze release-management prepare-airflow-ctl-distributions --distribution-format both --use-local-hatch
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
+```
+
+
+The `prepare-*-distributions` commands (no matter if docker or local hatch is used) should produce the
+reproducible `.whl`, `.tar.gz` packages in the dist folder.
+The `prepare-tarball` command should produce reproducible `-source.tar.gz` tarball of sources.
+
 
 * Sign all your packages
 
@@ -212,13 +238,13 @@ so you need to use `--version-suffix` switch to prepare those packages.
 Note that these are different packages than the ones used for SVN upload
 though they should be generated from the same sources.
 
-* Generate the packages with the rc1 version (specify the version suffix with PyPI switch). Note that
+* Generate the packages with the rc<X> version (specify the version suffix with PyPI switch). Note that
 you should clean up dist folder before generating the packages, so you will only have the right packages there.
 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-breeze release-management prepare-airflow-ctl-distributions --version-suffix rc1 --distribution-format both
+breeze release-management prepare-airflow-ctl-distributions --version-suffix "${VERSION_SUFFIX}" --distribution-format both
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -357,10 +383,10 @@ The apache-airflow-ctl ${VERSION_RC} package is available at: https://dist.apach
 
 The "apache-airflow-ctl" packages are:
 
-   - *apache_airfow_ctl-${VERSION}-source.tar.gz* is a source release that comes
+   - *apache_airflow_ctl-${VERSION}-source.tar.gz* is a source release that comes
      with INSTALL instructions.
-   - *apache_airfow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
-   - *apache_airfow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
+   - *apache_airflow_ctl-${VERSION}.tar.gz* is the binary Python "sdist" release.
+   - *apache_airflow_ctl-${VERSION}-py3-none-any.whl* is the binary Python wheel "binary" release.
 
 Public keys are available at: https://dist.apache.org/repos/dist/release/airflow/KEYS
 
@@ -427,14 +453,12 @@ cd asf-dist/dev/airflow
 svn update .
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you have airflow-ctl
+Set an environment variable: PATH_TO_AIRFLOW_SVN to the root of folder where you have airflow-ctl
 
-``` shell
-cd asf-dist/dev/airflow/airflow-ctl
-export PATH_TO_SVN=$(pwd -P)
+```shell script
+cd asf-dist/dev/airflow
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
-
-TODO: implement check in ``check_files.py``
 
 ### Reproducible package builds checks
 
@@ -448,17 +472,20 @@ it means that the build has a verified provenance.
 
 How to verify it:
 
-1) Change directory where your airflow sources are checked out
+1) Set variables and change directory where your airflow sources are checked out
 
 ```shell
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
 cd "${AIRFLOW_REPO_ROOT}"
 ```
 
 Choose the tag you used for release:
 
 ```shell
-git fetch apache --tags
-git checkout airflow-ctl/1.0.0rc1
+git fetch apache --tags --force
+git checkout airflow-ctl/${VERSION_RC}
 ```
 
 3) Remove all the packages you have in dist folder
@@ -471,14 +498,13 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-airflow-ctl-distributions --distribution-format both
-breeze release-management prepare-airflow-tarball --distribution-name apache_airflow_ctl
+breeze release-management prepare-tarball --tarball-type apache_airflow_ctl --version "${VERSION}" --version-suffix "${VERSION_SUFFIX}"
 ```
 
 5) Switch to the folder where you checked out the SVN dev files
 
 ```shell
-cd ${PATH_TO_SVN}
-cd airflow-ctl
+cd ${PATH_TO_AIRFLOW_SVN}/airflow-ctl/${VERSION_RC}
 ```
 
 6) Compare the packages in SVN to the ones you just built
@@ -496,58 +522,71 @@ You should see output similar to:
 apache_airflow_airflow_ctl-1.0.0.tar.gz:No diff found
 ```
 
-### Licences check
+You can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
+
+```shell script
+breeze release-management check-release-files airflow-ctl --version ${VERSION_RC}
+```
+
+
+### Licence check
 
 This can be done with the Apache RAT tool.
 
-* Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
-  the jar is inside)
-* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
-* Enter the sources folder run the check
+Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary, the jar is inside)
+
+You can run this command to do it for you:
 
 ```shell script
-# Get rat if you do not have it
-if command -v wget >/dev/null 2>&1; then
-    echo "Using wget to download Apache RAT..."
-    wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
-else
-    echo "ERROR: wget not found. Install with: brew install wget (macOS) or apt-get install wget (Linux)"
-    exit 1
-fi
-# Cleanup old folders (if needed)
-find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
-cat /tmp/files.txt | xargs rm -rf
-# Unpack all source packages
-for i in *source.tar.gz
-do
-   tar -xvzf $i
-done
-# Generate list of unpacked packages
-find . -type d -maxdepth 1 | grep -v "^.$"> /tmp/files.txt
-# Check licences
-for d in $(cat /tmp/files.txt | sort)
-do
-  pushd $d 2>&1 >/dev/null
-  echo "Checking licences for $d"
-  java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file ${AIRFLOW_REPO_ROOT}/.rat-excludes .  2>/dev/null | grep '! '
-  popd 2>&1 >/dev/null
-done
+wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.tar.gz | gunzip | tar -C /tmp -xvf -
 ```
 
-You should see output similar to:
-
-```
-Checking licences for ./apache_airflow_airflow_ctl-1.0.0
-...
-```
-
-You will see there files that are considered problematic by RAT tool (RAT prints such files preceding them with "! ").
-
-Cleanup:
+Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-cat /tmp/files.txt | xargs rm -rf
+rm -rf /tmp/apache/airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
+
+Run the check:
+
+```shell script
+java -jar /tmp/apache-rat-0.17/apache-rat-0.17.jar --input-exclude-file /tmp/apache-airflow-src/.rat-excludes /tmp/apache-airflow-src/ | grep -E "! |INFO: "
+```
+
+You should see no files reported as Unknown or with wrong licence and summary of the check similar to:
+
+```
+INFO: Apache Creadur RAT 0.17 (Apache Software Foundation)
+INFO: Excluding patterns: .git-blame-ignore-revs, .github/*, .git ...
+INFO: Excluding MISC collection.
+INFO: Excluding HIDDEN_DIR collection.
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+INFO: RAT summary:
+INFO:   Approved:  15615
+INFO:   Archives:  2
+INFO:   Binaries:  813
+INFO:   Document types:  5
+INFO:   Ignored:  2392
+INFO:   License categories:  2
+INFO:   License names:  2
+INFO:   Notices:  216
+INFO:   Standards:  15609
+INFO:   Unapproved:  0
+INFO:   Unknown:  0
+```
+
+There should be no files reported as Unknown or Unapproved. The files that are unknown or unapproved should be shown with a line starting with `!`.
+
+For example:
+
+```
+! Unapproved:         1    A count of unapproved licenses.
+! /CODE_OF_CONDUCT.md
+```
+
 
 ### Signature check
 
@@ -656,14 +695,13 @@ that the Airflow works as you expected.
 
 # Publish release
 
-Replace the DAYS_BACK with how many days ago you prepared the release.
-Normally it's 3 but in case it's longer change it. The output should match the prepare date.
+# Set variables and
 
-```
-export DAYS_BACK=3
-export RELEASE_DATE=$(LANG=en_US.UTF-8 date -u -v-${DAYS_BACK}d "+%B %d, %Y")
-export RELEASE_MANAGER_NAME="Elad Kalif"
-echo "prepare release date is ${RELEASE_DATE}"
+```shell
+VERSION=0.1.0
+VERSION_SUFFIX=rc1
+VERSION_RC=${VERSION}${VERSION_SUFFIX}
+export RELEASE_MANAGER_NAME="Buğra Öztürk"
 ```
 
 ## Summarize the voting for the Apache Airflow release
@@ -674,7 +712,7 @@ Email subject:
 
 ```
 cat <<EOF
-[RESULT][VOTE] Airflow Ctl - release ${VERSION}
+[RESULT][VOTE] Airflow Ctl - release ${VERSION} from ${VERSION_RC}
 EOF
 ```
 
@@ -684,7 +722,7 @@ Email content:
 cat <<EOF
 Hello,
 
-Apache Airflow Ctl prepared with version ${{ERSION} have been accepted.
+Apache Airflow Ctl prepared with version ${VERSION} from ${VERSION_RC} have been accepted.
 
 3 "+1" binding votes received:
 - FIRST LAST NAME (binding)
@@ -736,13 +774,13 @@ SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/airflow-ctl"
 # Create airflow-ctl folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
 cd "${ASF_DIST_PARENT}/asf-dist/release/airflow"
-mkdir -pv airflow-ctl
-cd airflow-ctl
+mkdir -pv airflow-ctl/${VERSION}
+cd airflow-ctl/${VERSION}
 
 # Copy your airflow-ctl with the target name to dist directory and to SVN
 rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
-for file in "${SOURCE_DIR}"/*
+for file in "${SOURCE_DIR}"/${VERSION_RC}/*
 do
  base_file=$(basename ${file})
  cp -v "${file}" "${AIRFLOW_REPO_ROOT}/dist/${base_file//rc[0-9]/}"
@@ -754,7 +792,7 @@ done
 # You need to do go to the asf-dist directory in order to commit both dev and release together
 cd ${ASF_DIST_PARENT}/asf-dist
 # Commit to SVN
-svn commit -m "Release Airflow Ctl ${VERSION} "
+svn commit -m "Release Airflow Ctl ${VERSION}"
 ```
 
 Verify that the packages appear in
@@ -769,7 +807,7 @@ By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_AIRFLOW_CTL>
+git checkout airflow-ctl/${VERSION_RC}
 ```
 
 example `git checkout airflow-ctl/1.0.0rc1`
@@ -783,6 +821,13 @@ This is expected, the RC tag is most likely behind the main branch.
 twine check ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
+* Remove the source tarball from dist folder as we do not upload it to PyPI
+
+```shell script
+rm -f ${AIRFLOW_REPO_ROOT}/dist/*-source.tar.gz*
+```
+
+
 * Upload the package to PyPi:
 
 ```shell script
@@ -791,7 +836,7 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*
 
 * Verify that the packages are available under the links printed.
 
-Copy links to updated packages, sort it alphabetically and save it on the side. You will need it for the announcement message.
+Copy links to updated package and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -807,7 +852,8 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
-git tag -s airflow-ctl/1.0.0
+git tag -s airflow-ctl/${VERSION}
+git push apache airflow-ctl/${VERSION}
 ```
 
 ## Publish documentation
@@ -833,7 +879,7 @@ The command does the following:
 
 ```shell script
   unset GITHUB_TOKEN
-  breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> airflow-ctl
+  breeze workflow-run publish-docs --ref airflow-ctl/${VERSION}  apache-airflow-ctl
 ```
 
 The `--ref` parameter should be the tag of the final candidate you are publishing.
@@ -859,29 +905,6 @@ The release manager publishes the documentation using GitHub Actions workflow
 After that step, the documentation should be available under the http://airflow.apache.org URL
 (also present in the PyPI packages) but stable links and drop-down boxes should not be yet updated.
 
-2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
-
-Before doing it - review the state of removed, suspended, new packages in
-[the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
-Make sure to use `main` branch to run the workflow.
-
-```shell script
-cd airflow-site
-export AIRFLOW_SITE_DIRECTORY="$(pwd -P)"
-cd "${AIRFLOW_SITE_DIRECTORY}"
-branch="add-documentation-$(date "+%Y-%m-%d%n")"
-git checkout -b "${branch}"
-git add .
-git commit -m "Add documentation for packages - $(date "+%Y-%m-%d%n")"
-git push --set-upstream origin "${branch}"
-```
-
-Merging the PR with the index changes to `main` will trigger site publishing.
-
-If you do not need to merge a PR, you should manually run the
-[Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository to refresh indexes and drop-downs.
-
 After that build from PR or workflow completes, the new version should be available in the drop-down
 list and stable links should be updated, also Fastly cache will be invalidated.
 
@@ -894,7 +917,7 @@ Subject:
 
 ```
 cat <<EOF
-[ANNOUNCE] Apache Airflow CTl prepared on ${VERSION} are released
+[ANNOUNCE] Apache Airflow CTl ${VERSION} from ${VERSION_RC} released
 EOF
 ```
 
@@ -904,22 +927,19 @@ Body:
 cat <<EOF
 Dear Airflow community,
 
-I'm happy to announce that new versions of Airflow Ctl packages prepared: ${VERSION} were just released.
-Full list of PyPI packages released is added at the end of the message.
+I'm happy to announce that new version of the Airflow Ctl package prepared: ${VERSION} from ${VERSION_RC} were just released.
 
 The source release, as well as the binary releases, are available here:
 
-https://airflow.apache.org/docs/apache-airflow-ctl/installing-from-sources
+https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-sources.html
 
-You can install the ctl via PyPI: https://airflow.apache.org/docs/apache-airflow-ctl/installing-from-pypi
+You can install the ctl via PyPI: https://airflow.apache.org/docs/apache-airflow-ctl/stable/installation/installing-from-pypi.html
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
 ----
 
-Full list of released PyPI packages:
-
-TODO: Paste the list of packages here that you put on the side. Sort them alphabetically.
+The package can be found in PyPI at this link: https://pypi.org/project/apache-airflow-ctl/${VERSION}/
 
 Cheers,
 ${RELEASE_MANAGER_NAME}
@@ -947,18 +967,24 @@ few seconds to be published after the CVE tool sends them.
 
 The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
 
+
 ## Announce about the release in social media
 
-NOTE!
+```
+📣 We've just released Apache Airflow CTL 0.1.0 🎉
 
-As a rule we announce only new airlfow-ctl that were added.
-If you believe there is a reason to announce in social media for another case consult with PMC
-members about it.
+This is the first official release of the `airflowctl` - new tool to remotely interact with your Airflow 3
+
+📦 PyPI: https://lnkd.in/dXaiFa2H
+📚 Docs: https://lnkd.in/dYEaSkuT
+🛠 Release Notes: https://lnkd.in/dzibW7W8
+
+Thanks to all the contributors who made this possible.
+```
 
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* X: https://x.com/ApacheAirflow
 * LinkedIn: https://www.linkedin.com/company/apache-airflow/
 * Fosstodon: https://fosstodon.org/@airflow
 * Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
@@ -967,6 +993,15 @@ Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
+
+## Announce about the release in Apache Airflow Slack
+
+Post the same announcement in the `#announcements` channel of the Apache Airflow Slack workspace.
+
+## Add Blog post about the release
+
+Add a blog post about the release in https://apache.airflow.org/ by modifying the
+`landing-pages/site/content/en/announcements/_index.md` in the `apache/airflow-site` repository.
 
 ## Add release data to Apache Committee Report Helper
 
@@ -977,9 +1012,5 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
 
 ```
-Thank you everyone. Airflow-ctl are released.
+Thank you everyone. Airflow-ctl is released.
 ```
-
-## Remove Airflow-ctl distributions scheduled for removal
-
-If there are Airflow-ctl distributions scheduler for removal, create PR and merge it to remove them.

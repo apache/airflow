@@ -26,6 +26,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.dag import sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
@@ -101,14 +102,14 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+            "params": {"foo": {"value": "bar", "schema": {}, "description": None, "source": "task"}},
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "start_date": "2020-06-15T00:00:00Z",
             "task_id": "op1",
             "task_display_name": "op1",
@@ -148,7 +149,7 @@ class TestGetTask(TestTaskEndpoint):
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "start_date": "2020-06-15T00:00:00Z",
             "task_id": "mapped_task",
             "task_display_name": "mapped_task",
@@ -179,14 +180,21 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"is_unscheduled": {"value": True, "schema": {}, "description": None}},
+            "params": {
+                "is_unscheduled": {
+                    "value": True,
+                    "schema": {},
+                    "description": None,
+                    "source": "task",
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "start_date": None,
             "task_id": None,
             "task_display_name": None,
@@ -238,14 +246,21 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+            "params": {
+                "foo": {
+                    "value": "bar",
+                    "schema": {},
+                    "description": None,
+                    "source": "task",
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "start_date": "2020-06-15T00:00:00Z",
             "task_id": "op1",
             "task_display_name": "op1",
@@ -303,14 +318,21 @@ class TestGetTasks(TestTaskEndpoint):
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
-                    "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+                    "params": {
+                        "foo": {
+                            "value": "bar",
+                            "schema": {},
+                            "description": None,
+                            "source": "task",
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-                    "retry_exponential_backoff": False,
+                    "retry_exponential_backoff": 0,
                     "start_date": "2020-06-15T00:00:00Z",
                     "task_id": "op1",
                     "task_display_name": "op1",
@@ -342,7 +364,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-                    "retry_exponential_backoff": False,
+                    "retry_exponential_backoff": 0,
                     "start_date": "2020-06-16T00:00:00Z",
                     "task_id": self.task_id2,
                     "task_display_name": self.task_id2,
@@ -358,7 +380,8 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 2,
         }
-        response = test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -385,7 +408,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
-                    "retry_exponential_backoff": False,
+                    "retry_exponential_backoff": 0,
                     "start_date": "2020-06-15T00:00:00Z",
                     "task_id": "mapped_task",
                     "task_display_name": "mapped_task",
@@ -416,7 +439,7 @@ class TestGetTasks(TestTaskEndpoint):
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-                    "retry_exponential_backoff": False,
+                    "retry_exponential_backoff": 0,
                     "start_date": "2020-06-15T00:00:00Z",
                     "task_id": self.task_id3,
                     "task_display_name": self.task_id3,
@@ -432,7 +455,9 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": 2,
         }
-        response = test_client.get(f"{self.api_prefix}/{self.mapped_dag_id}/tasks")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.mapped_dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -455,14 +480,21 @@ class TestGetTasks(TestTaskEndpoint):
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
-                    "params": {"is_unscheduled": {"value": True, "schema": {}, "description": None}},
+                    "params": {
+                        "is_unscheduled": {
+                            "value": True,
+                            "schema": {},
+                            "description": None,
+                            "source": "task",
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
-                    "retry_exponential_backoff": False,
+                    "retry_exponential_backoff": 0,
                     "start_date": None,
                     "task_id": task_id,
                     "task_display_name": task_id,
@@ -479,23 +511,27 @@ class TestGetTasks(TestTaskEndpoint):
             ],
             "total_entries": len(downstream_dict),
         }
-        response = test_client.get(f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks")
         assert response.status_code == 200
         assert response.json() == expected
 
     def test_should_respond_200_ascending_order_by_start_date(self, test_client):
-        response = test_client.get(
-            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=start_date",
-        )
+        with assert_queries_count(2):
+            response = test_client.get(
+                f"{self.api_prefix}/{self.dag_id}/tasks?order_by=start_date",
+            )
         assert response.status_code == 200
         assert self.task1_start_date < self.task2_start_date
         assert response.json()["tasks"][0]["task_id"] == self.task_id
         assert response.json()["tasks"][1]["task_id"] == self.task_id2
 
     def test_should_respond_200_descending_order_by_start_date(self, test_client):
-        response = test_client.get(
-            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=-start_date",
-        )
+        with assert_queries_count(2):
+            response = test_client.get(
+                f"{self.api_prefix}/{self.dag_id}/tasks?order_by=-start_date",
+            )
         assert response.status_code == 200
         # - means is descending
         assert self.task1_start_date < self.task2_start_date

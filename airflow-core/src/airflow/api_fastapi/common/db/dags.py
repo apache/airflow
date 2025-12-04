@@ -33,14 +33,30 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
 
-def generate_dag_with_latest_run_query(max_run_filters: list[BaseParam], order_by: SortParam) -> Select:
+def generate_dag_with_latest_run_query(
+    max_run_filters: list[BaseParam], order_by: SortParam, *, dag_ids: set[str] | None = None
+) -> Select:
+    """
+    Generate a query to fetch DAGs with their latest run.
+
+    :param max_run_filters: List of filters to apply to the latest run
+    :param order_by: Sort parameter for ordering results
+    :param dag_ids: Optional set of DAG IDs to limit the query to. When provided, both the main
+        DAG query and the subquery for finding the latest runs will be filtered to
+        only these DAG IDs, improving performance when users have limited DAG access.
+    :return: SQLAlchemy Select statement
+    """
     query = select(DagModel).options(selectinload(DagModel.tags))
 
-    max_run_id_query = (  # ordering by id will not always be "latest run", but it's a simplifying assumption
-        select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
-        .group_by(DagRun.dag_id)
-        .subquery(name="mrq")
-    )
+    # Filter main query by dag_ids if provided
+    if dag_ids is not None:
+        query = query.where(DagModel.dag_id.in_(dag_ids or set()))
+
+    # Also filter the subquery for finding latest runs
+    max_run_id_query_stmt = select(DagRun.dag_id, func.max(DagRun.id).label("max_dag_run_id"))
+    if dag_ids is not None:
+        max_run_id_query_stmt = max_run_id_query_stmt.where(DagRun.dag_id.in_(dag_ids or set()))
+    max_run_id_query = max_run_id_query_stmt.group_by(DagRun.dag_id).subquery(name="mrq")
 
     has_max_run_filter = False
 

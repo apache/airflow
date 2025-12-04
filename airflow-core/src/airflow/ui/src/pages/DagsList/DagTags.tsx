@@ -35,7 +35,7 @@ export const DagTags = ({ hideIcon = false, tags }: Props) => (
     icon={hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
     interactive
     items={tags.map(({ name }) => (
-      <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${name}`}>
+      <RouterLink key={name} to={`/dags?${SearchParamsKeys.TAGS}=${encodeURIComponent(name)}`}>
         {name}
       </RouterLink>
     ))}

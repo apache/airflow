@@ -107,7 +107,7 @@ class TestPostgresToGoogleCloudStorageOperator:
             assert b"".join(NDJSON_LINES) == file.read()
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             ("string", "string"),
             (32.9, 32.9),
@@ -225,7 +225,7 @@ class TestPostgresToGoogleCloudStorageOperator:
         assert gcs_hook_mock.upload.call_count == 2
 
     @pytest.mark.parametrize(
-        "connection_port, default_port, expected_port",
+        ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
     )
     def test_execute_openlineage_events(self, connection_port, default_port, expected_port):

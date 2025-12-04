@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import decimal
 from importlib import metadata
+from typing import ClassVar
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 
@@ -33,10 +34,12 @@ from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
+from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -66,6 +69,13 @@ class FooBarModel(BaseModel):
 
     banana: float = 1.1
     foo: str = Field()
+
+
+@pydantic_dataclass
+class PydanticDataclass:
+    __version__: ClassVar[int] = 1
+    a: int
+    b: str
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -105,7 +115,7 @@ class TestSerializers:
             assert input_obj.timestamp() == deserialized_obj.timestamp()
 
     @pytest.mark.parametrize(
-        "tz_input, expected_tz_name",
+        ("tz_input", "expected_tz_name"),
         [
             pytest.param("UTC", "UTC", id="utc"),
             pytest.param("Europe/Paris", "Europe/Paris", id="europe_paris"),
@@ -133,7 +143,7 @@ class TestSerializers:
             assert deserialize(serialize(deserialized_dt)) == deserialized_dt
 
     @pytest.mark.parametrize(
-        "expr, expected",
+        ("expr", "expected"),
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
     )
     def test_encode_decimal(self, expr, expected):
@@ -372,7 +382,7 @@ class TestSerializers:
         assert m.foo == d.foo
 
     @pytest.mark.parametrize(
-        "klass, version, data, msg",
+        ("klass", "version", "data", "msg"),
         [
             (
                 FooBarModel,
@@ -389,9 +399,21 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
 
+    def test_pydantic_dataclass(self):
+        orig = PydanticDataclass(a=5, b="SerDe Pydantic Dataclass Test")
+        serialized = serialize(orig)
+        assert orig.__version__ == serialized[VERSION]
+        assert qualname(orig) == serialized[CLASSNAME]
+        assert serialized[DATA]
+
+        decoded = deserialize(serialized)
+        assert decoded.a == orig.a
+        assert decoded.b == orig.b
+        assert type(decoded) is type(orig)
+
     @pytest.mark.skipif(not PENDULUM3, reason="Test case for pendulum~=3")
     @pytest.mark.parametrize(
-        "ser_value, expected",
+        ("ser_value", "expected"),
         [
             pytest.param(
                 {
@@ -465,7 +487,7 @@ class TestSerializers:
 
     @pytest.mark.skipif(PENDULUM3, reason="Test case for pendulum~=2")
     @pytest.mark.parametrize(
-        "ser_value, expected",
+        ("ser_value", "expected"),
         [
             pytest.param(
                 {
@@ -555,7 +577,7 @@ class TestSerializers:
         assert zi.key == "Asia/Taipei"
 
     @pytest.mark.parametrize(
-        "klass, version, data, msg",
+        ("klass", "version", "data", "msg"),
         [
             (FixedTimezone, 1, 1.23, "is not of type int or str"),
             (FixedTimezone, 999, "UTC", "serialized 999 .* > 1"),
@@ -568,7 +590,7 @@ class TestSerializers:
             deserialize(klass, version, data)
 
     @pytest.mark.parametrize(
-        "tz_obj, expected",
+        ("tz_obj", "expected"),
         [
             (None, None),
             (CustomTZ(), "My/Custom"),
@@ -593,7 +615,7 @@ class TestSerializers:
         assert "Schema file schema.json does not exists" in str(ctx.value)
 
     @pytest.mark.parametrize(
-        "klass, version, data",
+        ("klass", "version", "data"),
         [(tuple, 1, [11, 12]), (set, 1, [11, 12]), (frozenset, 1, [11, 12])],
     )
     def test_builtin_deserialize(self, klass, version, data):
@@ -602,7 +624,7 @@ class TestSerializers:
         assert res == klass(data)
 
     @pytest.mark.parametrize(
-        "klass, version, data, msg",
+        ("klass", "version", "data", "msg"),
         [
             (tuple, 999, [11, 12], r"serialized version 999 is newer than class version 1"),
             (set, 2, [11, 12], r"serialized version 2 is newer than class version 1"),
@@ -614,7 +636,7 @@ class TestSerializers:
             builtin.deserialize(klass, version, data)
 
     @pytest.mark.parametrize(
-        "klass, version, data, msg",
+        ("klass", "version", "data", "msg"),
         [
             (str, 1, "11, 12", r"do not know how to deserialize builtins\.str"),
             (int, 1, 11, r"do not know how to deserialize builtins\.int"),
@@ -627,7 +649,7 @@ class TestSerializers:
             builtin.deserialize(klass, version, data)
 
     @pytest.mark.parametrize(
-        "func, msg",
+        ("func", "msg"),
         [
             (builtin.deserialize, r"do not know how to deserialize"),
             (builtin.stringify, r"do not know how to stringify"),
@@ -653,7 +675,7 @@ class TestSerializers:
             deserialize(bad)
 
     @pytest.mark.parametrize(
-        "value, expected",
+        ("value", "expected"),
         [
             (123, "dummy@version=1(123)"),
             ([1], "dummy@version=1([,1,])"),

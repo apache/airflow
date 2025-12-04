@@ -84,6 +84,33 @@ Finally, configure the chart to use the secret you created:
 
 .. _production-guide:pgbouncer:
 
+Metadata DB cleanup
+^^^^^^^^^^^^^^^^^^^
+
+It is recommended to periodically clean up the Airflow metadata database to remove old records and keep the database size manageable. A Kubernetes CronJob can be enabled for this purpose:
+
+.. code-block:: yaml
+
+  databaseCleanup:
+    enabled: true
+    retentionDays: 90
+
+Several additional options can be configured and passed to the ``airflow db clean`` command:
+
++-------------------------------------------------------+------------------------------------------+
+| Helm chart value                                      | ``airflow db clean`` option              |
++=======================================================+==========================================+
+| ``.Values.databaseCleanup.skipArchive``               | ``--skip-archive``                       |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.tables``                    | ``--tables``                             |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.batchSize``                 | ``--batch-size``                         |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.verbose``                   | ``--verbose``                            |
++-------------------------------------------------------+------------------------------------------+
+
+See :ref:`db clean usage <cli-db-clean>` for more details.
+
 PgBouncer
 ---------
 
@@ -631,6 +658,10 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-api-secret-key``                     | ``.Values.apiSecretKeySecretName``       | ``AIRFLOW__API__SECRET_KEY``                     |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-jwt-secret``                         | ``.Values.jwtSecretName``                | ``AIRFLOW__API_AUTH__JWT_SECRET``                |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
@@ -661,12 +692,14 @@ flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling th
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-pgbouncer-certificates``             |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-registry``                           | ``.Values.registry.secretName``          |                                                |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-kerberos-keytab``                    |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-flower``                             | ``.Values.flower.secretName``            | ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``         |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+
+A secret named ``<RELEASE_NAME>-registry`` is also created when ``.Values.registry.connection`` is
+defined and neither ``.Values.registry.secretName`` nor ``.Values.imagePullSecrets`` is set. However,
+this behavior is deprecated in favor of explicitly defining ``.Values.imagePullSecrets``.
 
 You can read more about advanced ways of setting configuration variables in the
 :doc:`apache-airflow:howto/set-config`.

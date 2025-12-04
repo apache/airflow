@@ -18,7 +18,23 @@
 
 from __future__ import annotations
 
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from typing import TYPE_CHECKING, TypeVar
 
-# TODO (GH-52141): Have different NOTSET and ArgNotSet in the scheduler.
-__all__ = ["NOTSET", "ArgNotSet"]
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
+    T = TypeVar("T")
+
+__all__ = ["NOTSET", "ArgNotSet", "is_arg_set"]
+
+
+class ArgNotSet:
+    """Sentinel type for annotations, useful when None is not viable."""
+
+
+NOTSET = ArgNotSet()
+"""Sentinel value for argument default. See ``ArgNotSet``."""
+
+
+def is_arg_set(value: T | ArgNotSet) -> TypeIs[T]:
+    return not isinstance(value, ArgNotSet)

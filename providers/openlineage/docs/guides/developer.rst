@@ -378,7 +378,7 @@ For more examples of OpenLineage Extractors, check out the source code of
 Custom Facets
 =============
 To learn more about facets in OpenLineage, please refer to `facet documentation <https://openlineage.io/docs/spec/facets/>`_.
-Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
+Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/src/openlineage/client/facet.py>`_
 and a blog post about `extending with facets <https://openlineage.io/blog/extending-with-facets/>`_.
 
 The OpenLineage spec might not contain all the facets you need to write your extractor,

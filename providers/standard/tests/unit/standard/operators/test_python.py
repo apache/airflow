@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import logging.config
 import os
 import pickle
 import re
@@ -64,10 +63,15 @@ from airflow.providers.standard.operators.python import (
 from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, DagRunType
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    NOTSET,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import BaseOperator
@@ -202,6 +206,7 @@ class BasePythonTest:
     def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
+        assert ti.task is not None
         ti.run()
         if return_ti:
             return ti
@@ -339,7 +344,7 @@ class TestPythonOperator(BasePythonTest):
         self.run_as_task(func, op_kwargs={"custom": 1})
 
     @pytest.mark.parametrize(
-        "show_return_value_in_logs, should_shown",
+        ("show_return_value_in_logs", "should_shown"),
         [
             pytest.param(NOTSET, True, id="default"),
             pytest.param(True, True, id="show"),
@@ -581,7 +586,7 @@ class TestBranchOperator(BasePythonTest):
             )
 
     @pytest.mark.parametrize(
-        "choice,expected_states",
+        ("choice", "expected_states"),
         [
             ("task1", [State.SUCCESS, State.SUCCESS, State.SUCCESS]),
             ("join", [State.SUCCESS, State.SKIPPED, State.SUCCESS]),
@@ -646,10 +651,14 @@ class TestShortCircuitOperator(BasePythonTest):
     all_success_skipped_tasks: set[str] = set()
 
     @pytest.mark.parametrize(
-        argnames=(
-            "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_skipped_tasks, expected_task_states"
+        (
+            "callable_return",
+            "test_ignore_downstream_trigger_rules",
+            "test_trigger_rule",
+            "expected_skipped_tasks",
+            "expected_task_states",
         ),
-        argvalues=[
+        [
             # Skip downstream tasks, do not respect trigger rules, default trigger rule on all downstream
             # tasks
             (
@@ -955,7 +964,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
     def test_string_args(self):
         def f():
-            global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise RuntimeError
@@ -974,15 +982,16 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f():
             return None
 
-        task = self.run_as_task(f)
-        assert task.execute_callable() is None
+        ti = self.run_as_task(f, return_ti=True)
+        assert ti.xcom_pull() is None
 
     def test_return_false(self):
         def f():
             return False
 
-        task = self.run_as_task(f)
-        assert task.execute_callable() is False
+        ti = self.run_as_task(f, return_ti=True)
+
+        assert ti.xcom_pull() is False
 
     def test_lambda(self):
         with pytest.raises(
@@ -1075,7 +1084,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),
@@ -1147,8 +1156,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
-        assert task.execute_callable() == "ABCDE"
+        ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"}, return_ti=True)
+        assert ti.xcom_pull() == "ABCDE"
 
     def test_environment_variables_with_inherit_env_true(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "QWERT")
@@ -1158,8 +1167,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, inherit_env=True)
-        assert task.execute_callable() == "QWERT"
+        ti = self.run_as_task(f, inherit_env=True, return_ti=True)
+        assert ti.xcom_pull() == "QWERT"
 
     def test_environment_variables_with_inherit_env_false(self, monkeypatch):
         monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
@@ -1180,8 +1189,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             return os.environ["MY_ENV_VAR"]
 
-        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
-        assert task.execute_callable() == "EFGHI"
+        ti = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True, return_ti=True)
+        assert ti.xcom_pull() == "EFGHI"
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1239,7 +1248,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1291,7 +1300,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1311,7 +1320,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         )
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1382,7 +1391,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         )
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -1601,7 +1610,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
     @pytest.mark.parametrize(
-        "requirements, system_site, want_airflow, want_pendulum",
+        ("requirements", "system_site", "want_airflow", "want_pendulum"),
         [
             # nothing → just base keys
             ([], False, False, False),
@@ -2241,7 +2250,7 @@ class TestCurrentContextRuntime:
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
     @pytest.mark.parametrize(
-        "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
+        ("ignore_downstream_trigger_rules", "with_teardown", "should_skip", "expected"),
         [
             (False, True, True, ["op2"]),
             (False, True, False, []),
@@ -2379,7 +2388,7 @@ class TestShortCircuitWithTeardown:
 
 
 @pytest.mark.parametrize(
-    "text_input, expected_tuple",
+    ("text_input", "expected_tuple"),
     [
         pytest.param("   2.7.18.final.0  ", (2, 7, 18, "final", 0), id="py27"),
         pytest.param("3.10.13.final.0\n", (3, 10, 13, "final", 0), id="py310"),

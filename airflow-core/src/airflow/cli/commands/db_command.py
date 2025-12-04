@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 @providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
-    print(f"DB: {settings.engine.url!r}")
+    print(f"DB: {settings.get_engine().url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
     db.resetdb(skip_init=args.skip_init)
@@ -81,8 +81,7 @@ def _get_version_revision(version: str, revision_heads_map: dict[str, str] | Non
 
         if current < wanted:
             return head
-    else:
-        return None
+    return None
 
 
 def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
@@ -95,7 +94,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
 
     :meta private:
     """
-    print(f"DB: {settings.engine.url!r}")
+    print(f"DB: {settings.get_engine().url!r}")
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -129,7 +128,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
+        print(f"Performing upgrade to the metadata database {settings.get_engine().url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
     command(
@@ -173,7 +172,7 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
     elif args.to_revision:
         to_revision = args.to_revision
     if not args.show_sql_only:
-        print(f"Performing downgrade with database {settings.engine.url!r}")
+        print(f"Performing downgrade with database {settings.get_engine().url!r}")
     else:
         print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
@@ -232,7 +231,7 @@ def _quote_mysql_password_for_cnf(password: str | None) -> str:
 @providers_configuration_loaded
 def shell(args):
     """Run a shell that allows to access metadata database."""
-    url = settings.engine.url
+    url = settings.get_engine().url
     print(f"DB: {url!r}")
 
     if url.get_backend_name() == "mysql":

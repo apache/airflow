@@ -98,9 +98,9 @@ class TestSageMakerTransformOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
-            if key3:
-                (key3,) = key3
+        for key1, key2, *key3_org in EXPECTED_INTEGER_FIELDS:
+            if key3_org:
+                (key3,) = key3_org
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
             else:
                 self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])

@@ -442,7 +442,7 @@ class TestSFTPHook:
         assert hook.key_file == TEST_KEY_FILE
 
     @pytest.mark.parametrize(
-        "path, exists",
+        ("path", "exists"),
         [
             (TMP_DIR_FOR_TESTS, True),
             (TMP_FILE_FOR_TESTS, True),
@@ -456,7 +456,7 @@ class TestSFTPHook:
         assert result == exists
 
     @pytest.mark.parametrize(
-        "path, prefix, delimiter, match",
+        ("path", "prefix", "delimiter", "match"),
         [
             ("test/path/file.bin", None, None, True),
             ("test/path/file.bin", "test", None, True),
@@ -762,7 +762,7 @@ class TestSFTPHookAsync:
         mock_connect.assert_called_with(**expected_connection_details)
 
     @pytest.mark.parametrize(
-        "mock_port, mock_host_key",
+        ("mock_port", "mock_host_key"),
         [
             (22, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
             (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),

@@ -118,7 +118,7 @@ class TestFastApiSecurity:
         mock_resolve_user_from_token.assert_not_called()
 
     @pytest.mark.parametrize(
-        "oauth_token, bearer_credentials_creds, cookies, expected",
+        ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
         [
             ("oauth_token", None, {}, "oauth_token"),
             (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
@@ -177,7 +177,7 @@ class TestFastApiSecurity:
         auth_manager.is_authorized_dag.assert_called_once()
 
     @pytest.mark.parametrize(
-        "url, expected_is_safe",
+        ("url", "expected_is_safe"),
         [
             ("https://server_base_url.com/prefix/some_page?with_param=3", True),
             ("https://server_base_url.com/prefix/", True),
@@ -211,7 +211,7 @@ class TestFastApiSecurity:
         assert is_safe_url(url, request=request) == expected_is_safe
 
     @pytest.mark.parametrize(
-        "url, expected_is_safe",
+        ("url", "expected_is_safe"),
         [
             ("https://server_base_url.com/prefix", False),
             ("https://requesting_server_base_url.com/prefix2", True),
@@ -484,3 +484,40 @@ class TestFastApiSecurity:
             ],
             user=user,
         )
+
+
+class TestAuthManagerDependency:
+    """Test the auth_manager_from_app dependency function."""
+
+    def test_auth_manager_from_app_returns_instance_from_state(self):
+        """Test that auth_manager_from_app correctly retrieves auth_manager from app.state."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock auth manager
+        mock_auth_manager = Mock()
+
+        # Create a mock request with app.state.auth_manager
+        mock_request = Mock()
+        mock_request.app.state.auth_manager = mock_auth_manager
+
+        # Call the dependency function
+        result = auth_manager_from_app(mock_request)
+
+        # Assert it returns the correct auth manager
+        assert result is mock_auth_manager
+
+    def test_auth_manager_from_app_integration_with_test_client(self, test_client):
+        """Test that auth_manager_from_app works with the test client setup."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock request using the test client's app
+        mock_request = Mock()
+        mock_request.app = test_client.app
+
+        # Get the auth manager
+        auth_manager = auth_manager_from_app(mock_request)
+
+        # Verify it's not None (should be SimpleAuthManager from test fixture)
+        assert auth_manager is not None
+        assert hasattr(auth_manager, "get_url_login")
+        assert hasattr(auth_manager, "get_url_logout")

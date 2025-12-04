@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import re
 from contextlib import contextmanager, nullcontext
-from io import BytesIO
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, mock_open, patch
@@ -28,7 +27,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
-from urllib3 import HTTPResponse
 
 from airflow.exceptions import (
     AirflowException,
@@ -297,7 +295,7 @@ class TestKubernetesPodOperator:
         )
 
     @pytest.mark.parametrize(
-        "input,render_template_as_native_obj,raises_error",
+        ("input", "render_template_as_native_obj", "raises_error"),
         [
             pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], False, False, id="current"),
             pytest.param({"{{ bar }}": "{{ foo }}"}, False, False, id="backcompat"),
@@ -399,7 +397,7 @@ class TestKubernetesPodOperator:
         ]
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
+    @pytest.mark.parametrize("in_cluster", (True, False))
     @patch(HOOK_CLASS)
     def test_labels(self, hook_mock, in_cluster):
         hook_mock.return_value.is_in_cluster = in_cluster
@@ -407,7 +405,7 @@ class TestKubernetesPodOperator:
             namespace="default",
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
-            labels={"foo": "bar"},
+            labels={"foo": "bar", "none_value": None},
             name="test",
             task_id="task",
             in_cluster=in_cluster,
@@ -424,6 +422,7 @@ class TestKubernetesPodOperator:
             "airflow_version": mock.ANY,
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
+            "none_value": "",  # None converted to empty string
         }
 
     def test_labels_mapped(self):
@@ -453,6 +452,49 @@ class TestKubernetesPodOperator:
         label_selector = k._build_find_pod_label_selector(context)
         assert "foo=bar" in label_selector
         assert "hello=airflow" in label_selector
+
+    def test_build_find_pod_label_selector(self):
+        """Comprehensive single test combining all label normalization scenarios.
+
+        Includes: normal labels, None values, empty string, zero, False.
+        Asserts: None -> empty assignment, other falsy preserved, core airflow labels present, no literal 'None'.
+        """
+        k = KubernetesPodOperator(
+            labels={
+                "foo": "bar",
+                "hello": "airflow",
+                "a": None,
+                "c": None,
+                "empty_str": "",
+                "zero": 0,
+                "false": False,
+                "none": None,
+            },
+            name="test",
+            task_id="task",
+        )
+        context = create_context(k)
+        label_selector = k._build_find_pod_label_selector(context)
+
+        # Standard labels
+        assert "foo=bar" in label_selector
+        assert "hello=airflow" in label_selector
+
+        # None normalization (shows as key= with no value)
+        for key in ["a", "c", "none"]:
+            assert f"{key}=" in label_selector
+
+        # Falsy but non-None values preserved verbatim
+        assert "empty_str=" in label_selector
+        assert "zero=0" in label_selector
+        assert "false=False" in label_selector
+
+        # Core Airflow identifying labels always present
+        for core in ["dag_id=dag", "task_id=task", "kubernetes_pod_operator=True", "run_id=test"]:
+            assert core in label_selector
+
+        # Never include literal string 'None'
+        assert "None" not in label_selector
 
     @pytest.mark.asyncio
     @patch(HOOK_CLASS, new=MagicMock)
@@ -721,7 +763,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     @pytest.mark.parametrize(
-        "pod_phase, pod_reason, should_reuse",
+        ("pod_phase", "pod_reason", "should_reuse"),
         [
             ("Running", "", True),
             ("Running", "Evicted", False),
@@ -867,7 +909,7 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_kwargs, base_container_fail, expect_to_delete_pod",
+        ("task_kwargs", "base_container_fail", "expect_to_delete_pod"),
         [
             ({"on_finish_action": "delete_pod"}, True, True),
             ({"on_finish_action": "delete_pod"}, False, True),
@@ -946,7 +988,7 @@ class TestKubernetesPodOperator:
             delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "task_kwargs, should_be_deleted",
+        ("task_kwargs", "should_be_deleted"),
         [
             pytest.param({}, True, id="default"),  # default values
             pytest.param({"on_finish_action": "delete_pod"}, True, id="delete-pod"),
@@ -1038,7 +1080,7 @@ class TestKubernetesPodOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_pod_spec(self, randomize_name, pod_spec):
         pod_spec_name_base = pod_spec.metadata.name
 
@@ -1071,7 +1113,7 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_pod_spec_kwargs(self, randomize_name, pod_spec):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -1152,7 +1194,7 @@ class TestKubernetesPodOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_pod_template_file(self, randomize_name, pod_template_file):
         k = KubernetesPodOperator(
             task_id="task",
@@ -1215,7 +1257,7 @@ class TestKubernetesPodOperator:
 
         assert pod.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_pod_template_file_kwargs_override(self, randomize_name, pod_template_file):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -1251,7 +1293,7 @@ class TestKubernetesPodOperator:
             "run_id": "test",
         }
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_pod_template_dict(self, randomize_name):
         templated_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -1561,7 +1603,7 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_kwargs, should_fail, should_be_deleted",
+        ("task_kwargs", "should_fail", "should_be_deleted"),
         [
             ({}, False, True),
             ({}, True, True),
@@ -1656,6 +1698,27 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj({})
         assert re.match(r"a-very-reasonable-task-name-[a-z0-9-]+", pod.metadata.name) is not None
 
+    @pytest.mark.parametrize(
+        ("labels", "expected"),
+        [
+            pytest.param({}, {}, id="empty"),
+            pytest.param(
+                {"a": None, "b": "value", "c": None}, {"a": "", "b": "value", "c": ""}, id="with-none"
+            ),
+            pytest.param(
+                {"empty_str": "", "zero": 0, "false": False, "none": None},
+                {"empty_str": "", "zero": 0, "false": False, "none": ""},
+                id="preserve-other-values",
+            ),
+        ],
+    )
+    def test_normalize_labels_dict(self, labels, expected):
+        """normalize_labels_dict should transform only None values to empty strings and preserve others"""
+        from airflow.providers.cncf.kubernetes.operators.pod import _normalize_labels_dict
+
+        normalized = _normalize_labels_dict(labels)
+        assert normalized == expected
+
     @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
@@ -1675,7 +1738,7 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_exc",
+        ("kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),
@@ -2069,7 +2132,7 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "side_effect, exception_type, expect_exc",
+        ("side_effect", "exception_type", "expect_exc"),
         [
             ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
             ([ApiException(401)] * 3 + [mock.DEFAULT], ApiException, True),  # works after 3 retries
@@ -2165,18 +2228,6 @@ class TestKubernetesPodOperator:
         patch_already_checked_mock.assert_called_once_with(pod_1, reraise=False)
         process_pod_deletion_mock.assert_called_once_with(pod_1)
         assert result.metadata.name == pod_2.metadata.name
-
-    @patch(POD_MANAGER_CLASS.format("fetch_container_logs"))
-    @patch(KUB_OP_PATH.format("invoke_defer_method"))
-    def test_defere_call_one_more_time_after_error(self, invoke_defer_method, fetch_container_logs):
-        fetch_container_logs.return_value = PodLoggingStatus(False, None)
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-
-        op.trigger_reentry(
-            create_context(op), event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"}
-        )
-
-        invoke_defer_method.assert_called_with(None)
 
 
 class TestSuppress:
@@ -2371,7 +2422,7 @@ class TestKubernetesPodOperatorAsync:
         mocked_log.error.assert_called_once_with(log_message, status, message)
 
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_exc, pod_status, event_status",
+        ("kwargs", "actual_exit_code", "expected_exc", "pod_status", "event_status"),
         [
             ({}, 0, None, "Succeeded", "success"),
             ({}, 100, AirflowException, "Failed", "error"),
@@ -2542,16 +2593,25 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_should_execute_successfully(
-        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
+        self,
+        mock_manager,
+        mocked_hook,
+        mock_extract_xcom,
+        mocked_client,
+        post_complete_action,
+        get_logs,
+        caplog,
     ):
         test_logs = "ok"
-        mock_manager.read_pod_logs.return_value = HTTPResponse(
-            body=BytesIO(test_logs.encode("utf-8")),
-            preload_content=False,
+        # Mock client.read_namespaced_pod_log to return an iterable of bytes
+        mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
+        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
         )
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
@@ -2565,10 +2625,14 @@ class TestKubernetesPodOperatorAsync:
         self.run_pod_async(k)
 
         if get_logs:
-            assert f"Container logs: {test_logs}"
+            # Verify that client.read_namespaced_pod_log was called
+            mocked_client.read_namespaced_pod_log.assert_called_once()
+            # Verify the log output using caplog
+            assert f"[base] logs: {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
         else:
-            mock_manager.return_value.read_pod_logs.assert_not_called()
+            # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
+            mocked_client.read_namespaced_pod_log.assert_not_called()
 
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
@@ -2593,7 +2657,7 @@ class TestKubernetesPodOperatorAsync:
         post_complete_action.assert_not_called()
 
     @pytest.mark.parametrize(
-        "log_pod_spec_on_failure,expect_match",
+        ("log_pod_spec_on_failure", "expect_match"),
         [
             (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
             (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)"),
@@ -2605,32 +2669,6 @@ class TestKubernetesPodOperatorAsync:
         pod.status = V1PodStatus(phase=PodPhase.FAILED)
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
-
-    @patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
-    )
-    @patch(f"{HOOK_CLASS}.get_pod")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_running(
-        self,
-        fetch_container_logs,
-        await_pod_completion,
-        get_pod,
-        mock_convert_config_file_to_dict,
-    ):
-        """When logs fetch exits with status running, raise task deferred"""
-        pod = MagicMock()
-        get_pod.return_value = pod
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-        await_pod_completion.return_value = None
-        fetch_container_logs.return_value = PodLoggingStatus(True, None)
-        with pytest.raises(TaskDeferred):
-            op.trigger_reentry(
-                create_context(op),
-                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
-            )
-        fetch_container_logs.is_called_with(pod, "base")
 
     @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
@@ -2702,17 +2740,6 @@ class TestKubernetesPodOperatorAsync:
         }
         k.trigger_reentry(context=context, event=callback_event)
 
-        # check on_operator_resuming callback
-        mock_callbacks.on_operator_resuming.assert_called_once()
-        assert mock_callbacks.on_operator_resuming.call_args.kwargs == {
-            "client": k.client,
-            "mode": ExecutionMode.SYNC,
-            "pod": remote_pod_mock,
-            "operator": k,
-            "context": context,
-            "event": callback_event,
-        }
-
         # check on_pod_cleanup callback
         mock_callbacks.on_pod_cleanup.assert_called_once()
         assert mock_callbacks.on_pod_cleanup.call_args.kwargs == {
@@ -2770,7 +2797,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.trigger_reentry({}, success_event)
+    result = k.trigger_reentry({}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2778,8 +2805,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
+        assert result == mock_extract_xcom.return_value
     else:
         mock_extract_xcom.assert_not_called()
+        assert result is None
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3

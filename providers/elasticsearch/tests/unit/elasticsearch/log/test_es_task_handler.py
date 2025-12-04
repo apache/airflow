@@ -161,7 +161,7 @@ class TestElasticsearchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "host, expected",
+        ("host", "expected"),
         [
             ("http://localhost:9200", "http://localhost:9200"),
             ("https://localhost:9200", "https://localhost:9200"),
@@ -771,7 +771,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "json_format, es_frontend, expected_url",
+        ("json_format", "es_frontend", "expected_url"),
         [
             # Common cases
             (
@@ -819,7 +819,7 @@ class TestElasticsearchTaskHandler:
         assert expected_url == url
 
     @pytest.mark.parametrize(
-        "frontend, expected",
+        ("frontend", "expected"),
         [
             ("localhost:5601/{log_id}", True),
             (None, False),

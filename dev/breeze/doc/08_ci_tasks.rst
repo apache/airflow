@@ -28,7 +28,25 @@ Those are all the commands available in the ``ci`` group:
 .. image:: ./images/output_ci.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci.svg
   :width: 100%
-  :alt: Breeze ci commands
+  :alt: Breeze ci com
+
+
+Running ci upgrade
+------------------
+
+Airflow maintainers can use the ``breeze ci upgrade`` command to perform automated upgrades of important
+CI dependencies. This command updates prek hooks, chart dependencies, and other critical CI environment
+components. It can automatically create a pull request with the changes.
+
+The command checks if you are on the correct branch (main or a version test branch like v2-10-test) with a
+clean repository. If not, it will offer to reset your repository to the latest state from apache/airflow.
+
+These are all available flags of ``upgrade`` command:
+
+.. image:: ./images/output_ci_upgrade.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_upgrade.svg
+  :width: 100%
+  :alt: Breeze ci upgrade
 
 
 Running resource check

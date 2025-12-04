@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from importlib.metadata import PackageNotFoundError, metadata
-from unittest import SkipTest, mock
+from unittest import mock
 
 import pytest
 
@@ -27,6 +27,7 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -191,7 +192,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
@@ -217,7 +218,10 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/connections", params=query_params)
+
+        with assert_queries_count(3):
+            response = test_client.get("/connections", params=query_params)
+
         assert response.status_code == 200
 
         body = response.json()
@@ -325,7 +329,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -385,7 +389,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
 class TestPatchConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_result",
+        ("body", "expected_result"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": "new_type", "extra": '{"key": "var"}'},
@@ -569,7 +573,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body, updated_connection, update_mask",
+        ("body", "updated_connection", "update_mask"),
         [
             (
                 {
@@ -800,7 +804,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response, update_mask",
+        ("body", "expected_response", "update_mask"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -869,11 +873,11 @@ class TestConnection(TestConnectionEndpoint):
         try:
             metadata("apache-airflow-providers-sqlite")
         except PackageNotFoundError:
-            raise SkipTest("The SQlite distribution package is not installed.")
+            pytest.skip("The SQlite distribution package is not installed.")
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
-        "body, message",
+        ("body", "message"),
         [
             ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
             (
@@ -955,7 +959,7 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
 
 class TestBulkConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -1334,7 +1338,7 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
         assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
 
     @pytest.mark.parametrize(
-        "extra, expected_error_message",
+        ("extra", "expected_error_message"),
         [
             ("[1,2,3]", "Expected JSON object in `extra` field, got non-dict JSON"),
             ("some_string", "Encountered non-JSON in `extra` field"),

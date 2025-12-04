@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -80,15 +80,45 @@ def login_callback(request: Request):
     return response
 
 
+@login_router.get("/logout")
+def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
+    """Log out the user from Keycloak."""
+    client = KeycloakAuthManager.get_keycloak_client()
+    keycloak_config = client.well_known()
+    end_session_endpoint = keycloak_config["end_session_endpoint"]
+
+    # Use the refresh flow to get the id token, it avoids us to save the id token
+    tokens = client.refresh_token(user.refresh_token)
+    post_logout_redirect_uri = request.url_for("logout_callback")
+    logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={tokens['id_token']}"
+
+    return RedirectResponse(logout_url)
+
+
+@login_router.get("/logout_callback")
+def logout_callback(request: Request):
+    """
+    Complete the log-out.
+
+    This callback is redirected by Keycloak after the user has been logged out from Keycloak.
+    """
+    login_url = get_auth_manager().get_url_login()
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    response = RedirectResponse(login_url)
+    response.delete_cookie(
+        key=COOKIE_NAME_JWT_TOKEN,
+        secure=secure,
+        httponly=True,
+    )
+    return response
+
+
 @login_router.get("/refresh")
 def refresh(
     request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
 ) -> RedirectResponse:
     """Refresh the token."""
     client = KeycloakAuthManager.get_keycloak_client()
-
-    if not user or not user.refresh_token:
-        raise HTTPException(status_code=400, detail="User is empty or has no refresh token")
 
     tokens = client.refresh_token(user.refresh_token)
     user.refresh_token = tokens["refresh_token"]

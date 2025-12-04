@@ -48,10 +48,12 @@ export type DagRunTriggerParams = {
   dagRunId: string;
   logicalDate: string;
   note: string;
+  partitionKey: string | undefined;
 };
 
 const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: TriggerDAGFormProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
+  const { t: rootTranslate } = useTranslation();
   const [errors, setErrors] = useState<{ conf?: string; date?: unknown }>({});
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
@@ -68,6 +70,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
       // Default logical date to now, show it in the selected timezone
       logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
+      partitionKey: undefined,
     },
   });
 
@@ -136,6 +139,24 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
                 <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText>
+              </Stack>
+            </Field.Root>
+          )}
+        />
+        <Controller
+          control={control}
+          name="partitionKey"
+          render={({ field }) => (
+            <Field.Root mt={6} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  {rootTranslate("dagRun.partitionKey")}
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <Input {...field} size="sm" />
+                {/* TODO: AIP-76 */}
+                {/* <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText> */}
               </Stack>
             </Field.Root>
           )}

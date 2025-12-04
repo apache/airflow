@@ -23,6 +23,23 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/me:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Current User Info
+      description: Convienently get the current authenticated user information.
+      operationId: get_current_user_info
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedMeResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -1079,6 +1096,20 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AuthenticatedMeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        username:
+          type: string
+          title: Username
+      type: object
+      required:
+      - id
+      - username
+      title: AuthenticatedMeResponse
+      description: Authenticated user information serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1745,7 +1776,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -1894,7 +1924,7 @@ components:
         run_type:
           $ref: '#/components/schemas/DagRunType'
         duration:
-          type: integer
+          type: number
           title: Duration
           readOnly: true
       type: object

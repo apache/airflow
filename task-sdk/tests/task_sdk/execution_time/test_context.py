@@ -34,7 +34,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
@@ -346,15 +346,16 @@ class TestCurrentContext:
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "add_arg",
+        "add_args",
         [
-            Asset("name", "uri"),
-            Asset.ref(name="name"),
-            Asset.ref(uri="uri"),
+            (Asset("name", "uri", extra={"extra": "from asset itself"}), {"extra": "from event"}),
+            (Asset.ref(name="name"), {"extra": "from event"}),
+            (Asset.ref(uri="uri"), {"extra": "from event"}),
         ],
+        ids=["asset", "asset name ref", "asset uri ref"],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -363,29 +364,34 @@ class TestOutletEventAccessor:
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
         ),
+        ids=["inactive asset", "active asset"],
     )
-    def test_add(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
+    def test_add(self, add_args, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResponse(
+            name="name", uri="uri", group="", extra={"extra": "from asset itself"}
+        )
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={})
-        outlet_event_accessor.add(add_arg)
+        outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.parametrize(
-        "add_arg",
+        "add_args",
         [
-            Asset("name", "uri"),
-            Asset.ref(name="name"),
-            Asset.ref(uri="uri"),
+            (Asset(name="name", uri="uri", extra={"extra": "from asset itself"}), {"extra": "from event"}),
+            (Asset.ref(name="name"), {"extra": "from event"}),
+            (Asset.ref(uri="uri"), {"extra": "from event"}),
         ],
+        ids=["asset", "asset name ref", "asset uri ref"],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -394,17 +400,21 @@ class TestOutletEventAccessor:
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
         ),
+        ids=["inactive asset", "active asset"],
     )
-    def test_add_with_db(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
+    def test_add_with_db(self, add_args, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResponse(
+            name="name", uri="uri", group="", extra={"extra": "from asset itself"}
+        )
 
-        outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
-        outlet_event_accessor.add(add_arg, extra={})
+        outlet_event_accessor = OutletEventAccessor(key=key)
+        outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
 
@@ -472,7 +482,7 @@ class TestTriggeringAssetEventsAccessor:
         )
 
     @pytest.mark.parametrize(
-        "key, result_indexes",
+        ("key", "result_indexes"),
         [
             (Asset("1"), [0, 1]),
             (Asset("2"), [2]),
@@ -485,7 +495,7 @@ class TestTriggeringAssetEventsAccessor:
         assert accessor[key] == expected
 
     @pytest.mark.parametrize(
-        "name, resolved_asset, result_indexes",
+        ("name", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -508,7 +518,7 @@ class TestTriggeringAssetEventsAccessor:
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
-        "uri, resolved_asset, result_indexes",
+        ("uri", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -559,7 +569,7 @@ TEST_INLETS = [TEST_ASSET, TEST_ASSET_ALIAS] + TEST_ASSET_REFS
 
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
-        "access_key, internal_key",
+        ("access_key", "internal_key"),
         (
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
@@ -578,7 +588,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        ["access_key", "asset"],
+        ("access_key", "asset"),
         (
             (Asset.ref(name="test"), Asset(name="test")),
             (Asset.ref(name="test1"), Asset(name="test1", uri="test://asset-uri")),
@@ -604,7 +614,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),
@@ -750,7 +760,7 @@ class TestInletEventAccessor:
         )
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),
@@ -946,7 +956,6 @@ class TestSecretsBackend:
 
     def test_get_connection_not_found_raises_error(self, mock_supervisor_comms):
         """Test that _get_connection raises error when no backend finds connection."""
-        from airflow.exceptions import AirflowNotFoundException
 
         # Backend returns None (not found)
         class EmptyBackend:

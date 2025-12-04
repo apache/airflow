@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.5"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.9.14"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -188,21 +188,10 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Install prek"
-        uses: ./.github/actions/install-prek
-        id: prek
-        with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
-          platform: ${{ inputs.platform }}
-          save-cache: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: "Check translation completeness"
-        run: >
-          prek --show-diff-on-failure --color always
-          --hook-stage manual --verbose --all-files
-          check-translations-completeness
-        env:
-          SKIP: ${{ inputs.skip-prek-hooks }}
-          COLUMNS: "202"
+        run: breeze check-translations-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -288,8 +277,13 @@ jobs:
         run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Autoupdate Octopin to bleeding edge"
         run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/eclipse-csi/octopin
-      - name: "Check if there are any changes in pre-commit hooks"
-        run: git diff --exit-code
+      - name: "Check if there are any changes in prek hooks"
+        run: |
+          if ! git diff --exit-code; then
+            echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
+            echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+            exit 1
+          fi
       - name: "Run automated upgrade for chart dependencies"
         run: >
           prek
@@ -318,13 +312,19 @@ jobs:
           UPGRADE_GITPYTHON: "false"
           UPGRADE_RICH: "false"
           UPGRADE_RUFF: "false"
+          UPGRADE_MPROCS: "true"
           UPGRADE_MYPY: "false"
+          UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Run automated upgrade for important versions minus uv(failing if needed)"
-        run: >
-          prek
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual upgrade-important-versions
+      - name: "Run automated upgrade for important versions minus uv (failing if needed)"
+        run: |
+          if ! prek \
+            --all-files --show-diff-on-failure --color always --verbose \
+            --hook-stage manual upgrade-important-versions; then
+              echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
+              echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+              exit 1
+          fi
         if: always()
         env:
           UPGRADE_UV: "false"
@@ -339,6 +339,8 @@ jobs:
           UPGRADE_RICH: "true"
           UPGRADE_RUFF: "true"
           UPGRADE_MYPY: "true"
+          UPGRADE_MPROCS: "false"
+          UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
@@ -371,13 +373,11 @@ jobs:
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
-        run: >
-          breeze release-management create-minor-branch
-          --version-branch 3-1 --answer yes --dry-run
+        run: breeze release-management create-minor-branch --version-branch 3-1 --answer yes --dry-run
       - name: "Check Airflow RC process command"
         run: >
-          breeze release-management start-rc-process
-          --version 3.1.0rc1 --previous-version 3.0.0 --task-sdk-version 1.0.0rc1 --answer yes --dry-run
+          breeze release-management start-rc-process --version 3.1.0rc1 --previous-version 3.0.0
+          --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
           breeze release-management start-release --release-candidate 3.1.0rc1
@@ -395,6 +395,7 @@ jobs:
         run: |
           breeze release-management generate-issue-content-core \
             --limit-pr-count 2 --previous-release 3.0.1 --current-release 3.0.2 --verbose
+
 
   test-airflow-standalone:
     timeout-minutes: 30

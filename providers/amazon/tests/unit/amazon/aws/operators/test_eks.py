@@ -808,7 +808,7 @@ class TestEksPodOperator:
         assert op.config_file == mock_config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        ("compatible_kpo", "kwargs", "expected_attributes"),
         [
             (
                 True,

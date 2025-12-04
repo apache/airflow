@@ -38,17 +38,24 @@ if sys.version_info >= (3,6):
         {# Airflow is not available in this environment, therefore we won't
          # be able to integrate any plugin macros. #}
         pass
+{% endif %}
 
 try:
     from airflow.sdk.execution_time import task_runner
 except ModuleNotFoundError:
     pass
 else:
-  {#- We are in an Airflow 3.x env, try and set up supervisor comms so virtual env can still access tasks etc! #}
+  {#-
+    We are in an Airflow 3.x environment, try and set up supervisor comms so
+    virtualenv can access Vars/Conn/XCom/etc that normal tasks can
+
+    We don't use the walrus operator (`:=`) below as it is possible people can
+    be using this on pre-3.8 versions of python, and while Airflow doesn't
+    support them, it's easy to not break it not using that operator here.
+  #}
   reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
   if reinit_supervisor_comms:
       reinit_supervisor_comms()
-{% endif %}
 
 # Script
 {{ python_callable_source }}

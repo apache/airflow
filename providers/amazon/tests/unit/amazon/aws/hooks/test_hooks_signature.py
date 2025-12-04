@@ -105,11 +105,11 @@ def validate_hook(hook: type[AwsGenericHook], hook_name: str, hook_module: str) 
     hook_extra_parameters = set()
     for k, v in inspect.signature(hook.__init__).parameters.items():
         if v.kind == inspect.Parameter.VAR_POSITIONAL:
-            k = "*args"
+            hook_extra_parameters.add("*args")
         elif v.kind == inspect.Parameter.VAR_KEYWORD:
-            k = "**kwargs"
-
-        hook_extra_parameters.add(k)
+            hook_extra_parameters.add("**kwargs")
+        else:
+            hook_extra_parameters.add(k)
     hook_extra_parameters.difference_update({"self", "*args", "**kwargs"})
 
     allowed_parameters = ALLOWED_THICK_HOOKS_PARAMETERS.get(hook_name, set())

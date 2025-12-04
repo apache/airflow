@@ -42,8 +42,17 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, return_dictionaries",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+        "return_dictionaries",
+    ),
     [
         pytest.param(
             True,

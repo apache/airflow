@@ -522,7 +522,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -559,7 +559,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -939,7 +939,16 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1, f2"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.5,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f2: {'metric': 'f2', 'current_metric': 1, 'past_metric': 2, 'threshold': 2.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
     @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
@@ -969,7 +978,14 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.5, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.6, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
 

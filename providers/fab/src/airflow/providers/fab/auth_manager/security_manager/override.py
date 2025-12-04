@@ -124,11 +124,17 @@ if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    try:
+        from airflow.models.dagbag import DagBag
+    except (ImportError, AttributeError):
+        DagBag = None
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
-        dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
+        if DagBag is None:
+            return []
+        dagbag = DagBag(read_dags_from_db=True)
+        if hasattr(dagbag, "collect_dags_from_db"):
+            dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 
 
@@ -728,6 +734,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return current_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
+    def auth_remote_user_env_var(self) -> str:
+        return current_app.config["AUTH_REMOTE_USER_ENV_VAR"]
+
+    @property
     def auth_username_ci(self):
         """Get the auth username for CI."""
         return current_app.config.get("AUTH_USERNAME_CI", True)
@@ -1039,7 +1049,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                             self.remove_permission_from_role(role, perm)
 
         # Adding the access control permissions
-        for rolename, resource_actions in access_control.items():
+        for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -1047,9 +1057,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if not isinstance(resource_actions, dict):
-                # Support for old-style access_control where only the actions are specified
-                resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
+            # Support for old-style access_control where only the actions are specified
+            resource_actions = (
+                resource_actions_raw
+                if isinstance(resource_actions_raw, dict)
+                else {permissions.RESOURCE_DAG: set(resource_actions_raw)}
+            )
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:
@@ -1643,7 +1656,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return perm
         resource = self.create_resource(resource_name)
         if resource is None:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, "Resource creation failed %s", resource_name)
             return None
         action = self.create_action(action_name)
         perm = self.permission_model()
@@ -2203,6 +2216,36 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         raw_value = ldap_dict.get(field_name, [b""])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
+
+    def auth_user_remote_user(self, username):
+        """
+        REMOTE_USER user Authentication.
+
+        :param username: user's username for remote auth
+        """
+        user = self.find_user(username=username)
+
+        # User does not exist, create one if auto user registration.
+        if user is None and self.auth_user_registration:
+            user = self.add_user(
+                # All we have is REMOTE_USER, so we set
+                # the other fields to blank.
+                username=username,
+                first_name=username,
+                last_name="-",
+                email=username + "@email.notfound",
+                role=self.find_role(self.auth_user_registration_role),
+            )
+
+        # If user does not exist on the DB and not auto user registration,
+        # or user is inactive, go away.
+        elif user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+        self._rotate_session_id()
+        self.update_user_auth_stat(user)
+        return user
 
     """
     ---------------

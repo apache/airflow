@@ -41,14 +41,13 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -59,7 +58,6 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -68,7 +66,6 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
-    from airflow.utils.types import ArgNotSet
 
 
 @contextlib.contextmanager
@@ -120,6 +117,8 @@ def timeout(seconds=1, error_message="Timeout"):
     def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
         log.error("Process timed out, PID: %s", str(os.getpid()))
+        from airflow.sdk.exceptions import AirflowTaskTimeout
+
         raise AirflowTaskTimeout(error_message)
 
     try:
@@ -231,14 +230,6 @@ class DagBag(LoggingMixin):
         super().__init__()
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
-        include_examples = (
-            include_examples
-            if isinstance(include_examples, bool)
-            else conf.getboolean("core", "LOAD_EXAMPLES")
-        )
-        safe_mode = (
-            safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
-        )
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -259,8 +250,14 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=include_examples,
-                safe_mode=safe_mode,
+                include_examples=(
+                    include_examples
+                    if is_arg_set(include_examples)
+                    else conf.getboolean("core", "LOAD_EXAMPLES")
+                ),
+                safe_mode=(
+                    safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
+                ),
             )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
@@ -591,6 +588,7 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+        from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
             prev_dag = self.dags.get(dag.dag_id)
@@ -698,6 +696,16 @@ def sync_bag_to_db(
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    # Build the set of all files that were parsed and include files with import errors
+    # in case they are not in file_last_changed
+    files_parsed = set(import_errors)
+    if dagbag.bundle_path:
+        files_parsed.update(
+            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
+            for abs_filepath in dagbag.file_last_changed
+        )
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -706,4 +714,5 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        files_parsed=files_parsed,
     )

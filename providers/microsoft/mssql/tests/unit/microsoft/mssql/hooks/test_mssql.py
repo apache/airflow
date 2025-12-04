@@ -173,7 +173,7 @@ class TestMsSqlHook:
         mssql_get_conn.assert_called_once()
         assert hook.get_autocommit(conn) == "autocommit_state"
 
-    @pytest.mark.parametrize("conn_id,exp_uri", URI_TEST_CASES)
+    @pytest.mark.parametrize(("conn_id", "exp_uri"), URI_TEST_CASES)
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     def test_get_uri_driver_rewrite(self, get_connection, mssql_connections, conn_id, exp_uri):
         get_connection.return_value = mssql_connections[conn_id]

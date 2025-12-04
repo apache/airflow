@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import concurrent
 import concurrent.futures
 import datetime
 import itertools

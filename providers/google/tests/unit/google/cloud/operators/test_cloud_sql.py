@@ -745,7 +745,16 @@ class TestCloudSqlQueryValidation:
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
     @pytest.mark.parametrize(
-        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
+        (
+            "project_id",
+            "location",
+            "instance_name",
+            "database_type",
+            "use_proxy",
+            "use_ssl",
+            "sql",
+            "message",
+        ),
         [
             (
                 "project_id",
@@ -841,7 +850,7 @@ class TestCloudSqlQueryValidation:
         assert "The UNIX socket path length cannot exceed" in str(err)
 
     @pytest.mark.parametrize(
-        "connection_port, default_port, expected_port",
+        ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
     )
     def test_execute_openlineage_events(self, connection_port, default_port, expected_port):

@@ -104,40 +104,41 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
-@contextlib.contextmanager
-def operator_defaults(overrides):
+@pytest.fixture
+def operator_defaults(monkeypatch):
     """
-    Temporarily patches OPERATOR_DEFAULTS, restoring original values after context exit.
+    Fixture that provides a context manager to temporarily patch OPERATOR_DEFAULTS.
 
-    Example:
-        with operator_defaults({"retries": 2, "retry_delay": 200.0}):
-            # Test code with modified operator defaults
+    Usage:
+        def test_something(operator_defaults):
+            with operator_defaults({"retries": 2, "retry_delay": 200.0}):
+                # Test code with modified operator defaults
     """
+    import airflow.sdk.definitions._internal.abstractoperator as abstract_op_module
     from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    original_values = {}
-    try:
-        # Store original values and apply overrides
+    @contextlib.contextmanager
+    def _operator_defaults(overrides):
+        # Patch OPERATOR_DEFAULTS
         for key, value in overrides.items():
-            original_values[key] = OPERATOR_DEFAULTS.get(key)
-            OPERATOR_DEFAULTS[key] = value
+            monkeypatch.setitem(OPERATOR_DEFAULTS, key, value)
+
+            # Patch module-level constants
+            const_name = f"DEFAULT_{key.upper()}"
+            if hasattr(abstract_op_module, const_name):
+                monkeypatch.setattr(abstract_op_module, const_name, value)
 
         # Clear the cache to ensure fresh generation
         SerializedBaseOperator.generate_client_defaults.cache_clear()
 
-        yield
-    finally:
-        # Cleanup: restore original values
-        for key, original_value in original_values.items():
-            if original_value is None and key in OPERATOR_DEFAULTS:
-                # Key didn't exist originally, remove it
-                del OPERATOR_DEFAULTS[key]
-            else:
-                # Restore original value
-                OPERATOR_DEFAULTS[key] = original_value
+        try:
+            yield
+        finally:
+            # Clear cache again to restore normal behavior
+            SerializedBaseOperator.generate_client_defaults.cache_clear()
 
-        # Clear cache again to restore normal behavior
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+    return _operator_defaults
 
 
 AIRFLOW_REPO_ROOT_PATH = Path(airflow.__file__).parents[3]
@@ -543,7 +544,7 @@ class TestStringifiedDAGs:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "timetable, serialized_timetable",
+        ("timetable", "serialized_timetable"),
         [
             (
                 cron_timetable("0 0 * * *"),
@@ -700,6 +701,8 @@ class TestStringifiedDAGs:
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
+        from airflow.serialization.encoders import _serializer
+
         exclusion_list = {
             # Doesn't implement __eq__ properly. Check manually.
             "timetable",
@@ -732,9 +735,10 @@ class TestStringifiedDAGs:
                         f"{dag.dag_id}.default_args[{k}] does not match"
                     )
 
-        assert serialized_dag.timetable.summary == dag.timetable.summary
-        assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
-        assert serialized_dag.timezone == dag.timezone
+        if (tt_type := type(dag.timetable)) in _serializer.BUILTIN_TIMETABLES:
+            assert _serializer.BUILTIN_TIMETABLES[tt_type] == qualname(serialized_dag.timetable)
+        else:
+            assert qualname(dag.timetable) == qualname(serialized_dag.timetable)
 
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
@@ -858,7 +862,7 @@ class TestStringifiedDAGs:
             )
 
     @pytest.mark.parametrize(
-        "dag_start_date, task_start_date, expected_task_start_date",
+        ("dag_start_date", "task_start_date", "expected_task_start_date"),
         [
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
@@ -914,7 +918,7 @@ class TestStringifiedDAGs:
             SerializedDAG.to_dict(dag)
 
     @pytest.mark.parametrize(
-        "dag_end_date, task_end_date, expected_task_end_date",
+        ("dag_end_date", "task_end_date", "expected_task_end_date"),
         [
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
@@ -955,7 +959,7 @@ class TestStringifiedDAGs:
         assert simple_task.end_date == expected_task_end_date
 
     @pytest.mark.parametrize(
-        "serialized_timetable, expected_timetable",
+        ("serialized_timetable", "expected_timetable"),
         [
             (
                 {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
@@ -1004,7 +1008,7 @@ class TestStringifiedDAGs:
         assert dag.timetable == expected_timetable
 
     @pytest.mark.parametrize(
-        "serialized_timetable, expected_timetable_summary",
+        ("serialized_timetable", "expected_timetable_summary"),
         [
             (
                 {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
@@ -1050,7 +1054,7 @@ class TestStringifiedDAGs:
         }
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
-        assert dag.timetable_summary == expected_timetable_summary
+        assert dag.timetable.summary == expected_timetable_summary
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {
@@ -1076,7 +1080,7 @@ class TestStringifiedDAGs:
             SerializedDAG.from_dict(serialized)
 
     @pytest.mark.parametrize(
-        "val, expected",
+        ("val", "expected"),
         [
             (
                 relativedelta(days=-1),
@@ -1106,7 +1110,7 @@ class TestStringifiedDAGs:
         assert val == round_tripped
 
     @pytest.mark.parametrize(
-        "val, expected_val",
+        ("val", "expected_val"),
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
@@ -1192,10 +1196,11 @@ class TestStringifiedDAGs:
             "value": None if param.value is NOTSET else param.value,
             "schema": param.schema,
             "description": param.description,
+            "source": None,
         }
 
     @pytest.mark.parametrize(
-        "val, expected_val",
+        ("val", "expected_val"),
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
@@ -1344,11 +1349,14 @@ class TestStringifiedDAGs:
         def __eq__(self, other):
             return self.__dict__ == other.__dict__
 
+        def __hash__(self):
+            return hash(self.__dict__)
+
         def __ne__(self, other):
             return not self.__eq__(other)
 
     @pytest.mark.parametrize(
-        "templated_field, expected_field",
+        ("templated_field", "expected_field"),
         [
             (None, None),
             ([], []),
@@ -1527,7 +1535,7 @@ class TestStringifiedDAGs:
             "resources": None,
             "retries": 0,
             "retry_delay": timedelta(0, 300),
-            "retry_exponential_backoff": False,
+            "retry_exponential_backoff": 0,
             "run_as_user": None,
             "start_date": None,
             "start_from_trigger": False,
@@ -2178,7 +2186,7 @@ class TestStringifiedDAGs:
         assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
 
     @pytest.mark.parametrize(
-        "passed_success_callback, expected_value",
+        ("passed_success_callback", "expected_value"),
         [
             ({"on_success_callback": lambda x: print("hi")}, True),
             ({}, False),
@@ -2210,7 +2218,7 @@ class TestStringifiedDAGs:
         assert deserialized_dag.has_on_success_callback is expected_value
 
     @pytest.mark.parametrize(
-        "passed_failure_callback, expected_value",
+        ("passed_failure_callback", "expected_value"),
         [
             ({"on_failure_callback": lambda x: print("hi")}, True),
             ({}, False),
@@ -2242,7 +2250,7 @@ class TestStringifiedDAGs:
         assert deserialized_dag.has_on_failure_callback is expected_value
 
     @pytest.mark.parametrize(
-        "dag_arg, conf_arg, expected",
+        ("dag_arg", "conf_arg", "expected"),
         [
             (True, "True", True),
             (True, "False", True),
@@ -2275,7 +2283,7 @@ class TestStringifiedDAGs:
             assert deserialized_dag.disable_bundle_versioning is expected
 
     @pytest.mark.parametrize(
-        "object_to_serialized, expected_output",
+        ("object_to_serialized", "expected_output"),
         [
             (
                 ["task_1", "task_5", "task_2", "task_4"],
@@ -3732,7 +3740,7 @@ def dummy_callback():
 
 
 @pytest.mark.parametrize(
-    "callback_config,expected_flags,is_mapped",
+    ("callback_config", "expected_flags", "is_mapped"),
     [
         # Regular operator tests
         (
@@ -3901,7 +3909,7 @@ def test_task_callback_properties_exist():
 
 
 @pytest.mark.parametrize(
-    "old_callback_name,new_callback_name",
+    ("old_callback_name", "new_callback_name"),
     [
         ("on_execute_callback", "has_on_execute_callback"),
         ("on_failure_callback", "has_on_failure_callback"),
@@ -4104,80 +4112,107 @@ class TestDeserializationDefaultsResolution:
         result = SerializedBaseOperator._apply_defaults_to_encoded_op(encoded_op, None)
         assert result == encoded_op
 
-    @operator_defaults({"retries": 2})
-    def test_multiple_tasks_share_client_defaults(self):
+    def test_multiple_tasks_share_client_defaults(self, operator_defaults):
         """Test that multiple tasks can share the same client_defaults when there are actually non-default values."""
-        with DAG(dag_id="test_dag") as dag:
-            BashOperator(task_id="task1", bash_command="echo 1")
-            BashOperator(task_id="task2", bash_command="echo 2")
+        with operator_defaults({"retries": 2}):
+            with DAG(dag_id="test_dag") as dag:
+                BashOperator(task_id="task1", bash_command="echo 1")
+                BashOperator(task_id="task2", bash_command="echo 2")
 
-        serialized = SerializedDAG.to_dict(dag)
+            serialized = SerializedDAG.to_dict(dag)
 
-        # Should have one client_defaults section for all tasks
-        assert "client_defaults" in serialized
-        assert "tasks" in serialized["client_defaults"]
+            # Should have one client_defaults section for all tasks
+            assert "client_defaults" in serialized
+            assert "tasks" in serialized["client_defaults"]
 
-        # All tasks should benefit from the same client_defaults
-        client_defaults = serialized["client_defaults"]["tasks"]
+            # All tasks should benefit from the same client_defaults
+            client_defaults = serialized["client_defaults"]["tasks"]
 
-        # Deserialize and check both tasks get the defaults
-        deserialized_dag = SerializedDAG.from_dict(serialized)
-        deserialized_task1 = deserialized_dag.get_task("task1")
-        deserialized_task2 = deserialized_dag.get_task("task2")
+            # Deserialize and check both tasks get the defaults
+            deserialized_dag = SerializedDAG.from_dict(serialized)
+            deserialized_task1 = deserialized_dag.get_task("task1")
+            deserialized_task2 = deserialized_dag.get_task("task2")
 
-        # Both tasks should have retries=2 from client_defaults
-        assert deserialized_task1.retries == 2
-        assert deserialized_task2.retries == 2
+            # Both tasks should have retries=2 from client_defaults
+            assert deserialized_task1.retries == 2
+            assert deserialized_task2.retries == 2
 
-        # Both tasks should have the same default values from client_defaults
-        for field in client_defaults:
-            if hasattr(deserialized_task1, field) and hasattr(deserialized_task2, field):
-                value1 = getattr(deserialized_task1, field)
-                value2 = getattr(deserialized_task2, field)
-                assert value1 == value2, f"Tasks have different values for {field}: {value1} vs {value2}"
+            # Both tasks should have the same default values from client_defaults
+            for field in client_defaults:
+                if hasattr(deserialized_task1, field) and hasattr(deserialized_task2, field):
+                    value1 = getattr(deserialized_task1, field)
+                    value2 = getattr(deserialized_task2, field)
+                    assert value1 == value2, f"Tasks have different values for {field}: {value1} vs {value2}"
+
+    def test_default_args_when_equal_to_schema_defaults(self, operator_defaults):
+        """Test that explicitly set values matching schema defaults are preserved when client_defaults differ."""
+        with operator_defaults({"retries": 3}):
+            with DAG(dag_id="test_explicit_schema_default", default_args={"retries": 0}) as dag:
+                BashOperator(task_id="task1", bash_command="echo 1")
+                BashOperator(task_id="task2", bash_command="echo 1", retries=2)
+
+            serialized = SerializedDAG.to_dict(dag)
+
+            # verify client_defaults has retries=3
+            assert "client_defaults" in serialized
+            assert "tasks" in serialized["client_defaults"]
+            client_defaults = serialized["client_defaults"]["tasks"]
+            assert client_defaults["retries"] == 3
+
+            task1_data = serialized["dag"]["tasks"][0]["__var"]
+            assert task1_data.get("retries", -1) == 0
+
+            task2_data = serialized["dag"]["tasks"][1]["__var"]
+            assert task2_data.get("retries", -1) == 2
+
+            deserialized_task1 = SerializedDAG.from_dict(serialized).get_task("task1")
+            assert deserialized_task1.retries == 0
+
+            deserialized_task2 = SerializedDAG.from_dict(serialized).get_task("task2")
+            assert deserialized_task2.retries == 2
 
 
 class TestMappedOperatorSerializationAndClientDefaults:
     """Test MappedOperator serialization with client defaults and callback properties."""
 
-    @operator_defaults({"retry_delay": 200.0})
-    def test_mapped_operator_client_defaults_application(self):
+    def test_mapped_operator_client_defaults_application(self, operator_defaults):
         """Test that client_defaults are correctly applied to MappedOperator during deserialization."""
-        with DAG(dag_id="test_mapped_dag") as dag:
-            # Create a mapped operator
-            BashOperator.partial(
-                task_id="mapped_task",
-                retries=5,  # Override default
-            ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
+        with operator_defaults({"retry_delay": 200.0}):
+            with DAG(dag_id="test_mapped_dag") as dag:
+                # Create a mapped operator
+                BashOperator.partial(
+                    task_id="mapped_task",
+                    retries=5,  # Override default
+                ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
 
-        # Serialize the DAG
-        serialized_dag = SerializedDAG.to_dict(dag)
+            # Serialize the DAG
+            serialized_dag = SerializedDAG.to_dict(dag)
 
-        # Should have client_defaults section
-        assert "client_defaults" in serialized_dag
-        assert "tasks" in serialized_dag["client_defaults"]
+            # Should have client_defaults section
+            assert "client_defaults" in serialized_dag
+            assert "tasks" in serialized_dag["client_defaults"]
 
-        # Deserialize and check that client_defaults are applied
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
-        deserialized_task = deserialized_dag.get_task("mapped_task")
+            # Deserialize and check that client_defaults are applied
+            deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+            deserialized_task = deserialized_dag.get_task("mapped_task")
 
-        # Verify it's still a MappedOperator
-        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
+            # Verify it's still a MappedOperator
+            from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
 
-        assert isinstance(deserialized_task, SchedulerMappedOperator)
+            assert isinstance(deserialized_task, SchedulerMappedOperator)
 
-        # Check that client_defaults values are applied (e.g., retry_delay from client_defaults)
-        client_defaults = serialized_dag["client_defaults"]["tasks"]
-        if "retry_delay" in client_defaults:
-            # If retry_delay wasn't explicitly set, it should come from client_defaults
-            # Since we can't easily convert timedelta back, check the serialized format
-            assert hasattr(deserialized_task, "retry_delay")
+            # Check that client_defaults values are applied (e.g., retry_delay from client_defaults)
+            client_defaults = serialized_dag["client_defaults"]["tasks"]
+            if "retry_delay" in client_defaults:
+                # If retry_delay wasn't explicitly set, it should come from client_defaults
+                # Since we can't easily convert timedelta back, check the serialized format
+                assert hasattr(deserialized_task, "retry_delay")
 
-        # Explicit values should override client_defaults
-        assert deserialized_task.retries == 5  # Explicitly set value
+            # Explicit values should override client_defaults
+            assert deserialized_task.retries == 5  # Explicitly set value
 
     @pytest.mark.parametrize(
-        ["task_config", "dag_id", "task_id", "non_default_fields"],
+        ("task_config", "dag_id", "task_id", "non_default_fields"),
         [
             # Test case 1: Size optimization with non-default values
             pytest.param(
@@ -4205,45 +4240,45 @@ class TestMappedOperatorSerializationAndClientDefaults:
             ),
         ],
     )
-    @operator_defaults({"retry_delay": 200.0})
     def test_mapped_operator_client_defaults_optimization(
-        self, task_config, dag_id, task_id, non_default_fields
+        self, task_config, dag_id, task_id, non_default_fields, operator_defaults
     ):
         """Test that MappedOperator serialization optimizes using client defaults."""
-        with DAG(dag_id=dag_id) as dag:
-            # Create mapped operator with specified configuration
-            BashOperator.partial(
-                task_id=task_id,
-                **task_config,
-            ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
+        with operator_defaults({"retry_delay": 200.0}):
+            with DAG(dag_id=dag_id) as dag:
+                # Create mapped operator with specified configuration
+                BashOperator.partial(
+                    task_id=task_id,
+                    **task_config,
+                ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
 
-        serialized_dag = SerializedDAG.to_dict(dag)
-        mapped_task_serialized = serialized_dag["dag"]["tasks"][0]["__var"]
+            serialized_dag = SerializedDAG.to_dict(dag)
+            mapped_task_serialized = serialized_dag["dag"]["tasks"][0]["__var"]
 
-        assert mapped_task_serialized is not None
-        assert mapped_task_serialized.get("_is_mapped") is True
+            assert mapped_task_serialized is not None
+            assert mapped_task_serialized.get("_is_mapped") is True
 
-        # Check optimization behavior
-        client_defaults = serialized_dag["client_defaults"]["tasks"]
-        partial_kwargs = mapped_task_serialized["partial_kwargs"]
+            # Check optimization behavior
+            client_defaults = serialized_dag["client_defaults"]["tasks"]
+            partial_kwargs = mapped_task_serialized["partial_kwargs"]
 
-        # Check that all fields are optimized correctly
-        for field, default_value in client_defaults.items():
-            if field in non_default_fields:
-                # Non-default fields should be present in partial_kwargs
-                assert field in partial_kwargs, (
-                    f"Field '{field}' should be in partial_kwargs as it's non-default"
-                )
-                # And have different values than defaults
-                assert partial_kwargs[field] != default_value, (
-                    f"Field '{field}' should have non-default value"
-                )
-            else:
-                # Default fields should either not be present or have different values if present
-                if field in partial_kwargs:
-                    assert partial_kwargs[field] != default_value, (
-                        f"Field '{field}' with default value should be optimized out"
+            # Check that all fields are optimized correctly
+            for field, default_value in client_defaults.items():
+                if field in non_default_fields:
+                    # Non-default fields should be present in partial_kwargs
+                    assert field in partial_kwargs, (
+                        f"Field '{field}' should be in partial_kwargs as it's non-default"
                     )
+                    # And have different values than defaults
+                    assert partial_kwargs[field] != default_value, (
+                        f"Field '{field}' should have non-default value"
+                    )
+                else:
+                    # Default fields should either not be present or have different values if present
+                    if field in partial_kwargs:
+                        assert partial_kwargs[field] != default_value, (
+                            f"Field '{field}' with default value should be optimized out"
+                        )
 
     def test_mapped_operator_expand_input_preservation(self):
         """Test that expand_input is correctly preserved during serialization."""
@@ -4270,7 +4305,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
         assert expand_value["env"] == {"VAR1": "value1", "VAR2": "value2"}
 
     @pytest.mark.parametrize(
-        ["partial_kwargs_data", "expected_results"],
+        ("partial_kwargs_data", "expected_results"),
         [
             # Test case 1: Encoded format with client defaults
             pytest.param(
@@ -4348,7 +4383,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
 
 
 @pytest.mark.parametrize(
-    ["callbacks", "expected_has_flags", "absent_keys"],
+    ("callbacks", "expected_has_flags", "absent_keys"),
     [
         pytest.param(
             {

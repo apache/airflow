@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
@@ -25,6 +26,7 @@ from pydantic import (
     AwareDatetime,
     Discriminator,
     Field,
+    JsonValue,
     Tag,
     TypeAdapter,
     WithJsonSchema,
@@ -138,7 +140,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     trigger_timeout: timedelta | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
@@ -258,7 +260,7 @@ class AssetReferenceAssetEventDagRun(StrictBaseModel):
 
     name: str
     uri: str
-    extra: dict
+    extra: dict[str, JsonValue]
 
 
 class AssetAliasReferenceAssetEventDagRun(StrictBaseModel):
@@ -271,7 +273,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     """Schema for AssetEvent model used in DagRun."""
 
     asset: AssetReferenceAssetEventDagRun
-    extra: dict
+    extra: dict[str, JsonValue]
     source_task_id: str | None
     source_dag_id: str | None
     source_run_id: str | None
@@ -301,6 +303,7 @@ class DagRun(StrictBaseModel):
     conf: dict[str, Any] | None = None
     triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
+    partition_key: str | None
 
 
 class TIRunContext(BaseModel):
@@ -352,6 +355,12 @@ class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
     task_states: dict[str, Any]
+
+
+class TaskBreadcrumbsResponse(BaseModel):
+    """Response for task breadcrumbs."""
+
+    breadcrumbs: Iterable[dict[str, Any]]
 
 
 class InactiveAssetsResponse(BaseModel):

@@ -61,7 +61,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 @pytest.mark.parametrize(
-    "env_vars, expected_logging",
+    ("env_vars", "expected_logging"),
     [
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG"}, "DEBUG"),
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "INFO"}, None),

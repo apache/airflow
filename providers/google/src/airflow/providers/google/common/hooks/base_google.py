@@ -32,7 +32,6 @@ from subprocess import check_output
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import google.auth
-import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
@@ -155,6 +154,9 @@ PROVIDE_PROJECT_ID: str = cast("str", None)
 T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
 
+# Sentinel value to distinguish "parameter not provided" from "parameter explicitly set to a value"
+_UNSET = object()
+
 
 def get_field(extras: dict, field_name: str) -> str | None:
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
@@ -164,9 +166,11 @@ def get_field(extras: dict, field_name: str) -> str | None:
             "when using this method."
         )
     if field_name in extras:
-        return extras[field_name] or None
+        value = extras[field_name]
+        return None if value == "" else value
     prefixed_name = f"extra__google_cloud_platform__{field_name}"
-    return extras.get(prefixed_name) or None
+    value = extras.get(prefixed_name)
+    return None if value == "" else value
 
 
 class GoogleBaseHook(BaseHook):
@@ -406,7 +410,22 @@ class GoogleBaseHook(BaseHook):
         custom UI elements to the hook page, which allow admins to specify
         service_account, key_path, etc. They get formatted as shown below.
         """
-        return hasattr(self, "extras") and get_field(self.extras, f) or default
+        # New behavior: If default is _UNSET, parameter was not provided
+        # Check connection extras first, return None if not found (caller handles default)
+        if default is _UNSET:
+            if hasattr(self, "extras"):
+                value = get_field(self.extras, f)
+                if value is not None:
+                    return value
+            return None
+
+        # Old behavior (for backward compatibility):
+        # Check connection extras, but properly handle False values
+        if hasattr(self, "extras"):
+            value = get_field(self.extras, f)
+            if value is not None:
+                return value
+        return default
 
     @property
     def project_id(self) -> str:

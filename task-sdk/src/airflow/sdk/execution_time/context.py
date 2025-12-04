@@ -40,11 +40,14 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
     BaseAssetUniqueKey,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from pydantic.types import JsonValue
+    from typing_extensions import Self
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
@@ -62,7 +65,6 @@ if TYPE_CHECKING:
         VariableResult,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
-    from airflow.typing_compat import Self
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -170,7 +172,6 @@ def _get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
@@ -216,7 +217,6 @@ async def _async_get_connection(conn_id: str) -> Connection:
             )
 
     # If no backend found the connection, raise an error
-    from airflow.exceptions import AirflowNotFoundException
 
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
@@ -354,9 +354,10 @@ class ConnectionAccessor:
         # All instances of ConnectionAccessor are equal since it is a stateless dynamic accessor
         return True
 
-    def get(self, conn_id: str, default_conn: Any = None) -> Any:
-        from airflow.exceptions import AirflowNotFoundException
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
+    def get(self, conn_id: str, default_conn: Any = None) -> Any:
         try:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
@@ -378,6 +379,9 @@ class VariableAccessor:
             return False
         # All instances of VariableAccessor are equal since it is a stateless dynamic accessor
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
@@ -415,11 +419,14 @@ class MacrosAccessor:
             return False
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
 
 class _AssetRefResolutionMixin:
-    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
+    _asset_ref_cache: dict[AssetRef, tuple[AssetUniqueKey, dict[str, JsonValue]]] = {}
 
-    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
+    def _resolve_asset_ref(self, ref: AssetRef) -> tuple[AssetUniqueKey, dict[str, JsonValue]]:
         with contextlib.suppress(KeyError):
             return self._asset_ref_cache[ref]
 
@@ -434,8 +441,8 @@ class _AssetRefResolutionMixin:
             raise TypeError(f"Unimplemented asset ref: {type(ref)}")
         unique_key = AssetUniqueKey.from_asset(asset)
         for ref in refs_to_cache:
-            self._asset_ref_cache[ref] = unique_key
-        return unique_key
+            self._asset_ref_cache[ref] = (unique_key, asset.extra)
+        return (unique_key, asset.extra)
 
     # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
     @staticmethod
@@ -471,23 +478,25 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
+    extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset | AssetRef, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
         if not isinstance(self.key, AssetAliasUniqueKey):
             return
 
         if isinstance(asset, AssetRef):
-            asset_key = self._resolve_asset_ref(asset)
+            asset_key, asset_extra = self._resolve_asset_ref(asset)
         else:
             asset_key = AssetUniqueKey.from_asset(asset)
+            asset_extra = asset.extra
 
         asset_alias_name = self.key.name
         event = AssetAliasEvent(
             source_alias_name=asset_alias_name,
             dest_asset_key=asset_key,
+            dest_asset_extra=asset_extra,
             extra=extra or {},
         )
         self.asset_alias_events.append(event)
@@ -548,7 +557,7 @@ class OutletEventAccessors(
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+            hashable_key, _ = self._resolve_asset_ref(key)
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
@@ -757,7 +766,7 @@ class TriggeringAssetEventsAccessor(
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
         elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+            hashable_key, _ = self._resolve_asset_ref(key)
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         else:
@@ -858,18 +867,18 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     ]
 
     context_params = settings.get_airflow_context_vars(context)
-    for key, value in context_params.items():
-        if not isinstance(key, str):
-            raise TypeError(f"key <{key}> must be string")
+    for key_raw, value in context_params.items():
+        if not isinstance(key_raw, str):
+            raise TypeError(f"key <{key_raw}> must be string")
         if not isinstance(value, str):
-            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+            raise TypeError(f"value of key <{key_raw}> must be string, not {type(value)}")
 
-        if in_env_var_format:
-            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
-                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        if in_env_var_format and not key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
+            key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
+        elif not key_raw.startswith(DEFAULT_FORMAT_PREFIX):
+            key = DEFAULT_FORMAT_PREFIX + key_raw
         else:
-            if not key.startswith(DEFAULT_FORMAT_PREFIX):
-                key = DEFAULT_FORMAT_PREFIX + key
+            key = key_raw
         params[key] = value
 
     for subject, attr, mapping_key in ops:

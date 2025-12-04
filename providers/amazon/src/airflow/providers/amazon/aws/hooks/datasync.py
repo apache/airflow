@@ -21,8 +21,9 @@ from __future__ import annotations
 import time
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowTaskTimeout
+from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout
 
 
 class DataSyncHook(AwsBaseHook):
@@ -319,5 +320,4 @@ class DataSyncHook(AwsBaseHook):
             else:
                 raise AirflowException(f"Unknown status: {status}")  # Should never happen
             time.sleep(self.wait_interval_seconds)
-        else:
-            raise AirflowTaskTimeout("Max iterations exceeded!")
+        raise AirflowTaskTimeout("Max iterations exceeded!")

@@ -144,9 +144,9 @@ class TestSageMakerProcessingOperator:
         assert (
             sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
         )
-        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
-            if key3:
-                (key3,) = key3
+        for key1, key2, *key3_raw in EXPECTED_INTEGER_FIELDS:
+            if key3_raw:
+                (key3,) = key3_raw
                 assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
             else:
                 sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])

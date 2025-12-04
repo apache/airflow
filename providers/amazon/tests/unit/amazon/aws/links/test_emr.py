@@ -68,7 +68,7 @@ class TestEmrClusterLink(BaseAwsLinksTestCase):
 
 
 @pytest.mark.parametrize(
-    "cluster_info, expected_uri",
+    ("cluster_info", "expected_uri"),
     [
         pytest.param({"Cluster": {}}, None, id="no-log-uri"),
         pytest.param({"Cluster": {"LogUri": "s3://myLogUri/"}}, "myLogUri/", id="has-log-uri"),
@@ -188,7 +188,7 @@ class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
 
 
 @pytest.mark.parametrize(
-    "dashboard_info, expected_uri",
+    ("dashboard_info", "expected_uri"),
     [
         pytest.param(
             {"url": "https://example.com/?authToken=first-unique-value"},

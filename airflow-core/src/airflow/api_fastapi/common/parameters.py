@@ -28,16 +28,18 @@ from typing import (
     Generic,
     Literal,
     TypeVar,
+    cast,
     overload,
 )
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Base
@@ -67,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
+
 T = TypeVar("T")
 
 
@@ -75,7 +78,7 @@ class BaseParam(OrmClause[T], ABC):
 
     def __init__(self, value: T | None = None, skip_none: bool = True) -> None:
         super().__init__(value)
-        self.attribute: ColumnElement | None = None
+        self.attribute: ColumnElement | InstrumentedAttribute | None = None
         self.skip_none = skip_none
 
     def set_value(self, value: T | None) -> Self:
@@ -387,7 +390,7 @@ class FilterParam(BaseParam[T]):
 
 
 def filter_param_factory(
-    attribute: ColumnElement,
+    attribute: ColumnElement | InstrumentedAttribute,
     _type: type,
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
@@ -399,7 +402,7 @@ def filter_param_factory(
     description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
+    filter_name = filter_name or getattr(attribute, "name", str(attribute))
     # can only set either default_value or default_factory
     query = (
         Query(alias=filter_name, default_factory=default_factory, description=description)
@@ -410,7 +413,9 @@ def filter_param_factory(
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
         if transform_callable:
             value = transform_callable(value)
-        return FilterParam(attribute, value, filter_option, skip_none)
+        # Cast to InstrumentedAttribute for type compatibility
+        attr = cast("InstrumentedAttribute", attribute)
+        return FilterParam(attr, value, filter_option, skip_none)
 
     # add type hint to value at runtime
     depends_filter.__annotations__["value"] = _type
@@ -579,7 +584,7 @@ class RangeFilter(BaseParam[Range]):
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
-) -> Callable[[datetime | None, datetime | None], RangeFilter]:
+) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -604,7 +609,7 @@ def datetime_range_filter_factory(
 
 def float_range_filter_factory(
     filter_name: str, model: Base
-) -> Callable[[float | None, float | None], RangeFilter]:
+) -> Callable[[float | None, float | None, float | None, float | None], RangeFilter]:
     def depends_float(
         lower_bound_gte: float | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -775,7 +780,7 @@ def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState 
         return [None if s in ("none", None) else DagRunState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
         )
 
@@ -801,7 +806,7 @@ def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None]
         return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for run type. Valid values are {', '.join(DagRunType)}",
         )
 
@@ -839,7 +844,7 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
         return [None if s in ("no_status", "none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
         )
 
@@ -867,6 +872,15 @@ QueryTIQueueFilter = Annotated[
     Depends(
         filter_param_factory(TaskInstance.queue, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
     ),
+]
+QueryTIPoolNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.pool, "pool_name_pattern")),
+]
+
+QueryTIQueueNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.queue, "queue_name_pattern")),
 ]
 QueryTIExecutorFilter = Annotated[
     FilterParam[list[str]],
@@ -916,6 +930,15 @@ QueryTIOperatorFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+QueryTIOperatorNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.custom_operator_name,
+            "operator_name_pattern",
         )
     ),
 ]

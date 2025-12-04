@@ -95,7 +95,7 @@ For example, if you want to use a custom URL for the git Dag bundle:
     dag_bundle_config_list = [
         {
           "name": "my_git_repo",
-          "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
           "kwargs": {
             "tracking_ref": "main",
             "git_conn_id": "my_git_conn",

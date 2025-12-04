@@ -24,7 +24,7 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.mark.parametrize(
-    "user_id, expected_id",
+    ("user_id", "expected_id"),
     [(999, "999")],
 )
 def test_get_id_returns_str(user_id: int, expected_id: str) -> None:

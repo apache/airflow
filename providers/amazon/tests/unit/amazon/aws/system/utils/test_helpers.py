@@ -71,7 +71,7 @@ class TestAmazonSystemTestHelpers:
     ]
 
     @pytest.mark.parametrize(
-        "env_value, ssm_value, default_value, expected_result", FETCH_VARIABLE_TEST_CASES
+        ("env_value", "ssm_value", "default_value", "expected_result"), FETCH_VARIABLE_TEST_CASES
     )
     @patch.object(os, "getenv")
     def test_fetch_variable_success(
@@ -113,7 +113,7 @@ class TestAmazonSystemTestHelpers:
         ("12Ab", False),
     ]
 
-    @pytest.mark.parametrize("env_id, is_valid", ENV_ID_TEST_CASES)
+    @pytest.mark.parametrize(("env_id", "is_valid"), ENV_ID_TEST_CASES)
     def test_validate_env_id_success(self, env_id, is_valid):
         if is_valid:
             captured_output = StringIO()

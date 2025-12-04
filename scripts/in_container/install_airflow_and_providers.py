@@ -259,6 +259,70 @@ class InstallationSpec(NamedTuple):
 
 
 GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+PR_NUMBER_PATTERN = r"^\d+$"
+
+
+def resolve_pr_number_to_repo_branch(pr_number: str, github_repository: str) -> tuple[str, str, str]:
+    """
+    Resolve a PR number to owner/repo:branch format using GitHub API.
+
+    :param pr_number: PR number as a string
+    :param github_repository: GitHub repository in format owner/repo (default: apache/airflow)
+    :return: tuple of (owner, repo, branch)
+    """
+    import requests
+
+    github_token = os.environ.get("GITHUB_TOKEN")
+    pr_url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}"
+
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+        headers["X-GitHub-Api-Version"] = "2022-11-28"
+
+    try:
+        console.print(f"[info]Fetching PR #{pr_number} information from GitHub API...")
+        response = requests.get(pr_url, headers=headers, timeout=10)
+
+        if response.status_code == 404:
+            console.print(f"[error]PR #{pr_number} not found in {github_repository}")
+            sys.exit(1)
+        if response.status_code == 403:
+            console.print(
+                "[error]GitHub API rate limit may have been exceeded or access denied. "
+                "Consider setting GITHUB_TOKEN environment variable."
+            )
+            sys.exit(1)
+        if response.status_code != 200:
+            console.print(
+                f"[error]Failed to fetch PR #{pr_number} from {github_repository}. "
+                f"Status code: {response.status_code}"
+            )
+            sys.exit(1)
+
+        pr_data = response.json()
+
+        # Check if the head repo exists (could be None if fork was deleted)
+        if pr_data.get("head", {}).get("repo") is None:
+            console.print(
+                f"[error]PR #{pr_number} head repository is not available. "
+                "This can happen if the fork has been deleted."
+            )
+            sys.exit(1)
+
+        owner = pr_data["head"]["repo"]["owner"]["login"]
+        repo = pr_data["head"]["repo"]["name"]
+        branch = pr_data["head"]["ref"]
+
+        console.print(f"[info]Resolved PR #{pr_number} to {owner}/{repo}:{branch}")
+        return owner, repo, branch
+
+    except requests.Timeout:
+        console.print(f"[error]Request to GitHub API timed out while fetching PR #{pr_number}")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[error]Error fetching PR #{pr_number}: {e}")
+        sys.exit(1)
 
 
 def find_installation_spec(
@@ -361,9 +425,23 @@ def find_installation_spec(
         airflow_ctl_distribution = None
         airflow_ctl_constraints_location = None
         compile_ui_assets = False
-    elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
-        owner, repo, branch = repo_match.groups()
-        console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
+    elif re.match(PR_NUMBER_PATTERN, use_airflow_version) or re.match(
+        GITHUB_REPO_BRANCH_PATTERN, use_airflow_version
+    ):
+        # Handle PR number format - resolve to owner/repo:branch first
+        if re.match(PR_NUMBER_PATTERN, use_airflow_version):
+            owner, repo, branch = resolve_pr_number_to_repo_branch(use_airflow_version, github_repository)
+            resolved_version = f"{owner}/{repo}:{branch}"
+            console.print(f"\nInstalling airflow from GitHub PR #{use_airflow_version}: {resolved_version}\n")
+        elif repo_match := re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version):
+            # Handle owner/repo:branch format
+            owner, repo, branch = repo_match.groups()
+            resolved_version = use_airflow_version
+            console.print(f"\nInstalling airflow from GitHub: {use_airflow_version}\n")
+        else:
+            raise ValueError("Invalid format for USE_AIRFLOW_VERSION")
+
+        # Common logic for both PR number and repo:branch formats
         vcs_url = f"git+https://github.com/{owner}/{repo}.git@{branch}"
         if airflow_extras:
             airflow_distribution_spec = f"apache-airflow{airflow_extras} @ {vcs_url}"
@@ -376,32 +454,32 @@ def find_installation_spec(
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
-            airflow_package_version=use_airflow_version,
+            airflow_package_version=resolved_version,
             default_constraints_branch=default_constraints_branch,
             github_repository=github_repository,
             python_version=python_version,
         )
         compile_ui_assets = True
-        console.print(f"\nInstalling airflow task-sdk from GitHub {use_airflow_version}\n")
+        console.print(f"\nInstalling airflow task-sdk from GitHub {resolved_version}\n")
         airflow_task_sdk_distribution = f"apache-airflow-task-sdk @ {vcs_url}#subdirectory=task-sdk"
         airflow_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
-            airflow_package_version=use_airflow_version,
+            airflow_package_version=resolved_version,
             default_constraints_branch=default_constraints_branch,
             github_repository=github_repository,
             python_version=python_version,
         )
-        console.print(f"\nInstalling airflow ctl from remote spec {use_airflow_version}\n")
+        console.print(f"\nInstalling airflow ctl from GitHub {resolved_version}\n")
         airflow_ctl_distribution = f"apache-airflow-ctl @ {vcs_url}#subdirectory=airflow-ctl"
         airflow_ctl_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
             airflow_constraints_location=airflow_constraints_location,
             airflow_constraints_reference=airflow_constraints_reference,
-            airflow_package_version=use_airflow_version,
+            airflow_package_version=resolved_version,
             default_constraints_branch=default_constraints_branch,
             github_repository=github_repository,
             python_version=python_version,
@@ -924,6 +1002,12 @@ def install_airflow_and_providers(
                 providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge3")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
+                github_actions=github_actions,
+                check=False,
+            )
+            console.print("[bright_blue]Upgrading typing-extensions for compatibility with pydantic_core")
+            run_command(
+                ["uv", "pip", "install", "--upgrade", "--no-deps", "typing-extensions>=4.15.0"],
                 github_actions=github_actions,
                 check=False,
             )

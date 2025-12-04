@@ -100,6 +100,9 @@ class MockObject:
             return False
         return self.properties == other.properties and self.uuid == other.uuid
 
+    def __hash__(self):
+        return hash((self.properties, self.uuid))
+
 
 class TestWeaviateHook:
     """
@@ -181,7 +184,7 @@ class TestWeaviateHook:
         mock_auth_api_key.assert_called_once_with(api_key=self.api_key)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -198,7 +201,7 @@ class TestWeaviateHook:
         mock_auth_api_key.assert_called_once_with(api_key=self.api_key)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -216,7 +219,7 @@ class TestWeaviateHook:
         )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -236,7 +239,7 @@ class TestWeaviateHook:
         )
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -252,7 +255,7 @@ class TestWeaviateHook:
         mock_auth_client_password.assert_called_once_with(username="login", password="password", scope=None)
         mock_connect_to_custom.assert_called_once_with(
             http_host=self.host,
-            http_port=80,
+            http_port=8000,
             http_secure=False,
             grpc_host="localhost",
             grpc_port=50051,
@@ -479,7 +482,7 @@ def test_create_collection(weaviate_hook):
 
 
 @pytest.mark.parametrize(
-    argnames=["data", "expected_length"],
+    argnames=("data", "expected_length"),
     argvalues=[
         (
             [
@@ -573,7 +576,7 @@ def test_batch_create_links_retry(weaviate_hook):
 
 
 @pytest.mark.parametrize(
-    argnames=["data", "expected_length"],
+    argnames=("data", "expected_length"),
     argvalues=[
         ([{"name": "John"}, {"name": "Jane"}], 2),
         (pd.DataFrame.from_dict({"name": ["John", "Jane"]}), 2),
@@ -968,3 +971,35 @@ def test_replace_option_of_create_or_replace_document_objects(
         batch_data.call_args_list[0].kwargs["data"],
         df[df["doc"].isin(changed_documents.union(new_documents))],
     )
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.weaviate.connect_to_custom")
+@pytest.mark.parametrize(
+    ("http_secure", "port", "expected"),
+    [
+        (False, None, 80),
+        (True, None, 443),
+        (False, 8000, 8000),
+        (True, 8000, 8000),
+    ],
+)
+def test_get_conn_http_port_logic(connect_to_custom, http_secure, port, expected):
+    from airflow.models import Connection
+
+    conn = Connection(
+        conn_id="weaviate_http_port_logic",
+        conn_type="weaviate",
+        host="localhost",
+        port=port,
+        extra={"http_secure": http_secure},
+    )
+
+    with mock.patch.object(WeaviateHook, "get_connection", return_value=conn):
+        hook = WeaviateHook(conn_id="weaviate_http_port_logic")
+        hook.get_conn()
+
+    # Assert: http_port honors provided port, otherwise 80/443 depending on http_secure
+    kwargs = connect_to_custom.call_args.kwargs
+    assert kwargs["http_host"] == "localhost"
+    assert kwargs["http_port"] == expected
+    assert kwargs["http_secure"] == http_secure

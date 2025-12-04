@@ -16,10 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
 default_language_version:
   python: python3
   node: 22.19.0
-minimum_prek_version: '0.2.0'
+  golang: 1.24.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -29,6 +30,15 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
+  - repo: https://github.com/eclipse-csi/octopin
+    # We need this commit because if supports two spaces before comments (yamllint compatibility)
+    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
+    hooks:
+      - id: pin-versions
+        name: Pin versions of dependencies in CI workflows (manual)
+        stages: ['manual']
+        language: python
+        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
     rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
     hooks:
@@ -182,13 +192,6 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
-      - id: check-translations-completeness
-        name: Check translation completeness (manual)
-        entry: ./dev/i18n/check_translations_completeness.py
-        stages: ['manual']
-        language: python
-        pass_filenames: false
-        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
     rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
     hooks:
@@ -303,7 +306,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: d0bc12378d4f1619265f64726c5726f2c072a7ed  # frozen: v1.16.0
+    rev: 1e30511413f07e516c1844ba91abce8aca984963  # frozen: v1.18.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -340,7 +343,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.2']
+        additional_dependencies: ['ruff==0.14.7']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -471,6 +474,8 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^README\.md$|
+          ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|
@@ -545,6 +550,7 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
+          ^scripts/ci/prek/upgrade_important_versions.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs

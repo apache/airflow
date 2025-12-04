@@ -614,7 +614,7 @@ class TestBeamRunGoPipelineOperator:
         assert op.dataflow_config == {}
 
     @pytest.mark.parametrize(
-        "launcher_binary, go_file",
+        ("launcher_binary", "go_file"),
         [
             pytest.param("", "", id="both-empty"),
             pytest.param(None, None, id="both-not-set"),

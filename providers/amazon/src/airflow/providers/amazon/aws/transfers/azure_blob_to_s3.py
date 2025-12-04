@@ -49,12 +49,12 @@ class AzureBlobStorageToS3Operator(BaseOperator):
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
     :param delimiter: The delimiter by which you want to filter the objects. (templated)
-        For e.g to lists the CSV files from in a directory in GCS you would use
+        For e.g. to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param aws_conn_id: Connection id of the S3 connection to use
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
     :param dest_verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used

@@ -187,7 +187,7 @@ class TestSnowflakeIntervalCheckOperator:
 
 
 @pytest.mark.parametrize(
-    "operator_class, kwargs",
+    ("operator_class", "kwargs"),
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
         (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
@@ -342,7 +342,7 @@ class TestSnowflakeSqlApiOperator:
             operator.execute(context=None)
 
     @pytest.mark.parametrize(
-        "mock_sql, statement_count",
+        ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
@@ -574,3 +574,33 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
+        """Test that on_kill cancels running queries."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_no_queries(self, mock_cancel_queries):
+        """Test that on_kill does nothing when no query ids exist."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = []
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_not_called()

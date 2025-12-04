@@ -276,7 +276,7 @@ class TestConfigLint:
             assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
-        "section, option, suggestion",
+        ("section", "option", "suggestion"),
         [
             (
                 "core",
@@ -436,7 +436,7 @@ class TestConfigLint:
             assert expected_message in normalized_output
 
     @pytest.mark.parametrize(
-        "env_var, config_change, expected_message",
+        ("env_var", "config_change", "expected_message"),
         [
             (
                 "AIRFLOW__CORE__CHECK_SLAS",

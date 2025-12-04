@@ -22,6 +22,8 @@ import pytest
 
 from airflow.providers_manager import ProviderInfo
 
+from tests_common.test_utils.asserts import assert_queries_count
+
 pytestmark = pytest.mark.db_test
 
 MOCK_PROVIDERS = {
@@ -48,7 +50,7 @@ MOCK_PROVIDERS = {
 
 class TestGetProviders:
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_package_name",
+        ("query_params", "expected_total_entries", "expected_package_name"),
         [
             # Filters
             ({}, 2, ["apache-airflow-providers-amazon", "apache-airflow-providers-apache-cassandra"]),
@@ -64,7 +66,8 @@ class TestGetProviders:
     def test_should_respond_200(
         self, mock_provider, test_client, query_params, expected_total_entries, expected_package_name
     ):
-        response = test_client.get("/providers", params=query_params)
+        with assert_queries_count(0):
+            response = test_client.get("/providers", params=query_params)
 
         assert response.status_code == 200
         body = response.json()
