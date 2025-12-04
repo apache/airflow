@@ -155,9 +155,7 @@ class TptHook(TtuHook):
                     set_remote_file_permissions(ssh_client, remote_script_file, logging.getLogger(__name__))
 
                     tbuild_cmd = ["tbuild", "-f", remote_script_file, job_name]
-                    self.log.info("=" * 80)
                     self.log.info("Executing tbuild command on remote server: %s", " ".join(tbuild_cmd))
-                    self.log.info("=" * 80)
                     exit_status, output, error = execute_remote_command(ssh_client, " ".join(tbuild_cmd))
                     self.log.info("tbuild command output:\n%s", output)
                     self.log.info("tbuild command exited with status %s", exit_status)
@@ -213,9 +211,7 @@ class TptHook(TtuHook):
 
             sp = None
             try:
-                self.log.info("=" * 80)
                 self.log.info("Executing tbuild command: %s", " ".join(tbuild_cmd))
-                self.log.info("=" * 80)
                 sp = subprocess.Popen(
                     tbuild_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
                 )
@@ -336,9 +332,7 @@ class TptHook(TtuHook):
                 # Build tdload command more robustly
                 tdload_cmd = self._build_tdload_command(remote_job_file, tdload_options, tdload_job_name)
 
-                self.log.info("=" * 80)
                 self.log.info("Executing tdload command on remote server: %s", " ".join(tdload_cmd))
-                self.log.info("=" * 80)
                 exit_status, output, error = execute_remote_command(ssh_client, " ".join(tdload_cmd))
                 self.log.info("tdload command output:\n%s", output)
                 self.log.info("tdload command exited with status %s", exit_status)
@@ -410,9 +404,7 @@ class TptHook(TtuHook):
             sp = None
             try:
                 # Print a visual separator for clarity in logs
-                self.log.info("=" * 80)
                 self.log.info("Executing tdload command: %s", " ".join(tdload_cmd))
-                self.log.info("=" * 80)
                 sp = subprocess.Popen(
                     tdload_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True
                 )
