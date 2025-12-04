@@ -60,6 +60,13 @@ class XComDecoder(json.JSONDecoder):
     """Deserialize dicts to objects if they contain the `__classname__` key, otherwise return the dict."""
 
     def __init__(self, *args, **kwargs) -> None:
+        try:
+            import airflow.sdk.serialization.serde  # noqa: F401
+        except (ImportError, AttributeError, ModuleNotFoundError) as e:
+            raise ImportError(
+                "apache-airflow-task-sdk is required for XCom serialization. "
+                "Install the package to use XcomDecoder."
+            ) from e
         if not kwargs.get("object_hook"):
             kwargs["object_hook"] = self.object_hook
 
