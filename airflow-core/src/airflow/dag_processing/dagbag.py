@@ -41,10 +41,8 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -119,6 +117,8 @@ def timeout(seconds=1, error_message="Timeout"):
     def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
         log.error("Process timed out, PID: %s", str(os.getpid()))
+        from airflow.sdk.exceptions import AirflowTaskTimeout
+
         raise AirflowTaskTimeout(error_message)
 
     try:
@@ -588,6 +588,7 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+        from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
             prev_dag = self.dags.get(dag.dag_id)

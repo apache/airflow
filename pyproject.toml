@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.12",
+    "uv>=0.9.14",
 ]
 
 
@@ -778,7 +778,11 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 
-# All of the modules which have an extra license header (i.e. that we copy from another project) need to
+# Shared distributions SHOULD use relative imports when referencing each other
+# This one disables 'ban-relative-imports'.
+"shared/*/src/**" = ["TID252"]
+
+# All the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
 "scripts/ci/prek/*.py" = [ "E402" ]
 "airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]
@@ -1289,6 +1293,7 @@ dev = [
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
 ]
@@ -1341,6 +1346,7 @@ apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
@@ -1462,6 +1468,7 @@ members = [
     "docker-stack-docs",
     "shared/configuration",
     "shared/logging",
+    "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)

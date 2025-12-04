@@ -39,7 +39,14 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
 )
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -81,6 +88,7 @@ from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
@@ -138,26 +146,25 @@ class CallbackWrapper:
         self.task_state_in_callback = context["ti"].state
 
 
+@pytest.fixture(autouse=True)
+def clean_db():
+    db.clear_db_dags()
+    db.clear_db_pools()
+    db.clear_db_runs()
+    db.clear_rendered_ti_fields()
+    db.clear_db_task_reschedule()
+    db.clear_db_assets()
+    db.clear_db_xcom()
+    db.clear_db_pakl()
+    db.clear_db_apdr()
+    db.clear_db_assets()
+
+
 class TestTaskInstance:
-    @staticmethod
-    def clean_db():
-        db.clear_db_dags()
-        db.clear_db_pools()
-        db.clear_db_runs()
-        db.clear_rendered_ti_fields()
-        db.clear_db_task_reschedule()
-        db.clear_db_assets()
-        db.clear_db_xcom()
-
     def setup_method(self):
-        self.clean_db()
-
         # We don't want to store any code for (test) dags created in this file
         with patch.object(settings, "STORE_DAG_CODE", False):
             yield
-
-    def teardown_method(self):
-        self.clean_db()
 
     @pytest.mark.need_serialized_dag(False)
     def test_set_task_dates(self, dag_maker):
@@ -2851,7 +2858,7 @@ def test_defer_task_returns_false_when_no_start_from_trigger(create_task_instanc
     assert not ti.defer_task(session=session)
 
 
-def st_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
+def test_defer_task_returns_false_when_no_start_trigger_args(create_task_instance):
     session = mock.MagicMock()
     ti = create_task_instance(
         dag_id="test_defer_task",
@@ -2937,28 +2944,6 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
     # Check trigger_timeout is set correctly (within a small tolerance)
     expected_timeout = now + timeout
     assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
-
-
-class TestRunRawTaskQueriesCount:
-    """
-    These tests are designed to detect changes in the number of queries executed
-    when calling _run_raw_task
-    """
-
-    @staticmethod
-    def _clean():
-        db.clear_db_runs()
-        db.clear_db_pools()
-        db.clear_db_dags()
-        db.clear_db_sla_miss()
-        db.clear_db_import_errors()
-        db.clear_db_assets()
-
-    def setup_method(self) -> None:
-        self._clean()
-
-    def teardown_method(self) -> None:
-        self._clean()
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
@@ -3349,3 +3334,91 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
         session=session,
     )
     assert result == expected
+
+
+def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, session):
+    """Test that specifying a non-mapped task as a tuple doesn't raise NotMapped exception."""
+    # t1 -> t2 (non-mapped) -> t3
+    with dag_maker(session=session) as dag:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        t3 = EmptyOperator(task_id="t3")
+        t1 >> t2 >> t3
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    # Specifying t2 as a tuple (t2, 0) even though it's not mapped should not raise NotMapped
+    # It should treat t2 as a normal task and return its upstream t1
+    result = find_relevant_relatives(
+        normal_tasks=[],
+        mapped_tasks=[("t2", 0)],
+        direction="upstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+    # Should return t1 as the upstream of t2
+    assert result == {"t1"}
+
+
+def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[asset.asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    actual_event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag.dag_id,
+        )
+    )
+    assert actual_event.partition_key == "abc123"
+    assert not session.scalar(select(PartitionedAssetKeyLog))
+    assert not session.scalar(select(AssetPartitionDagRun))
+
+
+def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dag1_id = dag.dag_id
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="asset_event_listener",
+        schedule=PartitionedAssetTimetable(asset, IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[asset.asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag1_id))
+    assert event.partition_key == "abc123"
+    pakl = session.scalar(select(PartitionedAssetKeyLog))
+    apdr = session.scalar(select(AssetPartitionDagRun))
+    assert pakl.asset_event_id == event.id
+    assert pakl.asset_partition_dag_run_id == apdr.id
+    assert pakl.source_partition_key == "abc123"
+    assert pakl.target_dag_id == "asset_event_listener"

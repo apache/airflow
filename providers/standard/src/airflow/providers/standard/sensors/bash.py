@@ -22,8 +22,7 @@ from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowFailException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowFailException, BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

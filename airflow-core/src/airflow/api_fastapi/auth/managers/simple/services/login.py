@@ -52,7 +52,7 @@ class SimpleAuthManagerLogin:
             )
 
         users = SimpleAuthManager.get_users()
-        passwords = SimpleAuthManager.get_passwords(users)
+        passwords = SimpleAuthManager.get_passwords()
         found_users = [
             user
             for user in users

@@ -970,7 +970,7 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+                from airflow.serialization.decoders import smart_decode_trigger_kwargs
 
                 # Decrypt and clean trigger kwargs before for execution
                 # Note: We only clean up serialization artifacts (__var, __type keys) here,
@@ -999,7 +999,8 @@ class TriggerRunner:
 
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after, context), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after, context),
+                    name=trigger_name,
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,

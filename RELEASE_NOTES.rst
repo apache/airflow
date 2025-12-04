@@ -3521,6 +3521,7 @@ using ``pyproject.toml``. Airflow is now compliant with those accepted PEPs:
 * `PEP-685 Comparison of extra names for optional distribution dependencies <https://www.python.org/dev/peps/pep-0685/>`__
 
 Also we implement multiple license files support coming from Draft, not yet accepted (but supported by ``hatchling``) PEP:
+
 * `PEP 639 Improving License Clarity with Better Package Metadata <https://peps.python.org/pep-0639/>`__
 
 This has almost no noticeable impact on users if they are using modern Python packaging and development tools, generally

@@ -6904,6 +6904,23 @@ export const $XComUpdateBody = {
     description: 'Payload serializer for updating an XCom entry.'
 } as const;
 
+export const $AuthenticatedMeResponse = {
+    properties: {
+        id: {
+            type: 'string',
+            title: 'Id'
+        },
+        username: {
+            type: 'string',
+            title: 'Username'
+        }
+    },
+    type: 'object',
+    required: ['id', 'username'],
+    title: 'AuthenticatedMeResponse',
+    description: 'Authenticated user information serializer for responses.'
+} as const;
+
 export const $BaseEdgeResponse = {
     properties: {
         source_id: {
@@ -7793,7 +7810,7 @@ export const $GridRunsResponse = {
             '$ref': '#/components/schemas/DagRunType'
         },
         duration: {
-            type: 'integer',
+            type: 'number',
             title: 'Duration',
             readOnly: true
         }
