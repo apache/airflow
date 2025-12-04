@@ -1674,7 +1674,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
-    def _create_dagruns_for_partitioned_asset_dags(self, session: Session):
+    def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         asset_partition_dags: set[str] = set()
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
