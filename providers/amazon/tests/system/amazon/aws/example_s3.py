@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
+    S3CopyPrefixOperator,
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
@@ -245,6 +246,17 @@ with DAG(
     )
     # [END howto_operator_s3_copy_object]
 
+    # [START howto_operator_s3_copy_prefix]
+    copy_prefix = S3CopyPrefixOperator(
+        task_id="copy_prefix",
+        source_bucket_name=bucket_name,
+        source_bucket_prefix="",
+        dest_bucket_name=bucket_name_2,
+        dest_bucket_prefix="copied/",
+        page_size=800,
+    )
+    # [END howto_operator_s3_copy_prefix]
+
     # [START howto_operator_s3_file_transform]
     file_transform = S3FileTransformOperator(
         task_id="file_transform",
@@ -311,6 +323,7 @@ with DAG(
             sensor_key_with_regex_deferrable,
         ],
         copy_object,
+        copy_prefix,
         file_transform,
         sensor_keys_unchanged,
         # TEST TEARDOWN

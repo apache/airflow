@@ -36,6 +36,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
+    S3CopyPrefixOperator,
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
@@ -588,6 +589,374 @@ class TestS3CopyObjectOperator:
             source_bucket_name=self.source_bucket,
             dest_bucket_key=self.dest_key,
             dest_bucket_name=self.dest_bucket,
+        )
+        validate_template_fields(operator)
+
+
+class TestS3CopyPrefixOperator:
+    def setup_method(self):
+        self.source_bucket = "source-bucket"
+        self.source_prefix = "data/logs/"
+        self.dest_bucket = "dest-bucket"
+        self.dest_prefix = "backup/logs/"
+
+        # S3 URL variables
+        self.source_s3_url = f"s3://{self.source_bucket}/{self.source_prefix}"
+        self.dest_s3_url = f"s3://{self.dest_bucket}/{self.dest_prefix}"
+
+    @staticmethod
+    def _create_s3_client():
+        """Create and return S3 client."""
+        return boto3.client("s3", region_name="us-east-1")
+
+    def _create_buckets(self, s3_client):
+        """Create both source and destination buckets."""
+        s3_client.create_bucket(Bucket=self.source_bucket)
+        s3_client.create_bucket(Bucket=self.dest_bucket)
+
+    def _upload_test_objects(self, s3_client, keys):
+        """Upload test objects to source bucket.
+
+        Args:
+            s3_client: S3 client
+            keys: List of full object keys.
+        """
+        for key in keys:
+            s3_client.upload_fileobj(Bucket=self.source_bucket, Key=key, Fileobj=BytesIO(b"test-content"))
+
+    @mock_aws
+    def test_s3_copy_prefix_basic(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client,
+            [
+                f"{self.source_prefix}file1.txt",
+                f"{self.source_prefix}file2.txt",
+                f"{self.source_prefix}subdir/file3.txt",
+            ],
+        )
+
+        # Verify destination is empty before operation
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert "Contents" not in dest_objects
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        # Verify objects were copied with correct prefix replacement
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 3
+
+        copied_keys = [obj["Key"] for obj in dest_objects["Contents"]]
+        assert "backup/logs/file1.txt" in copied_keys
+        assert "backup/logs/file2.txt" in copied_keys
+        assert "backup/logs/subdir/file3.txt" in copied_keys
+
+    @mock_aws
+    def test_s3_copy_prefix_selective_copying(self):
+        """Test that only objects matching the prefix are copied, others are ignored"""
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client,
+            [
+                # Matching prefix (should be copied)
+                f"{self.source_prefix}file1.txt",
+                f"{self.source_prefix}subdir/file2.txt",
+                # Non-matching prefixes (should NOT be copied)
+                "data/metrics/file3.txt",
+                "other/logs/file4.txt",
+                "archive/data/file5.txt",
+            ],
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_selective",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,  # Only this prefix should be copied
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        # Verify only matching prefix objects were copied
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 2  # Only 2 files should be copied
+
+        copied_keys = [obj["Key"] for obj in dest_objects["Contents"]]
+        assert "backup/logs/file1.txt" in copied_keys
+        assert "backup/logs/subdir/file2.txt" in copied_keys
+
+        # Verify non-matching files were NOT copied
+        all_dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket)
+        all_dest_keys = [obj["Key"] for obj in all_dest_objects.get("Contents", [])]
+        assert "backup/logs/file3.txt" not in all_dest_keys  # Different prefix
+        assert "backup/logs/file4.txt" not in all_dest_keys  # Different prefix
+        assert "backup/logs/file5.txt" not in all_dest_keys  # Different prefix
+
+    @mock_aws
+    def test_s3_copy_prefix_s3_urls(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client, [f"{self.source_prefix}file1.txt", f"{self.source_prefix}file2.txt"]
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_urls",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+        )
+
+        op.execute(None)
+
+        # Verify objects were copied
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 2
+
+    def test_invalid_combination_bucket_with_s3_url(self):
+        """Test that providing bucket name with S3 URL raises TypeError"""
+        op = S3CopyPrefixOperator(
+            task_id="test_invalid",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=f"s3://{self.source_bucket}/{self.source_prefix}",
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        with pytest.raises(TypeError, match="should be a relative path"):
+            op.execute(None)
+
+    @mock_aws
+    def test_s3_copy_prefix_same_bucket(self):
+        s3_client = self._create_s3_client()
+        s3_client.create_bucket(Bucket=self.source_bucket)  # Only need source bucket for this test
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_same_bucket",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.source_bucket,
+            dest_bucket_prefix="archive/logs/",
+        )
+
+        op.execute(None)
+
+        # Verify both original and copied objects exist
+        all_objects = s3_client.list_objects_v2(Bucket=self.source_bucket)
+        keys = [obj["Key"] for obj in all_objects["Contents"]]
+        assert f"{self.source_prefix}file1.txt" in keys
+        assert "archive/logs/file1.txt" in keys
+
+    @mock_aws
+    def test_s3_copy_prefix_empty_result(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        # No objects uploaded - empty prefix result
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_empty",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        # Verify destination remains empty
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert "Contents" not in dest_objects
+
+    @mock_aws
+    def test_continue_on_failure_false(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_fail_fast",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+            continue_on_failure=False,
+        )
+
+        # Mock hook.copy_object to raise exception
+        with mock.patch.object(op.hook, "copy_object", side_effect=Exception("Copy failed")):
+            with pytest.raises(
+                RuntimeError, match=f"Failed to copy {self.source_prefix}file1.txt: Copy failed"
+            ):
+                op.execute(None)
+
+    @mock_aws
+    def test_continue_on_failure_true(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client, [f"{self.source_prefix}file1.txt", f"{self.source_prefix}file2.txt"]
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_continue",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+            continue_on_failure=True,
+        )
+
+        # Mock hook.copy_object to fail on first file, succeed on second
+        def mock_copy_object(*args, **kwargs):
+            if "file1.txt" in kwargs.get("source_bucket_key", ""):
+                raise Exception("Copy failed for file1")
+            # Let file2 succeed normally
+            return None
+
+        with mock.patch.object(op.hook, "copy_object", side_effect=mock_copy_object):
+            with pytest.raises(RuntimeError, match=r"Failed to copy 1 object\(s\)"):
+                op.execute(None)
+
+    @mock_aws
+    def test_page_size_parameter(self):
+        """Test that custom page_size is passed to paginator."""
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        operator = S3CopyPrefixOperator(
+            task_id="test_task",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+            page_size=2,
+        )
+
+        with mock.patch.object(operator.hook, "get_conn") as mock_get_conn:
+            mock_s3_client = mock.MagicMock()
+            mock_get_conn.return_value = mock_s3_client
+
+            mock_paginator = mock.MagicMock()
+            mock_s3_client.get_paginator.return_value = mock_paginator
+            mock_paginator.paginate.return_value = []
+
+            operator.execute({})
+
+            # Verify paginator was called with correct PageSize
+            mock_paginator.paginate.assert_called_once()
+            call_args = mock_paginator.paginate.call_args
+            assert call_args[1]["PaginationConfig"]["PageSize"] == 2
+
+    @mock_aws
+    def test_page_size_zero_copies_no_objects(self):
+        """Test that page_size=0 results in no objects being copied."""
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        operator = S3CopyPrefixOperator(
+            task_id="test_task",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+            page_size=0,
+        )
+
+        operator.execute({})
+
+        # Verify no objects were copied to destination
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert "Contents" not in dest_objects
+
+    @mock_aws
+    def test_pagination_with_small_page_size(self):
+        """Test that pagination works correctly with small page_size."""
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+
+        # Create 5 objects
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file{i}.txt" for i in range(5)])
+
+        operator = S3CopyPrefixOperator(
+            task_id="test_task",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+            page_size=2,  # Smaller than number of objects
+        )
+
+        # Execute the operator
+        operator.execute({})
+
+        # Verify all 5 objects were copied
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 5
+
+    def test_get_openlineage_facets_on_start_basic(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+
+        expected_input = Dataset(
+            namespace=f"s3://{self.source_bucket}",
+            name=self.source_prefix,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.dest_bucket}",
+            name=self.dest_prefix,
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
+
+    def test_get_openlineage_facets_on_start_s3_urls(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+
+        expected_input = Dataset(
+            namespace=f"s3://{self.source_bucket}",
+            name=self.source_prefix,
+        )
+        expected_output = Dataset(
+            namespace=f"s3://{self.dest_bucket}",
+            name=self.dest_prefix,
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
+
+    def test_template_fields(self):
+        operator = S3CopyPrefixOperator(
+            task_id="test_copy_prefix",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
         )
         validate_template_fields(operator)
 
