@@ -28,15 +28,13 @@ import posixpath
 import stat
 import warnings
 from collections.abc import Callable, Generator, Sequence
-from contextlib import contextmanager, suppress, asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager, suppress
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 import asyncssh
-from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
-from airflow.providers.ssh.hooks.ssh import SSHHook
 from asgiref.sync import sync_to_async
 from asyncssh import SFTPError, SSHClientConnection
 from paramiko.config import SSH_PORT
@@ -46,6 +44,8 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.providers.common.compat.sdk import BaseHook, Connection
+from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ async def walk(sftp_client, dir_path: str):
     files = await sftp_client.readdir(dir_path)
 
     for file in files:
-        if not file.filename in {".", ".."}:
+        if file.filename not in {".", ".."}:
             if stat.S_ISDIR(file.attrs.permissions):
                 file_path = posixpath.join(dir_path, file.filename)
                 results.extend(await walk(sftp_client, file_path))
@@ -915,9 +915,7 @@ class SFTPClientPool(LoggingMixin):
             try:
                 sftp.exit()
             except Exception as e:
-                self.log.warning(
-                    "Error closing SFTP client for '%s': %s", self.sftp_conn_id, e
-                )
+                self.log.warning("Error closing SFTP client for '%s': %s", self.sftp_conn_id, e)
             ssh_conn.close()
         self.log.info("SFTPConnectionPool for '%s' closed", self.sftp_conn_id)
 
@@ -925,9 +923,7 @@ class SFTPClientPool(LoggingMixin):
         hook = SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
         ssh_conn = await hook._get_conn()
         sftp = await ssh_conn.start_sftp_client()
-        self.log.info(
-            "Created new SFTP connection for sftp_conn_id '%s'", self.sftp_conn_id
-        )
+        self.log.info("Created new SFTP connection for sftp_conn_id '%s'", self.sftp_conn_id)
         return ssh_conn, sftp
 
     async def acquire(self) -> tuple[SSHClientConnection, SFTPClient]:

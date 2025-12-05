@@ -48,7 +48,6 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.providers.standard.decorators.python import python_task, _PythonDecoratedAsyncOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -76,7 +75,7 @@ from tests_common.test_utils.version_compat import (
 )
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator, task
+    from airflow.sdk import BaseOperator
     from airflow.sdk.execution_time.context import set_current_context
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:

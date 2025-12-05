@@ -55,7 +55,7 @@ from airflow.providers.standard.utils.python_virtualenv import (
     prepare_virtualenv,
     write_python_script,
 )
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, AIRFLOW_V_3_2_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, BaseOperator
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
@@ -1267,7 +1267,5 @@ if AIRFLOW_V_3_2_PLUS:
             if (execution_preparation := self.__prepare_execution()) is None:
                 return await self.python_callable(*self.op_args, **self.op_kwargs)
             create_execution_runner, asset_events = execution_preparation
-            runner = create_execution_runner(
-                self.python_callable, asset_events, logger=self.log
-            )
+            runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
             return await runner.run(*self.op_args, **self.op_kwargs)

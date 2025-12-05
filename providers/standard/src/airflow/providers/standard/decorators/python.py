@@ -63,7 +63,6 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
 if AIRFLOW_V_3_2_PLUS:
     from airflow.providers.standard.operators.python import PythonAsyncOperator
 
-
     class _PythonDecoratedAsyncOperator(DecoratedOperator, PythonAsyncOperator):
         """
         Wraps a Python callable and captures args/kwargs when called for execution.

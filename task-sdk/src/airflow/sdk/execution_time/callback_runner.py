@@ -164,9 +164,7 @@ def create_async_executable_runner(
                 if isinstance(result, Metadata):
                     outlet_events[result.asset].extra.update(result.extra)
                     if result.alias:
-                        outlet_events[result.alias].add(
-                            result.asset, extra=result.extra
-                        )
+                        outlet_events[result.alias].add(result.asset, extra=result.extra)
 
                 results.append(result)
 

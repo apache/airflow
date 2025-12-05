@@ -652,7 +652,7 @@ def is_async_callable(func):
     # unwrap to the real underlying callable
     func = unwrap_callable(func)
 
-    # If it’s not callable, bail out early
+    # If it's not callable, bail out early
     if not hasattr(func, "__call__"):
         return False
 

@@ -26,7 +26,7 @@ import inspect
 import sys
 import warnings
 from asyncio import AbstractEventLoop
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence, Generator
+from collections.abc import Callable, Collection, Generator, Iterable, Mapping, Sequence
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
