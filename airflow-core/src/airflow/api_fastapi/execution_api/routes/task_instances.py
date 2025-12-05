@@ -68,7 +68,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
-from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
@@ -1010,17 +1010,25 @@ def validate_inlets_and_outlets(
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)
 
-    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)] if ti.task else []
-    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)] if ti.task else []
+    inlets = (
+        [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
+    outlets = (
+        [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
     if not (inlets or outlets):
         return InactiveAssetsResponse(inactive_assets=[])
 
-    all_asset_unique_keys: set[AssetUniqueKey] = {
-        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+    all_asset_unique_keys: set[SerializedAssetUniqueKey] = {
+        SerializedAssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
         for inlet_or_outlet in itertools.chain(inlets, outlets)
     }
     active_asset_unique_keys = {
-        AssetUniqueKey(name, uri)
+        SerializedAssetUniqueKey(name, uri)
         for name, uri in session.execute(
             select(AssetActive.name, AssetActive.uri).where(
                 tuple_(AssetActive.name, AssetActive.uri).in_(
@@ -1032,10 +1040,7 @@ def validate_inlets_and_outlets(
     different = all_asset_unique_keys - active_asset_unique_keys
 
     return InactiveAssetsResponse(
-        inactive_assets=[
-            asset_unique_key.to_asset().asprofile()  # type: ignore
-            for asset_unique_key in different
-        ]
+        inactive_assets=[asset_unique_key.asprofile() for asset_unique_key in different],
     )
 
 

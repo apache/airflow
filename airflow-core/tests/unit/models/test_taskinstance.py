@@ -1767,7 +1767,7 @@ class TestTaskInstance:
         alias_name_1 = "test_outlet_asset_alias_test_case_asset_alias_1"
 
         asm = AssetModel(id=1, uri=asset_uri)
-        session.add_all([asm, AssetActive.for_asset(asm.to_public())])
+        session.add_all([asm, AssetActive.for_asset(asm)])
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
@@ -1816,7 +1816,7 @@ class TestTaskInstance:
         asset_alias_name_3 = "test_outlet_maa_asset_alias_3"
 
         asm = AssetModel(id=1, uri=asset_uri)
-        session.add_all([asm, AssetActive.for_asset(asm.to_public())])
+        session.add_all([asm, AssetActive.for_asset(asm)])
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
