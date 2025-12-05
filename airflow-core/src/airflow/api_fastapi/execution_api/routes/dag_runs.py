@@ -22,6 +22,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run
@@ -142,9 +143,7 @@ def clear_dag_run(
 
 @router.get(
     "/{dag_id}/{run_id}/state",
-    responses={
-        status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
-    },
+    responses={status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found"}},
 )
 def get_dagrun_state(
     dag_id: str,
@@ -152,10 +151,12 @@ def get_dagrun_state(
     session: SessionDep,
 ) -> DagRunStateResponse:
     """Get a DAG Run State."""
-    dag_run = session.scalar(
-        select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+    values = session.scalars(
+        select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
     )
-    if dag_run is None:
+    try:
+        state = values.one()
+    except NoResultFound:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
@@ -164,7 +165,7 @@ def get_dagrun_state(
             },
         )
 
-    return DagRunStateResponse(state=dag_run.state)
+    return DagRunStateResponse(state=state)
 
 
 @router.get("/count", status_code=status.HTTP_200_OK)
@@ -218,3 +219,21 @@ def get_previous_dagrun(
         return None
 
     return DagRun.model_validate(dag_run)
+
+
+@router.get(
+    "/{dag_id}/{run_id}/detail",
+    responses={status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found"}},
+)
+def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
+    """Get detail of a DAG Run."""
+    dr = session.scalar(select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id))
+    if dr is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+            },
+        )
+    return DagRun.model_validate(dr)

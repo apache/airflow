@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import pytest
+import time_machine
 
 from airflow._shared.timezones import timezone
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, State
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -188,6 +190,55 @@ class TestDagRunClear:
         assert response.status_code == 404
 
 
+class TestDagRunDetail:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_get_state(self, client, session, dag_maker):
+        dag_id = "test_dag_id"
+        run_id = "test_run_id"
+
+        with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+
+        with time_machine.travel(timezone.datetime(2025, 12, 13), tick=False):
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                logical_date=None,
+                run_type=DagRunType.MANUAL,
+                start_date=timezone.datetime(2023, 1, 2),
+                state=DagRunState.SUCCESS,
+            )
+        session.commit()
+
+        response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}/detail")
+        assert response.status_code == 200
+        assert response.json() == {
+            "clear_number": 0,
+            "conf": {},
+            "consumed_asset_events": [],
+            "dag_id": "test_dag_id",
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "end_date": "2025-12-13T00:00:00Z",
+            "logical_date": None,
+            "partition_key": None,
+            "run_after": "2025-12-13T00:00:00Z",
+            "run_id": "test_run_id",
+            "run_type": "manual",
+            "start_date": "2023-01-02T00:00:00Z",
+            "state": "success",
+            "triggering_user_name": None,
+        }
+
+    def test_dag_run_not_found(self, client):
+        response = client.get("/execution/dag-runs/dag_not_found/test_run_id/detail")
+        assert response.status_code == 404
+
+
 class TestDagRunState:
     def setup_method(self):
         clear_db_runs()
@@ -198,25 +249,17 @@ class TestDagRunState:
     def test_get_state(self, client, session, dag_maker):
         dag_id = "test_get_state"
         run_id = "test_run_id"
-
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
-
         dag_maker.create_dagrun(run_id=run_id, state=DagRunState.SUCCESS)
-
         session.commit()
 
         response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}/state")
-
         assert response.status_code == 200
         assert response.json() == {"state": "success"}
 
     def test_dag_run_not_found(self, client):
-        dag_id = "dag_not_found"
-        run_id = "test_run_id"
-
-        response = client.post(f"/execution/dag-runs/{dag_id}/{run_id}/clear")
-
+        response = client.get("/execution/dag-runs/dag_not_found/test_run_id/state")
         assert response.status_code == 404
 
 
@@ -345,9 +388,7 @@ class TestGetPreviousDagRun:
         # Query for previous DAG run before 2025-01-10
         response = client.get(
             f"/execution/dag-runs/{dag_id}/previous",
-            params={
-                "logical_date": timezone.datetime(2025, 1, 10).isoformat(),
-            },
+            params={"logical_date": timezone.datetime(2025, 1, 10).isoformat()},
         )
 
         assert response.status_code == 200

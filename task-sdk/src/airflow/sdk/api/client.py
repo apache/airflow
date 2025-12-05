@@ -45,6 +45,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagRun,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
@@ -692,6 +693,11 @@ class DagRunOperations:
         self.client.post(f"dag-runs/{dag_id}/{run_id}/clear")
         # TODO: Error handling
         return OKResponse(ok=True)
+
+    def get_detail(self, dag_id: str, run_id: str) -> DagRun:
+        """Get detail of a dag run."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/detail")
+        return DagRun.model_validate_json(resp.read())
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
         """Get the state of a Dag run via the API server."""
