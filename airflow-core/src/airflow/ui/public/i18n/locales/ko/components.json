@@ -121,6 +121,9 @@
     "selectLabel": "단일 실행",
     "title": "Dag 트리거",
     "toaster": {
+      "error": {
+        "title": "Dag 트리거 실패함"
+      },
       "success": {
         "description": "Dag 실행이 성공적으로 트리거되었습니다.",
         "title": "Dag 실행 트리거됨"
