@@ -57,6 +57,7 @@ __all__ = [
     "asset",
     "chain",
     "chain_linear",
+    "conf",
     "cross_downstream",
     "dag",
     "get_current_context",
@@ -79,6 +80,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -105,6 +107,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
+
+    conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
@@ -145,6 +149,7 @@ __lazy_imports: dict[str, str] = {
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
+    "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
