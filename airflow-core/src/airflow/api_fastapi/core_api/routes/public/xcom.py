@@ -335,7 +335,7 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    xcom_entry.value = XComModel.serialize_value(patch_body.value)
+    xcom_entry.value = json.dumps(patch_body.value)
 
     return XComResponseNative.model_validate(xcom_entry)
 
