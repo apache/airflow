@@ -17,16 +17,27 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow._shared.timezones import timezone
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
+try:
+    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.serialization.encoders import ensure_serialized_asset
+except ModuleNotFoundError:
+    BaseAsset: TypeAlias = SerializedAssetBase  # type: ignore[no-redef]
+
+    def ensure_serialized_asset(o):  # type: ignore[misc,no-redef]
+        return o
+
+
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
     from pendulum import DateTime
 
-    from airflow.serialization.definitions.assets import SerializedAssetBase
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -171,9 +182,13 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by assets"
 
-    def __init__(self, assets: SerializedAssetBase) -> None:
+    def __init__(self, assets: Collection[SerializedAsset] | SerializedAssetBase) -> None:
         super().__init__()
-        self.asset_condition = assets
+        # Compatibility: Handle SDK assets if needed so this class works in dag files.
+        if isinstance(assets, SerializedAssetBase | BaseAsset):
+            self.asset_condition = ensure_serialized_asset(assets)
+        else:
+            self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -262,7 +277,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
-        self.asset_condition = assets
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:

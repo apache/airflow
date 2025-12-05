@@ -20,19 +20,9 @@ from __future__ import annotations
 import typing
 
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetBase
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
-
-try:
-    from airflow.sdk.definitions.asset import BaseAsset
-    from airflow.serialization.encoders import ensure_serialized_asset
-except ModuleNotFoundError:
-    BaseAsset: typing.TypeAlias = SerializedAssetBase  # type: ignore[no-redef]
-
-    def ensure_serialized_asset(o):  # type: ignore[misc,no-redef]
-        return o
-
 
 if typing.TYPE_CHECKING:
     from collections.abc import Collection
@@ -51,13 +41,8 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         timetable: Timetable,
         assets: Collection[SerializedAsset] | SerializedAssetBase,
     ) -> None:
+        super().__init__(assets)
         self.timetable = timetable
-        # Compatibility: Handle SDK assets if needed so this class works in dag files.
-        if isinstance(assets, SerializedAssetBase | BaseAsset):
-            self.asset_condition = ensure_serialized_asset(assets)
-        else:
-            self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
-
         self.description = f"Triggered by assets or {timetable.description}"
         self.periodic = timetable.periodic
         self.can_be_scheduled = timetable.can_be_scheduled
