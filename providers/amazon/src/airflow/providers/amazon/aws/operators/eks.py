@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import stat
 import warnings
 from ast import literal_eval
 from collections.abc import Sequence
@@ -1129,28 +1131,50 @@ class EksPodOperator(KubernetesPodOperator):
         which allows the kubeconfig exec credential plugin to use new credentials
         without regenerating the entire kubeconfig.
 
+        The file was originally created by EksHook._secure_credential_context with
+        restrictive permissions (0600 - owner read/write only). This method preserves
+        those permissions by using os.open with the same mode flags.
+
         :param credentials_file_path: Path to the credentials file to update
         :param access_key: AWS access key ID
         :param secret_key: AWS secret access key
         :param session_token: AWS session token (optional)
         """
-        with open(credentials_file_path, "w") as f:
-            f.write(f"export AWS_ACCESS_KEY_ID='{access_key}'\n")
-            f.write(f"export AWS_SECRET_ACCESS_KEY='{secret_key}'\n")
-            if session_token:
-                f.write(f"export AWS_SESSION_TOKEN='{session_token}'\n")
+        # Open with same restrictive permissions as _secure_credential_context (0600)
+        fd = os.open(credentials_file_path, os.O_WRONLY | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(f"export AWS_ACCESS_KEY_ID='{access_key}'\n")
+                f.write(f"export AWS_SECRET_ACCESS_KEY='{secret_key}'\n")
+                if session_token:
+                    f.write(f"export AWS_SESSION_TOKEN='{session_token}'\n")
+        except Exception:
+            # If fdopen fails, we need to close the file descriptor manually
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            raise
 
     def _refresh_cached_properties(self) -> None:
         """
         Refresh cached properties including AWS credentials.
 
-        This override ensures that when Kubernetes credentials expire (401 error),
-        we refresh the AWS credentials file before recreating the Kubernetes clients.
-        This is necessary because EKS uses an exec credential plugin that reads
-        credentials from the temporary file created during execute().
+        This method is called by KubernetesPodOperator._handle_api_exception (in
+        providers/cncf/kubernetes/operators/pod.py) when a 401 Unauthorized error
+        is received from the Kubernetes API. The 401 error indicates that the
+        credentials used to authenticate with EKS have expired.
+
+        The call chain is:
+        1. KubernetesPodOperator._await_pod_completion catches ApiException with status 401
+        2. _handle_api_exception is called, which logs a warning and calls _refresh_cached_properties
+        3. This override refreshes the AWS credentials file that the kubeconfig exec
+           credential plugin reads from (see EksHook._secure_credential_context)
+        4. The parent class deletes cached hook/client/pod_manager so they are recreated
+           with fresh credentials on next access
 
         Without this refresh, the kubeconfig would continue to reference stale
-        credentials, causing repeated authentication failures.
+        credentials in the temp file, causing repeated authentication failures.
         """
         if self._credentials_file_path:
             self.log.info("Refreshing AWS credentials for EKS authentication")
