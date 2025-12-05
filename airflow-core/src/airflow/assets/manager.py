@@ -38,7 +38,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name
 
@@ -245,6 +245,7 @@ class AssetManager(LoggingMixin):
             # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
             #  maybe we should just add the event to the signature
             #  or add a new hook `on_asset_event`
+            #  https://github.com/apache/airflow/issues/58290
             get_listener_manager().hook.on_asset_changed(asset=asset)
         except Exception:
             log.exception("error calling listener")
@@ -265,6 +266,7 @@ class AssetManager(LoggingMixin):
             return None
 
         # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
+        #  https://github.com/apache/airflow/issues/58445
         partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
 
         cls._queue_partitioned_dags(
@@ -303,6 +305,7 @@ class AssetManager(LoggingMixin):
     ) -> None:
         if partition_dags and not partition_key:
             # TODO: AIP-76 how to best ensure users can see this? Probably add Log record.
+            #  https://github.com/apache/airflow/issues/59060
             log.warning(
                 "Listening dags are partition-aware but run has no partition key",
                 listening_dags=[x.dag_id for x in partition_dags],
