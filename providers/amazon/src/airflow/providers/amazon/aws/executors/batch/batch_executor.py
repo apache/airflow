@@ -36,8 +36,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import AirflowException, Stats
 
 try:
     from airflow.sdk import timezone
