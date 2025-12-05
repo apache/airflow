@@ -49,6 +49,13 @@
     "warning_one": "경고 1개",
     "warning_other": "경고 {{count}}개"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "잘못된 날짜 형식입니다.",
+      "invalidTimeFormat": "잘못된 시간 형식입니다.",
+      "startBeforeEnd": "시작 일시는 종료 일시보다 이전이어야 합니다."
+    }
+  },
   "durationChart": {
     "duration": "기간 (초)",
     "lastDagRun_one": "마지막 Dag 실행",
