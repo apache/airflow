@@ -91,7 +91,9 @@ class GitDagBundle(BaseDagBundle):
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
         except Exception as e:
-            self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
+            self._log.exception("Could not create GitHook", conn_id=git_conn_id, exc=e)
+            # re raise so exception propagates immediately with clear error message
+            raise
 
         if self.hook and self.hook.repo_url:
             self.repo_url = self.hook.repo_url
