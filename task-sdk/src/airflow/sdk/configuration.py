@@ -26,8 +26,8 @@ from configparser import ConfigParser
 from io import StringIO
 from typing import Any
 
-from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 from airflow.sdk import yaml
+from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
@@ -144,7 +144,7 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
         Unit tests load values from `unit_tests.cfg` to ensure consistent behavior. Realistically we should
         not have this needed but this is temporary to help fix the tests that use dag_maker and rely on few
-        confs.
+        configurations.
 
         The SDK does not expand template variables (FERNET_KEY, JWT_SECRET_KEY, etc.) because it does not use
         the config fields that require expansion.

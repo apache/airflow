@@ -35,6 +35,14 @@ jobs:
         id: get-sha
         run: echo "COMMIT_SHA=${GITHUB_SHA}" >> $GITHUB_ENV
 
+      # Adding a slight delay to allow GitHub's API to associate the merge commit with the PR.
+      # This is needed because GH has a consistency of 6-10+ seconds
+      # to process the commit and PR association after a merge based on some of our past runs.
+      # Without this delay, the listPullRequestsAssociatedWithCommit API call may return an empty array
+      # even though a PR was just merged, causing backports to be skipped.
+      - name: Add delay for GitHub to process PR merge
+        run: sleep 15
+
       - name: Find PR information
         id: pr-info
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea  # v7.0.1
@@ -57,7 +65,7 @@ jobs:
                 console.log(`Backport branches: ${backportBranches}`);
                 core.setOutput('branches', JSON.stringify(backportBranches));
             } else {
-                console.log('No pull request found for this commit.');
+                console.log('⚠️ No pull request found for this commit.');
                 core.setOutput('branches', '[]');
             }
 

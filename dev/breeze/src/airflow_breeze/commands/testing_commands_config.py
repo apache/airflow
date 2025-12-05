@@ -164,6 +164,10 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
             "airflow-e2e-tests",
         ],
     },
+    {
+        "name": "UI Tests",
+        "commands": ["ui-e2e-tests"],
+    },
 ]
 
 TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -309,5 +313,34 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--e2e-test-mode",
             ],
         }
+    ],
+    "breeze testing ui-e2e-tests": [
+        {
+            "name": "UI End-to-End test options",
+            "options": [
+                "--browser",
+                "--headed",
+                "--debug-e2e",
+                "--ui-mode",
+                "--test-pattern",
+                "--workers",
+                "--timeout",
+                "--reporter",
+            ],
+        },
+        {
+            "name": "Test environment for UI tests",
+            "options": [
+                "--airflow-ui-base-url",
+                "--test-admin-username",
+                "--test-admin-password",
+            ],
+        },
+        {
+            "name": "Advanced flags for UI e2e tests",
+            "options": [
+                "--force-reinstall-deps",
+            ],
+        },
     ],
 }

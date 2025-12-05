@@ -28,6 +28,7 @@ from pydantic import (
     AliasGenerator,
     ConfigDict,
     computed_field,
+    field_serializer,
     field_validator,
 )
 
@@ -83,6 +84,11 @@ class DAGResponse(BaseModel):
     next_dagrun_data_interval_end: datetime | None
     next_dagrun_run_after: datetime | None
     owners: list[str]
+
+    @field_serializer("tags")
+    def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:
+        """Sort tags alphabetically by name."""
+        return sorted(tags, key=lambda tag: tag.name)
 
     @field_validator("owners", mode="before")
     @classmethod
