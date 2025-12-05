@@ -17,47 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-import logging
-import socket
-from collections.abc import Callable
-from functools import wraps
 from typing import TYPE_CHECKING, Any, Protocol
 
-from airflow.configuration import conf
+import structlog
 
 if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 
 def gen_context(trace_id, span_id):
     """Generate span context from trace_id and span_id."""
-    from airflow.traces.otel_tracer import gen_context as otel_gen_context
+    from .otel_tracer import gen_context as otel_gen_context
 
     return otel_gen_context(trace_id, span_id)
 
 
 def gen_links_from_kv_list(list):
     """Generate links from kv list of {trace_id:int, span_id:int}."""
-    from airflow.traces.otel_tracer import gen_links_from_kv_list
+    from .otel_tracer import gen_links_from_kv_list
 
     return gen_links_from_kv_list(list)
-
-
-def add_debug_span(func):
-    """Decorate a function with span."""
-    func_name = func.__name__
-    qual_name = func.__qualname__
-    module_name = func.__module__
-    component = qual_name.rsplit(".", 1)[0] if "." in qual_name else module_name
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        with DebugTrace.start_span(span_name=func_name, component=component):
-            return func(*args, **kwargs)
-
-    return wrapper
 
 
 class EmptyContext:
@@ -249,82 +230,3 @@ class EmptyTrace:
     def extract(cls, carrier) -> EmptyContext:
         """Extract the span context from a provided carrier."""
         return EMPTY_CTX
-
-
-class _TraceMeta(type):
-    factory: Callable[[], Tracer] | None = None
-    instance: Tracer | EmptyTrace | None = None
-
-    def __new__(cls, name, bases, attrs):
-        # Read the debug flag from the class body.
-        if "check_debug_traces_flag" not in attrs:
-            raise TypeError(f"Class '{name}' must define 'check_debug_traces_flag'.")
-
-        return super().__new__(cls, name, bases, attrs)
-
-    def __getattr__(cls, name: str):
-        if not cls.factory:
-            # Lazy initialization of the factory
-            cls.configure_factory()
-        if not cls.instance:
-            cls._initialize_instance()
-        return getattr(cls.instance, name)
-
-    def _initialize_instance(cls):
-        """Initialize the trace instance."""
-        try:
-            cls.instance = cls.factory()
-        except (socket.gaierror, ImportError) as e:
-            log.error("Could not configure Trace: %s. Using EmptyTrace instead.", e)
-            cls.instance = EmptyTrace()
-
-    def __call__(cls, *args, **kwargs):
-        """Ensure the class behaves as a singleton."""
-        if not cls.instance:
-            cls._initialize_instance()
-        return cls.instance
-
-    def configure_factory(cls):
-        """Configure the trace factory based on settings."""
-        otel_on = conf.getboolean("traces", "otel_on")
-
-        if cls.check_debug_traces_flag:
-            debug_traces_on = conf.getboolean("traces", "otel_debug_traces_on")
-        else:
-            # Set to true so that it will be ignored during the evaluation for the factory instance.
-            # If this is true, then (otel_on and debug_traces_on) will always evaluate to
-            # whatever value 'otel_on' has and therefore it will be ignored.
-            debug_traces_on = True
-
-        if otel_on and debug_traces_on:
-            from airflow.traces import otel_tracer
-
-            cls.factory = staticmethod(
-                lambda use_simple_processor=False: otel_tracer.get_otel_tracer(cls, use_simple_processor)
-            )
-        else:
-            # EmptyTrace is a class and not inherently callable.
-            # Using a lambda ensures it can be invoked as a callable factory.
-            # staticmethod ensures the lambda is treated as a standalone function
-            # and avoids passing `cls` as an implicit argument.
-            cls.factory = staticmethod(lambda: EmptyTrace())
-
-    def get_constant_tags(cls) -> str | None:
-        """Get constant tags to add to all traces."""
-        return conf.get("traces", "tags", fallback=None)
-
-
-if TYPE_CHECKING:
-    Trace: EmptyTrace
-    DebugTrace: EmptyTrace
-else:
-
-    class Trace(metaclass=_TraceMeta):
-        """Empty class for Trace - we use metaclass to inject the right one."""
-
-        check_debug_traces_flag = False
-
-    class DebugTrace(metaclass=_TraceMeta):
-        """Empty class for Trace and in case the debug traces flag is enabled."""
-
-        check_debug_traces_flag = True

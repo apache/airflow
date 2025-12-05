@@ -25,13 +25,13 @@ import pytest
 from opentelemetry.sdk import util
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-from airflow.configuration import conf
-from airflow.traces import otel_tracer
-from airflow.traces.otel_tracer import OtelTrace
-from airflow.traces.tracer import DebugTrace, EmptyTrace, Trace
-from airflow.utils.dates import datetime_to_nano
+from airflow._shared.observability.traces.base_tracer import EmptyTrace
+from airflow._shared.observability.traces.otel_tracer import OtelTrace
+from airflow._shared.observability.traces.utils import datetime_to_nano
+from airflow.observability.trace import DebugTrace, Trace
+from airflow.observability.traces import otel_tracer
 
-from tests_common.test_utils.config import env_vars
+from tests_common.test_utils.config import conf_vars, env_vars
 
 
 @pytest.fixture
@@ -40,11 +40,14 @@ def name():
 
 
 class TestOtelTrace:
+    @conf_vars(
+        {
+            ("traces", "otel_on"): "True",
+            ("traces", "otel_debugging_on"): "True",
+        }
+    )
     def test_get_otel_tracer_from_trace_metaclass(self):
         """Test that `Trace.some_method()`, uses an `OtelTrace` instance when otel is configured."""
-        conf.set("traces", "otel_on", "True")
-        conf.set("traces", "otel_debugging_on", "True")
-
         tracer = otel_tracer.get_otel_tracer(Trace)
         assert tracer.use_simple_processor is False
 
@@ -59,11 +62,14 @@ class TestOtelTrace:
         task_tracer.get_otel_tracer_provider()
         assert task_tracer.use_simple_processor is True
 
+    @conf_vars(
+        {
+            ("traces", "otel_on"): "True",
+            ("traces", "otel_debug_traces_on"): "False",
+        }
+    )
     def test_debug_trace_metaclass(self):
         """Test that `DebugTrace.some_method()`, uses the correct instance when the debug_traces flag is configured."""
-        conf.set("traces", "otel_on", "True")
-        conf.set("traces", "otel_debug_traces_on", "False")
-
         assert DebugTrace.check_debug_traces_flag is True
 
         # Factory hasn't been configured, it defaults to EmptyTrace.
@@ -76,7 +82,7 @@ class TestOtelTrace:
         assert isinstance(DebugTrace.factory(), EmptyTrace)
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_tracer(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
@@ -113,7 +119,7 @@ class TestOtelTrace:
             assert span2["resource"]["attributes"]["service.name"] == "abc"
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_dag_tracer(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
@@ -146,7 +152,7 @@ class TestOtelTrace:
             assert span1["context"]["span_id"] == span2["parent_id"]
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
-    @patch("airflow.traces.otel_tracer.conf")
+    @patch("airflow.observability.traces.otel_tracer.conf")
     def test_context_propagation(self, conf_a, exporter):
         # necessary to speed up the span to be emitted
         with env_vars({"OTEL_BSP_SCHEDULE_DELAY": "1"}):
