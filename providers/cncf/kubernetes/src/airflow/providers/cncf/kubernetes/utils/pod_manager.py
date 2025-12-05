@@ -501,7 +501,9 @@ class PodManager(LoggingMixin):
                                         log_formatter,
                                     )
                                 last_captured_timestamp = message_timestamp
-                                self.container_log_times[(pod.metadata.namespace, pod.metadata.name, container_name)] = last_captured_timestamp
+                                self.container_log_times[
+                                    (pod.metadata.namespace, pod.metadata.name, container_name)
+                                ] = last_captured_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
                                 progress_callback_lines = [line]
@@ -521,7 +523,9 @@ class PodManager(LoggingMixin):
                         )
                     last_captured_timestamp = message_timestamp
                     if last_captured_timestamp:
-                        self.container_log_times[(pod.metadata.namespace, pod.metadata.name, container_name)] = last_captured_timestamp
+                        self.container_log_times[
+                            (pod.metadata.namespace, pod.metadata.name, container_name)
+                        ] = last_captured_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
                 # duplicate log entries
