@@ -22,7 +22,6 @@ import multiprocessing as mp
 import click
 
 from airflow_breeze.global_constants import (
-    ALL_HISTORICAL_AIRFLOW_CORE_SUPPORTED_BRANCHES,
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
@@ -218,14 +217,6 @@ option_historical_python_versions = click.option(
     envvar="PYTHON_VERSIONS",
     help="Comma separate list of Python versions to update sbom from "
     "(defaults to all historical python versions)",
-)
-option_airflow_core_branch = click.option(
-    "--airflow-core-branch",
-    type=BetterChoice(ALL_HISTORICAL_AIRFLOW_CORE_SUPPORTED_BRANCHES),
-    required=False,
-    envvar="AIRFLOW_CORE_BRANCH",
-    help="Comma separate list of Airflow core versions to use in integration tests "
-    "(defaults to all historical Airflow core supported versions)",
 )
 option_include_removed_providers = click.option(
     "--include-removed-providers",

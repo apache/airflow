@@ -278,7 +278,6 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     if: inputs.default-branch == 'main'
     env:
-      AIRFLOW_CORE_BRANCH: "${{ matrix.airflow-core-branch }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -304,6 +303,5 @@ jobs:
           branch: ${{ matrix.airflow-core-branch }}
         id: breeze
       - name: "Run airflowctl integration tests"
-        run: breeze testing airflow-ctl-integration-tests --airflow-core-branch "${AIRFLOW_CORE_BRANCH}"
+        run: breeze testing airflow-ctl-integration-tests
     if: inputs.run-airflow-ctl-integration-tests == 'true'
-

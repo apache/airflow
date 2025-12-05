@@ -162,9 +162,6 @@ def docker_compose_up(tmp_path_factory):
         "AIRFLOW__API__EXPOSE_CONFIG=true\n"
     )
 
-    if not DOCKER_IMAGE:
-        console.print("[red]❌ DOCKER_IMAGE environment variable is not set. Cannot proceed with tests.[/]")
-        raise OSError("DOCKER_IMAGE environment variable is required for tests.")
     # Set environment variables for the test
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
     os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
