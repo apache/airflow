@@ -65,6 +65,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
+from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
@@ -81,7 +82,6 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
 )
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
