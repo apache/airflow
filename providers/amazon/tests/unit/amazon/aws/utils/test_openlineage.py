@@ -168,3 +168,227 @@ def test_get_identity_column_lineage_facet_no_input_datasets():
         ValueError, match="When providing `field_names` You must provide at least one `input_dataset`."
     ):
         get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+
+
+# --- Glue OpenLineage tests ---
+
+from datetime import datetime
+from unittest.mock import MagicMock
+
+from airflow.providers.amazon.aws.utils.openlineage import (
+    _format_glue_customer_env_vars,
+    _is_parent_job_info_present_in_glue_env_vars,
+    _parse_glue_customer_env_vars,
+    inject_parent_job_information_into_glue_script_args,
+)
+
+EXAMPLE_CONTEXT = {
+    "ti": MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        try_number=1,
+        map_index=-1,
+        logical_date=datetime(2024, 11, 11),
+        dag_run=MagicMock(logical_date=datetime(2024, 11, 11), clear_number=0),
+    )
+}
+
+
+class TestParseGlueCustomerEnvVars:
+    def test_empty_string(self):
+        assert _parse_glue_customer_env_vars("") == {}
+
+    def test_none(self):
+        assert _parse_glue_customer_env_vars(None) == {}
+
+    def test_simple_single(self):
+        result = _parse_glue_customer_env_vars("KEY1=VAL1")
+        assert result == {"KEY1": "VAL1"}
+
+    def test_simple_multiple(self):
+        result = _parse_glue_customer_env_vars("KEY1=VAL1,KEY2=VAL2")
+        assert result == {"KEY1": "VAL1", "KEY2": "VAL2"}
+
+    def test_quoted_value_with_comma(self):
+        result = _parse_glue_customer_env_vars('KEY1=VAL1,KEY2="val with, comma"')
+        assert result == {"KEY1": "VAL1", "KEY2": "val with, comma"}
+
+    def test_quoted_value_with_space(self):
+        result = _parse_glue_customer_env_vars('KEY1="value with spaces"')
+        assert result == {"KEY1": "value with spaces"}
+
+    def test_value_with_equals(self):
+        result = _parse_glue_customer_env_vars("KEY1=val=ue")
+        assert result == {"KEY1": "val=ue"}
+
+
+class TestFormatGlueCustomerEnvVars:
+    def test_empty(self):
+        result = _format_glue_customer_env_vars({})
+        assert result == ""
+
+    def test_simple_single(self):
+        result = _format_glue_customer_env_vars({"KEY1": "VAL1"})
+        assert result == "KEY1=VAL1"
+
+    def test_simple_multiple(self):
+        result = _format_glue_customer_env_vars({"KEY1": "VAL1", "KEY2": "VAL2"})
+        assert "KEY1=VAL1" in result
+        assert "KEY2=VAL2" in result
+
+    def test_value_with_comma_gets_quoted(self):
+        result = _format_glue_customer_env_vars({"KEY": "val,ue"})
+        assert result == 'KEY="val,ue"'
+
+    def test_value_with_space_gets_quoted(self):
+        result = _format_glue_customer_env_vars({"KEY": "val ue"})
+        assert result == 'KEY="val ue"'
+
+    def test_roundtrip(self):
+        original = {"KEY1": "simple", "KEY2": "has, comma", "KEY3": "has space"}
+        formatted = _format_glue_customer_env_vars(original)
+        parsed = _parse_glue_customer_env_vars(formatted)
+        assert parsed == original
+
+
+class TestIsParentJobInfoPresentInGlueEnvVars:
+    def test_empty_returns_false(self):
+        assert _is_parent_job_info_present_in_glue_env_vars({}) is False
+
+    def test_unrelated_vars_return_false(self):
+        script_args = {"--customer-driver-env-vars": "MY_VAR=value"}
+        assert _is_parent_job_info_present_in_glue_env_vars(script_args) is False
+
+    def test_parent_var_returns_true(self):
+        script_args = {"--customer-driver-env-vars": "OPENLINEAGE_PARENT_JOB_NAME=test"}
+        assert _is_parent_job_info_present_in_glue_env_vars(script_args) is True
+
+    def test_root_parent_var_returns_true(self):
+        script_args = {"--customer-driver-env-vars": "OPENLINEAGE_ROOT_PARENT_RUN_ID=123"}
+        assert _is_parent_job_info_present_in_glue_env_vars(script_args) is True
+
+    def test_executor_env_vars_also_checked(self):
+        script_args = {"--customer-executor-env-vars": "OPENLINEAGE_PARENT_RUN_ID=123"}
+        assert _is_parent_job_info_present_in_glue_env_vars(script_args) is True
+
+    def test_no_script_args_key(self):
+        script_args = {"--other-arg": "value"}
+        assert _is_parent_job_info_present_in_glue_env_vars(script_args) is False
+
+
+class TestInjectParentJobInformationIntoGlueScriptArgs:
+    @mock.patch(
+        "airflow.providers.amazon.aws.utils.openlineage.get_parent_job_information",
+        return_value=None,
+    )
+    def test_skips_when_openlineage_not_available(self, mock_get_parent_info):
+        result = inject_parent_job_information_into_glue_script_args({}, EXAMPLE_CONTEXT)
+        assert result == {}
+
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_parent_job_information")
+    def test_injects_into_empty_script_args(self, mock_get_parent_info):
+        from airflow.providers.openlineage.utils.spark import ParentJobInformation
+
+        mock_get_parent_info.return_value = ParentJobInformation(
+            parent_job_namespace="default",
+            parent_job_name="dag_id.task_id",
+            parent_run_id="uuid-123",
+            root_parent_job_namespace="default",
+            root_parent_job_name="dag_id",
+            root_parent_run_id="uuid-456",
+        )
+
+        result = inject_parent_job_information_into_glue_script_args({}, EXAMPLE_CONTEXT)
+
+        assert "--customer-driver-env-vars" in result
+        env_vars = _parse_glue_customer_env_vars(result["--customer-driver-env-vars"])
+        assert env_vars["OPENLINEAGE_PARENT_JOB_NAMESPACE"] == "default"
+        assert env_vars["OPENLINEAGE_PARENT_JOB_NAME"] == "dag_id.task_id"
+        assert env_vars["OPENLINEAGE_PARENT_RUN_ID"] == "uuid-123"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE"] == "default"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_JOB_NAME"] == "dag_id"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_RUN_ID"] == "uuid-456"
+
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_parent_job_information")
+    def test_merges_with_existing_env_vars(self, mock_get_parent_info):
+        from airflow.providers.openlineage.utils.spark import ParentJobInformation
+
+        mock_get_parent_info.return_value = ParentJobInformation(
+            parent_job_namespace="default",
+            parent_job_name="dag.task",
+            parent_run_id="uuid-123",
+            root_parent_job_namespace="default",
+            root_parent_job_name="dag",
+            root_parent_run_id="uuid-456",
+        )
+
+        existing = {"--customer-driver-env-vars": "EXISTING_VAR=value"}
+        result = inject_parent_job_information_into_glue_script_args(existing, EXAMPLE_CONTEXT)
+
+        env_vars = _parse_glue_customer_env_vars(result["--customer-driver-env-vars"])
+        assert "EXISTING_VAR" in env_vars
+        assert env_vars["EXISTING_VAR"] == "value"
+        assert "OPENLINEAGE_PARENT_JOB_NAME" in env_vars
+
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_parent_job_information")
+    def test_preserves_other_script_args(self, mock_get_parent_info):
+        from airflow.providers.openlineage.utils.spark import ParentJobInformation
+
+        mock_get_parent_info.return_value = ParentJobInformation(
+            parent_job_namespace="default",
+            parent_job_name="dag.task",
+            parent_run_id="uuid-123",
+            root_parent_job_namespace="default",
+            root_parent_job_name="dag",
+            root_parent_run_id="uuid-456",
+        )
+
+        existing = {"--input": "s3://bucket/input", "--output": "s3://bucket/output"}
+        result = inject_parent_job_information_into_glue_script_args(existing, EXAMPLE_CONTEXT)
+
+        assert result["--input"] == "s3://bucket/input"
+        assert result["--output"] == "s3://bucket/output"
+        assert "--customer-driver-env-vars" in result
+
+    @mock.patch("airflow.providers.amazon.aws.utils.openlineage.get_parent_job_information")
+    def test_preserves_existing_customer_driver_env_vars(self, mock_get_parent_info):
+        """Key test: verify that existing user-defined env vars are preserved when injecting OL vars."""
+        from airflow.providers.openlineage.utils.spark import ParentJobInformation
+
+        mock_get_parent_info.return_value = ParentJobInformation(
+            parent_job_namespace="default",
+            parent_job_name="dag.task",
+            parent_run_id="uuid-123",
+            root_parent_job_namespace="default",
+            root_parent_job_name="dag",
+            root_parent_run_id="uuid-456",
+        )
+
+        # User has set multiple custom env vars including ones with special characters
+        existing = {
+            "--customer-driver-env-vars": 'MY_VAR=value1,ANOTHER_VAR=value2,COMPLEX_VAR="value with, comma"',
+            "--other-arg": "other_value",
+        }
+        result = inject_parent_job_information_into_glue_script_args(existing, EXAMPLE_CONTEXT)
+
+        # Parse the resulting env vars
+        env_vars = _parse_glue_customer_env_vars(result["--customer-driver-env-vars"])
+
+        # Verify ALL original user env vars are preserved
+        assert env_vars["MY_VAR"] == "value1"
+        assert env_vars["ANOTHER_VAR"] == "value2"
+        assert env_vars["COMPLEX_VAR"] == "value with, comma"
+
+        # Verify OpenLineage env vars were added
+        assert env_vars["OPENLINEAGE_PARENT_JOB_NAMESPACE"] == "default"
+        assert env_vars["OPENLINEAGE_PARENT_JOB_NAME"] == "dag.task"
+        assert env_vars["OPENLINEAGE_PARENT_RUN_ID"] == "uuid-123"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_JOB_NAMESPACE"] == "default"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_JOB_NAME"] == "dag"
+        assert env_vars["OPENLINEAGE_ROOT_PARENT_RUN_ID"] == "uuid-456"
+
+        # Verify other script args are unchanged
+        assert result["--other-arg"] == "other_value"
+
+        # Total count: 3 user vars + 6 OL vars = 9 vars
+        assert len(env_vars) == 9

@@ -24,12 +24,14 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.utils.spark import (
+        get_parent_job_information,
         inject_parent_job_information_into_spark_properties,
         inject_transport_information_into_spark_properties,
     )
     from airflow.sdk import Context
 try:
     from airflow.providers.openlineage.utils.spark import (
+        get_parent_job_information,
         inject_parent_job_information_into_spark_properties,
         inject_transport_information_into_spark_properties,
     )
@@ -49,8 +51,12 @@ except ImportError:
         )
         return properties
 
+    def get_parent_job_information(context: Context) -> None:
+        return None
+
 
 __all__ = [
     "inject_parent_job_information_into_spark_properties",
     "inject_transport_information_into_spark_properties",
+    "get_parent_job_information",
 ]
