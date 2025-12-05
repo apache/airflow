@@ -1313,6 +1313,7 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
+        print(task_outlets, outlet_events)
         from airflow.serialization.definitions.assets import (
             SerializedAsset,
             SerializedAssetNameRef,
@@ -1456,7 +1457,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_public(asset))
+                    session.add(AssetModel.from_serialized(asset))
                     session.flush()  # So event can set up its asset fk.
                     asset_manager.register_asset_change(
                         task_instance=ti,

@@ -8170,6 +8170,7 @@ def test_mark_backfills_completed(dag_maker, session):
     assert b.completed_at.timestamp() > 0
 
 
+@pytest.mark.need_serialized_dag
 def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
     dag_maker,
     session,
@@ -8182,6 +8183,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert dr.partition_key == "abc123"
     [ti] = dr.get_task_instances(session=session)
     session.commit()
+    serialized_outlets = dag.get_task("hi").outlets
 
     with dag_maker(
         dag_id="asset_event_listener",
@@ -8193,7 +8195,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[asset.asprofile()],
+        task_outlets=[o.asprofile() for o in serialized_outlets],
         outlet_events=[],
         session=session,
     )

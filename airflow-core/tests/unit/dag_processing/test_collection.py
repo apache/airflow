@@ -55,6 +55,8 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
@@ -277,11 +279,13 @@ class TestAssetModelOperationSyncAssetActive:
         assert orm_assets["myasset", "file://myasset/"].active is not None
 
     def test_add_asset_activate_already_exists(self, dag_maker, session):
-        asset = Asset("myasset", "file://myasset/", group="old_group")
+        asset = Asset(name="myasset", uri="file://myasset/", group="old_group")
 
-        session.add(AssetModel.from_public(asset))
-        session.flush()
-        session.add(AssetActive.for_asset(asset))
+        # Set up existing parsing result.
+        serialized_asset = ensure_serialized_asset(asset)
+        orm_asset = AssetModel.from_serialized(serialized_asset)
+        session.add(orm_asset)
+        session.add(AssetActive.for_asset(serialized_asset))
         session.flush()
 
         with dag_maker(schedule=[asset]) as dag:
@@ -290,7 +294,7 @@ class TestAssetModelOperationSyncAssetActive:
         asset_op = AssetModelOperation.collect({dag.dag_id: LazyDeserializedDAG.from_dag(dag)})
         orm_assets = asset_op.sync_assets(session=session)
         session.flush()
-        assert len(orm_assets) == 1
+        assert orm_assets == {("myasset", "file://myasset/"): orm_asset}
 
         asset_op.activate_assets_if_possible(orm_assets.values(), session=session)
         session.flush()
@@ -299,12 +303,12 @@ class TestAssetModelOperationSyncAssetActive:
     @pytest.mark.parametrize(
         "existing_assets",
         [
-            pytest.param([Asset("myasset", uri="file://different/asset")], id="name"),
-            pytest.param([Asset("another", uri="file://myasset/")], id="uri"),
+            pytest.param([SerializedAsset("myasset", "file://different/asset", "", {}, [])], id="name"),
+            pytest.param([SerializedAsset("another", "file://myasset/", "", {}, [])], id="uri"),
         ],
     )
     def test_add_asset_activate_conflict(self, dag_maker, session, existing_assets):
-        session.add_all(AssetModel.from_public(a) for a in existing_assets)
+        session.add_all(AssetModel.from_serialized(a) for a in existing_assets)
         session.flush()
         session.add_all(AssetActive.for_asset(a) for a in existing_assets)
         session.flush()
