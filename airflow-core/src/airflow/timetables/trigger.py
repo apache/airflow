@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import datetime
 import functools
+import json
 import math
 import operator
 import time
 from typing import TYPE_CHECKING, Any
+
+import structlog
 
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
@@ -35,11 +38,18 @@ if TYPE_CHECKING:
 
     from airflow.timetables.base import TimeRestriction
 
+log = structlog.get_logger()
+
 
 class _TriggerTimetable(Timetable):
     _interval: datetime.timedelta | relativedelta
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def __init__(self, *args, partitions: bool | None = None, **kwargs):
+        self.partitions: bool | None = partitions
+
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
+        if self.partitions:
+            return None
         return DataInterval(
             coerce_datetime(run_after - self._interval),
             run_after,
@@ -180,8 +190,9 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
+        partitions: bool = False,
     ) -> None:
-        super().__init__(cron, timezone)
+        super().__init__(cron, timezone, partitions=partitions)
         self._interval = interval
         self._run_immediately = run_immediately
 
@@ -189,22 +200,29 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.decoders import decode_interval, decode_run_immediately
 
-        return cls(
-            data["expression"],
-            timezone=parse_timezone(data["timezone"]),
-            interval=decode_interval(data["interval"]),
-            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
-        )
+        try:
+            return cls(
+                data["expression"],
+                timezone=parse_timezone(data["timezone"]),
+                interval=decode_interval(data["interval"]),
+                run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+                partitions=data["partitions"],  # todo: AIP-76 not this
+            )
+        except Exception as e:
+            raise Exception(json.dumps(data, indent=2)) from e
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
-        return {
+        payload = {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
             "interval": encode_interval(self._interval),
             "run_immediately": encode_run_immediately(self._run_immediately),
+            "partitions": self.partitions,
         }
+        log.info("serializing timetable", payload=payload)
+        return payload
 
     def _calc_first_run(self) -> DateTime:
         """
@@ -284,11 +302,18 @@ class MultipleCronTriggerTimetable(Timetable):
     def summary(self) -> str:
         return ", ".join(t.summary for t in self._timetables)
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        return min(
-            (t.infer_manual_data_interval(run_after=run_after) for t in self._timetables),
-            key=operator.attrgetter("start"),
-        )
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
+        try:
+            return min(
+                (
+                    t.infer_manual_data_interval(run_after=run_after)
+                    for t in self._timetables
+                    if t is not None
+                ),
+                key=operator.attrgetter("start"),
+            )
+        except ValueError:
+            return None
 
     def next_dagrun_info(
         self,
@@ -321,7 +346,7 @@ class MultipleCronTriggerTimetable(Timetable):
         Unix timestamp. If the input is *None* (no next run), *inf* is returned
         so it's selected last.
         """
-        if info is None:
+        if info is None or info.logical_date is None:
             return math.inf
         return info.logical_date.timestamp()
 
@@ -338,7 +363,7 @@ class MultipleCronTriggerTimetable(Timetable):
         order values by ``-logical_date`` if they are earlier than or at current
         time, but ``+logical_date`` if later.
         """
-        if info is None:
+        if info is None or info.logical_date is None:
             return math.inf
         if (ts := info.logical_date.timestamp()) <= now:
             return -ts

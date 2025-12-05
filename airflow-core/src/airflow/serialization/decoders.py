@@ -22,6 +22,7 @@ import datetime
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
+import structlog
 
 from airflow.sdk import (  # TODO: Implement serialized assets.
     Asset,
@@ -116,6 +117,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
             raise ValueError(f"deserialization not implemented for DAT {data_type!r}")
 
 
+log = structlog.get_logger()
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
     """
     Decode a previously serialized timetable.
@@ -129,4 +131,5 @@ def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
         timetable_type: type[CoreTimetable] = import_string(importable_string)
     else:
         timetable_type = find_registered_custom_timetable(importable_string)
+    log.info("deserializing timetable", path=importable_string)
     return timetable_type.deserialize(var[Encoding.VAR])
