@@ -138,7 +138,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           control={control}
           name="dataIntervalStart"
           render={({ field }) => (
-            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} orientation="horizontal">
+            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} mt={6} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
                   {translate("dagRun.dataIntervalStart")}
@@ -155,7 +155,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           control={control}
           name="dataIntervalEnd"
           render={({ field }) => (
-            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} orientation="horizontal">
+            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} mt={6} orientation="horizontal">
               <Stack>
                 <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
                   {translate("dagRun.dataIntervalEnd")}
