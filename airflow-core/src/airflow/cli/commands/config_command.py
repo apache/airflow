@@ -48,6 +48,7 @@ def show_config(args):
             include_providers=not args.exclude_providers,
             comment_out_everything=args.comment_out_everything or args.defaults,
             only_defaults=args.defaults,
+            hide_sensitive_values=args.hide_sensitive,
         )
         code = output.getvalue()
     if should_use_colors(args):
