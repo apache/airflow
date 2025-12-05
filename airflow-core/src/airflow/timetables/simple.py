@@ -26,7 +26,7 @@ from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.serialization.definitions.assets import SerializedAssetBase
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -171,7 +171,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by assets"
 
-    def __init__(self, assets: BaseAsset) -> None:
+    def __init__(self, assets: SerializedAssetBase) -> None:
         super().__init__()
         self.asset_condition = assets
 
@@ -260,7 +260,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, *, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
+    def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
         self.asset_condition = assets
         self.partition_mapper = partition_mapper

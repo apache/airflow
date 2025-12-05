@@ -43,6 +43,14 @@ from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+    SerializedAssetRef,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
 from airflow.timetables.base import Timetable as CoreTimetable
@@ -131,7 +139,7 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     }
 
 
-def encode_asset_condition(a: BaseAsset) -> dict[str, Any]:
+def encode_asset_condition(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     """
     Encode an asset condition.
 
@@ -139,18 +147,18 @@ def encode_asset_condition(a: BaseAsset) -> dict[str, Any]:
     """
     d: dict[str, Any]
     match a:
-        case Asset():
+        case Asset() | SerializedAsset():
             d = {"__type": DAT.ASSET, "name": a.name, "uri": a.uri, "group": a.group, "extra": a.extra}
             if a.watchers:
                 d["watchers"] = [{"name": w.name, "trigger": encode_trigger(w.trigger)} for w in a.watchers]
             return d
-        case AssetAlias():
+        case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
-        case AssetAll():
+        case AssetAll() | SerializedAssetAll():
             return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_condition(x) for x in a.objects]}
-        case AssetAny():
+        case AssetAny() | SerializedAssetAny():
             return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_condition(x) for x in a.objects]}
-        case AssetRef():
+        case AssetRef() | SerializedAssetRef():
             return {"__type": DAT.ASSET_REF, **attrs.asdict(a)}
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
 
@@ -306,3 +314,29 @@ def coerce_to_core_timetable(obj: object) -> object:
     from airflow.serialization.decoders import decode_timetable
 
     return decode_timetable(encode_timetable(obj))
+
+
+@overload
+def ensure_serialized_asset(obj: Asset | SerializedAsset) -> SerializedAsset: ...
+
+
+@overload
+def ensure_serialized_asset(obj: AssetAlias | SerializedAssetAlias) -> SerializedAssetAlias: ...
+
+
+@overload
+def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedAssetBase: ...
+
+
+def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedAssetBase:
+    """
+    Convert *obj* from an SDK asset to a Core asset instance if needed.
+
+    :meta private:
+    """
+    if isinstance(obj, SerializedAssetBase):
+        return obj
+
+    from airflow.serialization.decoders import decode_asset_condition
+
+    return decode_asset_condition(encode_asset_condition(obj))

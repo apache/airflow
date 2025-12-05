@@ -77,7 +77,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.observability.stats import Stats
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetAny, BaseOperator, XComArg
+from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
@@ -95,19 +95,17 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.decoders import (
-    decode_asset,
-    decode_asset_condition,
-    decode_relativedelta,
-    decode_timetable,
-)
+from airflow.serialization.decoders import decode_asset_condition, decode_relativedelta, decode_timetable
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.encoders import (
+    coerce_to_core_timetable,
     encode_asset_condition,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
+    ensure_serialized_asset,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import TimetableNotRegistered, serialize_template_field
@@ -805,16 +803,8 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
-        elif type_ == DAT.ASSET:
-            return decode_asset(var)
-        elif type_ == DAT.ASSET_ALIAS:
-            return AssetAlias(**var)
-        elif type_ == DAT.ASSET_ANY:
-            return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
-        elif type_ == DAT.ASSET_ALL:
-            return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
-        elif type_ == DAT.ASSET_REF:
-            return Asset.ref(**var)
+        elif type_ in (DAT.ASSET, DAT.ASSET_ALIAS, DAT.ASSET_ALL, DAT.ASSET_ANY, DAT.ASSET_REF):
+            return decode_asset_condition(encoded_var)
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif type_ == DAT.TASK_CALLBACK_REQUEST:
@@ -1040,17 +1030,19 @@ class DependencyDetector:
 
         for obj in task.outlets or []:
             if isinstance(obj, Asset):
+                serialized_asset = ensure_serialized_asset(obj)
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
                         target="asset",
                         label=obj.name,
                         dependency_type="asset",
-                        dependency_id=AssetUniqueKey.from_asset(obj).to_str(),
+                        dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                deps.extend(obj.iter_dag_dependencies(source=task.dag_id, target=""))
+                serialized_alias = ensure_serialized_asset(obj)
+                deps.extend(serialized_alias.iter_dag_dependencies(source=task.dag_id, target=""))
 
         return deps
 
@@ -1059,7 +1051,8 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
+        tt = coerce_to_core_timetable(dag.timetable)
+        yield from tt.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 # TODO (GH-52141): Duplicate DAGNode in the scheduler.
