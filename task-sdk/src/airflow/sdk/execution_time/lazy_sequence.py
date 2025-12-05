@@ -26,9 +26,9 @@ from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
 import structlog
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 from airflow.configuration import conf
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -55,7 +55,7 @@ class LazyXComIterator(LoggingMixin, Iterator[T]):
     _buffer: deque[T] = attrs.field(factory=_deque_factory, init=False)
 
     @property
-    def prefetch_size(self) -> int:
+    def prefetch_size(self) -> int | None:
         return self._buffer.maxlen
 
     def __next__(self) -> T:
@@ -73,9 +73,7 @@ class LazyXComIterator(LoggingMixin, Iterator[T]):
 
         val = self._buffer.popleft()
         self.index += self.dir
-        self.log.debug(
-            "Popped buffered XCom for index %s: %s", self.index, val
-        )
+        self.log.debug("Popped buffered XCom for index %s: %s", self.index, val)
         return val
 
     def __iter__(self) -> Iterator[T]:
