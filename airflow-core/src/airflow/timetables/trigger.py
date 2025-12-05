@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import datetime
 import functools
+import json
 import math
 import operator
 import time
 from typing import TYPE_CHECKING, Any
+
+import structlog
 
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
@@ -34,6 +37,8 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.timetables.base import TimeRestriction
+
+log = structlog.get_logger()
 
 
 class _TriggerTimetable(Timetable):
@@ -195,24 +200,29 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.decoders import decode_interval, decode_run_immediately
 
-        return cls(
-            data["expression"],
-            timezone=parse_timezone(data["timezone"]),
-            interval=decode_interval(data["interval"]),
-            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
-            partitions=data["partitions"],  # todo: AIP-76 not this
-        )
+        try:
+            return cls(
+                data["expression"],
+                timezone=parse_timezone(data["timezone"]),
+                interval=decode_interval(data["interval"]),
+                run_immediately=decode_run_immediately(data.get("run_immediately", False)),
+                partitions=data["partitions"],  # todo: AIP-76 not this
+            )
+        except Exception as e:
+            raise Exception(json.dumps(data, indent=2)) from e
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
-        return {
+        payload = {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
             "interval": encode_interval(self._interval),
             "run_immediately": encode_run_immediately(self._run_immediately),
             "partitions": self.partitions,
         }
+        log.info("serializing timetable", payload=payload)
+        return payload
 
     def _calc_first_run(self) -> DateTime:
         """
