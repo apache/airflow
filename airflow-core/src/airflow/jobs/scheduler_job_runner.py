@@ -1797,7 +1797,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set serdag.next_dagrun_info if the Dag Run already exists or if we
+            # we need to set DagModel.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
