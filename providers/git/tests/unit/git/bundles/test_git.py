@@ -33,8 +33,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -717,20 +715,29 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        ("conn_id", "expected_hook_type"),
-        [("my_test_git", GitHook), ("something-else", type(None))],
+        ("conn_id", "expected_hook_type", "exception_expected"),
+        [
+            ("my_test_git", GitHook, False),
+            ("something-else", None, True),
+        ],
     )
-    def test_repo_url_access_missing_connection_doesnt_error(
-        self, conn_id, expected_hook_type, mock_supervisor_comms
+    def test_repo_url_access_missing_connection_raises_exception(
+        self, conn_id, expected_hook_type, exception_expected
     ):
-        if expected_hook_type is type(None):
-            mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
-        bundle = GitDagBundle(
-            name="testa",
-            tracking_ref="main",
-            git_conn_id=conn_id,
-        )
-        assert isinstance(bundle.hook, expected_hook_type)
+        if exception_expected:
+            with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
+                GitDagBundle(
+                    name="testa",
+                    tracking_ref="main",
+                    git_conn_id=conn_id,
+                )
+        else:
+            bundle = GitDagBundle(
+                name="testa",
+                tracking_ref="main",
+                git_conn_id=conn_id,
+            )
+            assert isinstance(bundle.hook, expected_hook_type)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
