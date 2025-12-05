@@ -998,24 +998,24 @@ class AsyncKubernetesHook(KubernetesHook):
         :param timeout_seconds: Timeout in seconds for the watch stream
         """
         if self._event_polling_fallback:
-            async for event in self.watch_pod_events_polling_fallback(
+            async for event_polled in self.watch_pod_events_polling_fallback(
                 name, namespace, resource_version, timeout_seconds
             ):
-                yield event
+                yield event_polled
 
         try:
             w = async_watch.Watch()
             async with self.get_conn() as connection:
                 v1_api = async_client.CoreV1Api(connection)
 
-                async for watched_event in w.stream(
+                async for event_watched in w.stream(
                     v1_api.list_namespaced_event,
                     namespace=namespace,
                     field_selector=f"involvedObject.name={name}",
                     resource_version=resource_version,
                     timeout_seconds=timeout_seconds,
                 ):
-                    event: CoreV1Event = watched_event.get("object")
+                    event: CoreV1Event = event_watched.get("object")
                     yield event
 
         except async_client.exceptions.ApiException as e:
@@ -1025,10 +1025,10 @@ class AsyncKubernetesHook(KubernetesHook):
                     str(e),
                 )
                 self._event_polling_fallback = True
-                async for event in self.watch_pod_events_polling_fallback(
+                async for event_polled in self.watch_pod_events_polling_fallback(
                     name, namespace, resource_version, timeout_seconds
                 ):
-                    yield event
+                    yield event_polled
 
         finally:
             w.stop()
