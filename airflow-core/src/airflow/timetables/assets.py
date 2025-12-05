@@ -65,10 +65,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_asset_condition, decode_timetable
+        from airflow.serialization.decoders import decode_asset_like, decode_timetable
 
         return cls(
-            assets=decode_asset_condition(data["asset_condition"]),
+            assets=decode_asset_like(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
         )
 
@@ -79,10 +79,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
             raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 
     def serialize(self) -> dict[str, typing.Any]:
-        from airflow.serialization.encoders import encode_asset_condition, encode_timetable
+        from airflow.serialization.encoders import encode_asset_like, encode_timetable
 
         return {
-            "asset_condition": encode_asset_condition(self.asset_condition),
+            "asset_condition": encode_asset_like(self.asset_condition),
             "timetable": encode_timetable(self.timetable),
         }
 
