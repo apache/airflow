@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+export SQLALCHEMY_ENGINE_DEBUG="true"
+
 function set_verbose() {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
