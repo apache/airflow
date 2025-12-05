@@ -200,10 +200,7 @@ def prepare_virtualenv(
 
     if _use_uv():
         venv_cmd = _generate_uv_cmd(venv_directory, python_bin, system_site_packages)
-        if system_site_packages:
-            _execute_in_subprocess(venv_cmd, env=os.environ.copy())
-        else:
-            _execute_in_subprocess(venv_cmd)
+        _execute_in_subprocess(venv_cmd, env={**os.environ, **_index_urls_to_uv_env_vars(index_urls)})
     else:
         venv_cmd = _generate_venv_cmd(venv_directory, python_bin, system_site_packages)
         _execute_in_subprocess(venv_cmd)
