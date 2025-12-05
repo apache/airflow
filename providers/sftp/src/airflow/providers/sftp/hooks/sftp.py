@@ -816,7 +816,7 @@ class SFTPHookAsync(BaseHook):
     async def list_directory(self, path: str) -> list[str] | None:
         """Return a list of files on the SFTP server at the provided path."""
         files = await self.read_directory(path)
-        return [file.filename for file in files] if files else files
+        return [str(file.filename) for file in files] if files else []
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
@@ -854,7 +854,7 @@ class SFTPHookAsync(BaseHook):
                     else:
                         async with aiofiles.open(local_full_path, "wb") as file:
                             data = await remote_file.read()
-                            await file.write(data)
+                            await file.write(data.encode(encoding))
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
