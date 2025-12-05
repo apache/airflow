@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
@@ -28,9 +29,13 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.common.compat.openlineage.utils.spark import get_parent_job_information
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+    from airflow.utils.context import Context
+
+log = logging.getLogger(__name__)
 
 
 def get_facets_from_redshift_table(
@@ -136,3 +141,72 @@ def get_identity_column_lineage_facet(
         }
     )
     return column_lineage_facet
+
+
+def inject_parent_job_information_into_glue_script_args(
+    script_args: dict[str, Any], context: Context
+) -> dict[str, Any]:
+    """
+    Inject OpenLineage parent job info into Glue script_args via --conf.
+
+    The parent job information is injected as Spark configuration properties via
+    the ``--conf`` argument. This uses the same ``spark.openlineage.*`` properties
+    that the OpenLineage Spark integration recognizes.
+
+    Note: We use ``--conf`` instead of ``--customer-driver-env-vars`` because AWS Glue
+    requires all environment variable keys to have a ``CUSTOMER_`` prefix, which would
+    not be recognized by the OpenLineage Spark integration.
+
+    AWS Glue ``--conf`` format requires multiple properties to be formatted as::
+
+        spark.prop1=val1 --conf spark.prop2=val2 --conf spark.prop3=val3
+
+    See: https://docs.aws.amazon.com/glue/latest/dg/aws-glue-programming-etl-glue-arguments.html
+
+    Behavior:
+        - If OpenLineage provider is not available, returns script_args unchanged
+        - If user already set any ``spark.openlineage.parent*`` properties in ``--conf``,
+          skips injection to preserve user-provided values
+        - Appends to existing ``--conf`` if present (with ``--conf`` prefix)
+        - Returns new dict (does not mutate original)
+
+    Args:
+        script_args: The Glue job's script_args dict.
+        context: Airflow task context.
+
+    Returns:
+        Modified script_args with OpenLineage Spark properties injected in ``--conf``.
+    """
+    info = get_parent_job_information(context)
+    if info is None:
+        return script_args
+
+    existing_conf = script_args.get("--conf", "")
+
+    # Skip if user already configured OpenLineage parent properties
+    if "spark.openlineage.parent" in existing_conf:
+        log.debug(
+            "OpenLineage parent job properties already present in --conf. "
+            "Skipping injection to preserve user-provided values."
+        )
+        return script_args
+
+    ol_spark_properties = [
+        f"spark.openlineage.parentJobNamespace={info.parent_job_namespace}",
+        f"spark.openlineage.parentJobName={info.parent_job_name}",
+        f"spark.openlineage.parentRunId={info.parent_run_id}",
+        f"spark.openlineage.rootParentJobNamespace={info.root_parent_job_namespace}",
+        f"spark.openlineage.rootParentJobName={info.root_parent_job_name}",
+        f"spark.openlineage.rootParentRunId={info.root_parent_run_id}",
+    ]
+
+    # AWS Glue --conf format: "prop1=val1 --conf prop2=val2 --conf prop3=val3"
+    # First property has no --conf prefix, subsequent ones do
+    new_conf = " --conf ".join(ol_spark_properties)
+    if existing_conf:
+        new_conf = f"{existing_conf} --conf {new_conf}"
+
+    new_script_args = {**script_args}
+    new_script_args["--conf"] = new_conf
+
+    return new_script_args
