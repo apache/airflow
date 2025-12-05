@@ -49,6 +49,7 @@ __all__ = [
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
+    "Trace",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -68,6 +69,8 @@ __all__ = [
 ]
 
 __version__ = "1.2.0"
+
+from airflow.sdk.observability.trace import Trace
 
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
@@ -134,6 +137,7 @@ __lazy_imports: dict[str, str] = {
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
+    "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
