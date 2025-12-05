@@ -1714,8 +1714,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
-        non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
-        non_asset_dags = set(d for d in non_asset_dags if d.dag_id not in partition_dag_ids)
+        non_asset_dags = {
+            d
+            # filter asset-triggered Dags
+            for d in all_dags_needing_dag_runs.difference(asset_triggered_dags)
+            # filter asset partition triggered Dags
+            if d.dag_id not in partition_dag_ids
+        }
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
