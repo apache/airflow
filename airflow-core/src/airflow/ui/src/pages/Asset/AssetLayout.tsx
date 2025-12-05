@@ -18,7 +18,7 @@
  */
 import { HStack, Box, Text, Code } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
@@ -30,8 +30,10 @@ import { BreadcrumbStats } from "src/components/BreadcrumbStats";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ProgressBar } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { AssetGraph } from "./AssetGraph";
+import { AssetPanelButtons } from "./AssetPanelButtons";
 import { CreateAssetEvent } from "./CreateAssetEvent";
 import { Header } from "./Header";
 
@@ -39,6 +41,8 @@ export const AssetLayout = () => {
   const { i18n, t: translate } = useTranslation(["assets", "common"]);
   const { assetId } = useParams();
   const direction = i18n.dir();
+  const [showDagLevelDependencies, setShowDagLevelDependencies] = useState(true);
+  const [showTaskLevelDependencies, setShowTaskLevelDependencies] = useState(false);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -111,7 +115,19 @@ export const AssetLayout = () => {
         >
           <Panel defaultSize={70} minSize={6}>
             <Box height="100%" position="relative" pr={2}>
-              <AssetGraph asset={asset} />
+              <AssetPanelButtons
+                setShowDagLevelDependencies={setShowDagLevelDependencies}
+                setShowTaskLevelDependencies={setShowTaskLevelDependencies}
+                showDagLevelDependencies={showDagLevelDependencies}
+                showTaskLevelDependencies={showTaskLevelDependencies}
+              />
+              <OpenGroupsProvider dagId="~">
+                <AssetGraph
+                  asset={asset}
+                  showDagLevelDependencies={showDagLevelDependencies}
+                  showTaskLevelDependencies={showTaskLevelDependencies}
+                />
+              </OpenGroupsProvider>
             </Box>
           </Panel>
           <PanelResizeHandle
