@@ -28,24 +28,22 @@ from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
-from airflow.configuration import conf
-from airflow.metrics.protocols import Timer
-from airflow.metrics.validators import (
+from .protocols import Timer
+from .validators import (
     OTEL_NAME_MAX_LENGTH,
     ListValidator,
     PatternAllowListValidator,
     get_validator,
     stat_name_otel_handler,
 )
-from airflow.utils.net import get_hostname
 
 if TYPE_CHECKING:
     from opentelemetry.metrics import Instrument
     from opentelemetry.util.types import Attributes
 
-    from airflow.metrics.protocols import DeltaType
+    from .protocols import DeltaType
 
 log = logging.getLogger(__name__)
 
@@ -172,12 +170,16 @@ class SafeOtelLogger:
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
         metrics_validator: ListValidator = PatternAllowListValidator(),
+        stat_name_handler: Callable[[str], str] | None = None,
+        statsd_influxdb_enabled: bool = False,
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
         self.metrics_validator = metrics_validator
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
+        self.stat_name_handler = stat_name_handler
+        self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
     def incr(
         self,
@@ -371,17 +373,22 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
-def get_otel_logger(cls) -> SafeOtelLogger:
-    host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
-    port = conf.getint("metrics", "otel_port")  # ex: 4318
-    prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
-    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
-    # PeriodicExportingMetricReader will default to an interval of 60000 millis.
-    conf_interval = conf.getfloat("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
-    debug = conf.getboolean("metrics", "otel_debugging_on")
-    service_name = conf.get("metrics", "otel_service")
-
-    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
+def get_otel_logger(
+    cls,
+    *,
+    host: str | None = None,
+    port: int | None = None,
+    prefix: str | None = None,
+    ssl_active: bool = False,
+    conf_interval: float | None = None,
+    debug: bool = False,
+    service_name: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
+) -> SafeOtelLogger:
+    resource = Resource.create(attributes={SERVICE_NAME: service_name})
     protocol = "https" if ssl_active else "http"
     # Allow transparent support for standard OpenTelemetry SDK environment variables.
     # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
@@ -410,4 +417,8 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         ),
     )
 
-    return SafeOtelLogger(metrics.get_meter_provider(), prefix, get_validator())
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+
+    return SafeOtelLogger(
+        metrics.get_meter_provider(), prefix, validator, stat_name_handler, statsd_influxdb_enabled
+    )
