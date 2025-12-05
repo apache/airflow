@@ -55,6 +55,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
@@ -277,9 +278,9 @@ class TestAssetModelOperationSyncAssetActive:
         assert orm_assets["myasset", "file://myasset/"].active is not None
 
     def test_add_asset_activate_already_exists(self, dag_maker, session):
-        asset = Asset("myasset", "file://myasset/", group="old_group")
+        asset = SerializedAsset("myasset", "file://myasset/", "old_group", {}, [])
 
-        session.add(AssetModel.from_public(asset))
+        session.add(AssetModel.from_serialized(asset))
         session.flush()
         session.add(AssetActive.for_asset(asset))
         session.flush()
@@ -299,12 +300,12 @@ class TestAssetModelOperationSyncAssetActive:
     @pytest.mark.parametrize(
         "existing_assets",
         [
-            pytest.param([Asset("myasset", uri="file://different/asset")], id="name"),
-            pytest.param([Asset("another", uri="file://myasset/")], id="uri"),
+            pytest.param([SerializedAsset("myasset", "file://different/asset", "", {}, [])], id="name"),
+            pytest.param([SerializedAsset("another", "file://myasset/", "", {}, [])], id="uri"),
         ],
     )
     def test_add_asset_activate_conflict(self, dag_maker, session, existing_assets):
-        session.add_all(AssetModel.from_public(a) for a in existing_assets)
+        session.add_all(AssetModel.from_serialized(a) for a in existing_assets)
         session.flush()
         session.add_all(AssetActive.for_asset(a) for a in existing_assets)
         session.flush()
