@@ -316,6 +316,14 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze testing ui-e2e-tests": [
         {
+            "name": "Docker image options",
+            "options": [
+                "--python",
+                "--image-name",
+                "--github-repository",
+            ],
+        },
+        {
             "name": "UI End-to-End test options",
             "options": [
                 "--browser",
