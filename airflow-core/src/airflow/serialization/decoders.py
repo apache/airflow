@@ -77,7 +77,7 @@ def smart_decode_trigger_kwargs(d):
     return BaseSerialization.deserialize(d)
 
 
-def decode_asset(var: dict[str, Any]):
+def _decode_asset(var: dict[str, Any]):
     watchers = var.get("watchers", [])
     return SerializedAsset(
         name=var["name"],
@@ -97,9 +97,9 @@ def decode_asset(var: dict[str, Any]):
     )
 
 
-def decode_asset_condition(var: dict[str, Any]) -> SerializedAssetBase:
+def decode_asset_like(var: dict[str, Any]) -> SerializedAssetBase:
     """
-    Decode a previously serialized asset condition.
+    Decode a previously serialized asset-like object.
 
     :meta private:
     """
@@ -110,11 +110,11 @@ def decode_asset_condition(var: dict[str, Any]) -> SerializedAssetBase:
         var = {k: v for k, v in var.items() if k != Encoding.TYPE}
     match typ:
         case DAT.ASSET:
-            return decode_asset(var)
+            return _decode_asset(var)
         case DAT.ASSET_ALL:
-            return SerializedAssetAll([decode_asset_condition(x) for x in var["objects"]])
+            return SerializedAssetAll([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ANY:
-            return SerializedAssetAny([decode_asset_condition(x) for x in var["objects"]])
+            return SerializedAssetAny([decode_asset_like(x) for x in var["objects"]])
         case DAT.ASSET_ALIAS:
             return SerializedAssetAlias(name=var["name"], group=var["group"])
         case DAT.ASSET_REF:

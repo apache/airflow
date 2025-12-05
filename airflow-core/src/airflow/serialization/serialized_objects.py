@@ -83,7 +83,6 @@ from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
-    AssetRef,
     AssetUniqueKey,
     BaseAsset,
 )
@@ -95,13 +94,18 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.decoders import decode_asset_condition, decode_relativedelta, decode_timetable
-from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.decoders import decode_asset_like, decode_relativedelta, decode_timetable
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetBase,
+    SerializedAssetUniqueKey,
+)
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
-    encode_asset_condition,
+    encode_asset_like,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
@@ -693,11 +697,9 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, LazySelectSequence):
             return cls.serialize(list(var))
-        elif isinstance(var, BaseAsset):
-            serialized_asset = encode_asset_condition(var)
+        elif isinstance(var, (BaseAsset, SerializedAssetBase)):
+            serialized_asset = encode_asset_like(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
-        elif isinstance(var, AssetRef):
-            return cls._encode(attrs.asdict(var), type_=DAT.ASSET_REF)
         elif isinstance(var, Connection):
             return cls._encode(var.to_dict(validate=True), type_=DAT.CONNECTION)
         elif isinstance(var, TaskCallbackRequest):
@@ -804,7 +806,7 @@ class BaseSerialization:
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ in (DAT.ASSET, DAT.ASSET_ALIAS, DAT.ASSET_ALL, DAT.ASSET_ANY, DAT.ASSET_REF):
-            return decode_asset_condition(encoded_var)
+            return decode_asset_like(encoded_var)
         elif type_ == DAT.CONNECTION:
             return Connection(**var)
         elif type_ == DAT.TASK_CALLBACK_REQUEST:
@@ -1029,7 +1031,7 @@ class DependencyDetector:
             )
 
         for obj in task.outlets or []:
-            if isinstance(obj, Asset):
+            if isinstance(obj, (Asset, SerializedAsset)):
                 serialized_asset = ensure_serialized_asset(obj)
                 deps.append(
                     DagDependency(
@@ -1040,7 +1042,7 @@ class DependencyDetector:
                         dependency_id=SerializedAssetUniqueKey.from_asset(serialized_asset).to_str(),
                     )
                 )
-            elif isinstance(obj, AssetAlias):
+            elif isinstance(obj, (AssetAlias, SerializedAssetAlias)):
                 serialized_alias = ensure_serialized_asset(obj)
                 deps.extend(serialized_alias.iter_dag_dependencies(source=task.dag_id, target=""))
 

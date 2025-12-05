@@ -177,18 +177,18 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_asset_condition
+        from airflow.serialization.decoders import decode_asset_like
 
-        return cls(decode_asset_condition(data["asset_condition"]))
+        return cls(decode_asset_like(data["asset_condition"]))
 
     @property
     def summary(self) -> str:
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_asset_condition
+        from airflow.serialization.encoders import encode_asset_like
 
-        return {"asset_condition": encode_asset_condition(self.asset_condition)}
+        return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     def generate_run_id(
         self,
@@ -266,18 +266,18 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition, encode_partition_mapper
+        from airflow.serialization.serialized_objects import encode_asset_like, encode_partition_mapper
 
         return {
-            "asset_condition": encode_asset_condition(self.asset_condition),
+            "asset_condition": encode_asset_like(self.asset_condition),
             "partition_mapper": encode_partition_mapper(self.partition_mapper),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition, decode_partition_mapper
+        from airflow.serialization.serialized_objects import decode_asset_like, decode_partition_mapper
 
         return cls(
-            assets=decode_asset_condition(data["asset_condition"]),
+            assets=decode_asset_like(data["asset_condition"]),
             partition_mapper=decode_partition_mapper(data["partition_mapper"]),
         )

@@ -139,9 +139,9 @@ def encode_trigger(trigger: BaseEventTrigger | dict):
     }
 
 
-def encode_asset_condition(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
+def encode_asset_like(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]:
     """
-    Encode an asset condition.
+    Encode an asset-like object.
 
     :meta private:
     """
@@ -155,9 +155,9 @@ def encode_asset_condition(a: BaseAsset | SerializedAssetBase) -> dict[str, Any]
         case AssetAlias() | SerializedAssetAlias():
             return {"__type": DAT.ASSET_ALIAS, "name": a.name, "group": a.group}
         case AssetAll() | SerializedAssetAll():
-            return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_condition(x) for x in a.objects]}
+            return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetAny() | SerializedAssetAny():
-            return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_condition(x) for x in a.objects]}
+            return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_like(x) for x in a.objects]}
         case AssetRef() | SerializedAssetRef():
             return {"__type": DAT.ASSET_REF, **attrs.asdict(a)}
     raise ValueError(f"serialization not implemented for {type(a).__name__!r}")
@@ -233,7 +233,7 @@ class _TimetableSerializer:
 
     @serialize.register
     def _(self, timetable: AssetTriggeredTimetable) -> dict[str, Any]:
-        return {"asset_condition": encode_asset_condition(timetable.asset_condition)}
+        return {"asset_condition": encode_asset_like(timetable.asset_condition)}
 
     @serialize.register
     def _(self, timetable: EventsTimetable) -> dict[str, Any]:
@@ -282,7 +282,7 @@ class _TimetableSerializer:
     @serialize.register
     def _(self, timetable: AssetOrTimeSchedule) -> dict[str, Any]:
         return {
-            "asset_condition": encode_asset_condition(timetable.asset_condition),
+            "asset_condition": encode_asset_like(timetable.asset_condition),
             "timetable": encode_timetable(timetable.timetable),
         }
 
@@ -337,6 +337,6 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     if isinstance(obj, SerializedAssetBase):
         return obj
 
-    from airflow.serialization.decoders import decode_asset_condition
+    from airflow.serialization.decoders import decode_asset_like
 
-    return decode_asset_condition(encode_asset_condition(obj))
+    return decode_asset_like(encode_asset_like(obj))
