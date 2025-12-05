@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
@@ -25,6 +24,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
 import pendulum
 import sqlalchemy_jsonfield
+import structlog
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
@@ -75,7 +75,7 @@ if TYPE_CHECKING:
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 AssetT = TypeVar("AssetT", bound=BaseAsset)
 
@@ -132,6 +132,9 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
+    if run.partition_key is not None:
+        return DataInterval.exact(timezone.coerce_datetime(run.run_after))
+
     if (
         data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
     ) is not None:
@@ -631,6 +634,11 @@ class DagModel(Base):
             else:
                 adrq_by_dag[adrq.target_dag_id].append(adrq)
 
+        # todo: AIP-76 NEXT THING TO DO
+        #  we should be able to reuse the boolean evaluator logic
+        #  basically, we can figure out the statuses of each asset dep by evaluating the key log records
+        #  this would give us essenitally our statuses dictionary
+        #  then we can apply this to determine whether it's go or no go
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
             dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
             for dag_id, adrqs in adrq_by_dag.items()
@@ -693,26 +701,31 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: SerializedDAG,
-        last_automated_dag_run: None | DataInterval,
+        last_data_interval: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+        :param last_data_interval: DataInterval of most recent run of this dag, or none
             if not yet scheduled.
         """
-        last_automated_data_interval: DataInterval | None
-        if isinstance(last_automated_dag_run, datetime):
+        if isinstance(last_data_interval, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        last_automated_data_interval = last_automated_dag_run
-        next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
+        next_dagrun_info = dag.next_dagrun_info(last_data_interval)
+        log.info(
+            "evaluating next dag run",
+            next_dagrun_info=next_dagrun_info,
+            last_data_interval=last_data_interval,
+        )
         if next_dagrun_info is None:
+            log.info("setting next dagrun to None")
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
+            log.info("setting next dagrun", logical_date=next_dagrun_info.logical_date)
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
             self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after

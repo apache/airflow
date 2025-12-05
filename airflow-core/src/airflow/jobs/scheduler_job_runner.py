@@ -40,6 +40,7 @@ from sqlalchemy.sql import expression
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -63,6 +64,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
@@ -80,9 +82,10 @@ from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.simple import AssetTriggeredTimetable
+from airflow.timetables.simple import AssetTriggeredTimetable, PartitionedAssetTimetable
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1675,6 +1678,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
+        time.sleep(2)  # todo: AIP-76 remove
+
+        evaluator = AssetEvaluator(session)
+
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
+            try:
+                return evaluator.run(cond, statuses)
+            except AttributeError:
+                # if dag was serialized before 2.9 and we *just* upgraded,
+                # we may be dealing with old version.  In that case,
+                # just wait for the dag to be reserialized.
+                self.log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
+                return None
+
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
@@ -1683,6 +1700,58 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
+                continue
+            timetable = dag.timetable
+            if TYPE_CHECKING:
+                assert isinstance(timetable, PartitionedAssetTimetable)
+            partition_mapper = timetable.partition_mapper
+            expected_keys = set(partition_mapper.to_upstream(apdr.partition_key))
+            self.log.info(
+                "evaluating partitioned dag run",
+                dag_id=apdr.target_dag_id,
+                partition_key=apdr.partition_key,
+                expected_keys=sorted(expected_keys),
+            )
+            key_logs: list[PartitionedAssetKeyLog] = session.scalars(
+                select(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
+                )
+            )
+            asset_key_presence = defaultdict(set)
+            for k in key_logs:
+                asset_key_presence[k.asset_id].add(k.source_partition_key)
+            assets = session.scalars(select(AssetModel).where(AssetModel.id.in_(asset_key_presence.keys())))
+
+            def _eval_asset(asset_id):
+                # todo: AIP-76 right now we assume every asset has same mapping
+                #  but we may want to set mappings for individual assets
+                keys = asset_key_presence[asset_id]
+                diff = expected_keys.difference(keys)
+                if diff:
+                    self.log.info(
+                        "found missing keys",
+                        dag_id=apdr.target_dag_id,
+                        asset_id=asset_id,
+                        missing_keys=sorted(diff),
+                    )
+                    return False
+                return True
+
+            statuses = {AssetUniqueKey.from_asset(a): _eval_asset(a.id) for a in assets}
+            # todo: AIP-76 partition window deps
+            #  we need some way to know, for a given partition ref, that the dag depends on a range of partitions
+            #  the AssetPartitionDagRun is the parent entity for the target dag / partition
+            #  the PartitionedAssetKeyLog records document partition fulfillment
+            #  but what will tell us partition dependencies
+            #  We need something that will tell us, for each target key, what are the source keys
+            #  that we depend on
+
+            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
+            #  but, we ultimately need rollup ability
+            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
+            #  that all the required keys are there
+            #  one way to do this would be just to figure out what the count should be
+            if not dag_ready(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
                 continue
 
             run_after = timezone.utcnow()
@@ -1758,6 +1827,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        partition_dags: list[DagModel] = []
+        other_dags = []
+
+        partition_keys: dict[str, str] = {}
+
+        for dag in dag_models:
+            sdm = self.scheduler_dag_bag.get_latest_version_of_dag(dag.dag_id, session=session)
+            if not sdm:
+                raise RuntimeError(f"no serdag for {dag.dag_id}")
+            if getattr(sdm.timetable, "partitions", None) is True:
+                partition_dags.append(dag)
+                partition_keys[dag.dag_id] = str(dag.next_dagrun)  # todo: AIP-76 improve
+            else:
+                other_dags.append(dag)
+
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -1766,7 +1850,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(
                 select(DagRun.dag_id, DagRun.logical_date).where(
                     tuple_(DagRun.dag_id, DagRun.logical_date).in_(
-                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
+                        (dm.dag_id, dm.next_dagrun) for dm in other_dags
                     ),
                 )
             )
@@ -1786,60 +1870,64 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
-            if not dag:
+            serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            data_interval = get_next_data_interval(dag.timetable, dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
+            # we need to set serdag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+            data_interval = None
+            if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+                partition_key = partition_keys.get(serdag.dag_id)
+                data_interval = get_next_data_interval(serdag.timetable, dag_model)
+                logical_date = dag_model.next_dagrun
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
-                        dag.create_dagrun(
-                            run_id=dag.timetable.generate_run_id(
+                        serdag.create_dagrun(
+                            run_id=serdag.timetable.generate_run_id(
                                 run_type=DagRunType.SCHEDULED,
                                 run_after=timezone.coerce_datetime(dag_model.next_dagrun),
-                                data_interval=data_interval,
+                                data_interval=None if partition_key else data_interval,
                             ),
-                            logical_date=dag_model.next_dagrun,
-                            data_interval=data_interval,
+                            logical_date=None if partition_key else logical_date,
+                            data_interval=None if partition_key else data_interval,
                             run_after=dag_model.next_dagrun_create_after,
                             run_type=DagRunType.SCHEDULED,
                             triggered_by=DagRunTriggeredByType.TIMETABLE,
                             state=DagRunState.QUEUED,
                             creating_job_id=self.job.id,
                             session=session,
+                            partition_key=partition_key,
                         )
-                        active_runs_of_dags[dag.dag_id] += 1
+                        active_runs_of_dags[serdag.dag_id] += 1
                     else:
                         if dag_model.next_dagrun is None:
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # serdag.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
                 # and continue to the next dag.
                 except Exception:
-                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
                     continue
             if self._should_update_dag_next_dagruns(
-                dag,
+                serdag,
                 dag_model,
                 last_dag_run=None,
-                active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
+                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
                 session=session,
             ):
-                dag_model.calculate_dagrun_date_fields(dag, data_interval)
+                dag_model.calculate_dagrun_date_fields(serdag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        # memory for larger dags? or expunge_all()
+        #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
@@ -2958,3 +3046,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here
 SchedulerDagBag = DBDagBag
+# todo: AIP-76 need to update the ui schedule info "0 of 2 assets updated" etc
+
+# todo: AIP-76 what to do with "old" asset_partition_dag_run records?  perhaps we need to use events to
+#  trigger reprocessing, or we expire them, or we limit the number considered
+
+# todo: AIP-76 could possibly consider running the partition evaluations in parallel
+
+# todo: AIP-76 need to verify that the partition mappings produce alignment

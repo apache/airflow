@@ -345,6 +345,7 @@ repos:
           ^src/airflow/exceptions\.py$|
           ^src/airflow/executors/local_executor\.py$|
           ^src/airflow/jobs/triggerer_job_runner\.py$|
+          ^src/airflow/jobs/scheduler_job_runner\.py$|
           ^src/airflow/lineage/hook\.py$|
           ^src/airflow/listeners/spec/asset\.py$|
           ^src/airflow/listeners/spec/taskinstance\.py$|

@@ -81,16 +81,18 @@ class DagRunInfo(NamedTuple):
     This **MUST** be "aware", i.e. contain timezone information.
     """
 
-    data_interval: DataInterval
+    data_interval: DataInterval | None
     """The data interval this DagRun to operate over."""
 
-    @classmethod
-    def exact(cls, at: DateTime) -> DagRunInfo:
-        """Represent a run on an exact time."""
-        return cls(run_after=at, data_interval=DataInterval.exact(at))
+    partition_key: str | None
 
     @classmethod
-    def interval(cls, start: DateTime, end: DateTime) -> DagRunInfo:
+    def exact(cls, at: DateTime, partition_key: str | None = None) -> DagRunInfo:
+        """Represent a run on an exact time."""
+        return cls(run_after=at, data_interval=DataInterval.exact(at), partition_key=partition_key)
+
+    @classmethod
+    def interval(cls, start: DateTime, end: DateTime, partition_key: str | None = None) -> DagRunInfo:
         """
         Represent a run on a continuous schedule.
 
@@ -98,17 +100,19 @@ class DagRunInfo(NamedTuple):
         one ends, and each run is scheduled right after the interval ends. This
         applies to all schedules prior to AIP-39 except ``@once`` and ``None``.
         """
-        return cls(run_after=end, data_interval=DataInterval(start, end))
+        if partition_key and (start or end):
+            raise ValueError("this combination not allowed")  # todo: AIP-76 improve
+        return cls(run_after=end, data_interval=DataInterval(start, end), partition_key=partition_key)
 
     @property
-    def logical_date(self: DagRunInfo) -> DateTime:
+    def logical_date(self: DagRunInfo) -> DateTime | None:
         """
         Infer the logical date to represent a DagRun.
 
         This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
         essentially the same, just a different name.
         """
-        return self.data_interval.start
+        return self.data_interval.start if self.data_interval else None
 
 
 @runtime_checkable
@@ -206,7 +210,7 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
         """
         When a DAG run is manually triggered, infer a data interval for it.
 
