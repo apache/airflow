@@ -225,7 +225,7 @@ The following steps outline the process for approving a new locale to be added t
 - Creating a PR for adding the suggested locale to the
   codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
   - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in
-    `dev/breeze/commands/ui_commands.py`.
+    `dev/breeze/src/airflow_breeze/commands/ui_commands.py`.
   - The locale files (translated according to the guidelines) in the
     `airflow-core/src/airflow/ui/public/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the
     code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional
