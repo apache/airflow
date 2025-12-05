@@ -30,7 +30,9 @@ Defining Dags
 
 Configuration
 -------------
-.. autodata:: airflow.sdk.conf
+
+The ``conf`` object is available as part of the Task SDK. It provides an interface to the
+configurations, allowing you to read and interact with Airflow configuration values.
 
 Decorators
 ----------
