@@ -1317,6 +1317,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: AIP-76 should we provide an interface to override this, so that the task can
         #  tell the truth if for some reason it touches a different partition?
+        #  https://github.com/apache/airflow/issues/58474
         partition_key = ti.dag_run.partition_key
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)
