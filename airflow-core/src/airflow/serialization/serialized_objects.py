@@ -2851,6 +2851,7 @@ class SerializedDAG(BaseSerialization):
         include_upstream: bool = True,
         include_direct_upstream: bool = False,
         exclude_original: bool = False,
+        depth: int | None = None,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 
@@ -2870,7 +2871,7 @@ class SerializedDAG(BaseSerialization):
         also_include_ids: set[str] = set()
         for t in matched_tasks:
             if include_downstream:
-                for rel in t.get_flat_relatives(upstream=False):
+                for rel in t.get_flat_relatives(upstream=False, depth=depth):
                     also_include_ids.add(rel.task_id)
                     if rel not in matched_tasks:  # if it's in there, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
@@ -2880,7 +2881,7 @@ class SerializedDAG(BaseSerialization):
                                 x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
                             )
             if include_upstream:
-                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
+                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups(depth=depth))
             else:
                 if not t.is_setup and not t.is_teardown:
                     also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
