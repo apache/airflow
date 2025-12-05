@@ -94,14 +94,17 @@ export const UserSettingsButton = ({ externalViews }: { readonly externalViews: 
         </Menu.Trigger>
         <Menu.Content>
           {currentUser ? (
-            <Box borderBottom="1px solid" borderColor="border.muted" p={3}>
-              <Box color="fg.muted" fontSize="sm">
-                {translate("signedInAs")}
+            <>
+              <Box p={3}>
+                <Box color="fg.muted" fontSize="sm">
+                  {translate("signedInAs")}
+                </Box>
+                <Box fontSize="md" fontWeight="semibold">
+                  {currentUser.username}
+                </Box>
               </Box>
-              <Box fontSize="md" fontWeight="semibold">
-                {currentUser.username}
-              </Box>
-            </Box>
+              <Menu.Separator />
+            </>
           ) : undefined}
           <Menu.Item onClick={onOpenLanguage} value="language">
             <Icon as={FiGlobe} boxSize={4} />
