@@ -423,11 +423,11 @@ class TestUtilsUnit:
     """
 
     example_task_output = r"""
-{"timestamp":"2025-03-31T18:03:17.087597","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.087597","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow_shared.observability.traces.otel_tracer"}
 {"timestamp":"2025-03-31T18:03:17.087693","level":"info","event":"From task sub_span2.","logger":"airflow.otel_test_dag"}
 {"timestamp":"2025-03-31T18:03:17.087763","level":"info","event":"From task sub_span3.","logger":"airflow.otel_test_dag"}
-{"timestamp":"2025-03-31T18:03:17.088075","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow.traces.otel_tracer"}
-{"timestamp":"2025-03-31T18:03:17.088105","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.088075","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow_shared.observability.traces.otel_tracer"}
+{"timestamp":"2025-03-31T18:03:17.088105","level":"info","event":"[SimpleSpanProcessor] is being used","logger":"airflow_shared.observability.traces.otel_tracer"}
 {"timestamp":"2025-04-01T17:20:08.687523Z","level":"info","event":"{","chan":"stdout","logger":"task"}
 {"timestamp":"2025-04-01T17:20:08.687579Z","level":"info","event":"    \"name\": \"task1_sub_span1\",","chan":"stdout","logger":"task"}
 {"timestamp":"2025-04-01T17:20:08.687629Z","level":"info","event":"    \"context\": {","chan":"stdout","logger":"task"}
@@ -505,7 +505,7 @@ class TestUtilsUnit:
 {"timestamp":"2025-04-01T17:20:08.691483Z","level":"info","event":"        \"attributes\": {","chan":"stdout","logger":"task"}
 {"timestamp":"2025-04-01T17:20:08.691538Z","level":"info","event":"            \"telemetry.sdk.language\": \"python\",","chan":"stdout","logger":"task"}
 {"timestamp":"2025-04-01T17:20:08.691591Z","level":"info","event":"            \"telemetry.sdk.name\": \"opentelemetry\",","chan":"stdout","logger":"task"}
-{"timestamp":"2025-04-01T17:20:08.678865","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow.traces.otel_tracer"}"""
+{"timestamp":"2025-04-01T17:20:08.678865","level":"info","event":"[ConsoleSpanExporter] is being used","logger":"airflow_shared.observability.traces.otel_tracer"}"""
 
     example_task_output_after_processing = r"""
 [SimpleSpanProcessor] is being used

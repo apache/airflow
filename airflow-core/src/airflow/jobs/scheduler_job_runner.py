@@ -77,12 +77,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.notset import NOTSET
-from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -2085,12 +2084,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run, as_int=True))
-        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
-        links = [{"trace_id": trace_id, "span_id": span_id}]
-
-        with DebugTrace.start_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
+        with DebugTrace.start_root_span(
+            span_name="_schedule_dag_run", component="SchedulerJobRunner"
         ) as span:
             span.set_attributes(
                 {

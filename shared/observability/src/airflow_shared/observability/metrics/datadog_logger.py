@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import datetime
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.metrics.protocols import Timer
-from airflow.metrics.validators import (
+from .protocols import Timer
+from .validators import (
     PatternAllowListValidator,
     PatternBlockListValidator,
     get_validator,
@@ -33,10 +33,8 @@ from airflow.metrics.validators import (
 if TYPE_CHECKING:
     from datadog import DogStatsd
 
-    from airflow.metrics.protocols import DeltaType
-    from airflow.metrics.validators import (
-        ListValidator,
-    )
+    from .protocols import DeltaType
+    from .validators import ListValidator
 
 log = logging.getLogger(__name__)
 
@@ -50,11 +48,15 @@ class SafeDogStatsdLogger:
         metrics_validator: ListValidator = PatternAllowListValidator(),
         metrics_tags: bool = False,
         metric_tags_validator: ListValidator = PatternAllowListValidator(),
+        stat_name_handler: Callable[[str], str] | None = None,
+        statsd_influxdb_enabled: bool = False,
     ) -> None:
         self.dogstatsd = dogstatsd_client
         self.metrics_validator = metrics_validator
         self.metrics_tags = metrics_tags
         self.metric_tags_validator = metric_tags_validator
+        self.stat_name_handler = stat_name_handler
+        self.statsd_influxdb_enabled = statsd_influxdb_enabled
 
     @validate_stat
     def incr(
@@ -157,18 +159,35 @@ class SafeDogStatsdLogger:
         return Timer()
 
 
-def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
+def get_dogstatsd_logger(
+    cls,
+    *,
+    host: str | None = None,
+    port: int | None = None,
+    namespace: str | None = None,
+    datadog_metrics_tags: bool = True,
+    statsd_disabled_tags: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
+) -> SafeDogStatsdLogger:
     """Get DataDog StatsD logger."""
     from datadog import DogStatsd
 
     dogstatsd = DogStatsd(
-        host=conf.get("metrics", "statsd_host"),
-        port=conf.getint("metrics", "statsd_port"),
-        namespace=conf.get("metrics", "statsd_prefix"),
+        host,
+        port,
+        namespace,
         constant_tags=cls.get_constant_tags(),
     )
-    datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)
-    metric_tags_validator = PatternBlockListValidator(
-        conf.get("metrics", "statsd_disabled_tags", fallback=None)
+    metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+    return SafeDogStatsdLogger(
+        dogstatsd,
+        validator,
+        datadog_metrics_tags,
+        metric_tags_validator,
+        stat_name_handler,
+        statsd_influxdb_enabled,
     )
-    return SafeDogStatsdLogger(dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator)

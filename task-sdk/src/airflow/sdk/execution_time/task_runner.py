@@ -115,8 +115,8 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
