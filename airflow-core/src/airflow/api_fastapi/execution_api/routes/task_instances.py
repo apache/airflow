@@ -418,7 +418,7 @@ def ti_update_state(
         ti = session.get(TI, ti_id_str)
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
-        query = query.values(state=TaskInstanceState.FAILED)
+        query = query.values(state=(updated_state := TaskInstanceState.FAILED))
         if ti is not None:
             _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
 

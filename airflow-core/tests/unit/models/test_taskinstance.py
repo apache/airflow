@@ -78,9 +78,9 @@ from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetRespo
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.sdk.execution_time.comms import (
-    AssetEventsResult,
-)
+from airflow.sdk.execution_time.comms import AssetEventsResult
+from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -1919,9 +1919,8 @@ class TestTaskInstance:
         assert len(asset_alias_obj.assets) == 1
         assert asset_alias_obj.assets[0].uri == asset_uri
 
+    @pytest.mark.need_serialized_dag
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
-
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
         asset_uri = "does_not_exist"
 
@@ -1931,7 +1930,7 @@ class TestTaskInstance:
         assert session.scalar(asset_model_chheck_stmt) is None
         assert session.scalar(asset_event_check_stmt) is None
 
-        with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session):
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
@@ -1940,7 +1939,6 @@ class TestTaskInstance:
             producer()
 
         (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
-
         ti.run(session=session)
 
         asset_model = session.scalars(asset_model_chheck_stmt).one()
@@ -1949,12 +1947,10 @@ class TestTaskInstance:
         assert session.scalars(asset_event_check_stmt).one().uri == asset_uri
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
-
-        asset1 = Asset("asset1")
-        asset2 = Asset("asset2")
-        asm1 = AssetModel.from_public(asset1)
-        asm2 = AssetModel.from_public(asset2)
+        asset1 = SerializedAsset("asset1", "asset1", "", {}, [])
+        asset2 = SerializedAsset("asset2", "asset2", "", {}, [])
+        asm1 = AssetModel.from_serialized(asset1)
+        asm2 = AssetModel.from_serialized(asset2)
         session.add_all([asm1, asm2, AssetActive.for_asset(asm1)])
         session.flush()
 
@@ -3274,16 +3270,11 @@ def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[asset.asprofile()],
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
         outlet_events=[],
         session=session,
     )
-    session.commit()
-    actual_event = session.scalar(
-        select(AssetEvent).where(
-            AssetEvent.source_dag_id == dag.dag_id,
-        )
-    )
+    actual_event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
     assert actual_event.partition_key == "abc123"
     assert not session.scalar(select(PartitionedAssetKeyLog))
     assert not session.scalar(select(AssetPartitionDagRun))
@@ -3312,7 +3303,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[asset.asprofile()],
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
         outlet_events=[],
         session=session,
     )

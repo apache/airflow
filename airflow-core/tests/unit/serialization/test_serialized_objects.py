@@ -54,11 +54,9 @@ from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
-    AssetAll,
-    AssetAny,
-    AssetRef,
     AssetUniqueKey,
     AssetWatcher,
+    BaseAsset,
 )
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
@@ -71,6 +69,15 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+    SerializedAssetRef,
+)
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -262,6 +269,10 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
     return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
+def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAssetBase | BaseAsset) -> bool:
+    return ensure_serialized_asset(a) == ensure_serialized_asset(b)
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -348,7 +359,7 @@ class MockLazySelectSequence(LazySelectSequence):
             None,
             lambda a, b: len(a) == len(b) and isinstance(b, list),
         ),
-        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
+        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equal_serialized_asset),
         (
             Asset(
                 uri="test://asset1",
@@ -356,7 +367,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 watchers=[AssetWatcher(name="test", trigger=FileDeleteTrigger(filepath="/tmp"))],
             ),
             DAT.ASSET,
-            equals,
+            equal_serialized_asset,
         ),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -625,7 +636,7 @@ def test_hash_property():
                 "group": "test-group",
                 "extra": {},
             },
-            Asset,
+            SerializedAsset,
             id="asset",
         ),
         pytest.param(
@@ -648,7 +659,7 @@ def test_hash_property():
                     },
                 ],
             },
-            AssetAll,
+            SerializedAssetAll,
             id="asset_all",
         ),
         pytest.param(
@@ -664,17 +675,17 @@ def test_hash_property():
                     }
                 ],
             },
-            AssetAny,
+            SerializedAssetAny,
             id="asset_any",
         ),
         pytest.param(
             {"__type": DAT.ASSET_ALIAS, "name": "alias", "group": "g"},
-            AssetAlias,
+            SerializedAssetAlias,
             id="asset_alias",
         ),
         pytest.param(
             {"__type": DAT.ASSET_REF, "name": "ref"},
-            AssetRef,
+            SerializedAssetRef,
             id="asset_ref",
         ),
     ],
