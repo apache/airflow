@@ -77,8 +77,6 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
