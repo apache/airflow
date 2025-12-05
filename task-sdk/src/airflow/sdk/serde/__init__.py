@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import attr
 
-import airflow.sdk.serde.serializers
 from airflow.sdk.configuration import conf
 from airflow.sdk.serde.typing import is_pydantic_model
 from airflow.stats import Stats
@@ -364,7 +363,8 @@ def _register():
     _stringifiers.clear()
 
     with Stats.timer("serde.load_serializers") as timer:
-        for _, module_name, _ in iter_namespace(airflow.sdk.serde.serializers):
+        serializers_module = import_module("airflow.sdk.serde.serializers")
+        for _, module_name, _ in iter_namespace(serializers_module):
             module = import_module(module_name)
             for serializers in getattr(module, "serializers", ()):
                 s_qualname = serializers if isinstance(serializers, str) else qualname(serializers)
