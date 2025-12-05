@@ -1330,10 +1330,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Operators can be assigned to one Dag, one time. Repeat assignments to that same Dag are ok."""
         self._dag = dag
 
-    @property
-    def is_async(self) -> bool:
-        return False
-
     def _convert__dag(self, dag: DAG | None) -> DAG | None:
         # Called automatically by __setattr__ method
         from airflow.sdk.definitions.dag import DAG
