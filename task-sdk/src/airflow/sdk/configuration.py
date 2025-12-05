@@ -144,7 +144,7 @@ class AirflowSDKConfigParser(_SharedAirflowConfigParser):
 
         Unit tests load values from `unit_tests.cfg` to ensure consistent behavior. Realistically we should
         not have this needed but this is temporary to help fix the tests that use dag_maker and rely on few
-        confs.
+        configurations.
 
         The SDK does not expand template variables (FERNET_KEY, JWT_SECRET_KEY, etc.) because it does not use
         the config fields that require expansion.
