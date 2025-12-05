@@ -32,13 +32,15 @@ from contextlib import asynccontextmanager, contextmanager, suppress
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import IO, TYPE_CHECKING, Any, cast
 
+import aiofiles
 import asyncssh
 from asgiref.sync import sync_to_async
 from asyncssh import SFTPError, SSHClientConnection
 from paramiko.config import SSH_PORT
 
+from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
@@ -73,7 +75,7 @@ def handle_connection_management(func: Callable) -> Callable:
     return handle_connection_management_wrapper
 
 
-async def walk(sftp_client, dir_path: str):
+async def walk(sftp_client, dir_path: str) -> list[asyncssh.sftp.SFTPName]:
     results = []
     files = await sftp_client.readdir(dir_path)
 
@@ -811,7 +813,7 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
-    async def list_directory(self, path: str) -> Sequence[str] | None:
+    async def list_directory(self, path: str) -> list[str] | None:
         """Return a list of files on the SFTP server at the provided path."""
         files = await self.read_directory(path)
         return [file.filename for file in files] if files else files
@@ -850,9 +852,9 @@ class SFTPHookAsync(BaseHook):
                         local_full_path.write(data.encode(encoding))
                         local_full_path.seek(0)
                     else:
-                        async with await asyncio.to_thread(open, local_full_path, "wb") as file:
+                        async with aiofiles.open(local_full_path, "wb") as file:
                             data = await remote_file.read()
-                            await asyncio.to_thread(file.write, data)
+                            await file.write(data)
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
@@ -892,10 +894,10 @@ class SFTPHookAsync(BaseHook):
 class SFTPClientPool(LoggingMixin):
     """Lazy async pool that keeps SSH and SFTP clients alive until exit, and limits concurrent usage to pool_size."""
 
-    def __init__(self, sftp_conn_id: str, pool_size: int = os.cpu_count()):
+    def __init__(self, sftp_conn_id: str, pool_size: int | None = None):
         super().__init__()
         self.sftp_conn_id = sftp_conn_id
-        self.pool_size = pool_size
+        self.pool_size = pool_size or conf.getint("core", "parallelism")
         self._pool = asyncio.Queue(maxsize=pool_size)
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(pool_size)
