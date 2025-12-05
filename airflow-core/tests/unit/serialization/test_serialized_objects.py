@@ -691,19 +691,19 @@ def test_hash_property():
     ],
 )
 def test_serde_decode_asset_condition_success(payload, expected_cls):
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
-    assert isinstance(decode_asset_condition(payload), expected_cls)
+    assert isinstance(decode_asset_like(payload), expected_cls)
 
 
 def test_serde_decode_asset_condition_unknown_type():
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
     with pytest.raises(
         ValueError,
         match="deserialization not implemented for DAT 'UNKNOWN_TYPE'",
     ):
-        decode_asset_condition({"__type": "UNKNOWN_TYPE"})
+        decode_asset_like({"__type": "UNKNOWN_TYPE"})
 
 
 def test_encode_timezone():
