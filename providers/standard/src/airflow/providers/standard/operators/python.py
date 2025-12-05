@@ -1227,7 +1227,6 @@ if AIRFLOW_V_3_2_PLUS:
     if TYPE_CHECKING:
         from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
 
-
     class PythonAsyncOperator(BaseAsyncOperator, PythonOperator):
         async def aexecute(self, context):
             """Async version of execute(). Subclasses should implement this."""
