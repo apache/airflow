@@ -122,7 +122,7 @@
     "title": "Dag 트리거",
     "toaster": {
       "error": {
-        "title": "Dag 트리거 실패함"
+        "title": "Dag 트리거에 실패했습니다."
       },
       "success": {
         "description": "Dag 실행이 성공적으로 트리거되었습니다.",
