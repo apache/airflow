@@ -126,7 +126,7 @@
       },
       "success": {
         "description": "Dag 실행이 성공적으로 트리거되었습니다.",
-        "title": "Dag 실행 트리거됨"
+        "title": "Dag 트리거에 성공했습니다."
       }
     },
     "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
