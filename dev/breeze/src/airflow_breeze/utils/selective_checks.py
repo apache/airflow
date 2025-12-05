@@ -30,7 +30,6 @@ from typing import Any, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
-    AIRFLOW_CTL_CORE_BRANCHES,
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     COMMITTERS,
@@ -45,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM,
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
+    INTEGRATION_TESTS_CORE_BRANCHES,
     KIND_VERSION,
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
@@ -725,10 +725,6 @@ class SelectiveChecks:
         return HELM_VERSION
 
     @cached_property
-    def airflowctl_core_branches(self) -> list[str]:
-        return AIRFLOW_CTL_CORE_BRANCHES
-
-    @cached_property
     def postgres_exclude(self) -> list[dict[str, str]]:
         if not self.all_versions:
             # Only basic combination so we do not need to exclude anything
@@ -982,6 +978,17 @@ class SelectiveChecks:
             or self.run_airflow_ctl_integration_tests
             or self.run_ui_e2e_tests
         )
+
+    @cached_property
+    def prod_image_build_matrix(self) -> list[str]:
+        event_name = os.environ.get("GITHUB_EVENT_NAME", "")
+        branch = (
+            os.environ.get("GITHUB_HEAD_REF")
+            if event_name == "pull_request"
+            else os.environ.get("GITHUB_REF_NAME")
+        )
+
+        return INTEGRATION_TESTS_CORE_BRANCHES if branch == AIRFLOW_BRANCH else ["main"]
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType

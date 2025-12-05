@@ -54,7 +54,6 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
-      airflowctl-core-branches: ${{ steps.selective-checks.outputs.airflowctl-core-branches }}
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       arm-runners: ${{ steps.selective-checks.outputs.arm-runners }}
@@ -97,6 +96,7 @@ jobs:
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
+      prod-image-build-matrix: ${{ steps.selective-checks.outputs.prod-image-build-matrix }}
       # yamllint disable rule:line-length
       providers-compatibility-tests-matrix: >
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
@@ -752,8 +752,21 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
 
   build-prod-images:
+    # We need to run multiple Airflow Core versions alongside their distributions.
+    # To support this, we must build each version so it can be used in integration
+    # tests through docker-compose.
+    #
+    # We only pull the "current" version to reuse cached images and speed up builds.
+    # All supported versions are then built in parallel.
+    #
+    # More details: https://github.com/apache/infrastructure-actions/blob/main/stash/README.md?plain=1#L33
+    strategy:
+      fail-fast: false
+      matrix:
+        # yamllint disable rule: line-length
+        airflow-core-branch: ${{ fromJSON(needs.build-info.outputs.prod-image-build-matrix) }}
     name: Build PROD images
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images, generate-constraints, set-prod-image-build-matrix]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
       contents: read
@@ -769,7 +782,7 @@ jobs:
       upload-package-artifact: "true"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
-      branch: ${{ needs.build-info.outputs.default-branch }}
+      branch: ${{ matrix.airflow-core-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -796,6 +809,7 @@ jobs:
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
       airflowctl-core-branches: ${{ needs.build-info.outputs.airflowctl-core-branches }}
+      prod-image-build-matrix: ${{ needs.build-info.outputs.prod-image-build-matrix }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
