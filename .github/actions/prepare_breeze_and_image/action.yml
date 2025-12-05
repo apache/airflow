@@ -63,7 +63,7 @@ runs:
         key: ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"
         only-current-branch: 'true'
-      if: inputs.branch != 'main'
+      if: inputs.branch != 'main' || (inputs.branch == 'main' && inputs.image-type == 'ci')
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
