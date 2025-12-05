@@ -163,6 +163,9 @@ jobs:
           PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
+          GITHUB_EVENT_NAME: "${{ github.event_name }}"
+          GITHUB_HEAD_REF: "${{ github.head_ref }}"
+          GITHUB_REF_NAME: "${{ github.ref_name }}"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
