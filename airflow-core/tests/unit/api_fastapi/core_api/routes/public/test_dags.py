@@ -81,6 +81,7 @@ class TestDagEndpoint:
             relative_fileloc="dag_del_1.py",
             fileloc="/tmp/dag_del_1.py",
             timetable_summary="2 2 * * *",
+            timetable_type="airflow.timetables.trigger.CronTriggerTimetable",
             is_stale=True,
             is_paused=True,
             owners="test_owner,another_test_owner",
@@ -394,6 +395,20 @@ class TestGetDags(TestDagEndpoint):
             ),
             ({"bundle_name": "wrong_bundle"}, 0, []),
             ({"bundle_version": "1.0.0"}, 0, []),
+            # Timetable type filter
+            (
+                {
+                    "timetable_type": ["airflow.timetables.trigger.CronTriggerTimetable"],
+                    "exclude_stale": False,
+                },
+                1,
+                [DAG3_ID],
+            ),
+            (
+                {"timetable_type": ["airflow.timetables.simple.NullTimetable"], "exclude_stale": False},
+                2,
+                [DAG1_ID, DAG2_ID],
+            ),
             # Asset filters
             ({"has_asset_schedule": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
             ({"has_asset_schedule": False}, 2, [DAG1_ID, DAG2_ID]),
