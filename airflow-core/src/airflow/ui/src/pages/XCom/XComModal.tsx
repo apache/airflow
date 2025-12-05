@@ -43,16 +43,7 @@ type XComModalProps = {
   readonly xcomKey?: string;
 };
 
-const XComModal = ({
-  dagId,
-  isOpen,
-  mapIndex,
-  mode,
-  onClose,
-  runId,
-  taskId,
-  xcomKey,
-}: XComModalProps) => {
+const XComModal = ({ dagId, isOpen, mapIndex, mode, onClose, runId, taskId, xcomKey }: XComModalProps) => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const queryClient = useQueryClient();
   const [key, setKey] = useState("");
@@ -147,7 +138,7 @@ const XComModal = ({
       // use string
     }
 
-    if (isEditMode && xcomKey) {
+    if (isEditMode && xcomKey !== undefined) {
       updateXCom({
         dagId,
         dagRunId: runId,
