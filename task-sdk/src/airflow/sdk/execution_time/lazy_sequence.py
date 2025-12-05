@@ -21,7 +21,6 @@ import collections
 import itertools
 from collections import deque
 from collections.abc import Iterator, Sequence
-from os import cpu_count
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
@@ -44,7 +43,7 @@ log = structlog.get_logger(logger_name=__name__)
 
 
 def _deque_factory() -> deque:
-    return deque(maxlen=conf.getint("core", "parallelism", fallback=cpu_count()))
+    return deque(maxlen=conf.getint("core", "parallelism"))
 
 
 @attrs.define
@@ -55,8 +54,8 @@ class LazyXComIterator(LoggingMixin, Iterator[T]):
     _buffer: deque[T] = attrs.field(factory=_deque_factory, init=False)
 
     @property
-    def prefetch_size(self) -> int | None:
-        return self._buffer.maxlen
+    def prefetch_size(self) -> int:
+        return self._buffer.maxlen or conf.getint("core", "parallelism")
 
     def __next__(self) -> T:
         if self.index < 0:
