@@ -12,6 +12,7 @@ with pytest. Both examples work with Airflow 3.x.
 2. Using ``dag.create_dagrun()``
 
 
+
 Example: DummySuccessOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -63,11 +64,14 @@ and runs it directly.
         assert ti.xcom_pull(task_ids="dummy_task") == {"ok": True}
 
 
+
 Example 2: Testing using ``dag.create_dagrun()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This pattern creates a full DAG run and then runs the TaskInstance
 associated with that DAG run.
+
+
 
 .. code-block:: python
 
@@ -77,6 +81,8 @@ associated with that DAG run.
     from airflow.utils.state import TaskInstanceState
 
     from tests.test_utils.operators.dummy_operator import DummySuccessOperator
+
+
 
 
     def test_dummy_operator_with_dagrun():
@@ -102,6 +108,8 @@ associated with that DAG run.
 
         assert ti.state == TaskInstanceState.SUCCESS
         assert ti.xcom_pull(task_ids="dummy_task") == {"ok": True}
+
+
 
 
 Notes
