@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-04T21:48:51.992679
+# This constraints file was automatically generated on 2025-12-05T04:17:24.128845
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,7 +80,7 @@ airbyte-api==0.53.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.6.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.3
+alibabacloud-credentials==1.0.4
 alibabacloud-tea-openapi==0.4.2
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
@@ -303,7 +303,7 @@ exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.123.8
+fastapi==0.123.9
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -523,7 +523,7 @@ pathspec==0.12.1
 pbr==7.0.3
 pendulum==3.1.0
 pexpect==4.9.0
-pgvector==0.4.1
+pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
