@@ -31,7 +31,6 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
-    option_airflow_core_branch,
     option_airflow_ui_base_url,
     option_allow_pre_releases,
     option_backend,
@@ -895,7 +894,6 @@ def task_sdk_integration_tests(
     show_default=True,
     envvar="AIRFLOW_CTL_VERSION",
 )
-@option_airflow_core_branch
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflowctl_integration_tests(
     python: str,
@@ -904,7 +902,6 @@ def airflowctl_integration_tests(
     github_repository: str,
     include_success_outputs: bool,
     airflow_ctl_version: str | None,
-    airflow_core_branch: str,
     extra_pytest_args: tuple,
 ):
     """Run airflowctl integration tests."""
@@ -914,20 +911,14 @@ def airflowctl_integration_tests(
     perform_environment_checks()
     if airflow_ctl_version:
         os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
+    image_name = image_name or os.environ.get("DOCKER_IMAGE")
 
-    if airflow_core_branch:
-        os.environ["AIRFLOW_CORE_BRANCH"] = airflow_core_branch
-
-    image_name = image_name or os.getenv("DOCKER_IMAGE")
     if image_name is None:
-        build_params = BuildProdParams(
-            python=python, github_repository=github_repository, airflow_branch=airflow_core_branch
-        )
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
     get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
     get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
-    get_console().print(f"[info]Using Airflow core branch: {os.getenv('AIRFLOW_CORE_BRANCH', 'main')}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         python_version=python,
