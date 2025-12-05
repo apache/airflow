@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Direcció del gràfic"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Filtre actiu",
+      "clearFilter": "Netejar filtre",
+      "clickTask": "Fes clic a una tasca per seleccionar-la com a arrel del filtre",
+      "label": "Filtrar",
+      "options": {
+        "both": "Aigües amunt i aigües avall",
+        "downstream": "Aigües avall",
+        "upstream": "Aigües amunt"
+      },
+      "selectedTask": "Tasca seleccionada"
     }
   },
   "paramsFailed": "No s'han pogut carregar els paràmetres",
