@@ -200,14 +200,14 @@ class TestVariable:
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_set_variable_sets_team(self, testing_team, session):
-        Variable.set(key="key", value="value", team_id=testing_team.id, session=session)
+        Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
-        assert test_var.team_id == testing_team.id
+        assert test_var.team_name == testing_team.name
         assert test_var.val == "value"
 
     def test_set_variable_sets_team_multi_team_off(self, testing_team, session):
         with pytest.raises(ValueError, match=r"Multi-team mode is not configured in the Airflow environment"):
-            Variable.set(key="key", value="value", team_id=testing_team.id, session=session)
+            Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
 
     def test_variable_set_existing_value_to_blank(self, session):
         test_value = "Some value"
@@ -330,20 +330,23 @@ class TestVariable:
         assert c != b
 
     def test_get_team_name(self, testing_team: Team, session: Session):
-        var = Variable(key="key", val="value", team_id=testing_team.id)
+        var = Variable(key="key", val="value", team_name=testing_team.name)
         session.add(var)
         session.flush()
 
         assert Variable.get_team_name("key", session=session) == "testing"
 
     def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
-        var1 = Variable(key="key1", val="value1", team_id=testing_team.id)
+        var1 = Variable(key="key1", val="value1", team_name=testing_team.name)
         var2 = Variable(key="key2", val="value2")
         session.add(var1)
         session.add(var2)
         session.flush()
 
-        assert Variable.get_key_to_team_name_mapping(["key1", "key2"], session=session) == {"key1": "testing"}
+        assert Variable.get_key_to_team_name_mapping(["key1", "key2"], session=session) == {
+            "key1": "testing",
+            "key2": None,
+        }
 
 
 @pytest.mark.parametrize(
