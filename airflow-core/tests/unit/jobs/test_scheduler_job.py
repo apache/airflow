@@ -84,7 +84,6 @@ from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
-from airflow.traces.tracer import Trace
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -8155,7 +8154,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     with dag_maker(
         dag_id="asset_event_listener",
-        schedule=PartitionedAssetTimetable(asset, IdentityMapper()),
+        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
         session=session,
     ):
         EmptyOperator(task_id="hi")
