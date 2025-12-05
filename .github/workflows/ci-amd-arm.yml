@@ -766,7 +766,7 @@ jobs:
         # yamllint disable rule: line-length
         airflow-core-branch: ${{ fromJSON(needs.build-info.outputs.prod-image-build-matrix) }}
     name: Build PROD images
-    needs: [build-info, build-ci-images, generate-constraints, set-prod-image-build-matrix]
+    needs: [build-info, build-ci-images, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
       contents: read
