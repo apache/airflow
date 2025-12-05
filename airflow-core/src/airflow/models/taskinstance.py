@@ -82,8 +82,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.observability.stats import Stats
 from airflow.settings import task_instance_mutation_hook
-from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils.helpers import prune_dict
@@ -438,9 +438,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    next_kwargs: Mapped[dict | str | None] = mapped_column(
-        MutableDict.as_mutable(ExtendedJSON), nullable=True
-    )
+    next_kwargs: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
 
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
@@ -1317,6 +1315,10 @@ class TaskInstance(Base, LoggingMixin):
     ) -> None:
         from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 
+        # TODO: AIP-76 should we provide an interface to override this, so that the task can
+        #  tell the truth if for some reason it touches a different partition?
+        #  https://github.com/apache/airflow/issues/58474
+        partition_key = ti.dag_run.partition_key
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)
             for o in task_outlets
@@ -1364,6 +1366,7 @@ class TaskInstance(Base, LoggingMixin):
                 task_instance=ti,
                 asset=am,
                 extra=asset_event_extras.get(key),
+                partition_key=partition_key,
                 session=session,
             )
 
@@ -1383,6 +1386,7 @@ class TaskInstance(Base, LoggingMixin):
                     task_instance=ti,
                     asset=am,
                     extra=asset_event_extras_by_name.get(nref.name),
+                    partition_key=partition_key,
                     session=session,
                 )
         if asset_uri_refs:
@@ -1401,6 +1405,7 @@ class TaskInstance(Base, LoggingMixin):
                     task_instance=ti,
                     asset=am,
                     extra=asset_event_extras_by_uri.get(uref.uri),
+                    partition_key=partition_key,
                     session=session,
                 )
 
@@ -1435,6 +1440,7 @@ class TaskInstance(Base, LoggingMixin):
                     asset=asset,
                     source_alias_names=event_aliase_names,
                     extra=asset_event_extra,
+                    partition_key=partition_key,
                     session=session,
                 )
                 if event is None:
@@ -1446,6 +1452,7 @@ class TaskInstance(Base, LoggingMixin):
                         asset=asset,
                         source_alias_names=event_aliase_names,
                         extra=asset_event_extra,
+                        partition_key=partition_key,
                         session=session,
                     )
 
@@ -2310,9 +2317,17 @@ def find_relevant_relatives(
         visited.update(partial_dag.task_dict)
 
     def _visit_relevant_relatives_for_mapped(mapped_tasks: Iterable[tuple[str, int]]) -> None:
+        from airflow.exceptions import NotMapped
+
         for task_id, map_index in mapped_tasks:
             task = dag.get_task(task_id)
-            ti_count = get_mapped_ti_count(task, run_id, session=session)
+            try:
+                ti_count = get_mapped_ti_count(task, run_id, session=session)
+            except NotMapped:
+                # Task is not actually mapped (not a MappedOperator and not inside a mapped task group).
+                # Treat it as a normal task instead.
+                _visit_relevant_relatives_for_normal([task_id])
+                continue
             # TODO (GH-52141): This should return scheduler operator types, but
             # currently get_flat_relatives is inherited from SDK DAGNode.
             relatives = cast("Iterable[Operator]", task.get_flat_relatives(upstream=direction == "upstream"))

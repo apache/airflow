@@ -1697,6 +1697,14 @@ export type XComUpdateBody = {
 };
 
 /**
+ * Authenticated user information serializer for responses.
+ */
+export type AuthenticatedMeResponse = {
+    id: string;
+    username: string;
+};
+
+/**
  * Base Edge serializer for responses.
  */
 export type BaseEdgeResponse = {
@@ -3333,6 +3341,8 @@ export type LoginResponse = unknown;
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
+
+export type GetCurrentUserInfoResponse = AuthenticatedMeResponse;
 
 export type GetDependenciesData = {
     nodeId?: string | null;
@@ -6426,6 +6436,16 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: MenuItemCollectionResponse;
+            };
+        };
+    };
+    '/ui/auth/me': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AuthenticatedMeResponse;
             };
         };
     };

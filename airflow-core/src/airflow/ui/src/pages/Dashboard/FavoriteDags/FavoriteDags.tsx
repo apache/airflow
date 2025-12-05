@@ -47,16 +47,18 @@ export const FavoriteDags = () => {
           {translate("favorite.noFavoriteDags")}
         </Text>
       ) : (
-        <Flex flexWrap="wrap" gap={2}>
-          {favorites.dags.map((dag) => (
-            <FavoriteDagCard
-              dagId={dag.dag_id}
-              dagName={dag.dag_display_name}
-              key={dag.dag_id}
-              latestRuns={dag.latest_dag_runs}
-            />
-          ))}
-        </Flex>
+        <Box overflowX={{ base: "auto", md: "visible" }} pb={{ base: 2, md: 0 }}>
+          <Flex flexWrap={{ base: "nowrap", md: "wrap" }} gap={2} minW={{ base: "min-content", md: "auto" }}>
+            {favorites.dags.map((dag) => (
+              <FavoriteDagCard
+                dagId={dag.dag_id}
+                dagName={dag.dag_display_name}
+                key={dag.dag_id}
+                latestRuns={dag.latest_dag_runs}
+              />
+            ))}
+          </Flex>
+        </Box>
       )}
     </Box>
   );

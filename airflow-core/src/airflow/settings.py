@@ -46,7 +46,12 @@ except ImportError:
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
-from airflow._shared.timezones.timezone import local_timezone, parse_timezone, utc
+from airflow._shared.timezones.timezone import (
+    initialize as initialize_timezone,
+    local_timezone,
+    parse_timezone,
+    utc,
+)
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
@@ -71,12 +76,15 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 try:
-    if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
-        TIMEZONE = parse_timezone(tz)
+    tz_str = conf.get_mandatory_value("core", "default_timezone")
+    initialize_timezone(tz_str)
+    if tz_str != "system":
+        TIMEZONE = parse_timezone(tz_str)
     else:
         TIMEZONE = local_timezone()
 except Exception:
     TIMEZONE = utc
+    initialize_timezone("UTC")
 
 log.info("Configured default timezone %s", TIMEZONE)
 

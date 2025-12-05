@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-odbc``
 
-Release: ``4.10.3``
+Release: ``4.11.0``
 
 
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
@@ -36,7 +36,7 @@ This is a provider package for ``odbc`` provider. All classes for this provider 
 are in ``airflow.providers.odbc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.10.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 =======================================  =====================================
 PIP package                              Version required
 =======================================  =====================================
-``apache-airflow``                       ``>=2.10.0``
+``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``pyodbc``                               ``>=5.0.0; python_version < "3.13"``
 ``pyodbc``                               ``>=5.2.0; python_version >= "3.13"``
@@ -79,4 +79,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.10.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-odbc/4.11.0/changelog.html>`_.

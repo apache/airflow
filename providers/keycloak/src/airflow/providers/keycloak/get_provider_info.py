@@ -43,6 +43,7 @@ def get_provider_info():
                     "client_secret": {
                         "description": "Secret associated to the client configured in Keycloak to integrate with Airflow.\n",
                         "type": "string",
+                        "sensitive": True,
                         "version_added": "0.0.1",
                         "example": None,
                         "default": None,

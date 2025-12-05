@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 import structlog
@@ -31,12 +31,14 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
     DagScheduleAssetNameReference,
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
+    PartitionedAssetKeyLog,
 )
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name
 
@@ -44,8 +46,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dag import DagModel
+    from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+    from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
 
@@ -115,6 +119,7 @@ class AssetManager(LoggingMixin):
         extra=None,
         source_alias_names: Collection[str] = (),
         session: Session,
+        partition_key: str | None = None,
         **kwargs,
     ) -> AssetEvent | None:
         """
@@ -148,6 +153,7 @@ class AssetManager(LoggingMixin):
         event_kwargs = {
             "asset_id": asset_model.id,
             "extra": extra,
+            "partition_key": partition_key,
         }
         if task_instance:
             event_kwargs.update(
@@ -206,7 +212,14 @@ class AssetManager(LoggingMixin):
         dags_to_queue = (
             dags_to_queue_from_asset | dags_to_queue_from_asset_alias | dags_to_queue_from_asset_ref
         )
-        cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
+        log.debug("asset event added", asset_event=asset_event, dags_to_queue=dags_to_queue)
+        cls._queue_dagruns(
+            asset_id=asset_model.id,
+            dags_to_queue=dags_to_queue,
+            partition_key=partition_key,
+            event=asset_event,
+            session=session,
+        )
         return asset_event
 
     @staticmethod
@@ -229,12 +242,46 @@ class AssetManager(LoggingMixin):
     def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
         try:
+            # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)
+            #  maybe we should just add the event to the signature
+            #  or add a new hook `on_asset_event`
+            #  https://github.com/apache/airflow/issues/58290
             get_listener_manager().hook.on_asset_changed(asset=asset)
         except Exception:
             log.exception("error calling listener")
 
     @classmethod
-    def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns(
+        cls,
+        *,
+        asset_id: int,
+        dags_to_queue: set[DagModel],
+        partition_key: str | None,
+        event: AssetEvent,
+        session: Session,
+    ) -> None:
+        log.debug("dags to queue", dags_to_queue=dags_to_queue)
+
+        if not dags_to_queue:
+            return None
+
+        # TODO: AIP-76 there may be a better way to identify that timetable is partition-driven
+        #  https://github.com/apache/airflow/issues/58445
+        partition_dags = [x for x in dags_to_queue if x.timetable_summary == "Partitioned Asset"]
+
+        cls._queue_partitioned_dags(
+            asset_id=asset_id,
+            partition_dags=partition_dags,
+            event=event,
+            partition_key=partition_key,
+            session=session,
+        )
+
+        non_partitioned_dags = dags_to_queue.difference(partition_dags)  # don't double process
+
+        if not non_partitioned_dags:
+            return None
+
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
@@ -243,15 +290,92 @@ class AssetManager(LoggingMixin):
         # "fallback" to running this in a nested transaction. This is needed
         # so that the adding of these rows happens in the same transaction
         # where `ti.state` is changed.
-        if not dags_to_queue:
-            return
-
         if get_dialect_name(session) == "postgresql":
-            return cls._postgres_queue_dagruns(asset_id, dags_to_queue, session)
-        return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
+            return cls._queue_dagruns_nonpartitioned_postgres(asset_id, non_partitioned_dags, session)
+        return cls._queue_dagruns_nonpartitioned_slow_path(asset_id, non_partitioned_dags, session)
 
     @classmethod
-    def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_partitioned_dags(
+        cls,
+        asset_id: int,
+        partition_dags: Iterable[DagModel],
+        event: AssetEvent,
+        partition_key: str | None,
+        session: Session,
+    ) -> None:
+        if partition_dags and not partition_key:
+            # TODO: AIP-76 how to best ensure users can see this? Probably add Log record.
+            #  https://github.com/apache/airflow/issues/59060
+            log.warning(
+                "Listening dags are partition-aware but run has no partition key",
+                listening_dags=[x.dag_id for x in partition_dags],
+                asset_id=asset_id,
+                run_id=event.source_run_id,
+                dag_id=event.source_dag_id,
+                task_id=event.source_task_id,
+            )
+            return
+
+        for target_dag in partition_dags:
+            if TYPE_CHECKING:
+                assert partition_key is not None
+            from airflow.models.serialized_dag import SerializedDagModel
+
+            serdag = SerializedDagModel.get(dag_id=target_dag.dag_id, session=session)
+            if not serdag:
+                raise RuntimeError(f"Could not find serialized dag for dag_id={target_dag.dag_id}")
+            timetable = serdag.dag.timetable
+            if TYPE_CHECKING:
+                assert isinstance(timetable, PartitionedAssetTimetable)
+            target_key = timetable.partition_mapper.to_downstream(partition_key)
+
+            apdr = cls._get_or_create_apdr(
+                target_key=target_key,
+                target_dag=target_dag,
+                session=session,
+            )
+            log_record = PartitionedAssetKeyLog(
+                asset_id=asset_id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=apdr.id,
+                source_partition_key=partition_key,
+                target_dag_id=target_dag.dag_id,
+                target_partition_key=target_key,
+            )
+            session.add(log_record)
+
+    @classmethod
+    def _get_or_create_apdr(
+        cls,
+        target_key: str,
+        target_dag: SerializedDagModel,
+        session: Session,
+    ) -> AssetPartitionDagRun:
+        latest_apdr: AssetPartitionDagRun = session.scalar(
+            select(AssetPartitionDagRun)
+            .where(
+                AssetPartitionDagRun.partition_key == target_key,
+                AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+            )
+            .order_by(AssetPartitionDagRun.id.desc())
+            .limit(1)
+        )
+        if latest_apdr and latest_apdr.created_dag_run_id is None:
+            apdr = latest_apdr
+        else:
+            apdr = AssetPartitionDagRun(
+                target_dag_id=target_dag.dag_id,
+                created_dag_run_id=None,
+                partition_key=target_key,
+            )
+            session.add(apdr)
+            session.flush()
+        return apdr
+
+    @classmethod
+    def _queue_dagruns_nonpartitioned_slow_path(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
             item = AssetDagRunQueue(target_dag_id=dag.dag_id, asset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
@@ -268,7 +392,9 @@ class AssetManager(LoggingMixin):
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns_nonpartitioned_postgres(
+        cls, asset_id: int, dags_to_queue: set[DagModel], session: Session
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]

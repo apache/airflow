@@ -115,8 +115,8 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -141,8 +141,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
-    _context: Context | None = None
-    """The Task Instance context."""
+    _cached_template_context: Context | None = None
+    """The Task Instance context. This is used to cache get_template_context."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -190,7 +190,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._context: Context = self._context or {
+        self._cached_template_context: Context = self._cached_template_context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -230,7 +230,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._context.update(context_from_server)
+            self._cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -241,7 +241,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._context.update(
+                self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -268,7 +268,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return self._context
+        return self._cached_template_context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -788,9 +788,19 @@ def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
     # TODO: Port one of the following to Task SDK
     #   airflow.serialization.helpers.serialize_template_field or
     #   airflow.models.renderedtifields.get_serialized_template_fields
+    from airflow.sdk._shared.secrets_masker import redact
     from airflow.serialization.helpers import serialize_template_field
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    rendered_fields = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        rendered_fields[field] = redact(serialized, field)
+
+    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:

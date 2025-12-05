@@ -188,7 +188,7 @@ class OpenLineageTestOperator(BaseOperator):
     :param event_templates: dictionary where key is the key used by VariableTransport in format of <DAG_ID>.<TASK_ID>.event.<EVENT_TYPE>, and value is event template (fragment) that need to be in received events.
     :param file_path: alternatively, file_path pointing to file with event templates will be used
     :param env: jinja environment used to render event templates
-    :param allow_duplicate_events: if set to True, allows multiple events for the same key
+    :param allow_duplicate_events_regex: regex pattern; keys matching it are allowed to have multiple events.
     :param clear_variables: if set to True, clears only variables to be checked after all events are checked or if any check fails
     :raises: ValueError if the received events do not match with expected ones.
     """
@@ -198,7 +198,7 @@ class OpenLineageTestOperator(BaseOperator):
         event_templates: dict[str, dict] | None = None,
         file_path: str | None = None,
         env: Environment = setup_jinja(),
-        allow_duplicate_events: bool = False,
+        allow_duplicate_events_regex: str | None = None,
         clear_variables: bool = True,
         **kwargs,
     ):
@@ -206,8 +206,8 @@ class OpenLineageTestOperator(BaseOperator):
         self.event_templates = event_templates
         self.file_path = file_path
         self.env = env
-        self.multiple_events = allow_duplicate_events
-        self.delete = clear_variables
+        self.allow_duplicate_events_regex = allow_duplicate_events_regex
+        self.clear_variables = clear_variables
         if self.event_templates and self.file_path:
             raise ValueError("Can't pass both event_templates and file_path")
 
@@ -234,13 +234,15 @@ class OpenLineageTestOperator(BaseOperator):
                 )
                 if len(actual_events) == 0:
                     raise ValueError(f"No event for key {key}")
-                if len(actual_events) != 1 and not self.multiple_events:
-                    raise ValueError(f"Expected one event for key {key}, got {len(actual_events)}")
+                if len(actual_events) != 1:
+                    regex = self.allow_duplicate_events_regex
+                    if regex is None or not re.fullmatch(regex, key):
+                        raise ValueError(f"Expected one event for key {key}, got {len(actual_events)}")
                 # Last event is checked against the template, this will allow to f.e. check change in try_num
                 if not match(template, json.loads(actual_events[-1]), self.env):
                     raise ValueError("Event received does not match one specified in test")
         finally:
-            if self.delete:
+            if self.clear_variables:
                 for key in self.event_templates:  # type: ignore[union-attr]
                     log.info("Removing variable `%s`", key)
                     Variable.delete(key=key)

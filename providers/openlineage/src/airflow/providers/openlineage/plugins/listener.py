@@ -21,6 +21,7 @@ import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
+from functools import cache
 from typing import TYPE_CHECKING
 
 import psutil
@@ -29,7 +30,7 @@ from openlineage.client.serde import Serde
 from airflow import settings
 from airflow.listeners import hookimpl
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.common.compat.sdk import timeout, timezone
+from airflow.providers.common.compat.sdk import Stats, timeout, timezone
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager, OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
@@ -51,7 +52,6 @@ from airflow.providers.openlineage.utils.utils import (
     print_warning,
 )
 from airflow.settings import configure_orm
-from airflow.stats import Stats
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -65,8 +65,6 @@ if sys.platform == "darwin":
     setproctitle = lambda title: logging.getLogger(__name__).debug("Mac OS detected, skipping setproctitle")
 else:
     from setproctitle import getproctitle, setproctitle
-
-_openlineage_listener: OpenLineageListener | None = None
 
 
 def _executor_initializer():
@@ -806,9 +804,7 @@ class OpenLineageListener:
             self.log.debug("Successfully submitted method to executor")
 
 
+@cache
 def get_openlineage_listener() -> OpenLineageListener:
     """Get singleton listener manager."""
-    global _openlineage_listener
-    if not _openlineage_listener:
-        _openlineage_listener = OpenLineageListener()
-    return _openlineage_listener
+    return OpenLineageListener()

@@ -26,8 +26,8 @@ from unittest import mock
 import pytest
 import uuid6
 
-from airflow._shared.timezones import timezone
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
 from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbsResult
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance

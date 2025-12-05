@@ -3,6 +3,7 @@
   "asset_many": "에셋들",
   "asset_one": "에셋",
   "consumingDags": "사용 중인 Dags",
+  "consumingTasks": "사용 중인 Tasks",
   "createEvent": {
     "button": "이벤트 생성",
     "manual": {

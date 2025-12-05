@@ -89,6 +89,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     GetXComSequenceSlice,
+    MaskSecret,
     OKResponse,
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
@@ -2661,6 +2662,57 @@ class TestEmailNotifications:
                     == "<h1>Custom Template</h1><p>Task: {{ti.task_id}}</p><p>Error: {{exception_html}}</p>"
                 )
                 assert kwargs["from_email"] == self.FROM
+
+    @pytest.mark.enable_redact
+    def test_rendered_templates_mask_secrets(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that secrets registered with mask_secret() are redacted in rendered template fields."""
+        from unittest.mock import call
+
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+        from airflow.sdk.log import mask_secret
+
+        _secrets_masker().add_mask("admin_user_12345", None)
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("username", "region")
+
+            def __init__(self, username, region, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.username = username
+                self.region = region
+
+            def execute(self, context):
+                # Only mask username
+                mask_secret(self.username)
+
+        task = CustomOperator(
+            task_id="test_masking",
+            username="admin_user_12345",
+            region="us-west-2",
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_secrets_in_rtif")
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert (
+            call(MaskSecret(value="admin_user_12345", name=None, type="MaskSecret"))
+            in mock_supervisor_comms.send.mock_calls
+        )
+        # Region should not be masked
+        assert (
+            call(MaskSecret(value="us-west-2", name=None, type="MaskSecret"))
+            not in mock_supervisor_comms.send.mock_calls
+        )
+
+        assert (
+            call(
+                msg=SetRenderedFields(
+                    rendered_fields={"username": "***", "region": "us-west-2"},
+                    type="SetRenderedFields",
+                )
+            )
+            in mock_supervisor_comms.send.mock_calls
+        )
 
 
 class TestDagParamRuntime:

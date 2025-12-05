@@ -370,7 +370,6 @@ class TestCliDags:
         dagbag = DBDagBag()
         dag_details = dag_command._get_dagbag_dag_details(
             dagbag.get_latest_version_of_dag("tutorial_dag", session=session),
-            session=session,
         )
         assert sorted(dag_details) == sorted(dag_command.DAG_DETAIL_FIELDS)
 

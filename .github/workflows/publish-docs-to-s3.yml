@@ -95,14 +95,16 @@ jobs:
       default-python-version: "3.10"
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
       "utkarsharma2",
-      "bugraoz93"
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"

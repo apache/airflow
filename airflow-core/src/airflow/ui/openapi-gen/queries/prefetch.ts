@@ -1467,6 +1467,13 @@ export const prefetchUseLoginServiceLogout = (queryClient: QueryClient) => query
 */
 export const prefetchUseAuthLinksServiceGetAuthMenus = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetAuthMenusKeyFn(), queryFn: () => AuthLinksService.getAuthMenus() });
 /**
+* Get Current User Info
+* Convienently get the current authenticated user information.
+* @returns AuthenticatedMeResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseAuthLinksServiceGetCurrentUserInfo = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseAuthLinksServiceGetCurrentUserInfoKeyFn(), queryFn: () => AuthLinksService.getCurrentUserInfo() });
+/**
 * Get Dependencies
 * Dependencies graph.
 * @param data The data for the request.
