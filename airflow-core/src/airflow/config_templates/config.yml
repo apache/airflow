@@ -2509,6 +2509,17 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    health_check_threshold:
+      description: |
+        If the last dag processor heartbeat happened more than
+        ``[dag_processor] health_check_threshold`` ago (in seconds),
+        dag processor is considered unhealthy.
+        This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
+        CLI for DagProcessorJob.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30"
     disable_bundle_versioning:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
