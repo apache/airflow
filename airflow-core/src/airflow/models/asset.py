@@ -45,18 +45,18 @@ from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from typing import Any
+    from typing import Any, TypeAlias
 
     from sqlalchemy.orm import Session
 
     from airflow.models.dag import DagModel
     from airflow.models.trigger import Trigger
-    from airflow.sdk.definitions.asset import Asset, AssetAlias
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
 
-def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, Asset]:
+def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
     return {
-        asset_model.name: asset_model.to_public()
+        asset_model.name: asset_model.to_serialized()
         for asset_model in session.scalars(
             select(AssetModel)
             .join(AssetActive, AssetActive.name == AssetModel.name)
@@ -65,9 +65,9 @@ def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[
     }
 
 
-def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[str, Asset]:
+def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
     return {
-        asset_model.uri: asset_model.to_public()
+        asset_model.uri: asset_model.to_serialized()
         for asset_model in session.scalars(
             select(AssetModel)
             .join(AssetActive, AssetActive.uri == AssetModel.uri)
@@ -179,7 +179,10 @@ class AssetWatcherModel(Base):
     )
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(name={self.name!r}, asset_id={self.asset_id!r}, trigger_id={self.trigger_id!r})"
+        return (
+            f"{self.__class__.__name__}"
+            f"(name={self.name!r}, asset_id={self.asset_id!r}, trigger_id={self.trigger_id!r})"
+        )
 
 
 class AssetAliasModel(Base):
@@ -235,8 +238,8 @@ class AssetAliasModel(Base):
     scheduled_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
 
     @classmethod
-    def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
-        return cls(name=obj.name)
+    def from_serialized(cls, obj: SerializedAssetAlias) -> AssetAliasModel:
+        return cls(name=obj.name, group=obj.group)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name!r})"
@@ -245,16 +248,21 @@ class AssetAliasModel(Base):
         return hash(self.name)
 
     def __eq__(self, other: object) -> bool:
-        from airflow.sdk.definitions.asset import AssetAlias
+        from airflow.serialization.definitions.assets import SerializedAssetAlias
 
-        if isinstance(other, (self.__class__, AssetAlias)):
+        try:
+            from airflow.sdk import AssetAlias
+        except ModuleNotFoundError:
+            AssetAlias: TypeAlias = SerializedAssetAlias  # type: ignore[no-redef]
+
+        if isinstance(other, (self.__class__, AssetAlias, SerializedAssetAlias)):
             return self.name == other.name
         return NotImplemented
 
-    def to_public(self) -> AssetAlias:
-        from airflow.sdk.definitions.asset import AssetAlias
+    def to_serialized(self) -> SerializedAssetAlias:
+        from airflow.serialization.definitions.assets import SerializedAssetAlias
 
-        return AssetAlias(name=self.name)
+        return SerializedAssetAlias(name=self.name, group=self.group)
 
 
 class AssetModel(Base):
@@ -325,7 +333,7 @@ class AssetModel(Base):
     )
 
     @classmethod
-    def from_public(cls, obj: Asset) -> AssetModel:
+    def from_serialized(cls, obj: SerializedAsset) -> AssetModel:
         return cls(name=obj.name, uri=obj.uri, group=obj.group, extra=obj.extra)
 
     def __init__(self, name: str = "", uri: str = "", **kwargs):
@@ -345,9 +353,14 @@ class AssetModel(Base):
         super().__init__(name=name, uri=uri, **kwargs)
 
     def __eq__(self, other: object) -> bool:
-        from airflow.sdk.definitions.asset import Asset
+        from airflow.serialization.definitions.assets import SerializedAsset
 
-        if isinstance(other, (self.__class__, Asset)):
+        try:
+            from airflow.sdk import Asset
+        except ModuleNotFoundError:
+            Asset: TypeAlias = SerializedAsset  # type: ignore[no-redef]
+
+        if isinstance(other, (self.__class__, Asset, SerializedAsset)):
             return self.name == other.name and self.uri == other.uri
         return NotImplemented
 
@@ -357,10 +370,10 @@ class AssetModel(Base):
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name!r}, uri={self.uri!r}, extra={self.extra!r})"
 
-    def to_public(self) -> Asset:
-        from airflow.sdk.definitions.asset import Asset
+    def to_serialized(self) -> SerializedAsset:
+        from airflow.serialization.definitions.assets import SerializedAsset
 
-        return Asset(name=self.name, uri=self.uri, group=self.group, extra=self.extra)
+        return SerializedAsset(name=self.name, uri=self.uri, group=self.group, extra=self.extra, watchers=[])
 
     def add_trigger(self, trigger: Trigger, watcher_name: str):
         self.watchers.append(AssetWatcherModel(name=watcher_name, trigger_id=trigger.id))

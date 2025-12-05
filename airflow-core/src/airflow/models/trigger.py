@@ -267,7 +267,7 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
+                asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
             )
