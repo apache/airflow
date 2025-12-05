@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -59,7 +59,7 @@ repos:
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: f5cfd5fdaf0211dfd1027d9d8442b764a232c7ad
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -343,7 +343,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.7']
+        additional_dependencies: ['ruff==0.14.8']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -474,6 +474,8 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^README\.md$|
+          ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|

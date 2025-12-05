@@ -121,6 +121,9 @@
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger DAG"
+      },
       "success": {
         "description": "Dag run has been successfully triggered.",
         "title": "Dag Run Triggered"
