@@ -83,7 +83,18 @@ dependencies = [
 "sentry" = [
     "sentry-sdk>=2.30.0",
 ]
-"all" = ["apache-airflow-task-sdk[sentry]"]
+"otel" = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "opentelemetry-proto<9999,>=1.27.0",
+]
+"statsd" = [
+    "statsd>=3.3.0",
+]
+"datadog" = [
+    "datadog>=0.50.0",
+]
+"all" = ["apache-airflow-task-sdk[sentry,otel,statsd,datadog]"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -109,6 +120,7 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -255,4 +267,5 @@ shared_distributions = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

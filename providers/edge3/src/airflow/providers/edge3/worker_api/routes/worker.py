@@ -22,7 +22,7 @@ from typing import Annotated
 
 from sqlalchemy import select
 
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -41,7 +41,6 @@ from airflow.providers.edge3.worker_api.routes._v2_compat import (
     create_openapi_http_exception_doc,
     status,
 )
-from airflow.stats import Stats
 
 worker_router = AirflowRouter(
     tags=["Worker"],

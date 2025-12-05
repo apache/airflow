@@ -337,7 +337,7 @@ def ensure_plugins_loaded():
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     global plugins
 
