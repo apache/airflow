@@ -27,7 +27,7 @@ COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
-UV_VERSION="0.9.13"
+UV_VERSION="0.9.15"
 
 function manual_instructions() {
     echo
@@ -72,7 +72,7 @@ function check_breeze_installed() {
             echo
             if "${MY_DIR}/confirm" "installing and modifying the startup scripts"; then
                 uv tool install -e "${AIRFLOW_SOURCES}/dev/breeze/" --force
-                ${BREEZE_BINARY} setup-autocomplete --force --answer yes
+                ${BREEZE_BINARY} setup autocomplete --force --answer yes
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. Then rerun your last command!${COLOR_RESET}"
                 echo

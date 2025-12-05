@@ -26,27 +26,26 @@ try:
 except ImportError:
     # Airflow 2 path
     from airflow.decorators import task, teardown  # type: ignore[attr-defined,no-redef]
-from airflow.providers.pinecone.operators.pinecone import CreatePodIndexOperator
+from airflow.providers.pinecone.operators.pinecone import CreateServerlessIndexOperator
 
 index_name = os.getenv("INDEX_NAME", "test")
 
 
 with DAG(
     "example_pinecone_create_pod_index",
-    schedule="@once",
+    schedule=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
 ) as dag:
     # [START howto_operator_create_pod_index]
     # reference: https://docs.pinecone.io/reference/api/control-plane/create_index
-    create_index = CreatePodIndexOperator(
+    create_index = CreateServerlessIndexOperator(
         task_id="pinecone_create_pod_index",
         index_name=index_name,
         dimension=3,
-        replicas=1,
-        shards=1,
-        pods=1,
-        pod_type="p1.x1",
+        cloud="aws",
+        region="us-west-2",
+        metric="cosine",
     )
     # [END howto_operator_create_pod_index]
 
