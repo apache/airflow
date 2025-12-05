@@ -1797,9 +1797,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set DagModel.next_dagrun_info if the Dag Run already exists or if we
-            # create a new one. This is so that in the next Scheduling loop we try to create new runs
-            # instead of falling in a loop of Integrity Error.
+            # we need to set DagModel.next_dagrun_info if the DagRun already exists or if we
+            # create a new one. This is so that in the next scheduling loop we try to create new runs
+            # instead of falling in a loop of IntegrityError.
             if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
@@ -1824,7 +1824,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # serdag.create_dagrun() when serdag is misconfigured. The scheduler should not
+                # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
                 # and continue to the next serdag.
                 except Exception:
@@ -1839,7 +1839,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ):
                 dag_model.calculate_dagrun_date_fields(serdag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        # memory for larger dags? or expunge_all()
+        #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
