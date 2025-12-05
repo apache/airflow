@@ -284,4 +284,3 @@ _e2e_test_report.json
 
 # Allow logs folder in task-sdk-integration-tests (they logs folders are ignored above in general)
 !/task-sdk-integration-tests/logs/
-options
