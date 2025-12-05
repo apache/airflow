@@ -55,7 +55,7 @@ from airflow.providers.standard.utils.python_virtualenv import (
     prepare_virtualenv,
     write_python_script,
 )
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator, AIRFLOW_V_3_2_PLUS
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
@@ -1219,3 +1219,55 @@ def _get_current_context() -> Mapping[str, Any]:
             "Current context was requested but no context was found! Are you running within an Airflow task?"
         )
     return _CURRENT_CONTEXT[-1]
+
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk.bases.operator import BaseAsyncOperator
+
+    if TYPE_CHECKING:
+        from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
+
+
+    class PythonAsyncOperator(BaseAsyncOperator, PythonOperator):
+        async def aexecute(self, context):
+            """Async version of execute(). Subclasses should implement this."""
+            context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+            self.op_kwargs = self.determine_kwargs(context)
+
+            # This needs to be lazy because subclasses may implement execute_callable
+            # by running a separate process that can't use the eager result.
+            def __prepare_execution() -> (
+                tuple[AsyncExecutionCallableRunner, OutletEventAccessorsProtocol] | None
+            ):
+                from airflow.sdk.execution_time.callback_runner import (
+                    create_async_executable_runner,
+                )
+                from airflow.sdk.execution_time.context import (
+                    context_get_outlet_events,
+                )
+
+                return create_async_executable_runner, context_get_outlet_events(context)
+
+            self.__prepare_execution = __prepare_execution
+
+            return_value = await self.execute_callable()
+            if self.show_return_value_in_logs:
+                self.log.info("Done. Returned value was: %s", return_value)
+            else:
+                self.log.info("Done. Returned value not shown")
+
+            return return_value
+
+        async def execute_callable(self) -> Any:
+            """
+            Call the python callable with the given arguments.
+
+            :return: the return value of the call.
+            """
+            if (execution_preparation := self.__prepare_execution()) is None:
+                return await self.python_callable(*self.op_args, **self.op_kwargs)
+            create_execution_runner, asset_events = execution_preparation
+            runner = create_execution_runner(
+                self.python_callable, asset_events, logger=self.log
+            )
+            return await runner.run(*self.op_args, **self.op_kwargs)

@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import collections.abc
 import contextlib
 import copy
 import inspect
 import sys
 import warnings
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from asyncio import AbstractEventLoop
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence, Generator
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -197,6 +199,27 @@ def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     from airflow.sdk.definitions.operator_resources import Resources
 
     return Resources(**resources)
+
+
+@contextlib.contextmanager
+def event_loop() -> Generator[AbstractEventLoop]:
+    new_event_loop = False
+    loop = None
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_event_loop = True
+        yield loop
+    finally:
+        if new_event_loop and loop is not None:
+            with contextlib.suppress(AttributeError):
+                loop.close()
+                asyncio.set_event_loop(None)
 
 
 class _PartialDescriptor:
@@ -1307,6 +1330,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Operators can be assigned to one Dag, one time. Repeat assignments to that same Dag are ok."""
         self._dag = dag
 
+    @property
+    def is_async(self) -> bool:
+        return False
+
     def _convert__dag(self, dag: DAG | None) -> DAG | None:
         # Called automatically by __setattr__ method
         from airflow.sdk.definitions.dag import DAG
@@ -1677,6 +1704,30 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def has_on_skipped_callback(self) -> bool:
         """Return True if the task has skipped callbacks."""
         return bool(self.on_skipped_callback)
+
+
+class BaseAsyncOperator(BaseOperator):
+    """Base class for async-capable operators."""
+
+    @property
+    def is_async(self) -> bool:
+        return True
+
+    async def aexecute(self, context):
+        """Async version of execute(). Subclasses should implement this."""
+        raise NotImplementedError()
+
+    def execute(self, context):
+        """Run aexecute() inside an event loop."""
+        with event_loop() as loop:
+            if self.execution_timeout:
+                return loop.run_until_complete(
+                    asyncio.wait_for(
+                        self.aexecute(context),
+                        timeout=self.execution_timeout.total_seconds(),
+                    )
+                )
+            return loop.run_until_complete(self.aexecute(context))
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

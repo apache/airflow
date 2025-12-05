@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import os
@@ -47,6 +48,7 @@ from airflow.exceptions import (
 )
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.providers.standard.decorators.python import python_task, _PythonDecoratedAsyncOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -74,7 +76,7 @@ from tests_common.test_utils.version_compat import (
 )
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
+    from airflow.sdk import BaseOperator, task
     from airflow.sdk.execution_time.context import set_current_context
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
@@ -2385,6 +2387,16 @@ class TestShortCircuitWithTeardown:
         else:
             assert isinstance(actual_skipped, Generator)
         assert set(actual_skipped) == {op3}
+
+
+class TestPythonAsyncOperator(TestPythonOperator):
+    def test_run_async_task(self):
+        async def say_hello(name: str) -> str:
+            await asyncio.sleep(1)
+            return f"Hello {name}!"
+
+        ti = self.run_as_task(say_hello, return_ti=True, op_kwargs={"name": "world"})
+        assert ti.xcom_pull() == "Hello world!"
 
 
 @pytest.mark.parametrize(

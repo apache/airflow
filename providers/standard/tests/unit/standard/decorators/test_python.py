@@ -35,7 +35,8 @@ from tests_common.test_utils.version_compat import (
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown
+    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown, \
+        task
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
@@ -1136,3 +1137,24 @@ def test_teardown_trigger_rule_override_behavior(dag_maker, session):
         my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
+
+
+@task
+async def dummy_task():
+    pass
+
+
+def test_is_async_callable(self):
+    from airflow.sdk.bases.decorator import is_async_callable
+
+    assert is_async_callable(dummy_task)
+
+
+def test_python_task(self):
+    from airflow.providers.standard.decorators.python import _PythonDecoratedAsyncOperator, python_task
+    from airflow.sdk.bases.decorator import _TaskDecorator
+
+    decorator = python_task(dummy_task)
+
+    assert isinstance(decorator, _TaskDecorator)
+    assert decorator.operator_class == _PythonDecoratedAsyncOperator
