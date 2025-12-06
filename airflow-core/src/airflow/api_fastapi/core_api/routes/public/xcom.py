@@ -61,7 +61,7 @@ xcom_router = AirflowRouter(
 
 
 @xcom_router.get(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -257,7 +257,7 @@ def create_xcom_entry(
         )
 
     try:
-        value = json.dumps(request_body.value)
+        value = XComModel.serialize_value(request_body.value)
     except (ValueError, TypeError):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"Couldn't serialise the XCom with key: `{request_body.key}`"
@@ -292,7 +292,7 @@ def create_xcom_entry(
 
 
 @xcom_router.patch(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -336,6 +336,6 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    xcom_entry.value = json.dumps(xcom_new_value)
+    xcom_entry.value = xcom_new_value
 
     return XComResponseNative.model_validate(xcom_entry)
