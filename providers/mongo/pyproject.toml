@@ -71,7 +71,6 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "testcontainers>=4.12.0"
 ]
 
 # To build docs:
