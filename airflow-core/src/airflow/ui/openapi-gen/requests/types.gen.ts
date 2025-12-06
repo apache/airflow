@@ -1765,6 +1765,7 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
+    theme: Theme;
 };
 
 /**
@@ -1997,6 +1998,8 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
+export type OklchColor = string;
+
 /**
  * Standard fields of a Hook that a form will render.
  */
@@ -2050,6 +2053,21 @@ export type TeamCollectionResponse = {
 export type TeamResponse = {
     id: string;
     name: string;
+};
+
+/**
+ * JSON to modify Chakra's theme.
+ */
+export type Theme = {
+    tokens: {
+        [key: string]: {
+            [key: string]: {
+                [key: string]: {
+                    [key: string]: OklchColor;
+                };
+            };
+        };
+    };
 };
 
 /**
