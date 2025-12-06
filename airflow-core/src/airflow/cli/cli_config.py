@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import textwrap
@@ -139,6 +140,15 @@ def string_lower_type(val):
     if not val:
         return
     return val.strip().lower()
+
+
+class Password(argparse.Action):
+    """Custom action to prompt for password input."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            values = getpass.getpass(prompt="Password: ")
+        setattr(namespace, self.dest, values)
 
 
 # Shared

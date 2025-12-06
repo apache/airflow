@@ -22,6 +22,7 @@ from airflow.cli.cli_config import (
     Arg,
     lazy_load_command,
 )
+from airflow.providers.keycloak.version_compat import Password
 
 ############
 # # ARGS # #
@@ -33,7 +34,11 @@ ARG_USERNAME = Arg(
 )
 ARG_PASSWORD = Arg(
     ("--password",),
-    help="Password associated to the user used to create resources",
+    help="Password associated to the user used to create resources. If not provided, you will be prompted to enter it.",
+    action=Password,
+    nargs="?",
+    dest="password",
+    type=str,
 )
 ARG_USER_REALM = Arg(
     ("--user-realm",), help="Realm name where the user used to create resources is", default="master"
