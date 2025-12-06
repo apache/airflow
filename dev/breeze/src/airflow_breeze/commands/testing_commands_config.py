@@ -231,7 +231,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--skip-docker-compose-deletion",
                 "--airflow-ctl-version",
-                "--airflow-core-branch",
             ],
         },
         {

@@ -981,14 +981,32 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build_matrix(self) -> list[str]:
-        event_name = os.environ.get("GITHUB_EVENT_NAME", "")
-        branch = (
-            os.environ.get("GITHUB_HEAD_REF")
-            if event_name == "pull_request"
-            else os.environ.get("GITHUB_REF_NAME")
-        )
+        """
+        Determine which branches to test airflowctl integration tests against.
 
-        return INTEGRATION_TESTS_CORE_BRANCHES if branch == AIRFLOW_BRANCH else ["main"]
+        Returns:
+            - For main branch: ["v3-1-test", "main"] - test against both
+            - For other branches: ["<branch-name>"] - test only against that branch
+
+        Scenarios:
+            - PR to main: use GITHUB_BASE_REF (main) -> full matrix
+            - PR to v2-10-test: use GITHUB_BASE_REF (v2-10-test) -> single branch
+            - Push to main: use GITHUB_REF_NAME (main) -> full matrix
+            - Schedule on main: use GITHUB_REF_NAME (main) -> full matrix
+            - Schedule on v2-10-test: use GITHUB_REF_NAME (v2-10-test) -> single branch
+        """
+        # Determine the target/base branch based on event type
+        if self._github_event == GithubEvents.PULL_REQUEST:
+            # For PRs, check what branch we're merging INTO (the target)
+            branch = os.environ.get("GITHUB_BASE_REF", AIRFLOW_BRANCH)
+        else:
+            # For push/schedule/workflow_dispatch, check the current branch
+            branch = os.environ.get("GITHUB_REF_NAME", AIRFLOW_BRANCH)
+
+        # Return full matrix only for main branch
+        if branch == AIRFLOW_BRANCH:  # "main"
+            return INTEGRATION_TESTS_CORE_BRANCHES
+        return [branch]
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
