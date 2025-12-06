@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from spython.instance import Instance
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.singularity.operators.singularity import SingularityOperator
 
 

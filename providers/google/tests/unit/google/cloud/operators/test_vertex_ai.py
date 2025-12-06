@@ -29,7 +29,8 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,

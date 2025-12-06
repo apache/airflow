@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import Table
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.db import initdb
 from airflow.utils.db_manager import RunDBManager
 

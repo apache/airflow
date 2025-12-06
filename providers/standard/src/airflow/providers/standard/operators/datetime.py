@@ -20,8 +20,7 @@ import datetime
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.standard.operators.branch import BaseBranchOperator
 
 if TYPE_CHECKING:

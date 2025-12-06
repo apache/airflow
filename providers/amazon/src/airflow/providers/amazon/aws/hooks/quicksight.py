@@ -21,8 +21,8 @@ import time
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class QuickSightHook(AwsBaseHook):

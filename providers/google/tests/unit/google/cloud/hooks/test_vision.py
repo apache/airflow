@@ -34,7 +34,7 @@ from google.cloud.vision_v1 import (
 )
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 

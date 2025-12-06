@@ -22,8 +22,8 @@ import os
 import subprocess
 
 from airflow import settings
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.logging_command_executor import CommandExecutor

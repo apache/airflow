@@ -135,7 +135,7 @@ class TestLatestOnlyOperator:
         )
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             # AIP-72
             # Running the "latest" task for each of the DAG runs to test the skipping of downstream tasks

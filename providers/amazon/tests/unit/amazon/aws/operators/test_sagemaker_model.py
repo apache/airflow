@@ -23,7 +23,6 @@ from unittest.mock import patch
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import (
     ApprovalStatus,
@@ -31,6 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
     SageMakerRegisterModelVersionOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

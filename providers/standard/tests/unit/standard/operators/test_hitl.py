@@ -31,9 +31,9 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowException, DownstreamTasksSkipped, ParamValidationError
 from airflow.models import TaskInstance, Trigger
 from airflow.models.hitl import HITLDetail
+from airflow.providers.common.compat.sdk import AirflowException, DownstreamTasksSkipped, ParamValidationError
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (

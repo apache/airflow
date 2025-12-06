@@ -25,10 +25,10 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 try:
     from airflow.sdk import timezone

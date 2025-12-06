@@ -21,7 +21,7 @@ from collections.abc import Iterable, Sequence
 from types import GeneratorType
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

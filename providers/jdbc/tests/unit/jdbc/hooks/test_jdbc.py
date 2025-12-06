@@ -29,8 +29,8 @@ from unittest.mock import MagicMock, Mock, patch
 import jaydebeapi
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4

@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 from typing import Any, cast
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class SparkJDBCHook(SparkSubmitHook):

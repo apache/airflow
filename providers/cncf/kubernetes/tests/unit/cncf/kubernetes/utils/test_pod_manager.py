@@ -29,7 +29,6 @@ import time_machine
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
@@ -38,6 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     parse_log_line,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import utc
 
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper

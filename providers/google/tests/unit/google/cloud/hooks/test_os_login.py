@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 
 from unit.google.cloud.utils.base_gcp_mock import (
