@@ -73,6 +73,7 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "delete": "Delete",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -85,6 +86,7 @@
     "tooltip": "Press {{hotkey}} to download logs"
   },
   "duration": "Duration",
+  "edit": "Edit",
   "endDate": "End Date",
   "error": {
     "back": "Back",
@@ -123,12 +125,14 @@
   "logoutConfirmation": "You are about to logout from the application.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": {
       "button": "Delete",
       "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Admin",
