@@ -265,26 +265,6 @@ def _clean_db():
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
-    @staticmethod
-    def clean_db():
-        clear_db_dags()
-        clear_db_runs()
-        clear_db_backfills()
-        clear_db_pools()
-        clear_db_import_errors()
-        clear_db_jobs()
-        clear_db_assets()
-        clear_db_deadline()
-        clear_db_callbacks()
-        clear_db_triggers()
-
-
-@patch.dict(
-    ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
-)
-@pytest.mark.usefixtures("disable_load_example")
-@pytest.mark.need_serialized_dag
-class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         _clean_db()
@@ -1337,37 +1317,6 @@ class TestSchedulerJob:
             ti for ti in executor_to_tis.get(mock_executors[0], []) if ti.dag_id == "dag_b"
         ]
         assert len(b_tis_in_wrong_executor) == 0
-
-    def task_helper(self, dag_maker, session, dag_id: str, task_num: int):
-        dag_tasks = {}
-
-        with dag_maker(dag_id=dag_id):
-            for i in range(task_num):
-                # Assign priority weight to certain tasks.
-                if (i % 10) == 0:  # 10, 20, 30, 40, 50, ...
-                    weight = int(i / 2)
-                    dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", priority_weight=weight)
-                else:
-                    # No executor specified, runs on default executor
-                    dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}")
-
-        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-
-        task_tis = {}
-
-        tis_list = []
-        for i in range(task_num):
-            task_tis[f"ti{i}"] = dag_run.get_task_instance(dag_tasks[f"op{i}"].task_id, session)
-            # add
-            tis_list.append(task_tis[f"ti{i}"])
-
-        for ti in tis_list:
-            ti.state = State.SCHEDULED
-            ti.dag_model.max_active_tasks = 4
-
-        session.flush()
-
-        return tis_list
 
     @conf_vars(
         {
