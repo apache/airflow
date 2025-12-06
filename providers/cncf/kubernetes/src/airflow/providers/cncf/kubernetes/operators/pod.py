@@ -1389,6 +1389,17 @@ class KubernetesPodOperator(BaseOperator):
         pod_start_times: list[datetime.datetime] = [
             pod.to_dict().get("status").get("start_time") for pod in pod_list
         ]
+        if not all(pod_start_times):
+            pod_start_times: list[datetime.datetime] = [  # type: ignore[no-redef]
+                pod_start_time
+                if (
+                    pod_start_time := pod.to_dict()
+                    .get("metadata", {})
+                    .get("creation_timestamp", datetime.datetime.now(tz=datetime.timezone.utc))
+                )
+                else datetime.datetime.now(tz=datetime.timezone.utc)
+                for pod in pod_list
+            ]
         most_recent_start_time = max(pod_start_times)
         return pod_start_times.index(most_recent_start_time)
 
