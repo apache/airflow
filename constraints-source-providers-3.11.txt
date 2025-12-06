@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-06T10:04:00.615942
+# This constraints file was automatically generated on 2025-12-06T15:45:32.757085
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -204,7 +204,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.123.10
+fastapi==0.124.0
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -363,7 +363,7 @@ kubernetes_asyncio==33.3.0
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
-librt==0.7.0
+librt==0.7.2
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
