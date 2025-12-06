@@ -22,7 +22,7 @@ import time
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import Self
+    from .. import Self
 
 DeltaType = int | float | datetime.timedelta
 
