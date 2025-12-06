@@ -50,6 +50,13 @@
     "warning_one": "1 Advertència",
     "warning_other": "{{count}} Advertències"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Format de data no vàlid.",
+      "invalidTimeFormat": "Format d'hora no vàlid.",
+      "startBeforeEnd": "La data/hora d'inici ha de ser anterior a la data/hora de finalització"
+    }
+  },
   "durationChart": {
     "duration": "Duració (segons)",
     "lastDagRun_one": "Última execució del Dag",
@@ -116,6 +123,9 @@
     "selectLabel": "Execució única",
     "title": "Executar Dag",
     "toaster": {
+      "error": {
+        "title": "No s'ha pogut executar el Dag"
+      },
       "success": {
         "description": "El Dag s'ha executat correctament.",
         "title": "Execució del Dag correcta"
