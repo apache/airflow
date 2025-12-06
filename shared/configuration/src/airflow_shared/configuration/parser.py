@@ -896,6 +896,7 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
+        team_name: str | None = None,
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from default values."""
