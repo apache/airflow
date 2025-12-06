@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 import structlog
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import Self
+    from .. import Self
 
 log = structlog.getLogger(__name__)
 
