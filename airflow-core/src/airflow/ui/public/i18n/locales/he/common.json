@@ -64,6 +64,7 @@
     "dataIntervalEnd": "סיום מקטע נתונים",
     "dataIntervalStart": "תחילת מקטע נתונים",
     "lastSchedulingDecision": "החלטת תזמון אחרונה",
+    "partitionKey": "מפתח מחיצה",
     "queuedAt": "זמן כניסה לתור",
     "runAfter": "ריצה לאחר",
     "runType": "סוג ריצה",
@@ -95,6 +96,7 @@
     "back": "חזור",
     "defaultMessage": "התרחשה שגיאה בלתי צפויה",
     "home": "דף הבית",
+    "invalidUrl": "הדף לא נמצא. בדוק את הכתובת ונסה שוב.",
     "notFound": "הדף לא נמצא",
     "title": "שגיאה"
   },
@@ -114,10 +116,13 @@
   "filters": {
     "durationFrom": "משך זמן מ-",
     "durationTo": "משך זמן עד",
+    "endTime": "זמן סיום",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
-    "runAfterTo": "ריצה לאחר (עד תאריך)"
+    "runAfterTo": "ריצה לאחר (עד תאריך)",
+    "selectDateRange": "בחר טווח תאריכים",
+    "startTime": "זמן התחלה"
   },
   "logicalDate": "תאריך לוגי",
   "logout": "התנתק",
