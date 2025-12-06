@@ -51,9 +51,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from asyncssh.sftp import SFTPClient
     from paramiko import SSHClient
     from paramiko.sftp_attr import SFTPAttributes
+    from paramiko.sftp_client import SFTPClient
 
 
 def handle_connection_management(func: Callable) -> Callable:
@@ -75,7 +75,7 @@ def handle_connection_management(func: Callable) -> Callable:
     return handle_connection_management_wrapper
 
 
-async def walk(sftp_client, dir_path: str) -> list[asyncssh.sftp.SFTPName]:
+async def walk(sftp_client: asyncssh.SFTPClient, dir_path: str) -> list[asyncssh.sftp.SFTPName]:
     results = []
     files = await sftp_client.readdir(dir_path)
 
@@ -898,15 +898,15 @@ class SFTPClientPool(LoggingMixin):
         super().__init__()
         self.sftp_conn_id = sftp_conn_id
         self.pool_size = pool_size or conf.getint("core", "parallelism")
-        self._pool: asyncio.Queue[tuple[SSHClientConnection, SFTPClient]] = asyncio.Queue(
-            maxsize = self.pool_size
+        self._pool: asyncio.Queue[tuple[SSHClientConnection, asyncssh.SFTPClient]] = asyncio.Queue(
+            maxsize=self.pool_size
         )
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(self.pool_size)
 
     async def __aenter__(self):
         self.log.info(
-            "Entering SFTPConnectionPool for '%s' (pool_size=%s)",
+            "Entering SFTPClientPool for '%s' (pool_size=%s)",
             self.sftp_conn_id,
             self.pool_size,
         )
@@ -921,16 +921,16 @@ class SFTPClientPool(LoggingMixin):
             except Exception as e:
                 self.log.warning("Error closing SFTP client for '%s': %s", self.sftp_conn_id, e)
             ssh_conn.close()
-        self.log.info("SFTPConnectionPool for '%s' closed", self.sftp_conn_id)
+        self.log.info("SFTPClientPool for '%s' closed", self.sftp_conn_id)
 
-    async def _create_connection(self) -> tuple[SSHClientConnection, SFTPClient]:
+    async def _create_connection(self) -> tuple[SSHClientConnection, asyncssh.SFTPClient]:
         hook = SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
         ssh_conn = await hook._get_conn()
         sftp = await ssh_conn.start_sftp_client()
         self.log.info("Created new SFTP connection for sftp_conn_id '%s'", self.sftp_conn_id)
         return ssh_conn, sftp
 
-    async def acquire(self) -> tuple[SSHClientConnection, SFTPClient]:
+    async def acquire(self) -> tuple[SSHClientConnection, asyncssh.SFTPClient]:
         self.log.debug("Acquiring SFTP connection for '%s'", self.sftp_conn_id)
         async with self._lock:
             # Create a new connection only if the pool is not full and currently empty
@@ -938,7 +938,7 @@ class SFTPClientPool(LoggingMixin):
                 return await self._create_connection()
         return await self._pool.get()
 
-    async def release(self, pair: tuple[SSHClientConnection, SFTPClient]):
+    async def release(self, pair: tuple[SSHClientConnection, asyncssh.SFTPClient]):
         self.log.debug("Releasing SFTP connection for '%s'", self.sftp_conn_id)
         await self._pool.put(pair)
 
