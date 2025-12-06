@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import cache
 from typing import cast
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -157,12 +158,7 @@ def create_app():
     return fastapi_app
 
 
-app = None
-
-
-def get_app():
-    """Get or create the FastAPI app instance."""
-    global app
-    if app is None:
-        app = create_app()
-    return app
+@cache
+def get_app() -> FastAPI:
+    """Create a cached FastAPI app instance."""
+    return create_app()

@@ -26,7 +26,7 @@ license-files = ["LICENSE", "NOTICE"]
 # out-of-the box. Airflow-ctl is a small tool that does not have many dependencies and does not use
 # sophisticated features of Python, so it should work with Python 3.14+ once all it's dependencies are
 # updated to support it.
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.14"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",

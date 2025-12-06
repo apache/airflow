@@ -21,7 +21,7 @@ build-backend = "flit_core.buildapi"
 [project]
 name = "apache-airflow-performance"
 version = "0.1.0"
-requires-python = ">=3.10,!=3.13"
+requires-python = ">=3.10,!=3.14"
 description = "Performance testing utilities and DAGs for Apache Airflow"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "Apache-2.0"

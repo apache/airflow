@@ -50,11 +50,9 @@ type LatestRunInfo = {
 
 export const Header = ({
   dag,
-  isRefreshing,
   latestRunInfo,
 }: {
   readonly dag?: DAGDetailsResponse;
-  readonly isRefreshing?: boolean;
   readonly latestRunInfo?: LatestRunInfo;
 }) => {
   const { t: translate } = useTranslation(["common", "dag"]);
@@ -163,7 +161,6 @@ export const Header = ({
         )
       }
       icon={<DagIcon />}
-      isRefreshing={isRefreshing}
       stats={stats}
       subTitle={
         dag !== undefined && (

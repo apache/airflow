@@ -397,6 +397,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -463,6 +469,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -523,6 +535,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -573,6 +591,16 @@ paths:
           - type: string
           - type: 'null'
           title: Queue Name Pattern
+      - name: state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/EdgeWorkerState'
+          - type: 'null'
+          title: State
       responses:
         '200':
           description: Successful Response
@@ -922,6 +950,10 @@ components:
           title: Log Path
         ti:
           $ref: '#/components/schemas/TaskInstance'
+        sentry_integration:
+          type: string
+          title: Sentry Integration
+          default: ''
         type:
           type: string
           const: ExecuteTask

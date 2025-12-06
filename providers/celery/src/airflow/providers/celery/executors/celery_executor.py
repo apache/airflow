@@ -51,10 +51,10 @@ from airflow.cli.cli_config import (
     lazy_load_command,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
 from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
@@ -289,6 +289,9 @@ class CeleryExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    sentry_integration: str = "sentry_sdk.integrations.celery.CeleryIntegration"
+
+    # TODO: Remove this flag once providers depend on Airflow 3.2.
     supports_sentry: bool = True
 
     if TYPE_CHECKING and AIRFLOW_V_3_0_PLUS:

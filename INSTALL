@@ -135,7 +135,7 @@ the following commands:
 
 or simply:
 
-    breeze compile-ui-assets
+    breeze ui compile-assets
 
 Both commands will install node and pmpm under the hood, to a dedicated prek
 node environment and then build the assets.

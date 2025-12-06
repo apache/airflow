@@ -172,6 +172,7 @@ class ClearTaskInstancesBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = False
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
 class Value(RootModel[list]):
@@ -924,6 +925,7 @@ class VariableBody(BaseModel):
     key: Annotated[str, Field(max_length=250, title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VariableResponse(BaseModel):
@@ -935,6 +937,7 @@ class VariableResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VersionInfo(BaseModel):

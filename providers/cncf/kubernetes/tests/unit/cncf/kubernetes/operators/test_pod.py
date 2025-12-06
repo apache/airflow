@@ -2797,7 +2797,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.trigger_reentry({}, success_event)
+    result = k.trigger_reentry({}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2805,8 +2805,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
+        assert result == mock_extract_xcom.return_value
     else:
         mock_extract_xcom.assert_not_called()
+        assert result is None
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3

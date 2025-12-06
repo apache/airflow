@@ -139,7 +139,7 @@ def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
     monkeypatch.setattr(
-        "airflow.serialization.serialized_objects.encode_timetable", lambda x: "mock_serialized_timetable"
+        "airflow.serialization.encoders.encode_timetable", lambda x: "mock_serialized_timetable"
     )
     serialized = asset_timetable.serialize()
     assert serialized == {
@@ -173,9 +173,7 @@ def test_deserialization(monkeypatch: Any) -> None:
 
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
-    monkeypatch.setattr(
-        "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
-    )
+    monkeypatch.setattr("airflow.serialization.decoders.decode_timetable", lambda x: MockTimetable())
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
         "asset_condition": {

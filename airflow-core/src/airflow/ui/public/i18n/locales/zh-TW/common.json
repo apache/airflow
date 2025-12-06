@@ -64,7 +64,7 @@
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
     "sourceAssetEvent": "來源資源事件",
-    "triggeredBy": "觸發者",
+    "triggeredBy": "觸發來源",
     "triggeringUser": "觸發使用者名稱"
   },
   "dagRun_one": "Dag 執行",
@@ -90,6 +90,7 @@
     "back": "返回",
     "defaultMessage": "發生未預期的錯誤",
     "home": "首頁",
+    "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
     "title": "錯誤"
   },
@@ -109,10 +110,9 @@
   "filters": {
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
-    "logicalDateFrom": "從邏輯日期",
-    "logicalDateTo": "到邏輯日期",
-    "runAfterFrom": "從最早可執行時間",
-    "runAfterTo": "到最早可執行時間"
+    "endTime": "結束時間",
+    "selectDateRange": "選擇日期範圍",
+    "startTime": "起始時間"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
@@ -245,12 +245,12 @@
     "queuedWhen": "開始排隊時間",
     "scheduledWhen": "開始排程時間",
     "triggerer": {
-      "assigned": "指派的觸發器",
+      "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
-      "latestHeartbeat": "最新觸發器心跳時間",
-      "title": "觸發器資訊"
+      "latestHeartbeat": "最新觸發者心跳時間",
+      "title": "觸發者資訊"
     },
     "unixname": "Unix 名稱"
   },

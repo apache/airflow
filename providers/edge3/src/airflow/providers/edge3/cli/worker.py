@@ -51,7 +51,11 @@ from airflow.providers.edge3.cli.signalling import (
     status_file_path,
     write_pid_to_pidfile,
 )
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerState,
+    EdgeWorkerVersionException,
+)
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
@@ -261,6 +265,9 @@ class EdgeWorker:
             ).last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e))
+        except EdgeWorkerDuplicateException as e:
+            logger.error(str(e))
             raise SystemExit(str(e))
         except HTTPError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:

@@ -399,6 +399,7 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        # Configure secrets backend on test_conf itself
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -1942,6 +1943,7 @@ def test_sensitive_values():
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
+        ("keycloak_auth_manager", "client_secret"),
         ("core", "sql_alchemy_conn"),
         ("celery_broker_transport_options", "sentinel_kwargs"),
         ("celery", "broker_url"),

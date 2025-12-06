@@ -481,7 +481,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert (
             re.match(
-                r"job-a{71}-[a-z0-9]{8}",
+                r"job-a{50}-[a-z0-9]{8}",
                 job.metadata.name,
             )
             is not None
