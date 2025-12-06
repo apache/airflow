@@ -65,7 +65,7 @@ class TestKeycloakCliDefinition:
         "command",
         ["create-scopes", "create-resources", "create-permissions", "create-all"],
     )
-    @patch("airflow.cli.cli_config.getpass.getpass", return_value="stdin_password")
+    @patch("getpass.getpass", return_value="stdin_password")
     def test_password_from_stdin(self, mock_getpass, command):
         """Test commands are defined correctly to allow password prompting from stdin when --password has no value."""
         params = [

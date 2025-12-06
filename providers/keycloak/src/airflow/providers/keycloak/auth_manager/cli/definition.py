@@ -20,9 +20,9 @@ from __future__ import annotations
 from airflow.cli.cli_config import (
     ActionCommand,
     Arg,
-    Password,
     lazy_load_command,
 )
+from airflow.providers.keycloak.version_compat import Password
 
 ############
 # # ARGS # #
