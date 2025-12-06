@@ -2935,6 +2935,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
                         executor = _executor
+                        break
+                else:
+                    # No executor found for that team, fall back to global default
+                    executor = self.job.executor
         else:
             # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
             for _executor in self.job.executors:

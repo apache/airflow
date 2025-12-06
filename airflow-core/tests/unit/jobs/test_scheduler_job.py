@@ -7571,6 +7571,38 @@ class TestSchedulerJob:
         assert result == mock_executors[1]
 
     @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_no_explicit_executor_with_team_no_team_default(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when no explicit executor but team exists and team has no executors (should
+        fallback to the global executor)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task")  # No explicit executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the team-specific default executor set above
+        assert result == mock_executors[0]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_try_to_load_executor_explicit_executor_matches_team(
         self, dag_maker, mock_executors, session
     ):
