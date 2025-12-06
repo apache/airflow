@@ -295,6 +295,150 @@ class TestCommands:
             create_all_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        mock_create_scopes.assert_called_once_with(client, "test-id")
-        mock_create_resources.assert_called_once_with(client, "test-id")
-        mock_create_permissions.assert_called_once_with(client, "test-id")
+        mock_create_scopes.assert_called_once_with(client, "test-id", False)
+        mock_create_resources.assert_called_once_with(client, "test-id", False)
+        mock_create_permissions.assert_called_once_with(client, "test-id", False)
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_scopes_dry_run(self, mock_get_client):
+        client = Mock()
+        mock_get_client.return_value = client
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+
+        params = [
+            "keycloak-auth-manager",
+            "create-scopes",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_scopes_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        # In dry-run mode, no scopes should be created
+        client.create_client_authz_scopes.assert_not_called()
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_resources_dry_run(self, mock_get_client):
+        client = Mock()
+        mock_get_client.return_value = client
+        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}]
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+        client.get_client_authz_scopes.return_value = scopes
+
+        params = [
+            "keycloak-auth-manager",
+            "create-resources",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_resources_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        client.get_client_authz_scopes.assert_called_once_with("test-id")
+        # In dry-run mode, no resources should be created
+        client.create_client_authz_resource.assert_not_called()
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_permissions_dry_run(self, mock_get_client):
+        client = Mock()
+        mock_get_client.return_value = client
+        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}, {"id": "3", "name": "LIST"}]
+        resources = [
+            {"_id": "r1", "name": "Dag"},
+            {"_id": "r2", "name": "Asset"},
+        ]
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+        client.get_client_authz_scopes.return_value = scopes
+        client.get_client_authz_resources.return_value = resources
+
+        params = [
+            "keycloak-auth-manager",
+            "create-permissions",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_permissions_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        client.get_client_authz_scopes.assert_called_once_with("test-id")
+        client.get_client_authz_resources.assert_called_once_with("test-id")
+        # In dry-run mode, no permissions should be created
+        client.create_client_authz_scope_permission.assert_not_called()
+        client.create_client_authz_resource_based_permission.assert_not_called()
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_resources")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_scopes")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_all_dry_run(
+        self,
+        mock_get_client,
+        mock_create_scopes,
+        mock_create_resources,
+        mock_create_permissions,
+    ):
+        client = Mock()
+        mock_get_client.return_value = client
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+
+        params = [
+            "keycloak-auth-manager",
+            "create-all",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_all_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        # In dry-run mode, all helper functions should be called with dry_run=True
+        mock_create_scopes.assert_called_once_with(client, "test-id", True)
+        mock_create_resources.assert_called_once_with(client, "test-id", True)
+        mock_create_permissions.assert_called_once_with(client, "test-id", True)
