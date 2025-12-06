@@ -673,7 +673,6 @@ class TestPatchXComEntry(TestXComEndpoint):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-            new_value = XComModel.serialize_value(patch_body["value"])
 
         response = test_client.patch(
             f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
@@ -683,10 +682,49 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == XComModel.serialize_value(new_value)
+            # The returned value should be serialized once (stored format in DB)
+            expected_value = XComModel.serialize_value(patch_body["value"])
+            assert response.json()["value"] == expected_value
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
+
+    def test_patch_xcom_entry_value_usability(self, test_client, session):
+        """Test that patched XCom values can be retrieved and used correctly without excessive serialization."""
+        # Create initial XCom
+        self._create_xcom(TEST_XCOM_KEY, 1)
+
+        # Patch with a new integer value
+        patch_response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            json={"value": 7, "map_index": -1},
+        )
+        assert patch_response.status_code == 200
+
+        # Verify the patched value is stored correctly (as serialized JSON)
+        expected_serialized = XComModel.serialize_value(7)
+        assert patch_response.json()["value"] == expected_serialized
+
+        # Get the XCom entry and verify it can be deserialized properly
+        get_response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}",
+            params={"deserialize": True},
+        )
+        assert get_response.status_code == 200
+        # The deserialized value should be the original integer, not excessively serialized
+        assert get_response.json()["value"] == 7
+
+        # Verify it's stored correctly in the database
+        xcom_from_db = session.query(XComModel).filter(
+            XComModel.dag_id == TEST_DAG_ID,
+            XComModel.task_id == TEST_TASK_ID,
+            XComModel.run_id == run_id,
+            XComModel.key == TEST_XCOM_KEY,
+        ).first()
+        assert xcom_from_db is not None
+        # Deserialize from the database should yield the correct value
+        deserialized_value = XComModel.deserialize_value(xcom_from_db)
+        assert deserialized_value == 7
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(
