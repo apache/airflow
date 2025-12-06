@@ -898,7 +898,9 @@ class SFTPClientPool(LoggingMixin):
         super().__init__()
         self.sftp_conn_id = sftp_conn_id
         self.pool_size = pool_size or conf.getint("core", "parallelism")
-        self._pool: asyncio.Queue[tuple[SSHClientConnection, SFTPClient]] = asyncio.Queue(maxsize=self.pool_size)
+        self._pool: asyncio.Queue[tuple[SSHClientConnection, SFTPClient]] = asyncio.Queue(
+            maxsize = self.pool_size
+        )
         self._lock = asyncio.Lock()
         self._semaphore = asyncio.Semaphore(self.pool_size)
 
