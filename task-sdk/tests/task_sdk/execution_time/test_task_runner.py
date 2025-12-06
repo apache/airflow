@@ -3805,3 +3805,59 @@ class TestTriggerDagRunOperator:
 
         # Also verify it was sent to supervisor
         mock_supervisor_comms.send.assert_any_call(msg)
+
+
+class TestTaskRunnerMetrics:
+    def test_task_success_metrics(self, create_runtime_ti, mock_supervisor_comms):
+        from airflow.sdk.execution_time.task_runner import run
+
+        task = PythonOperator(
+            task_id="success_task",
+            python_callable=lambda: "success",
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_success_metrics")
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+            state, _, error = run(runtime_ti, context, log)
+
+            assert state == TaskInstanceState.SUCCESS
+            assert error is None
+
+            expected_tags = {"dag_id": "test_success_metrics", "task_id": "success_task"}
+            mock_stats.incr.assert_any_call("operator_successes_PythonOperator", tags=expected_tags)
+            mock_stats.incr.assert_any_call(
+                "operator_successes", tags={**expected_tags, "operator": "PythonOperator"}
+            )
+            mock_stats.incr.assert_any_call("ti_successes", tags=expected_tags)
+
+    def test_task_failure_metrics(self, create_runtime_ti, mock_supervisor_comms):
+        from airflow.sdk.execution_time.task_runner import run
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowFailException("Task failed")
+
+        task = FailingOperator(
+            task_id="failure_task",
+            retries=0,
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_failure_metrics")
+        context = runtime_ti.get_template_context()
+        log = mock.MagicMock()
+
+        with patch("airflow.sdk.execution_time.task_runner.Stats") as mock_stats:
+            state, _, error = run(runtime_ti, context, log)
+
+            assert state == TaskInstanceState.FAILED
+            assert error is not None
+
+            expected_tags = {"dag_id": "test_failure_metrics", "task_id": "failure_task"}
+            mock_stats.incr.assert_any_call("operator_failures_FailingOperator", tags=expected_tags)
+            mock_stats.incr.assert_any_call(
+                "operator_failures", tags={**expected_tags, "operator": "FailingOperator"}
+            )
+            mock_stats.incr.assert_any_call("ti_failures", tags=expected_tags)
