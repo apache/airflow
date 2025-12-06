@@ -44,6 +44,7 @@ Helm Chart for Apache Airflow
     :caption: Guides
 
     production-guide
+    service-account-token-examples
 
 .. toctree::
     :hidden:
@@ -81,6 +82,12 @@ Features
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
 * ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
+* **Security enhancements**:
+
+   * Manual Service Account Token Volume configuration for pod-launching executors
+   * Defense-in-depth security with both ServiceAccount and Pod-level controls
+   * Compatibility with security policies like Kyverno
+
 * Monitoring:
 
    * StatsD/Prometheus metrics for Airflow
