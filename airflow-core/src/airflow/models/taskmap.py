@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
@@ -136,7 +137,7 @@ class TaskMap(TaskInstanceDependencies):
     @classmethod
     def expand_mapped_task(
         cls,
-        task: SerializedBaseOperator | MappedOperator,
+        task: BaseOperator | MappedOperator | SerializedBaseOperator,
         run_id: str,
         *,
         session: Session,
