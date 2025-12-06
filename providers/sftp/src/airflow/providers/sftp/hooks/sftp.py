@@ -27,7 +27,7 @@ import os
 import posixpath
 import stat
 import warnings
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import AsyncIterator, Callable, Generator, Sequence
 from contextlib import asynccontextmanager, contextmanager, suppress
 from fnmatch import fnmatch
 from io import BytesIO
@@ -943,7 +943,7 @@ class SFTPClientPool(LoggingMixin):
         await self._pool.put(pair)
 
     @asynccontextmanager
-    async def get_sftp_client(self):
+    async def get_sftp_client(self) -> AsyncIterator[asyncssh.SFTPClient]:
         async with self._semaphore:
             self.log.debug(
                 "Semaphore acquired for '%s' (available=%s)",
