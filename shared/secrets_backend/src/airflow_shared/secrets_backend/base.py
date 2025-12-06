@@ -22,6 +22,17 @@ from abc import ABC
 class BaseSecretsBackend(ABC):
     """Abstract base class to retrieve Connection object given a conn_id or Variable given a key."""
 
+    _connection_class = None
+
+    @classmethod
+    def set_connection_class(cls, connection_class: type) -> None:
+        """
+        Set the Connection class to use for deserialization.
+
+        :param connection_class: The Connection class to use.
+        """
+        cls._connection_class = connection_class
+
     @staticmethod
     def build_path(path_prefix: str, secret_id: str, sep: str = "/") -> str:
         """
@@ -62,28 +73,11 @@ class BaseSecretsBackend(ABC):
         """
         return None
 
-    @staticmethod
-    def _get_connection_class():
-        """
-        Detect which Connection class to use based on execution context.
-
-        Returns SDK Connection in worker context, core Connection in server context.
-        """
-        import os
-
-        process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
-        if process_context == "client":
-            # Client context (worker, dag processor, triggerer)
-            from airflow.sdk.definitions.connection import Connection
-
-            return Connection
-
-        # Server context (scheduler, API server, etc.)
-        from airflow.models.connection import Connection
-
-        return Connection
-
-    def deserialize_connection(self, conn_id: str, value: str):
+    def deserialize_connection(
+        self,
+        conn_id: str,
+        value: str,
+    ):
         """
         Given a serialized representation of the airflow Connection, return an instance.
 
@@ -94,16 +88,23 @@ class BaseSecretsBackend(ABC):
         :param value: the serialized representation of the Connection object
         :return: the deserialized Connection
         """
-        conn_class = self._get_connection_class()
-
+        if not self._connection_class:
+            raise ValueError(
+                "Connection class is not set. You must call `set_connection_class` on the class "
+                "before calling deserialize_connection."
+            )
         value = value.strip()
         if value[0] == "{":
-            return conn_class.from_json(value=value, conn_id=conn_id)
+            if hasattr(self._connection_class, "from_json"):
+                return self._connection_class.from_json(value=value, conn_id=conn_id)
+            raise ValueError(
+                "Connection class does not support from_json deserialization: {self._connection_class}"
+            )
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?
-        if hasattr(conn_class, "from_uri"):
-            return conn_class.from_uri(conn_id=conn_id, uri=value)
-        return conn_class(conn_id=conn_id, uri=value)
+        if hasattr(self._connection_class, "from_uri"):
+            return self._connection_class.from_uri(conn_id=conn_id, uri=value)
+        return self._connection_class(conn_id=conn_id, uri=value)
 
     def get_connection(self, conn_id: str):
         """
