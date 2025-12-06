@@ -57,6 +57,9 @@ def create_scopes_command(args):
 
     _create_scopes(client, client_uuid, args.dry_run)
 
+    if args.dry_run:
+        print("Dry run for creating scopes completed.")
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
