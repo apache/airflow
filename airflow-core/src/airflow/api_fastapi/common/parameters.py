@@ -185,6 +185,64 @@ class _SearchParam(BaseParam[str]):
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
+class QueryTITaskGroupDisplayNamePattern(BaseParam[str]):
+    """Task group display name pattern filter - returns all tasks in matching groups."""
+
+    def __init__(self, dag=None, skip_none: bool = True):
+        super().__init__(skip_none=skip_none)
+        self.dag = dag
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if self.dag and hasattr(self.dag, "task_group"):
+            task_groups = self.dag.task_group.get_task_group_dict()
+
+            # Pattern matching on both group display name and group_id
+            matching_task_ids = []
+            for group_id, task_group in task_groups.items():
+                if group_id is None:  # Skip root group
+                    continue
+
+                # Check both the display name (label) and the group_id for pattern matching
+                display_name = getattr(task_group, "label", None)
+                if (
+                    display_name and self._matches_pattern(display_name, self.value)
+                ) or self._matches_pattern(group_id, self.value):
+                    matching_task_ids.extend([task.task_id for task in task_group.iter_tasks()])
+
+            if matching_task_ids:
+                return select.where(TaskInstance.task_id.in_(matching_task_ids))
+
+        return select.where(TaskInstance.task_id.is_(None))
+
+    def _matches_pattern(self, display_name: str, pattern: str) -> bool:
+        """Check if display_name matches the SQL LIKE pattern or exact match."""
+        import re
+
+        if "%" in pattern:
+            pattern_temp = pattern.replace("%", "\x00").replace("_", "\x01")
+            escaped = re.escape(pattern_temp)
+            regex_pattern = escaped.replace("\x00", ".*").replace("\x01", ".")
+            return bool(re.match(f"^{regex_pattern}$", display_name, re.IGNORECASE))
+        return display_name.lower() == pattern.lower()
+
+    @classmethod
+    def depends(
+        cls,
+        value: str | None = Query(
+            alias="task_group_display_name_pattern",
+            default=None,
+            description="SQL LIKE expression to filter by task group display name or group ID — use `%` / `_` "
+            "wildcards (e.g. `%section_%`). Regular expressions are **not** supported. "
+            "Returns all tasks within matching task groups. Matches against both the task group's display name "
+            "and its group ID.",
+        ),
+    ) -> QueryTITaskGroupDisplayNamePattern:
+        return cls(dag=None).set_value(value)
+
+
 def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
@@ -887,6 +945,9 @@ QueryTIExecutorFilter = Annotated[
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
+QueryTITaskGroupDisplayNamePatternSearch = Annotated[
+    QueryTITaskGroupDisplayNamePattern, Depends(QueryTITaskGroupDisplayNamePattern.depends)
 ]
 QueryTIDagVersionFilter = Annotated[
     FilterParam[list[int]],
