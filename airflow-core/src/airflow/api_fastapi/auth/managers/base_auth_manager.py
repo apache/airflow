@@ -463,7 +463,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Connection.conn_id, Team.name).join(Team, Connection.team_id == Team.id, isouter=True)
+        stmt = select(Connection.conn_id, Connection.team_name)
         rows = session.execute(stmt).all()
         connections_by_team: dict[str | None, set[str]] = defaultdict(set)
         for conn_id, team_name in rows:
@@ -524,14 +524,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param session: the session
         """
         stmt = (
-            select(DagModel.dag_id, Team.name)
+            select(DagModel.dag_id, dag_bundle_team_association_table.c.team_name)
             .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
             .join(
                 dag_bundle_team_association_table,
                 DagBundleModel.name == dag_bundle_team_association_table.c.dag_bundle_name,
                 isouter=True,
             )
-            .join(Team, Team.id == dag_bundle_team_association_table.c.team_id, isouter=True)
         )
         rows = session.execute(stmt).all()
         dags_by_team: dict[str | None, set[str]] = defaultdict(set)
@@ -592,7 +591,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id, isouter=True)
+        stmt = select(Pool.pool, Pool.team_name)
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
@@ -652,8 +651,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        teams = Team.get_all_teams_id_to_name_mapping(session=session)
-        return self.filter_authorized_teams(teams_names=set(teams.values()), user=user, method=method)
+        team_names = Team.get_all_team_names(session=session)
+        return self.filter_authorized_teams(teams_names=team_names, user=user, method=method)
 
     def filter_authorized_teams(
         self,
@@ -694,7 +693,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Variable.key, Team.name).join(Team, Variable.team_id == Team.id, isouter=True)
+        stmt = select(Variable.key, Variable.team_name)
         rows = session.execute(stmt).all()
         variables_by_team: dict[str | None, set[str]] = defaultdict(set)
         for var_key, team_name in rows:
