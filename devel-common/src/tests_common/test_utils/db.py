@@ -266,9 +266,9 @@ def clear_db_dags():
             session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
-        session.query(
-            DagRun
-        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
+        session.query(DagRun).delete(
+            synchronize_session=False
+        )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.query(DagModel).delete()
 
 
