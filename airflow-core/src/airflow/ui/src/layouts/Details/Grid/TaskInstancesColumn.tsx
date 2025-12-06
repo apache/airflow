@@ -17,25 +17,43 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
+import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 
 import { GridTI } from "./GridTI";
 import type { GridTask } from "./utils";
 
 type Props = {
-  readonly depth?: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly runId: string;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({
+  nodes,
+  onCellClick,
+  runId,
+  showVersionIndicatorMode,
+  taskInstances,
+}: Props) => {
   const { dagId = "" } = useParams();
 
-  return nodes.map((node) => {
+  const hasMixedVersions = useMemo(() => {
+    const versionNumbers = new Set(
+      taskInstances.map((ti) => ti.dag_version_number).filter((vn) => vn !== null && vn !== undefined),
+    );
+
+    return versionNumbers.size > 1;
+  }, [taskInstances]);
+
+  return nodes.map((node, idx) => {
     // todo: how does this work with mapped? same task id for multiple tis
     const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
@@ -43,18 +61,41 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }
       return <Box height="20px" key={`${node.id}-${runId}`} width="18px" />;
     }
 
+    let hasVersionChangeFlag = false;
+
+    if (
+      hasMixedVersions &&
+      (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+        showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) &&
+      idx > 0
+    ) {
+      const prevNode = nodes[idx - 1];
+      const prevTaskInstance = prevNode ? taskInstances.find((ti) => ti.task_id === prevNode.id) : undefined;
+
+      hasVersionChangeFlag = Boolean(
+        prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+      );
+    }
+
     return (
-      <GridTI
-        dagId={dagId}
-        instance={taskInstance}
-        isGroup={node.isGroup}
-        isMapped={node.is_mapped}
-        key={node.id}
-        label={node.label}
-        onClick={onCellClick}
-        runId={runId}
-        taskId={node.id}
-      />
+      <Box key={node.id} position="relative">
+        {hasVersionChangeFlag && (
+          <DagVersionIndicator
+            dagVersionNumber={taskInstance.dag_version_number ?? undefined}
+            orientation="horizontal"
+          />
+        )}
+        <GridTI
+          dagId={dagId}
+          instance={taskInstance}
+          isGroup={node.isGroup}
+          isMapped={node.is_mapped}
+          label={node.label}
+          onClick={onCellClick}
+          runId={runId}
+          taskId={node.id}
+        />
+      </Box>
     );
   });
 };
