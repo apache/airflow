@@ -787,7 +787,7 @@ jobs:
       branch: ${{ matrix.airflow-core-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      constraints-branch: ${{ matrix.airflow-core-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
