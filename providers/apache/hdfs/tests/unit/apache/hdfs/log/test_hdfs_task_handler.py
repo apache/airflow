@@ -39,8 +39,7 @@ DEFAULT_DATE = datetime(2020, 8, 10)
 
 class TestHdfsTaskHandler:
     @pytest.fixture(autouse=True)
-    def ti(self, create_task_instance, create_log_template):
-        create_log_template("{try_number}.log")
+    def ti(self, create_task_instance):
         ti = create_task_instance(
             dag_id="dag_for_testing_hdfs_task_handler",
             task_id="task_for_testing_hdfs_log_handler",

@@ -170,29 +170,6 @@ def _render_template_to_string(template: jinja2.Template, context: Context) -> s
     return render_template(template, cast("MutableMapping[str, Any]", context), native=False)
 
 
-def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
-    """
-    Given task instance, try_number, filename_template, return the rendered log filename.
-
-    :param ti: task instance
-    :param try_number: try_number of the task
-    :param filename_template: filename template, which can be jinja template or
-        python string template
-    """
-    filename_template, filename_jinja_template = parse_template_string(filename_template)
-    if filename_jinja_template:
-        jinja_context = ti.get_template_context()
-        jinja_context["try_number"] = try_number
-        return _render_template_to_string(filename_jinja_template, jinja_context)
-
-    return filename_template.format(
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        logical_date=ti.logical_date.isoformat(),
-        try_number=try_number,
-    )
-
-
 def convert_camel_to_snake(camel_str: str) -> str:
     """Convert CamelCase to snake_case."""
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()

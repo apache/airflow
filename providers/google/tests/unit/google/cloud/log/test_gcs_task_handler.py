@@ -56,8 +56,7 @@ class TestGCSTaskHandler:
         return str(tmp_path_factory.mktemp("local-gcs-log-location"))
 
     @pytest.fixture(autouse=True)
-    def gcs_task_handler(self, create_log_template, local_log_location):
-        create_log_template("{try_number}.log")
+    def gcs_task_handler(self, local_log_location):
         self.gcs_task_handler = GCSTaskHandler(
             base_log_folder=local_log_location,
             gcs_log_folder="gs://bucket/remote/log/location",
