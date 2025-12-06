@@ -64,6 +64,8 @@ class TIEnterRunningPayload(StrictBaseModel):
     """Process Identifier on `hostname`"""
     start_date: UtcDateTime
     """When the task started executing"""
+    external_executor_id: str | None = None
+    """Executor-specific task external identifier"""
 
 
 # Create an enum to give a nice name in the generated datamodels

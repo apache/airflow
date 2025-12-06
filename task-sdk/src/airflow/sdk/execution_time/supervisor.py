@@ -958,6 +958,7 @@ class ActivitySubprocess(WatchedSubprocess):
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
         sentry_integration: str = "",
+        external_executor_id: str | None = None,
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
@@ -968,6 +969,7 @@ class ActivitySubprocess(WatchedSubprocess):
             dag_rel_path=dag_rel_path,
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
+            external_executor_id=external_executor_id,
         )
         return proc
 
@@ -978,6 +980,7 @@ class ActivitySubprocess(WatchedSubprocess):
         dag_rel_path: str | os.PathLike[str],
         bundle_info,
         sentry_integration: str,
+        external_executor_id: str | None = None,
     ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
@@ -986,7 +989,9 @@ class ActivitySubprocess(WatchedSubprocess):
             # We've forked, but the task won't start doing anything until we send it the StartupDetails
             # message. But before we do that, we need to tell the server it's started (so it has the chance to
             # tell us "no, stop!" for any reason)
-            ti_context = self.client.task_instances.start(ti.id, self.pid, start_date)
+            ti_context = self.client.task_instances.start(
+                ti.id, self.pid, start_date, external_executor_id=external_executor_id
+            )
             self._should_retry = ti_context.should_retry
             self._last_successful_heartbeat = time.monotonic()
         except Exception:
@@ -1958,6 +1963,7 @@ def supervise(
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
     sentry_integration: str = "",
+    external_executor_id: str | None = None,
 ) -> int:
     """
     Run a single task execution to completion.
@@ -2047,6 +2053,7 @@ def supervise(
             bundle_info=bundle_info,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
             sentry_integration=sentry_integration,
+            external_executor_id=external_executor_id,
         )
 
         exit_code = process.wait()

@@ -209,7 +209,7 @@ def get_latest_image_version(image: str) -> str:
 
     # DockerHub API endpoint for tags
     url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
-    params = {"page_size": 100, "ordering": "last_updated"}
+    params = {"page_size": "100", "ordering": "last_updated"}
 
     headers = {"User-Agent": "Python requests"}
     response = requests.get(url, headers=headers, params=params)

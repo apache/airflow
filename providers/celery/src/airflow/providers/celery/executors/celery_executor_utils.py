@@ -169,6 +169,7 @@ def execute_workload(input: str) -> None:
         token=workload.token,
         server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
+        external_executor_id=celery_task_id,
     )
 
 
