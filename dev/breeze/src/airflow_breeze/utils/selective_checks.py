@@ -983,9 +983,10 @@ class SelectiveChecks:
     def prod_image_build_matrix(self) -> list[str]:
         """
         Determine which branches to test airflowctl integration tests against.
+        This will be used to build prod images to with different airflow versions.
 
         Returns:
-            - For main branch: ["v3-1-test", "main"] - test against both
+            - For main branch: ["v3-1-test", "main"] - test against supported versions
             - For other branches: ["<branch-name>"] - test only against that branch
 
         Scenarios:
