@@ -1896,6 +1896,32 @@ class TaskInstance(Base, LoggingMixin):
             ).first()
             if first is None:  # No matching XCom at all.
                 return default
+
+            # Check if the task is actually mapped
+            target_task_id = task_ids if isinstance(task_ids, str) else first.task_id
+            is_actually_mapped = False
+
+            try:
+                # Get the task definition from the DAG
+                if self.task and self.task.dag:
+                    dag = self.task.dag
+                    if dag.has_task(target_task_id):
+                        target_task = dag.task_dict[target_task_id]
+                        is_actually_mapped = getattr(target_task, "is_mapped", False)
+            except (AttributeError, KeyError):
+                # If we can't determine, assume it's not mapped
+                is_actually_mapped = False
+
+            # If it's a mapped task, always return LazyXComSelectSequence
+            if is_actually_mapped and map_indexes is None:
+                return LazyXComSelectSequence.from_select(
+                    query.with_only_columns(XComModel.value).order_by(None),
+                    order_by=[XComModel.task_id, XComModel.map_index],
+                    session=session,
+                )
+
+            # For non-mapped tasks, only return single value if map_indexes is specified
+            # or map_index < 0 (which means no mapping)
             if map_indexes is not None or first.map_index < 0:
                 return XComModel.deserialize_value(first)
 
