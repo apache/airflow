@@ -50,7 +50,15 @@ def create_scopes_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_scopes(client, client_uuid)
+    if args.dry_run:
+        print(
+            "Performing dry run for creating scopes. It will check the connection to Keycloak but won't create any scope.\n"
+        )
+
+    _create_scopes(client, client_uuid, args.dry_run)
+
+    if args.dry_run:
+        print("Dry run for creating scopes completed.")
 
 
 @cli_utils.action_cli
@@ -60,7 +68,15 @@ def create_resources_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_resources(client, client_uuid)
+    if args.dry_run:
+        print(
+            "Performing dry run for creating resources. It will check the connection to Keycloak but won't create any resource.\n"
+        )
+
+    _create_resources(client, client_uuid, args.dry_run)
+
+    if args.dry_run:
+        print("Dry run for creating resources completed.")
 
 
 @cli_utils.action_cli
@@ -70,7 +86,15 @@ def create_permissions_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_permissions(client, client_uuid)
+    if args.dry_run:
+        print(
+            "Performing dry run for creating permissions. It will check the connection to Keycloak but won't create any permission.\n"
+        )
+
+    _create_permissions(client, client_uuid, args.dry_run)
+
+    if args.dry_run:
+        print("Dry run for creating permissions completed.")
 
 
 @cli_utils.action_cli
@@ -80,9 +104,17 @@ def create_all_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_scopes(client, client_uuid)
-    _create_resources(client, client_uuid)
-    _create_permissions(client, client_uuid)
+    if args.dry_run:
+        print(
+            "Performing dry run for creating all entities. It will check the connection to Keycloak but won't create any entity.\n"
+        )
+
+    _create_scopes(client, client_uuid, args.dry_run)
+    _create_resources(client, client_uuid, args.dry_run)
+    _create_permissions(client, client_uuid, args.dry_run)
+
+    if args.dry_run:
+        print("Dry run for creating all entities completed.")
 
 
 def _get_client(args):
@@ -112,41 +144,86 @@ def _get_client_uuid(args):
     return matches[0]["id"]
 
 
-def _create_scopes(client: KeycloakAdmin, client_uuid: str):
+def _get_scopes_to_create() -> list[dict]:
+    """Get the list of scopes to be created."""
     scopes = [{"name": method} for method in get_args(ResourceMethod)]
     scopes.extend([{"name": "MENU"}, {"name": "LIST"}])
+    return scopes
+
+
+def _create_scopes(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
+    scopes = _get_scopes_to_create()
+
+    if dry_run:
+        print("Scopes to be created:")
+        for scope in scopes:
+            print(f"  - {scope['name']}")
+        print()
+        return
+
     for scope in scopes:
         client.create_client_authz_scopes(client_id=client_uuid, payload=scope)
 
     print("Scopes created successfully.")
 
 
-def _create_resources(client: KeycloakAdmin, client_uuid: str):
-    all_scopes = client.get_client_authz_scopes(client_uuid)
+def _get_resources_to_create(
+    all_scopes: list[dict],
+) -> tuple[list[tuple[str, list[dict]]], list[tuple[str, list[dict]]]]:
+    """
+    Get the list of resources to be created.
+
+    Returns a tuple of (standard_resources, menu_resources).
+    Each is a list of tuples (resource_name, scopes_list).
+    """
     scopes = [
         {"id": scope["id"], "name": scope["name"]}
         for scope in all_scopes
         if scope["name"] in ["GET", "POST", "PUT", "DELETE", "LIST"]
     ]
+    menu_scopes = [
+        {"id": scope["id"], "name": scope["name"]} for scope in all_scopes if scope["name"] == "MENU"
+    ]
 
-    for resource in KeycloakResource:
+    standard_resources = [(resource.value, scopes) for resource in KeycloakResource]
+    menu_resources = [(item.value, menu_scopes) for item in MenuItem]
+
+    return standard_resources, menu_resources
+
+
+def _create_resources(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
+    all_scopes = client.get_client_authz_scopes(client_uuid)
+    standard_resources, menu_resources = _get_resources_to_create(all_scopes)
+
+    if dry_run:
+        print("Resources to be created:")
+        if standard_resources:
+            for resource_name, resource_scopes in standard_resources:
+                actual_scope_names = ", ".join([s["name"] for s in resource_scopes])
+                print(f"  - {resource_name} (scopes: {actual_scope_names})")
+        print("\nMenu item resources to be created:")
+        for resource_name, resource_scopes in menu_resources:
+            actual_scope_names = ", ".join([s["name"] for s in resource_scopes])
+            print(f"  - {resource_name} (scopes: {actual_scope_names})")
+        print()
+        return
+
+    for resource_name, scopes in standard_resources:
         client.create_client_authz_resource(
             client_id=client_uuid,
             payload={
-                "name": resource.value,
+                "name": resource_name,
                 "scopes": scopes,
             },
             skip_exists=True,
         )
 
     # Create menu item resources
-    scopes = [{"id": scope["id"], "name": scope["name"]} for scope in all_scopes if scope["name"] == "MENU"]
-
-    for item in MenuItem:
+    for resource_name, scopes in menu_resources:
         client.create_client_authz_resource(
             client_id=client_uuid,
             payload={
-                "name": item.value,
+                "name": resource_name,
                 "scopes": scopes,
             },
             skip_exists=True,
@@ -155,63 +232,95 @@ def _create_resources(client: KeycloakAdmin, client_uuid: str):
     print("Resources created successfully.")
 
 
-def _create_permissions(client: KeycloakAdmin, client_uuid: str):
-    _create_read_only_permission(client, client_uuid)
-    _create_admin_permission(client, client_uuid)
-    _create_user_permission(client, client_uuid)
-    _create_op_permission(client, client_uuid)
+def _get_permissions_to_create(all_scopes: list[dict], all_resources: list[dict]) -> list[dict]:
+    """
+    Get the actual permissions to be created with filtered scopes/resources.
+
+    Returns a list of permission descriptors with actual filtered data.
+    """
+    perm_configs = [
+        {
+            "name": "ReadOnly",
+            "type": "scope-based",
+            "scope_names": ["GET", "MENU", "LIST"],
+        },
+        {
+            "name": "Admin",
+            "type": "scope-based",
+            "scope_names": list(get_args(ExtendedResourceMethod)) + ["LIST"],
+        },
+        {
+            "name": "User",
+            "type": "resource-based",
+            "resources": [KeycloakResource.DAG.value, KeycloakResource.ASSET.value],
+        },
+        {
+            "name": "Op",
+            "type": "resource-based",
+            "resources": [
+                KeycloakResource.CONNECTION.value,
+                KeycloakResource.POOL.value,
+                KeycloakResource.VARIABLE.value,
+                KeycloakResource.BACKFILL.value,
+            ],
+        },
+    ]
+    result = []
+
+    for config in perm_configs:
+        perm = {"name": config["name"], "type": config["type"]}
+        if config["type"] == "scope-based":
+            # Filter to get actual scope IDs that exist and match
+            filtered_scope_ids = [s["id"] for s in all_scopes if s["name"] in config["scope_names"]]
+            filtered_scope_names = [s["name"] for s in all_scopes if s["name"] in config["scope_names"]]
+            perm["scope_ids"] = filtered_scope_ids
+            perm["scope_names"] = filtered_scope_names
+        else:  # resource-based
+            # Filter to get actual resource IDs that exist and match
+            filtered_resource_ids = [r["_id"] for r in all_resources if r["name"] in config["resources"]]
+            filtered_resource_names = [r["name"] for r in all_resources if r["name"] in config["resources"]]
+            perm["resource_ids"] = filtered_resource_ids
+            perm["resource_names"] = filtered_resource_names
+        result.append(perm)
+
+    return result
+
+
+def _create_permissions(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
+    all_scopes = client.get_client_authz_scopes(client_uuid)
+    all_resources = client.get_client_authz_resources(client_uuid)
+    permissions = _get_permissions_to_create(all_scopes, all_resources)
+
+    if dry_run:
+        print("Permissions to be created:")
+        for perm in permissions:
+            if perm["type"] == "scope-based":
+                scope_names = ", ".join(perm["scope_names"])
+                print(f"  - {perm['name']} (type: scope-based, scopes: {scope_names})")
+            else:  # resource-based
+                resource_names = ", ".join(perm["resource_names"])
+                print(f"  - {perm['name']} (type: resource-based, resources: {resource_names})")
+        print()
+        return
+
+    for perm in permissions:
+        if perm["type"] == "scope-based":
+            _create_scope_based_permission(client, client_uuid, perm["name"], perm["scope_ids"])
+        else:  # resource-based
+            _create_resource_based_permission(client, client_uuid, perm["name"], perm["resource_ids"])
 
     print("Permissions created successfully.")
 
 
-def _create_read_only_permission(client: KeycloakAdmin, client_uuid: str):
-    all_scopes = client.get_client_authz_scopes(client_uuid)
-    scopes = [scope["id"] for scope in all_scopes if scope["name"] in ["GET", "MENU", "LIST"]]
+def _create_scope_based_permission(client: KeycloakAdmin, client_uuid: str, name: str, scope_ids: list[str]):
     payload = {
-        "name": "ReadOnly",
+        "name": name,
         "type": "scope",
         "logic": "POSITIVE",
         "decisionStrategy": "UNANIMOUS",
-        "scopes": scopes,
+        "scopes": scope_ids,
     }
-    _create_permission(client, client_uuid, payload)
 
-
-def _create_admin_permission(client: KeycloakAdmin, client_uuid: str):
-    all_scopes = client.get_client_authz_scopes(client_uuid)
-    scope_names = get_args(ExtendedResourceMethod) + ("LIST",)
-    scopes = [scope["id"] for scope in all_scopes if scope["name"] in scope_names]
-    payload = {
-        "name": "Admin",
-        "type": "scope",
-        "logic": "POSITIVE",
-        "decisionStrategy": "UNANIMOUS",
-        "scopes": scopes,
-    }
-    _create_permission(client, client_uuid, payload)
-
-
-def _create_user_permission(client: KeycloakAdmin, client_uuid: str):
-    _create_resource_based_permission(
-        client, client_uuid, "User", [KeycloakResource.DAG.value, KeycloakResource.ASSET.value]
-    )
-
-
-def _create_op_permission(client: KeycloakAdmin, client_uuid: str):
-    _create_resource_based_permission(
-        client,
-        client_uuid,
-        "Op",
-        [
-            KeycloakResource.CONNECTION.value,
-            KeycloakResource.POOL.value,
-            KeycloakResource.VARIABLE.value,
-            KeycloakResource.BACKFILL.value,
-        ],
-    )
-
-
-def _create_permission(client: KeycloakAdmin, client_uuid: str, payload: dict):
     try:
         client.create_client_authz_scope_permission(
             client_id=client_uuid,
@@ -225,17 +334,14 @@ def _create_permission(client: KeycloakAdmin, client_uuid: str, payload: dict):
 
 
 def _create_resource_based_permission(
-    client: KeycloakAdmin, client_uuid: str, name: str, allowed_resources: list[str]
+    client: KeycloakAdmin, client_uuid: str, name: str, resource_ids: list[str]
 ):
-    all_resources = client.get_client_authz_resources(client_uuid)
-    resources = [resource["_id"] for resource in all_resources if resource["name"] in allowed_resources]
-
     payload = {
         "name": name,
         "type": "scope",
         "logic": "POSITIVE",
         "decisionStrategy": "UNANIMOUS",
-        "resources": resources,
+        "resources": resource_ids,
     }
     client.create_client_authz_resource_based_permission(
         client_id=client_uuid,
