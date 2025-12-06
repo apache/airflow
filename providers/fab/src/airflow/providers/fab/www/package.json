@@ -58,7 +58,7 @@
     "mini-css-extract-plugin": "^2.9.4",
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
-    "prettier": "^3.7.1",
+    "prettier": "^3.7.3",
     "stylelint": "^16.26.1",
     "terser-webpack-plugin": "<6.0.0",
     "url-loader": "4.1.1",
