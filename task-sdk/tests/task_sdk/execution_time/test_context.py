@@ -42,10 +42,12 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetDagRun,
     GetXCom,
     VariableResult,
     XComResult,
@@ -542,8 +544,12 @@ class TestTriggeringAssetEventsAccessor:
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
         assert len(events) == 1
+
+        mock_dag_run = mock.Mock(dag_id="d1", run_id="r1")
+        mock_supervisor_comms.send.side_effect = [mock_dag_run]
         source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(dag_id="d1", task_id="t2", run_id="r1", map_index=-1)
+        assert source == AssetEventSourceTaskInstance(dag_run=mock_dag_run, task_id="t2", map_index=-1)
+        mock_supervisor_comms.send.assert_called_once_with(GetDagRun(dag_id="d1", run_id="r1"))
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
@@ -813,15 +819,22 @@ class TestInletEventAccessor:
         )
 
         assert len(events) == 2
-        assert events[1].source_task_instance is None
 
-        source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(
+        dag_run_result = DagRunResult(
             dag_id="__dag__",
             run_id="__run__",
-            task_id="__task__",
-            map_index=0,
+            run_after=timezone.utcnow(),
+            start_date=timezone.utcnow(),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
         )
+        mock_supervisor_comms.reset_mock()
+        mock_supervisor_comms.send.side_effect = [dag_run_result]
+        assert events[1].source_task_instance is None
+        source = events[0].source_task_instance
+        assert source == AssetEventSourceTaskInstance(dag_run=dag_run_result, task_id="__task__", map_index=0)
+        mock_supervisor_comms.send.assert_called_once_with(GetDagRun(dag_id="__dag__", run_id="__run__"))
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
