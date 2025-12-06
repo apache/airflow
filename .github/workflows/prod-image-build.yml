@@ -228,7 +228,7 @@ jobs:
       - name: "Download packages prepared as artifacts"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          name: prod-packages
+          name: prod-packages-${{ inputs.branch }}
           path: ./docker-context-files
       - name: "Remove fab provider for python 3.13"
         shell: bash
