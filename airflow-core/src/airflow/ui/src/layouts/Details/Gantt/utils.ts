@@ -19,11 +19,13 @@
 import type { ChartEvent, ActiveElement, TooltipItem } from "chart.js";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
+import type { RefObject } from "react";
 import type { NavigateFunction, Location } from "react-router-dom";
 
 import type { GridRunsResponse, TaskInstanceState } from "openapi/requests";
 import { getDuration, isStatePending } from "src/utils";
 import { formatDate } from "src/utils/datetimeUtils";
+import { setRef } from "src/utils/domUtils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 export type GanttDataItem = {
@@ -48,8 +50,6 @@ type ChartOptionsParams = {
   gridColor?: string;
   handleBarClick: (event: ChartEvent, elements: Array<ActiveElement>) => void;
   handleBarHover: (event: ChartEvent, elements: Array<ActiveElement>) => void;
-  hoveredId?: string | null;
-  hoveredItemColor?: string;
   selectedId?: string;
   selectedItemColor?: string;
   selectedRun?: GridRunsResponse;
@@ -86,54 +86,37 @@ export const createHandleBarClick =
     }
   };
 
-export const createHandleBarHover = (
-  data: Array<GanttDataItem>,
-  setHoveredTaskId: (taskId: string | undefined) => void,
-) => {
-  let lastHoveredTaskId: string | undefined = undefined;
+type HandleBarHoverOptions = {
+  data: Array<GanttDataItem>;
+  gridHoverRowRef: RefObject<HTMLDivElement> | undefined;
+  hoverRowRef: RefObject<HTMLDivElement>;
+  rowHeight: number;
+};
 
-  return (_: ChartEvent, elements: Array<ActiveElement>) => {
-    // Clear previous hover styles
-    if (lastHoveredTaskId !== undefined) {
-      const previousTasks = document.querySelectorAll<HTMLDivElement>(
-        `#${lastHoveredTaskId.replaceAll(".", "-")}`,
-      );
-
-      previousTasks.forEach((task) => {
-        task.style.backgroundColor = "";
-      });
-    }
-
+export const createHandleBarHover =
+  ({ data, gridHoverRowRef, hoverRowRef, rowHeight }: HandleBarHoverOptions) =>
+  (_: ChartEvent, elements: Array<ActiveElement>) => {
     if (elements.length > 0 && elements[0] && elements[0].index < data.length) {
-      const hoveredData = data[elements[0].index];
+      const rowIndex = elements[0].index;
+      const rowY = rowIndex * rowHeight;
 
-      if (hoveredData?.taskId !== undefined) {
-        lastHoveredTaskId = hoveredData.taskId;
-        setHoveredTaskId(hoveredData.taskId);
+      // Update hover row overlay position
+      setRef(hoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
 
-        // Apply new hover styles
-        const tasks = document.querySelectorAll<HTMLDivElement>(
-          `#${hoveredData.taskId.replaceAll(".", "-")}`,
-        );
-
-        tasks.forEach((task) => {
-          task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-        });
-      }
+      // Also update Grid's overlay if provided
+      setRef(gridHoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
     } else {
-      lastHoveredTaskId = undefined;
-      setHoveredTaskId(undefined);
+      // Hide hover overlays
+      setRef(hoverRowRef, { opacity: "0" });
+      setRef(gridHoverRowRef, { opacity: "0" });
     }
   };
-};
 
 export const createChartOptions = ({
   data,
   gridColor,
   handleBarClick,
   handleBarHover,
-  hoveredId,
-  hoveredItemColor,
   selectedId,
   selectedItemColor,
   selectedRun,
@@ -166,7 +149,7 @@ export const createChartOptions = ({
       annotation: {
         annotations: [
           // Selected task annotation
-          ...(selectedId === undefined || selectedId === "" || hoveredId === selectedId
+          ...(selectedId === undefined || selectedId === ""
             ? []
             : [
                 {
@@ -178,21 +161,6 @@ export const createChartOptions = ({
                   xMin: "min" as const,
                   yMax: data.findIndex((dataItem) => dataItem.y === selectedId) + 0.5,
                   yMin: data.findIndex((dataItem) => dataItem.y === selectedId) - 0.5,
-                },
-              ]),
-          // Hovered task annotation
-          ...(hoveredId === null || hoveredId === undefined
-            ? []
-            : [
-                {
-                  backgroundColor: hoveredItemColor,
-                  borderWidth: 0,
-                  drawTime: "beforeDatasetsDraw" as const,
-                  type: "box" as const,
-                  xMax: "max" as const,
-                  xMin: "min" as const,
-                  yMax: data.findIndex((dataItem) => dataItem.y === hoveredId) + 0.5,
-                  yMin: data.findIndex((dataItem) => dataItem.y === hoveredId) - 0.5,
                 },
               ]),
         ],

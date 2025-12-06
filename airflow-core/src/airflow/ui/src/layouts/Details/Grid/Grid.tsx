@@ -32,26 +32,47 @@ import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
+import { setRef } from "src/utils/domUtils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { GridOverlays } from "./GridOverlays";
 import { TaskNames } from "./TaskNames";
+import { BAR_HEADER_HEIGHT, CELL_HEIGHT, CELL_WIDTH, GRID_PADDING_TOP } from "./utils";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
 type Props = {
   readonly dagRunState?: DagRunState | undefined;
+  readonly ganttHoverRowRef?: React.RefObject<HTMLDivElement>;
+  readonly hoverRowRef: React.RefObject<HTMLDivElement>;
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  ganttHoverRowRef,
+  hoverRowRef,
+  limit,
+  runType,
+  showGantt,
+  triggeringUser,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
+
+  // Overlay ref for column highlighting (direct DOM manipulation for zero latency)
+  const hoverColRef = useRef<HTMLDivElement>(null);
+
+  // Overlay refs for keyboard navigation highlighting
+  const navRowRef = useRef<HTMLDivElement>(null);
+  const navColRef = useRef<HTMLDivElement>(null);
+  const navCellRef = useRef<HTMLDivElement>(null);
 
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
@@ -151,14 +172,78 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   }, [dagStructure, openGroupIds, allowedTaskIds]);
 
   const { setMode } = useNavigation({
+    containerRef: gridRef,
+    navCellRef,
+    navColRef,
+    navRowRef,
     onToggleGroup: toggleGroupId,
     runs: gridRuns ?? [],
     tasks: flatNodes,
   });
 
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!gridRef.current) {
+      return;
+    }
+
+    // Get mouse position relative to grid container
+    const rect = gridRef.current.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // Calculate indices
+    const cellsTopPosition = GRID_PADDING_TOP + BAR_HEADER_HEIGHT;
+    const rowIndex = Math.floor((mouseY - cellsTopPosition) / CELL_HEIGHT);
+
+    // Columns are in row-reverse order (rightmost = index 0)
+    // Need to calculate from the right edge of the grid
+    const totalGridWidth = (gridRuns?.length ?? 0) * CELL_WIDTH;
+    const colIndex = Math.floor((totalGridWidth - (mouseX - rect.width + totalGridWidth)) / CELL_WIDTH);
+
+    // Validate and update row highlight (for TaskNames + Cells)
+    const validRow = rowIndex >= 0 && rowIndex < flatNodes.length;
+
+    if (validRow) {
+      const rowY = rowIndex * CELL_HEIGHT;
+
+      setRef(hoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
+
+      // Also update Gantt's overlay if provided
+      if (ganttHoverRowRef) {
+        setRef(ganttHoverRowRef, { opacity: "1", transform: `translateY(${rowY}px)` });
+      }
+    } else {
+      setRef(hoverRowRef, { opacity: "0" });
+      if (ganttHoverRowRef) {
+        setRef(ganttHoverRowRef, { opacity: "0" });
+      }
+    }
+
+    // Validate and update column highlight (for Bar + Cells)
+    const validCol = colIndex >= 0 && colIndex < (gridRuns?.length ?? 0);
+
+    if (validCol) {
+      const colX = -colIndex * CELL_WIDTH;
+
+      setRef(hoverColRef, { opacity: "1", transform: `translateX(${colX}px)` });
+    } else {
+      setRef(hoverColRef, { opacity: "0" });
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setRef(hoverRowRef, { opacity: "0" });
+    setRef(hoverColRef, { opacity: "0" });
+    if (ganttHoverRowRef) {
+      setRef(ganttHoverRowRef, { opacity: "0" });
+    }
+  };
+
   return (
     <Flex
       justifyContent="flex-start"
+      onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
       outline="none"
       position="relative"
       pt={20}
@@ -166,6 +251,15 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
     >
+      <GridOverlays
+        gridHeight={flatNodes.length * CELL_HEIGHT}
+        hoverColRef={hoverColRef}
+        hoverRowRef={hoverRowRef}
+        navCellRef={navCellRef}
+        navColRef={navColRef}
+        navRowRef={navRowRef}
+      />
+
       <Box display="flex" flexDirection="column" flexGrow={1} justifyContent="end" minWidth="200px">
         <TaskNames nodes={flatNodes} onRowClick={() => setMode("task")} />
       </Box>
@@ -183,9 +277,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
               </>
             )}
           </Flex>
-          <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
+          <Flex flexDirection="row-reverse" position="relative">
+            {gridRuns?.map((dr: GridRunsResponse, colIndex: number) => (
               <Bar
+                colIndex={colIndex}
                 key={dr.run_id}
                 max={max}
                 nodes={flatNodes}
