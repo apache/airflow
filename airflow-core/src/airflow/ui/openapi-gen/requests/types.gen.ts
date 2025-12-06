@@ -1021,6 +1021,7 @@ export type HITLDetailHistory = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceHistoryResponse;
 };
 
 /**
@@ -1380,7 +1381,6 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHistory | null;
 };
 
 /**
@@ -3023,6 +3023,16 @@ export type GetHitlDetailData = {
 };
 
 export type GetHitlDetailResponse = HITLDetail;
+
+export type GetHitlDetailTryDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+    tryNumber: number | null;
+};
+
+export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
 
 export type GetHitlDetailsData = {
     /**
@@ -5622,6 +5632,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}': {
+        get: {
+            req: GetHitlDetailTryDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailHistory;
                 /**
                  * Unauthorized
                  */
