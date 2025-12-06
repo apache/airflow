@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-05T04:13:44.126463
+# This constraints file was automatically generated on 2025-12-06T10:04:09.695387
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -189,7 +189,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.123.9
+fastapi==0.123.10
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -286,7 +286,7 @@ httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.7
+huggingface_hub==1.2.1
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -344,7 +344,7 @@ kubernetes_asyncio==33.3.0
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
-librt==0.6.3
+librt==0.7.0
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
@@ -442,7 +442,7 @@ pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
 pipdeptree==2.30.0
-platformdirs==4.5.0
+platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
@@ -479,7 +479,7 @@ pydantic==2.12.5
 pydantic_core==2.41.5
 pydata-google-auth==1.9.1
 pydruid==0.6.9
-pydynamodb==0.7.6
+pydynamodb==0.8.0
 pyenchant==3.3.0
 pyexasol==1.3.0
 pygtrie==2.5.0
