@@ -358,9 +358,18 @@ class FabAuthManager(BaseAuthManager[User]):
                     user=user,
                 )
                 if not (is_authorized_run or access_entity_authorized):
-                    return False
+                    # If not authorized via DAG Run permission, check DAG-level permission as fallback
+                    dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+                    if not self._is_authorized_dag(method=dag_method, details=details, user=user):
+                        return False
             elif not access_entity_authorized:
-                return False
+                # If not authorized via global entity permission, check DAG-level permission as fallback
+                if details and details.id:
+                    dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+                    if not self._is_authorized_dag(method=dag_method, details=details, user=user):
+                        return False
+                else:
+                    return False
 
         if method == "GET" and (not details or not details.id):
             # Scenario 1
@@ -368,10 +377,11 @@ class FabAuthManager(BaseAuthManager[User]):
         if not access_entity:
             # Scenario 2
             return self._is_authorized_dag(method=method, details=details, user=user)
-        # Scenario 3
-        dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+        # Scenario 3: When accessing sub-entities with specific DAG ID, ensure DAG-level permission
+        # This check is now redundant as it's handled above, but kept for clarity
+        dag_method_check: ResourceMethod = "GET" if method == "GET" else "PUT"
         if (details and details.id) and not self._is_authorized_dag(
-            method=dag_method, details=details, user=user
+            method=dag_method_check, details=details, user=user
         ):
             return False
         return True
@@ -499,8 +509,13 @@ class FabAuthManager(BaseAuthManager[User]):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                    # Check for DAG-level permissions (DAG:dag_id)
                     if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                    # Also check for DAG Run permissions (DAG Run:dag_id) which implies DAG access
+                    elif resource.startswith(RESOURCE_DAG_RUN + ":"):
+                        dag_id = resource[len(RESOURCE_DAG_RUN + ":") :]
+                        resources.add(dag_id)
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @provide_session
@@ -659,6 +674,14 @@ class FabAuthManager(BaseAuthManager[User]):
             # Check whether the user has permissions to access a specific DAG
             resource_dag_name = permissions.resource_name(details.id, RESOURCE_DAG)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
+        
+        # For list endpoints without specific DAG ID, check if user has any scoped DAG permissions
+        # This allows users with scoped permissions to see filtered lists
+        if method == "GET":
+            user_permissions = self._get_user_permissions(user)
+            for action, resource in user_permissions:
+                if action == ACTION_CAN_READ and resource.startswith(RESOURCE_DAG_PREFIX):
+                    return True
         return False
 
     def _is_authorized_list_dags(self, *, user: User) -> bool:

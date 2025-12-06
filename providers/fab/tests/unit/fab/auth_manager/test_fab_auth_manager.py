@@ -486,6 +486,60 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG Run:test_dag_id")],
                 True,
             ),
+            # Scenario: DAG-level permission fallback for DAG Run access
+            # With DAG-level permission only (no global DAG_RUN permission)
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # Scenario: DAG-level permission fallback for Task Instance access
+            # With DAG-level permission only (no global TASK_INSTANCE permission)
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # Scenario: DAG-level permission fallback for Task Logs access
+            # With DAG-level permission only
+            (
+                "GET",
+                DagAccessEntity.TASK_LOGS,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                True,
+            ),
+            # Scenario: DAG-level permission fallback with wrong method
+            # With only read permission on DAG, but trying to edit
+            (
+                "PUT",
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Scenario: DAG-level permission fallback with edit permission
+            # With edit permission on DAG for modifying DAG runs
+            (
+                "PUT",
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id")],
+                True,
+            ),
+            # Scenario: No DAG-level permission, should fail
+            # Without any DAG-specific permission
+            (
+                "GET",
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:other_dag_id")],
+                False,
+            ),
         ],
     )
     def test_is_authorized_dag(
@@ -744,6 +798,20 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, "DAG:test_dag1"), (ACTION_CAN_READ, RESOURCE_CONNECTION)],
                 {"test_dag1"},
             ),
+            # Scenario 10
+            # With DAG Run permissions (should also be included)
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG Run:test_dag1")],
+                {"test_dag1"},
+            ),
+            # Scenario 11
+            # With both DAG and DAG Run permissions
+            (
+                "GET",
+                [(ACTION_CAN_READ, "DAG:test_dag1"), (ACTION_CAN_READ, "DAG Run:test_dag2")],
+                {"test_dag1", "test_dag2"},
+            ),
         ],
     )
     def test_get_authorized_dag_ids(
@@ -778,6 +846,102 @@ class TestFabAuthManager:
         assert results == expected_results
 
         delete_user(flask_app, "username")
+
+    def test_dag_level_access_control_for_sub_entities(
+        self, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        """
+        Test that users with only scoped DAG permissions (via access_control)
+        can access DAG runs, task instances, and other sub-entities without
+        requiring global RESOURCE_DAG_RUN or RESOURCE_TASK_INSTANCE permissions.
+
+        This test verifies the fix for the issue where team-based DAG isolation
+        failed because users needed both DAG-specific permissions AND global
+        entity permissions.
+        """
+        # Create test DAGs
+        with dag_maker("team_a_dag"):
+            EmptyOperator(task_id="task1")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
+        with dag_maker("team_b_dag"):
+            EmptyOperator(task_id="task2")
+        if AIRFLOW_V_3_1_PLUS:
+            sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        # Create user with only scoped DAG permissions (no global permissions)
+        # This simulates access_control={"TEAM_A": {'can_read', 'can_edit'}}
+        user = create_user(
+            flask_app,
+            username="team_a_user",
+            role_name="team_a_role",
+            permissions=[
+                (ACTION_CAN_READ, "DAG:team_a_dag"),
+                (ACTION_CAN_EDIT, "DAG:team_a_dag"),
+            ],
+        )
+
+        # Sync permissions for both DAGs
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("team_a_dag")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("team_b_dag")
+
+        # Test 1: User should be able to access their DAG
+        assert auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET", access_entity=None, details=DagDetails(id="team_a_dag"), user=user
+        )
+
+        # Test 2: User should be able to access DAG runs without global DAG_RUN permission
+        assert auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="team_a_dag"),
+            user=user,
+        )
+
+        # Test 3: User should be able to access task instances without global TASK_INSTANCE permission
+        assert auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET",
+            access_entity=DagAccessEntity.TASK_INSTANCE,
+            details=DagDetails(id="team_a_dag"),
+            user=user,
+        )
+
+        # Test 4: User should be able to access task logs
+        assert auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET",
+            access_entity=DagAccessEntity.TASK_LOGS,
+            details=DagDetails(id="team_a_dag"),
+            user=user,
+        )
+
+        # Test 5: User should be able to edit DAG runs with edit permission
+        assert auth_manager_with_appbuilder.is_authorized_dag(
+            method="PUT",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="team_a_dag"),
+            user=user,
+        )
+
+        # Test 6: User should NOT be able to access DAG they don't have permission for
+        assert not auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET", access_entity=None, details=DagDetails(id="team_b_dag"), user=user
+        )
+
+        # Test 7: User should NOT be able to access DAG runs for DAG they don't have permission for
+        assert not auth_manager_with_appbuilder.is_authorized_dag(
+            method="GET",
+            access_entity=DagAccessEntity.RUN,
+            details=DagDetails(id="team_b_dag"),
+            user=user,
+        )
+
+        # Test 8: get_authorized_dag_ids should return only their DAG
+        authorized_dag_ids = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method="GET")
+        assert authorized_dag_ids == {"team_a_dag"}
+
+        delete_user(flask_app, "team_a_user")
 
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()
