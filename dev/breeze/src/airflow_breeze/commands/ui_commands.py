@@ -663,18 +663,29 @@ def check_translation_completeness(
         if coverage_per_language:
             from rich.table import Table
 
+            def get_coverage_str(coverage: float) -> str:
+                if coverage >= 95:
+                    return f"[bold green]{coverage:.1f}%[/bold green]"
+                if coverage > 90:
+                    return f"[bold yellow]{coverage:.1f}%[/bold yellow]"
+                return f"[red]{coverage:.1f}%[/red]"
+
             summary_table = Table(show_header=True, header_style="bold magenta")
             summary_table.title = "Total Coverage per Language"
             summary_table.add_column("Language", style="cyan")
             summary_table.add_column("Coverage", style="green")
             for lang, coverage in sorted(coverage_per_language.items()):
-                if coverage >= 95:
-                    coverage_str = f"[bold green]{coverage:.1f}%[/bold green]"
-                elif coverage > 80:
-                    coverage_str = f"[bold yellow]{coverage:.1f}%[/bold yellow]"
+                summary_table.add_row(lang, get_coverage_str(coverage))
+            # Calculate and print median coverage
+            coverages = sorted(coverage_per_language.values())
+            n = len(coverages)
+            if n > 0:
+                if n % 2 == 1:
+                    median_coverage = coverages[n // 2]
                 else:
-                    coverage_str = f"[red]{coverage:.1f}%[/red]"
-                summary_table.add_row(lang, coverage_str)
+                    median_coverage = (coverages[n // 2 - 1] + coverages[n // 2]) / 2
+                summary_table.add_row("", "", end_section=True)
+                summary_table.add_row("Median", get_coverage_str(median_coverage))
             console.print(summary_table)
 
 
