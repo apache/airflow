@@ -50,8 +50,8 @@ from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from airflow._shared.secrets_backend.base import BaseSecretsBackend
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-    from airflow.secrets import BaseSecretsBackend
 
 log = logging.getLogger(__name__)
 
@@ -851,6 +851,8 @@ def initialize_secrets_backends(
     * import secrets backend classes
     * instantiate them and return them in a list
     """
+    from airflow.models.connection import Connection
+
     backend_list = []
     worker_mode = False
     if default_backends != DEFAULT_SECRETS_SEARCH_PATH:
@@ -863,6 +865,9 @@ def initialize_secrets_backends(
 
     for class_name in default_backends:
         secrets_backend_cls = import_string(class_name)
+        if not hasattr(secrets_backend_cls, "set_connection_class"):
+            raise ValueError(f"{secrets_backend_cls} does not have set_connection_class method")
+        secrets_backend_cls.set_connection_class(Connection)
         backend_list.append(secrets_backend_cls())
 
     return backend_list
