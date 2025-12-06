@@ -46,6 +46,8 @@ type TriggerDAGFormProps = {
 export type DagRunTriggerParams = {
   conf: string;
   dagRunId: string;
+  dataIntervalEnd: string;
+  dataIntervalStart: string;
   logicalDate: string;
   note: string;
   partitionKey: string | undefined;
@@ -63,10 +65,12 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
 
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
       conf,
       dagRunId: "",
+      dataIntervalEnd: dayjs().startOf('minute').format(DEFAULT_DATETIME_FORMAT),
+      dataIntervalStart: dayjs().startOf('minute').format(DEFAULT_DATETIME_FORMAT),
       // Default logical date to now, show it in the selected timezone
       logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
@@ -87,6 +91,10 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
   };
+
+  const dataIntervalStart = watch("dataIntervalStart");
+  const dataIntervalEnd = watch("dataIntervalEnd");
+  const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
 
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
@@ -128,6 +136,40 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
 
         <Controller
           control={control}
+          name="dataIntervalStart"
+          render={({ field }) => (
+            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  {translate("dagRun.dataIntervalStart")}
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+              </Stack>              
+            </Field.Root>
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="dataIntervalEnd"
+          render={({ field }) => (
+            <Field.Root invalid={Boolean(errors.date) || dataIntervalInvalid} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  {translate("dagRun.dataIntervalEnd")}
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <DateTimeInput {...field} onBlur={resetDateError} size="sm" />
+              </Stack>
+            </Field.Root>
+          )}
+        />
+
+        <Controller
+          control={control}
           name="dagRunId"
           render={({ field }) => (
             <Field.Root mt={6} orientation="horizontal">
@@ -143,6 +185,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
             </Field.Root>
           )}
         />
+
         <Controller
           control={control}
           name="partitionKey"
