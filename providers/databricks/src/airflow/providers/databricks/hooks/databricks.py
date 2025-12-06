@@ -291,6 +291,11 @@ class DatabricksHook(BaseDatabricksHook):
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        return super().get_connection_form_widgets()
+
     def create_job(self, json: dict) -> int:
         """
         Call the ``api/2.1/jobs/create`` endpoint.
