@@ -341,6 +341,14 @@ class DagBundlesManager(LoggingMixin):
         for name, cfg in self._bundle_config.items():
             yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
 
+    def get_all_bundle_names(self) -> Iterable[str]:
+        """
+        Get all bundle names.
+
+        :return: sorted list of bundle names.
+        """
+        return sorted(self._bundle_config.keys())
+
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(
             "The 'view_url' method is deprecated and will be removed when providers "
