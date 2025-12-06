@@ -6968,6 +6968,50 @@ class TestSchedulerJob:
         # Check if the second dagrun was created
         assert DagRun.find(dag_id="testdag2", session=session)
 
+    def test_database_error_in_dagrun_creation_uses_savepoint(self, session, dag_maker, caplog):
+        """Test that database errors during dagrun creation are handled with savepoint rollback"""
+        from unittest.mock import patch
+        from sqlalchemy.exc import OperationalError
+
+        with dag_maker("testdag1", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+        dm1 = dag_maker.dag_model
+
+        with dag_maker("testdag2", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+        dm2 = dag_maker.dag_model
+
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Mock create_dagrun to raise a database error for the first dag only
+        call_count = [0]
+
+        def mock_create_dagrun_with_db_error(self, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # First call (testdag1)
+                raise OperationalError("Database connection lost", None, None)
+            # For subsequent calls, use the original method
+            return original_create_dagrun(self, *args, **kwargs)
+
+        from airflow.serialization.serialized_objects import SerializedDAG
+
+        original_create_dagrun = SerializedDAG.create_dagrun
+
+        with patch.object(SerializedDAG, "create_dagrun", mock_create_dagrun_with_db_error):
+            # This should handle the database error gracefully using savepoint rollback
+            job_runner._create_dag_runs([dm1, dm2], session)
+
+        # The first dag should fail with a database error
+        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert not DagRun.find(dag_id="testdag1", session=session)
+
+        # The second dagrun should still be created despite the first one failing
+        assert DagRun.find(dag_id="testdag2", session=session)
+
+        # The session should still be usable (not corrupted by the error)
+        assert session.is_active
+
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.query(DagWarning).all()
         assert dag_warnings == []

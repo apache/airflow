@@ -1762,6 +1762,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+                # Use a savepoint so that if dag run creation fails with a database error,
+                # we can rollback to this point without affecting other dag runs in the loop
+                savepoint = session.begin_nested()
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
                         dag.create_dagrun(
@@ -1784,11 +1787,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if dag_model.next_dagrun is None:
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
+                    savepoint.commit()
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
                 # dag.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next dag.
+                # and continue to the next dag. Database errors also require rolling back
+                # the savepoint to prevent transaction corruption.
                 except Exception:
+                    savepoint.rollback()
                     self.log.exception("Failed creating DagRun for %s", dag.dag_id)
                     continue
             if self._should_update_dag_next_dagruns(
@@ -1861,22 +1867,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
 
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
-                ),
-                logical_date=None,
-                data_interval=None,
-                run_after=triggered_date,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
-            Stats.incr("asset.triggered_dagruns")
-            dag_run.consumed_asset_events.extend(asset_events)
-            session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+            # Use a savepoint so that if dag run creation fails with a database error,
+            # we can rollback to this point without affecting other dag runs in the loop
+            savepoint = session.begin_nested()
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=triggered_date
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    run_after=triggered_date,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+                Stats.incr("asset.triggered_dagruns")
+                dag_run.consumed_asset_events.extend(asset_events)
+                session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
+                savepoint.commit()
+            except Exception:
+                savepoint.rollback()
+                self.log.exception("Failed creating asset-triggered DagRun for %s", dag.dag_id)
+                continue
 
     def _should_update_dag_next_dagruns(
         self,
