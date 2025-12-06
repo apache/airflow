@@ -155,11 +155,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_id: str | None = None) -> str | None:
         """
         Get an Airflow Variable from an Azure Key Vault secret.
 
         :param key: Variable Key
+        :param team_id: ID of the team associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

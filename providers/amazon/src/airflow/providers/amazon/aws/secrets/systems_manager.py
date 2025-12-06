@@ -143,11 +143,12 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_id: str | None = None) -> str | None:
         """
         Get Airflow Variable.
 
         :param key: Variable Key
+        :param team_id: ID of the team associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

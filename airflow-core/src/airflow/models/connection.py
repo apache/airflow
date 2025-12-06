@@ -29,7 +29,6 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
@@ -42,7 +41,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import UUIDString, mapped_column
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -140,7 +139,9 @@ class Connection(Base, LoggingMixin):
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    team_id: Mapped[str | None] = mapped_column(
+        UUIDString(binary=False), ForeignKey("team.id"), nullable=True
+    )
     _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(

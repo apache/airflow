@@ -24,11 +24,13 @@ import logging
 from collections.abc import Generator
 from importlib import metadata
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from packaging import version
-from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst
+from sqlalchemy import CHAR, TIMESTAMP, PickleType, event, nullsfirst
 from sqlalchemy.dialects import mysql
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.mysql import CHAR as MYSQL_CHAR
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow._shared.timezones.timezone import make_naive, utc
@@ -118,6 +120,33 @@ class UtcDateTime(TypeDecorator):
         if dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
+
+
+class UUIDString(TypeDecorator):
+    """Stores UUID as string in DB, returns str in Python."""
+
+    impl = CHAR(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=True))
+        if dialect.name == "mysql":
+            # MySQL has no UUID type, CHAR(36) is safest universal type
+            return dialect.type_descriptor(MYSQL_CHAR(36))
+        # SQLite
+        return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if isinstance(value, UUID):
+            return str(value)
+        return str(value)
+
+    def process_result_value(self, value, dialect):
+        # DB returns a string → keep it as string
+        return value
 
 
 class ExtendedJSON(TypeDecorator):
