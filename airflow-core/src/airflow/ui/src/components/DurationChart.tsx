@@ -37,6 +37,7 @@ import { useNavigate } from "react-router-dom";
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
 import { DEFAULT_DATETIME_FORMAT, renderDuration } from "src/utils/datetimeUtils";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 ChartJS.register(
   CategoryScale,
@@ -191,9 +192,17 @@ export const DurationChart = ({
               }
               case "Task Instance": {
                 const entry = entries[element.index] as TaskInstanceResponse | undefined;
-                const baseUrl = `/dags/${entry?.dag_id}/runs/${entry?.dag_run_id}`;
 
-                navigate(`${baseUrl}/tasks/${entry?.task_id}`);
+                const baseUrl = buildTaskInstanceUrl({
+                  currentPathname: location.pathname,
+                  dagId: entry?.dag_id ?? "",
+                  isMapped: entry?.map_index !== undefined && entry.map_index >= 0,
+                  mapIndex: entry?.map_index.toString() ?? "",
+                  runId: entry?.dag_run_id ?? "",
+                  taskId: entry?.task_id ?? "",
+                });
+
+                navigate(baseUrl);
                 break;
               }
               default:
