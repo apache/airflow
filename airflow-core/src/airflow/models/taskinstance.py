@@ -1865,6 +1865,7 @@ class TaskInstance(Base, LoggingMixin):
     ) -> Any:
         """:meta private:"""  # noqa: D400
         # This is only kept for compatibility in tests for now while AIP-72 is in progress.
+
         if dag_id is None:
             dag_id = self.dag_id
         if run_id is None:
@@ -1900,17 +1901,12 @@ class TaskInstance(Base, LoggingMixin):
             # Check if the task is actually mapped
             target_task_id = task_ids if isinstance(task_ids, str) else first.task_id
             is_actually_mapped = False
-
-            try:
-                # Get the task definition from the DAG
-                if self.task and self.task.dag:
-                    dag = self.task.dag
-                    if dag.has_task(target_task_id):
-                        target_task = dag.task_dict[target_task_id]
-                        is_actually_mapped = getattr(target_task, "is_mapped", False)
-            except (AttributeError, KeyError):
-                # If we can't determine, assume it's not mapped
-                is_actually_mapped = False
+            # Get the task definition from the DAG
+            if self.task and self.task.dag:
+                dag = self.task.dag
+                if dag.has_task(target_task_id):
+                    target_task = dag.task_dict[target_task_id]
+                    is_actually_mapped = bool(getattr(target_task, "is_mapped", False))
 
             # If it's a mapped task, always return LazyXComSelectSequence
             if is_actually_mapped and map_indexes is None:

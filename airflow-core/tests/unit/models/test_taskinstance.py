@@ -3089,6 +3089,91 @@ class TestMappedTaskInstanceReceiveValue:
             out_lines = [line.strip() for line in f]
         assert out_lines == ["hello FOO", "goodbye FOO", "hello BAR", "goodbye BAR"]
 
+    def test_xcom_pull_unmapped_task(self, dag_maker, session):
+        """
+        Test that xcom_pull from unmapped task returns single deserialized value.
+
+        For unmapped tasks with map_index < 0, xcom_pull should return the single value,
+        not a LazyXComSelectSequence.
+        """
+
+        with dag_maker(dag_id="test_xcom_unmapped", session=session):
+            upstream = PythonOperator(
+                task_id="unmapped_task",
+                python_callable=lambda: {"key": "value"},
+            )
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+
+        # Run upstream task to push xcom
+        dag_maker.run_ti("unmapped_task", dag_run=dag_run, session=session)
+
+        # Get downstream task instance
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        # Pull xcom - should return single dict value, not LazyXComSelectSequence
+        result = ti_downstream.xcom_pull(task_ids="unmapped_task", session=session)
+        assert isinstance(result, dict), f"Expected dict for unmapped task, got {type(result)}"
+        assert result == {"key": "value"}
+
+    def test_xcom_pull_mapped_task(self, dag_maker, session):
+        """
+        Test that xcom_pull from mapped task returns LazyXComSelectSequence.
+
+        For mapped tasks, xcom_pull should always return LazyXComSelectSequence (list-like)
+        even if map_indexes is None.
+        """
+        from airflow.models.xcom import LazyXComSelectSequence
+
+        with dag_maker(dag_id="test_xcom_mapped", session=session, serialized=True):
+            upstream_mapped = PythonOperator.partial(
+                task_id="upstream_mapped",
+                python_callable=lambda x: x * 2,
+            ).expand(op_args=[[1], [2], [3]])
+
+            downstream = PythonOperator(
+                task_id="downstream",
+                python_callable=lambda: None,
+            )
+            upstream_mapped >> downstream
+
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+
+        # Get task instances from database (they are created at parse time for mapped tasks)
+        upstream_task = dag_maker.dag.get_task("upstream_mapped")
+        tis = session.scalars(
+            select(TaskInstance)
+            .where(
+                TaskInstance.dag_id == dag_run.dag_id,
+                TaskInstance.task_id == upstream_task.task_id,
+                TaskInstance.run_id == dag_run.run_id,
+            )
+            .order_by(TaskInstance.map_index)
+        ).all()
+
+        # Run upstream mapped tasks to push xcom values (returns x * 2)
+        for ti in tis:
+            ti.refresh_from_task(upstream_task)
+            dag_maker.run_ti(ti.task_id, dag_run=dag_run, map_index=ti.map_index, session=session)
+
+        # Get downstream task instance
+        ti_downstream = dag_run.get_task_instance("downstream", session=session)
+        ti_downstream.task = dag_maker.dag.task_dict["downstream"]
+
+        # Pull xcom from mapped task - should return LazyXComSelectSequence
+        result = ti_downstream.xcom_pull(task_ids="upstream_mapped", session=session)
+        assert isinstance(result, LazyXComSelectSequence), (
+            f"Expected LazyXComSelectSequence for mapped task, got {type(result)}"
+        )
+        # Verify the content
+        assert list(result) == [2, 4, 6]
+
 
 def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
     backend = os.environ.get("BACKEND")
