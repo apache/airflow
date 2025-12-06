@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
+import pkgutil
 from collections.abc import Callable
 from importlib import import_module
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def import_string(dotted_path: str):
     """
     Import a dotted module path and return the attribute/class designated by the last name in the path.
 
-    Note: Only supports top-level attributes or classes.
-
     Raise ImportError if the import failed.
     """
+    # TODO: Add support for nested classes. Currently, it only works for top-level classes.
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)
     except ValueError:
@@ -59,6 +63,10 @@ def qualname(o: object | Callable) -> str:
         return f"{module}.{name}"
 
     return name
+
+
+def iter_namespace(ns: ModuleType):
+    return pkgutil.iter_modules(ns.__path__, ns.__name__ + ".")
 
 
 def is_valid_dotpath(path: str) -> bool:
