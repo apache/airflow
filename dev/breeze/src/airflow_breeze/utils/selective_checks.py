@@ -1012,7 +1012,7 @@ class SelectiveChecks:
     @property
     def prod_image_build_sha_map(self) -> dict[str, str]:
         """
-        Map of branches to SHAs for building prod images for airflowctl integration tests.
+        Map of branches to SHAs for building prod images for integration tests.
 
         For main branch, we use the latest commit on main for each supported branch.
         For other branches, we use the current commit SHA.
@@ -1027,7 +1027,7 @@ class SelectiveChecks:
                 sha_map[branch] = self._commit_ref
             else:
                 sha_map[branch] = run_command(
-                    ["git", "rev-parse", branch],
+                    ["git", "rev-parse", f"origin/{branch}"],
                     capture_output=True,
                     text=True,
                     cwd=AIRFLOW_ROOT_PATH,
