@@ -4380,7 +4380,7 @@ def check_release_files(
         if release_type == "airflow":
             directory = path_to_airflow_svn / version
         elif release_type == "task-sdk":
-            directory = path_to_airflow_svn / version
+            directory = path_to_airflow_svn / "task-sdk" / version
         elif release_type == "airflow-ctl":
             directory = path_to_airflow_svn / "airflow-ctl" / version
         elif release_type == "python-client":
@@ -4412,10 +4412,14 @@ def check_release_files(
         )
     elif release_type == "airflow":
         missing_files = check_airflow_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version), dockerfile_path)
+        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
-        create_docker(TASK_SDK_DOCKER.format(version), dockerfile_path)
+        airflow_version = version.replace("1", "3", 1)
+        create_docker(
+            TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
+            dockerfile_path,
+        )
     elif release_type == "airflow-ctl":
         missing_files = check_airflow_ctl_release(files, version)
         create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)
