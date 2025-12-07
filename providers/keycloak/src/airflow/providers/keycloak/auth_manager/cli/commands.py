@@ -30,6 +30,7 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import conf
+from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_REALM_KEY,
@@ -45,76 +46,48 @@ log = logging.getLogger(__name__)
 
 @cli_utils.action_cli
 @providers_configuration_loaded
+@dry_run_message_wrap
 def create_scopes_command(args):
     """Create Keycloak auth manager scopes in Keycloak."""
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    if args.dry_run:
-        print(
-            "Performing dry run for creating scopes. It will check the connection to Keycloak but won't create any scope.\n"
-        )
-
-    _create_scopes(client, client_uuid, args.dry_run)
-
-    if args.dry_run:
-        print("Dry run for creating scopes completed.")
+    _create_scopes(client, client_uuid, dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
+@dry_run_message_wrap
 def create_resources_command(args):
     """Create Keycloak auth manager resources in Keycloak."""
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    if args.dry_run:
-        print(
-            "Performing dry run for creating resources. It will check the connection to Keycloak but won't create any resource.\n"
-        )
-
-    _create_resources(client, client_uuid, args.dry_run)
-
-    if args.dry_run:
-        print("Dry run for creating resources completed.")
+    _create_resources(client, client_uuid, dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
+@dry_run_message_wrap
 def create_permissions_command(args):
     """Create Keycloak auth manager permissions in Keycloak."""
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    if args.dry_run:
-        print(
-            "Performing dry run for creating permissions. It will check the connection to Keycloak but won't create any permission.\n"
-        )
-
-    _create_permissions(client, client_uuid, args.dry_run)
-
-    if args.dry_run:
-        print("Dry run for creating permissions completed.")
+    _create_permissions(client, client_uuid, dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
+@dry_run_message_wrap
 def create_all_command(args):
     """Create all Keycloak auth manager entities in Keycloak."""
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    if args.dry_run:
-        print(
-            "Performing dry run for creating all entities. It will check the connection to Keycloak but won't create any entity.\n"
-        )
-
-    _create_scopes(client, client_uuid, args.dry_run)
-    _create_resources(client, client_uuid, args.dry_run)
-    _create_permissions(client, client_uuid, args.dry_run)
-
-    if args.dry_run:
-        print("Dry run for creating all entities completed.")
+    _create_scopes(client, client_uuid, dry_run=args.dry_run)
+    _create_resources(client, client_uuid, dry_run=args.dry_run)
+    _create_permissions(client, client_uuid, dry_run=args.dry_run)
 
 
 def _get_client(args):
@@ -151,15 +124,19 @@ def _get_scopes_to_create() -> list[dict]:
     return scopes
 
 
-def _create_scopes(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
+def _preview_scopes(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Preview scopes that would be created."""
     scopes = _get_scopes_to_create()
+    print("Scopes to be created:")
+    for scope in scopes:
+        print(f"  - {scope['name']}")
+    print()
 
-    if dry_run:
-        print("Scopes to be created:")
-        for scope in scopes:
-            print(f"  - {scope['name']}")
-        print()
-        return
+
+@dry_run_preview(_preview_scopes)
+def _create_scopes(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Create Keycloak scopes."""
+    scopes = _get_scopes_to_create()
 
     for scope in scopes:
         client.create_client_authz_scopes(client_id=client_uuid, payload=scope)
@@ -168,7 +145,8 @@ def _create_scopes(client: KeycloakAdmin, client_uuid: str, dry_run: bool = Fals
 
 
 def _get_resources_to_create(
-    all_scopes: list[dict],
+    client: KeycloakAdmin,
+    client_uuid: str,
 ) -> tuple[list[tuple[str, list[dict]]], list[tuple[str, list[dict]]]]:
     """
     Get the list of resources to be created.
@@ -176,6 +154,8 @@ def _get_resources_to_create(
     Returns a tuple of (standard_resources, menu_resources).
     Each is a list of tuples (resource_name, scopes_list).
     """
+    all_scopes = client.get_client_authz_scopes(client_uuid)
+
     scopes = [
         {"id": scope["id"], "name": scope["name"]}
         for scope in all_scopes
@@ -191,22 +171,26 @@ def _get_resources_to_create(
     return standard_resources, menu_resources
 
 
-def _create_resources(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
-    all_scopes = client.get_client_authz_scopes(client_uuid)
-    standard_resources, menu_resources = _get_resources_to_create(all_scopes)
+def _preview_resources(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Preview resources that would be created."""
+    standard_resources, menu_resources = _get_resources_to_create(client, client_uuid)
 
-    if dry_run:
-        print("Resources to be created:")
-        if standard_resources:
-            for resource_name, resource_scopes in standard_resources:
-                actual_scope_names = ", ".join([s["name"] for s in resource_scopes])
-                print(f"  - {resource_name} (scopes: {actual_scope_names})")
-        print("\nMenu item resources to be created:")
-        for resource_name, resource_scopes in menu_resources:
+    print("Resources to be created:")
+    if standard_resources:
+        for resource_name, resource_scopes in standard_resources:
             actual_scope_names = ", ".join([s["name"] for s in resource_scopes])
             print(f"  - {resource_name} (scopes: {actual_scope_names})")
-        print()
-        return
+    print("\nMenu item resources to be created:")
+    for resource_name, resource_scopes in menu_resources:
+        actual_scope_names = ", ".join([s["name"] for s in resource_scopes])
+        print(f"  - {resource_name} (scopes: {actual_scope_names})")
+    print()
+
+
+@dry_run_preview(_preview_resources)
+def _create_resources(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Create Keycloak resources."""
+    standard_resources, menu_resources = _get_resources_to_create(client, client_uuid)
 
     for resource_name, scopes in standard_resources:
         client.create_client_authz_resource(
@@ -232,7 +216,7 @@ def _create_resources(client: KeycloakAdmin, client_uuid: str, dry_run: bool = F
     print("Resources created successfully.")
 
 
-def _get_permissions_to_create(all_scopes: list[dict], all_resources: list[dict]) -> list[dict]:
+def _get_permissions_to_create(client: KeycloakAdmin, client_uuid: str) -> list[dict]:
     """
     Get the actual permissions to be created with filtered scopes/resources.
 
@@ -265,6 +249,10 @@ def _get_permissions_to_create(all_scopes: list[dict], all_resources: list[dict]
             ],
         },
     ]
+
+    all_scopes = client.get_client_authz_scopes(client_uuid)
+    all_resources = client.get_client_authz_resources(client_uuid)
+
     result = []
 
     for config in perm_configs:
@@ -286,22 +274,25 @@ def _get_permissions_to_create(all_scopes: list[dict], all_resources: list[dict]
     return result
 
 
-def _create_permissions(client: KeycloakAdmin, client_uuid: str, dry_run: bool = False):
-    all_scopes = client.get_client_authz_scopes(client_uuid)
-    all_resources = client.get_client_authz_resources(client_uuid)
-    permissions = _get_permissions_to_create(all_scopes, all_resources)
+def _preview_permissions(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Preview permissions that would be created."""
+    permissions = _get_permissions_to_create(client, client_uuid)
 
-    if dry_run:
-        print("Permissions to be created:")
-        for perm in permissions:
-            if perm["type"] == "scope-based":
-                scope_names = ", ".join(perm["scope_names"])
-                print(f"  - {perm['name']} (type: scope-based, scopes: {scope_names})")
-            else:  # resource-based
-                resource_names = ", ".join(perm["resource_names"])
-                print(f"  - {perm['name']} (type: resource-based, resources: {resource_names})")
-        print()
-        return
+    print("Permissions to be created:")
+    for perm in permissions:
+        if perm["type"] == "scope-based":
+            scope_names = ", ".join(perm["scope_names"])
+            print(f"  - {perm['name']} (type: scope-based, scopes: {scope_names})")
+        else:  # resource-based
+            resource_names = ", ".join(perm["resource_names"])
+            print(f"  - {perm['name']} (type: resource-based, resources: {resource_names})")
+    print()
+
+
+@dry_run_preview(_preview_permissions)
+def _create_permissions(client: KeycloakAdmin, client_uuid: str, **kwargs):
+    """Create Keycloak permissions."""
+    permissions = _get_permissions_to_create(client, client_uuid)
 
     for perm in permissions:
         if perm["type"] == "scope-based":

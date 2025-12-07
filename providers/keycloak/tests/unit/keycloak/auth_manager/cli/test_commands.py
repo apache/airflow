@@ -295,9 +295,9 @@ class TestCommands:
             create_all_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        mock_create_scopes.assert_called_once_with(client, "test-id", False)
-        mock_create_resources.assert_called_once_with(client, "test-id", False)
-        mock_create_permissions.assert_called_once_with(client, "test-id", False)
+        mock_create_scopes.assert_called_once_with(client, "test-id", dry_run=False)
+        mock_create_resources.assert_called_once_with(client, "test-id", dry_run=False)
+        mock_create_permissions.assert_called_once_with(client, "test-id", dry_run=False)
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
     def test_create_scopes_dry_run(self, mock_get_client):
@@ -439,6 +439,6 @@ class TestCommands:
 
         client.get_clients.assert_called_once_with()
         # In dry-run mode, all helper functions should be called with dry_run=True
-        mock_create_scopes.assert_called_once_with(client, "test-id", True)
-        mock_create_resources.assert_called_once_with(client, "test-id", True)
-        mock_create_permissions.assert_called_once_with(client, "test-id", True)
+        mock_create_scopes.assert_called_once_with(client, "test-id", dry_run=True)
+        mock_create_resources.assert_called_once_with(client, "test-id", dry_run=True)
+        mock_create_permissions.assert_called_once_with(client, "test-id", dry_run=True)
