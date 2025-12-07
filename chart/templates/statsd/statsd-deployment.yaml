@@ -99,15 +99,21 @@ spec:
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
           args:
+            {{- if .Values.statsd.cacheSize }}
+            - "--statsd.cache-size={{ .Values.statsd.cacheSize }}"
+            {{- end }}
+            {{- if .Values.statsd.cacheType }}
+            - "--statsd.cache-type={{ .Values.statsd.cacheType }}"
+            {{- end }}
+            {{- if .Values.statsd.ttl }}
+            - "--ttl={{ .Values.statsd.ttl }}"
+            {{- end }}
           {{- if .Values.statsd.args }}
             {{- range $arg := .Values.statsd.args }}
             - {{ $arg | quote }}
             {{- end }}
           {{- else }}
-            - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
-            - "--statsd.cache-size={{ .Values.statsd.cacheSize }}"
-            - "--statsd.cache-type={{ .Values.statsd.cacheType }}"
-            - "--ttl={{ .Values.statsd.ttl }}"
+          - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           {{- with .Values.statsd.env }}

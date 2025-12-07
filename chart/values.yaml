@@ -279,9 +279,9 @@ ingress:
     # supply your own array here; if set, all below flag-specific values
     # (mappingConfig, cacheSize, cacheType, ttl) are ignored.
     # args:
-    #   - "--statsd.cache-size=500"
-    #   - "--statsd.cache-type=random"
-    #   - "--ttl=10m"
+    #  - "--statsd.cache-size=1000"
+    #  - "--statsd.cache-type=random"
+    #  - "--ttl=10m"
     # -------------------------------------------------------------------
 
     # Path in the container to the mapping config file.
