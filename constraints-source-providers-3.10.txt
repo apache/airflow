@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-04T13:26:43.765703
+# This constraints file was automatically generated on 2025-12-07T17:08:55.831314
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -34,7 +34,7 @@ PyGithub==2.8.1
 PyHive==0.7.0
 PyJWT==2.10.1
 PyMySQL==1.1.2
-PyNaCl==1.6.0
+PyNaCl==1.6.1
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
@@ -63,7 +63,7 @@ alabaster==1.0.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.6.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.3
+alibabacloud-credentials==1.0.4
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
 alibabacloud_endpoint_util==0.0.4
@@ -126,7 +126,7 @@ backoff==2.2.1
 backports.asyncio.runner==1.2.0
 backports.strenum==1.3.1
 backports.tarfile==1.2.0
-backports.zstd==1.1.0
+backports.zstd==1.2.0
 bcrypt==5.0.0
 beartype==0.21.0
 beautifulsoup4==4.14.3
@@ -145,7 +145,7 @@ cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.6.0
 certifi==2025.11.12
-cffi==1.17.1
+cffi==2.0.0
 cfgv==3.5.0
 cfn-lint==1.42.0
 chardet==5.2.0
@@ -224,7 +224,7 @@ gcsfs==2025.12.0
 geomet==1.1.0
 gevent==25.9.1
 gitdb==4.0.12
-google-ads==28.4.0
+google-ads==28.4.1
 google-analytics-admin==0.26.0
 google-api-core==2.28.1
 google-api-python-client==2.187.0
@@ -236,12 +236,12 @@ google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
 google-cloud-automl==2.17.0
-google-cloud-batch==0.18.0
+google-cloud-batch==0.19.0
 google-cloud-bigquery-datatransfer==3.20.0
-google-cloud-bigquery-storage==2.34.0
+google-cloud-bigquery-storage==2.35.0
 google-cloud-bigquery==3.38.0
 google-cloud-bigtable==2.34.0
-google-cloud-build==3.33.0
+google-cloud-build==3.34.0
 google-cloud-compute==1.40.0
 google-cloud-container==2.61.0
 google-cloud-core==2.5.0
@@ -283,7 +283,7 @@ googleapis-common-protos==1.72.0
 graphql-core==3.2.7
 graphviz==0.20.3
 greenback==1.2.1
-greenlet==3.2.4
+greenlet==3.3.0
 gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
@@ -293,7 +293,7 @@ grpcio==1.65.5
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
-hatch==1.16.1
+hatch==1.16.2
 hatchling==1.28.0
 hdfs==2.7.3
 hf-xet==1.2.0
@@ -304,7 +304,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.7
+huggingface_hub==1.2.1
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -362,7 +362,7 @@ kubernetes_asyncio==32.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
-librt==0.6.3
+librt==0.7.3
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
@@ -396,10 +396,10 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
-mypy-boto3-appflow==1.41.0
-mypy-boto3-rds==1.42.1
-mypy-boto3-redshift-data==1.41.1
-mypy-boto3-s3==1.42.1
+mypy-boto3-appflow==1.42.3
+mypy-boto3-rds==1.42.3
+mypy-boto3-redshift-data==1.42.3
+mypy-boto3-s3==1.42.3
 mypy==1.19.0
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
@@ -416,7 +416,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.8.1
+openai==2.9.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 opencensus-context==0.1.3
@@ -438,7 +438,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.1
 ordered-set==4.1.0
-orjson==3.11.4
+orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
@@ -456,12 +456,12 @@ pbr==7.0.3
 pdbr==0.9.2
 pendulum==3.1.0
 pexpect==4.9.0
-pgvector==0.4.1
+pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
 pipdeptree==2.30.0
-platformdirs==4.5.0
+platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
@@ -479,9 +479,9 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==4.25.8
 psutil==7.1.3
-psycopg-binary==3.3.1
+psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
-psycopg==3.3.1
+psycopg==3.3.2
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -527,7 +527,7 @@ pytest-rerunfailures==16.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
-pytest==9.0.1
+pytest==9.0.2
 python-arango==8.2.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -573,7 +573,7 @@ rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
-ruff==0.14.7
+ruff==0.14.8
 s3fs==2025.12.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.23
@@ -596,9 +596,9 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowballstemmer==3.0.1
-snowflake-connector-python==3.18.0
+snowflake-connector-python==4.0.0
 snowflake-snowpark-python==1.43.0
-snowflake-sqlalchemy==1.7.7
+snowflake-sqlalchemy==1.8.0
 sortedcontainers==2.4.0
 soupsieve==2.8
 sphinx-argparse==0.5.2
@@ -690,7 +690,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.14
+uv==0.9.16
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0

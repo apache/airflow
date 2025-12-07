@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-04T13:30:02.591314
+# This constraints file was automatically generated on 2025-12-07T17:12:16.718462
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -53,7 +53,7 @@ PyGithub==2.8.1
 PyHive==0.7.0
 PyJWT==2.10.1
 PyMySQL==1.1.2
-PyNaCl==1.6.0
+PyNaCl==1.6.1
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
@@ -80,7 +80,7 @@ airbyte-api==0.53.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.6.1
 alibabacloud-credentials-api==1.0.0
-alibabacloud-credentials==1.0.3
+alibabacloud-credentials==1.0.4
 alibabacloud-tea-openapi==0.4.2
 alibabacloud-tea-util==0.3.14
 alibabacloud-tea==0.4.3
@@ -252,7 +252,7 @@ cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.6.0
 certifi==2025.11.12
-cffi==1.17.1
+cffi==2.0.0
 chardet==5.2.0
 charset-normalizer==3.4.4
 ciso8601==2.3.3
@@ -321,7 +321,7 @@ gcsfs==2025.12.0
 geomet==1.1.0
 gevent==25.9.1
 gitdb==4.0.12
-google-ads==28.4.0
+google-ads==28.4.1
 google-analytics-admin==0.26.0
 google-api-core==2.28.1
 google-api-python-client==2.187.0
@@ -333,12 +333,12 @@ google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
 google-cloud-automl==2.17.0
-google-cloud-batch==0.18.0
+google-cloud-batch==0.19.0
 google-cloud-bigquery-datatransfer==3.20.0
-google-cloud-bigquery-storage==2.34.0
+google-cloud-bigquery-storage==2.35.0
 google-cloud-bigquery==3.38.0
 google-cloud-bigtable==2.34.0
-google-cloud-build==3.33.0
+google-cloud-build==3.34.0
 google-cloud-compute==1.40.0
 google-cloud-container==2.61.0
 google-cloud-core==2.5.0
@@ -379,7 +379,7 @@ google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
 greenback==1.2.1
-greenlet==3.2.4
+greenlet==3.3.0
 gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
 grpc-interceptor==0.15.4
@@ -398,7 +398,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.1.7
+huggingface_hub==1.2.1
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -443,7 +443,7 @@ lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.80.7
+litellm==1.80.8
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -484,7 +484,7 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.8.1
+openai==2.9.0
 opencensus-context==0.1.3
 opencensus==0.11.4
 openlineage-integration-common==1.40.1
@@ -504,7 +504,7 @@ opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.1
 ordered-set==4.1.0
-orjson==3.11.4
+orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
@@ -520,11 +520,11 @@ pathspec==0.12.1
 pbr==7.0.3
 pendulum==3.1.0
 pexpect==4.9.0
-pgvector==0.4.1
+pgvector==0.4.2
 pinecone-plugin-interface==0.0.7
 pinecone==7.0.1
 pinotdb==5.7.0
-platformdirs==4.5.0
+platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
 polars-runtime-32==1.35.2
@@ -627,9 +627,9 @@ smart_open==7.5.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowflake-connector-python==3.18.0
+snowflake-connector-python==4.0.0
 snowflake-snowpark-python==1.43.0
-snowflake-sqlalchemy==1.7.7
+snowflake-sqlalchemy==1.8.0
 sortedcontainers==2.4.0
 soupsieve==2.8
 spython==0.3.14
@@ -676,9 +676,9 @@ tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.5.0
+urllib3==2.6.0
 uuid6==2025.0.1
-uv==0.9.15
+uv==0.9.16
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
