@@ -287,7 +287,7 @@ def load_configs_dict(file_path: str) -> dict[str, str]:
     :param file_path: The location of the file that will be processed.
     :return: A dictionary where the key contains a config name and the value contains the config value.
     """
-    log.debug("Loading configs from a text file")
+    log.debug("Loading configs from text file %s", file_path)
 
     secrets = _parse_secret_file(file_path)
     invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
