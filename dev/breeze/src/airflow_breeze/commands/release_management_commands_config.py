@@ -304,6 +304,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--python",
                 "--use-uv",
+                "--target-branch",
             ],
         },
         {
