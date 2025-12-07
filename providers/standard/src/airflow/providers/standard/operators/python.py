@@ -1228,6 +1228,8 @@ if AIRFLOW_V_3_2_PLUS:
         from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
 
     class PythonAsyncOperator(BaseAsyncOperator, PythonOperator):
+        """Executes an async Python callable."""
+
         async def aexecute(self, context):
             """Async version of execute(). Subclasses should implement this."""
             context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
