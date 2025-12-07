@@ -52,6 +52,7 @@ COMPONENT_NAMES = {
 ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parent
 VSCODE_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".vscode"
 LAUNCH_JSON_FILE = VSCODE_FOLDER_PATH / "launch.json"
+MCP_JSON_FILE = VSCODE_FOLDER_PATH / "mcp.json"
 
 
 def create_debug_configuration(component: str, port: int) -> dict:
@@ -75,6 +76,28 @@ def create_launch_json_content() -> dict:
         configurations.append(config)
 
     return {"version": "0.2.0", "configurations": configurations}
+
+
+def create_mcp_json_content() -> dict:
+    """Create the MCP configuration with Chakra UI server."""
+    return {"servers": {"chakra-ui": {"command": "npx", "args": ["-y", "@chakra-ui/react-mcp"]}}}
+
+
+def setup_mcp():
+    """Set up MCP configuration for Chakra UI."""
+    print("[green]Creating[/] MCP configuration for Chakra UI...")
+
+    # Create the mcp.json content
+    mcp_json_content = create_mcp_json_content()
+
+    # Ensure .vscode directory exists
+    VSCODE_FOLDER_PATH.mkdir(exist_ok=True)
+
+    # Write the mcp.json file
+    with open(MCP_JSON_FILE, "w") as f:
+        json.dump(mcp_json_content, f, indent=4)
+
+    print(f"[green]Successfully created[/] {MCP_JSON_FILE}")
 
 
 def setup_vscode():
@@ -106,6 +129,7 @@ def main():
         print(f"* {COMPONENT_NAMES[component]}: port {port}")
 
     print(f"\nConfiguration will be written to: {LAUNCH_JSON_FILE}")
+    print(f"MCP configuration will be written to: {MCP_JSON_FILE}")
 
     if LAUNCH_JSON_FILE.exists():
         print(f"\n[yellow]Warning:[/] {LAUNCH_JSON_FILE} already exists!")
@@ -120,9 +144,11 @@ def main():
             return
 
     setup_vscode()
+    setup_mcp()
 
     print("\n[green]Setup complete![/]")
     print("\nFor more information, see: contributing-docs/20_debugging_airflow_components.rst")
+    print("MCP server for Chakra UI has been configured for enhanced development experience.")
 
 
 if __name__ == "__main__":
