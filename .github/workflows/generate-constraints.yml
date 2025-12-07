@@ -95,17 +95,17 @@ jobs:
         shell: bash
         run: >
           breeze release-management generate-constraints
+          --target-branch "${TARGET_BRANCH}"
           --airflow-constraints-mode constraints-source-providers --answer yes
           --python "${PYTHON_VERSION}"
-          --target-branch "${TARGET_BRANCH}"
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints
+          --target-branch "${TARGET_BRANCH}"
           --airflow-constraints-mode constraints-no-providers --answer yes
           --python "${PYTHON_VERSION}"
-          --target-branch "${TARGET_BRANCH}"
         if: inputs.generate-no-providers-constraints == 'true'
       - name: "Prepare updated provider distributions"
         shell: bash
@@ -127,8 +127,8 @@ jobs:
         shell: bash
         timeout-minutes: 25
         run: |
-          breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}" --target-branch "${TARGET_BRANCH}"
+          breeze release-management generate-constraints --target-branch "${TARGET_BRANCH}" \
+          --airflow-constraints-mode constraints --answer yes --python "${PYTHON_VERSION}"
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
