@@ -123,6 +123,9 @@
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
     "toaster": {
+      "error": {
+        "title": "Fehler beim Auslösen des Dag"
+      },
       "success": {
         "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
         "title": "Dag-Lauf ausgelöst"
