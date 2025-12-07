@@ -1170,7 +1170,5 @@ This helper function returns true if the executor can launch pods (Kubernetes-ba
 {{- define "airflow.podLaunchingExecutor" -}}
   {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
     {{- print "true" -}}
-  {{- else -}}
-    {{- print "false" -}}
   {{- end -}}
 {{- end -}}
