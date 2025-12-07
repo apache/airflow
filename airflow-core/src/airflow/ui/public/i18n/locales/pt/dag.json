@@ -48,7 +48,7 @@
   "header": {
     "buttons": {
       "advanced": "Avançado",
-      "dagDocs": "Documentação do DAG"
+      "dagDocs": "Documentação do Dag"
     }
   },
   "logs": {
@@ -107,12 +107,12 @@
       "showGridShortcut": "Mostrar Grade (Pressione g)"
     },
     "dagRuns": {
-      "label": "Número de Execuções do DAG"
+      "label": "Número de Execuções do Dag"
     },
     "dependencies": {
       "label": "Dependências",
       "options": {
-        "allDagDependencies": "Todas as Dependências do DAG",
+        "allDagDependencies": "Todas as Dependências do Dag",
         "externalConditions": "Condições Externas",
         "onlyTasks": "Somente Tarefas"
       },
@@ -126,11 +126,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "Falha ao processar o DAG. Pode haver solicitações de processamento pendentes ainda não processadas.",
-        "title": "Falha ao Reprocessar o DAG"
+        "description": "Falha ao processar o Dag. Pode haver solicitações de processamento pendentes ainda não processadas.",
+        "title": "Falha ao Reprocessar o Dag"
       },
       "success": {
-        "description": "O DAG deve ser reprocessado em breve.",
+        "description": "O Dag deve ser reprocessado em breve.",
         "title": "Solicitação de Reprocessamento Enviada com Sucesso"
       }
     }
