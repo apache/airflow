@@ -179,7 +179,7 @@ class TestAssetDecorator:
         assert err.value.args[0] == "@task decorator with 'outlets' argument is not supported in @asset"
 
     @pytest.mark.parametrize(
-        "provided_uri, expected_uri",
+        ("provided_uri", "expected_uri"),
         [
             pytest.param(None, "custom", id="default-uri"),
             pytest.param("s3://bucket/object", "s3://bucket/object", id="custom-uri"),

@@ -90,7 +90,7 @@ def test_short_circuit_decorator(dag_maker):
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
-@pytest.mark.parametrize(["condition", "should_be_skipped"], [(True, False), (False, True)])
+@pytest.mark.parametrize(("condition", "should_be_skipped"), [(True, False), (False, True)])
 def test_short_circuit_decorator_af301(dag_maker, session, condition, should_be_skipped):
     with dag_maker(serialized=True, session=session):
 
@@ -121,7 +121,7 @@ def test_short_circuit_decorator_af301(dag_maker, session, condition, should_be_
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_1, reason="Test only runs on AF3.0.1")
 @pytest.mark.parametrize(
-    ["ignore_downstream_trigger_rules", "expected"], [(True, State.SKIPPED), (False, State.SUCCESS)]
+    ("ignore_downstream_trigger_rules", "expected"), [(True, State.SKIPPED), (False, State.SUCCESS)]
 )
 def test_short_circuit_decorator__ignore_downstream_trigger_rules(
     dag_maker, session, ignore_downstream_trigger_rules, expected

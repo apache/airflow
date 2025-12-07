@@ -39,7 +39,7 @@ if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
 
 class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
-        "mocked_connection, error_pattern",
+        ("mocked_connection", "error_pattern"),
         [
             (
                 Connection(

@@ -89,7 +89,7 @@ export const DagCard = ({ dag }: Props) => {
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
-              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.dag_run_id}`}>
+              <RouterLink to={`/dags/${latestRun.dag_id}/runs/${latestRun.run_id}`}>
                 <DagRunInfo
                   endDate={latestRun.end_date}
                   logicalDate={latestRun.logical_date}

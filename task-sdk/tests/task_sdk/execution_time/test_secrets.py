@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 
@@ -119,6 +120,43 @@ class TestExecutionAPISecretsBackend:
         backend = ExecutionAPISecretsBackend()
         with pytest.raises(NotImplementedError, match="Use get_connection instead"):
             backend.get_conn_value("test_conn")
+
+    def test_runtime_error_triggers_greenback_fallback(self, mocker, mock_supervisor_comms):
+        """
+        Test that RuntimeError from async_to_sync triggers greenback fallback.
+
+        This test verifies the fix for issue #57145: when SUPERVISOR_COMMS.send()
+        raises the specific RuntimeError about async_to_sync in an event loop,
+        the backend catches it and uses greenback to call aget_connection().
+        """
+
+        # Expected connection to be returned
+        expected_conn = Connection(
+            conn_id="databricks_default",
+            conn_type="databricks",
+            host="example.databricks.com",
+        )
+
+        # Simulate the RuntimeError that triggers greenback fallback
+        mock_supervisor_comms.send.side_effect = RuntimeError(
+            "You cannot use AsyncToSync in the same thread as an async event loop"
+        )
+
+        # Mock the greenback and asyncio modules that are imported inside the exception handler
+        mocker.patch("greenback.has_portal", return_value=True)
+        mock_greenback_await = mocker.patch("greenback.await_", return_value=expected_conn)
+        mocker.patch("asyncio.current_task")
+
+        backend = ExecutionAPISecretsBackend()
+        conn = backend.get_connection("databricks_default")
+
+        # Verify we got the expected connection
+        assert conn is not None
+        assert conn.conn_id == "databricks_default"
+        # Verify the greenback fallback was called
+        mock_greenback_await.assert_called_once()
+        # Verify send was attempted first (and raised RuntimeError)
+        mock_supervisor_comms.send.assert_called_once()
 
 
 class TestContextDetection:

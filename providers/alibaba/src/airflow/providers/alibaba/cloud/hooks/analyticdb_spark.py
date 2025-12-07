@@ -34,7 +34,7 @@ from alibabacloud_adb20211201.models import (
 from alibabacloud_tea_openapi.models import Config
 
 from airflow.exceptions import AirflowException
-from airflow.providers.alibaba.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

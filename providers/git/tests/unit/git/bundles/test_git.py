@@ -165,6 +165,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
 
@@ -196,6 +197,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -222,6 +224,47 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_removes_git_dir_for_versioned_bundle_by_default(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+
+        assert not (bundle.repo_path / ".git").exists()
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_keeps_git_dir_when_disabled(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle.initialize()
+
+        assert (bundle.repo_path / ".git").exists()
+        assert bundle.get_current_version() == starting_commit.hexsha
 
         assert_repo_is_closed(bundle)
 
@@ -377,13 +420,14 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2  # 1 in bare, 1 in main repo
+        # 1 in _clone_bare_repo_if_required, 1 in refresh() for bare repo, 1 in refresh() for working repo
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 3
         mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             ("git@github.com:apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
@@ -453,7 +497,7 @@ class TestGitDagBundle:
         bundle.initialize.assert_not_called()
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             (
                 "git@github.com:apache/airflow.git",
@@ -543,7 +587,7 @@ class TestGitDagBundle:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             (
                 "git@github.com:apache/airflow.git",
@@ -673,7 +717,7 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        "conn_id, expected_hook_type",
+        ("conn_id", "expected_hook_type"),
         [("my_test_git", GitHook), ("something-else", type(None))],
     )
     def test_repo_url_access_missing_connection_doesnt_error(
@@ -698,7 +742,7 @@ class TestGitDagBundle:
             assert mock_lock.call_count == 2  # both initialize and refresh
 
     @pytest.mark.parametrize(
-        "conn_json, repo_url, expected",
+        ("conn_json", "repo_url", "expected"),
         [
             (
                 {"host": "git@github.com:apache/airflow.git"},
@@ -730,7 +774,9 @@ class TestGitDagBundle:
         EXPECTED_ENV = {"GIT_SSH_COMMAND": "ssh -i /id_rsa -o StrictHostKeyChecking=no"}
 
         mock_gitRepo.clone_from.side_effect = _fake_clone_from
-        mock_gitRepo.return_value = types.SimpleNamespace()
+        # Mock needs to support the fetch operation called in _clone_bare_repo_if_required
+        mock_repo_instance = mock.MagicMock()
+        mock_gitRepo.return_value = mock_repo_instance
 
         with mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_githook:
             mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"

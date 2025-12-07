@@ -45,7 +45,7 @@ pytestmark = pytest.mark.db_test
 
 class TestCallbackRequest:
     @pytest.mark.parametrize(
-        "input,request_class",
+        ("input", "request_class"),
         [
             (
                 None,  # to be generated when test is run
@@ -98,7 +98,7 @@ class TestCallbackRequest:
         assert input == result
 
     @pytest.mark.parametrize(
-        "task_callback_type,expected_is_failure",
+        ("task_callback_type", "expected_is_failure"),
         [
             (None, True),
             (TaskInstanceState.FAILED, True),
@@ -141,6 +141,7 @@ class TestDagRunContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -179,6 +180,7 @@ class TestDagRunContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -219,6 +221,7 @@ class TestDagCallbackRequestWithContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -277,6 +280,7 @@ class TestDagCallbackRequestWithContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -350,6 +354,7 @@ class TestEmailRequest:
                     run_type="manual",
                     state="running",
                     consumed_asset_events=[],
+                    partition_key=None,
                 ),
                 max_tries=2,
             ),
@@ -397,6 +402,7 @@ class TestEmailRequest:
                 run_type="manual",
                 state="running",
                 consumed_asset_events=[],
+                partition_key=None,
             ),
             max_tries=2,
         )

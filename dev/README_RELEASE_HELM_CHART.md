@@ -20,6 +20,7 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [Perform review of security issues that are marked for the release](#perform-review-of-security-issues-that-are-marked-for-the-release)
 - [Prepare the Apache Airflow Helm Chart Release Candidate](#prepare-the-apache-airflow-helm-chart-release-candidate)
   - [Pre-requisites](#pre-requisites)
   - [Set environment variables](#set-environment-variables)
@@ -61,6 +62,18 @@
 
 You can find the prerequisites to release Apache Airflow in [README.md](README.md). This document
 details the steps for releasing Helm Chart.
+
+# Perform review of security issues that are marked for the release
+
+We are keeping track of security issues in the [Security Issues](https://github.com/airflow-s/airflow-s/issues)
+repository currently. As a release manager, you should have access to the repository.
+Please review and ensure that all security issues marked for the release have been
+addressed and resolved. Ping security team (comment in the issues) if anything missing or
+the issue does not seem to be addressed.
+
+Additionally, the [dependabot alerts](https://github.com/apache/airflow/security/dependabot) and
+code [scanning alerts](https://github.com/apache/airflow/security/code-scanning) should be reviewed
+and security team should be pinged to review and resolve them.
 
 # Prepare the Apache Airflow Helm Chart Release Candidate
 
@@ -213,8 +226,11 @@ breeze release-management prepare-helm-chart-tarball --version ${VERSION} --vers
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
+breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org --version-suffix ${VERSION_SUFFIX}
 ```
+
+Note: The `--version-suffix` parameter is optional but recommended for RC releases to ensure proper documentation
+links generation. When specified, it will generate staging documentation links instead of production ones.
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
 
@@ -499,7 +515,7 @@ rm -rf dist/*
 
 ```shell
 breeze release-management prepare-helm-chart-tarball --version-suffix rc1 --ignore-version-check --skip-tagging
-breeze release-management prepare-helm-chart-package
+breeze release-management prepare-helm-chart-package --version-suffix rc1
 ```
 
 5. Compare the produced tarball binary with ones in SVN:
@@ -733,31 +749,72 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
+There are two ways to publish the documentation - using breeze command from your local machine or
+using breeze commands from GitHub Actions. Both are actually execute remote workflows in GitHub Actions.
+
+### Using breeze commands
+
+You can use the `breeze` command to publish the documentation.
+The command does the following:
+
+1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
+2. Triggers workflow in apache/airflow-site to refresh
+3. Triggers S3 to GitHub Sync
+
+```shell script
+breeze workflow-run publish-docs --ref <tag> --site-env <staging/live/auto> helm-chart
+```
+
+The `--ref` parameter should be the tag of the release candidate you are publishing. This should be a
+release tag like `helm-chart/1.1.0`
+
+The `--site-env` parameter should be set to `staging` for pre-release versions or `live` for final releases.
+The default option is `auto` which should automatically select the right environment based on the tag name.
+
+Other available parameters can be found with:
+
+```shell script
+breeze workflow-run publish-docs --help
+```
+
+One of the interesting features of publishing this way is that you can also rebuild historical version of
+the documentation with patches applied to the documentation (if they can be applied cleanly).
+
+Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
+separated by commas and the workflow will apply those commits to the documentation before
+building it. (don't forget to add --skip-write-to-stable-folder if you are publishing
+previous version of the distribution). Example:
+
+```shell script
+breeze workflow-run publish-docs --ref helm-chart/1.18.0 --site-env staging \
+  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
+  --skip-write-to-stable-folder \
+  helm-chart
+```
+
+### Manually using GitHub Actions
+
 There are two steps to publish the documentation:
 
-1. Publish the documentation to the `live` S3 bucket.
+1. Publish the documentation to the `staging` S3 bucket.
 
 The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
-
-You should specify the tag to use to build the docs and 'helm-chart' passed as packages to be built.
-
-The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default
-`auto` selection should publish to the `live` bucket - based on
+[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default `auto` selection should publish to the `staging` bucket - based on
 the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
 manually to be `live` or `staging`.
 
-After that step, the provider documentation should be available under the https://airflow.apache.org
-(same as in the helm chart documentation).
+You should specify 'helm-chart' passed as packages to be built.
 
-2. Invalidated Fastly cache for the documentation.
+After that step, the provider documentation should be available under https://airflow.stage.apache.org//
+URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
+
+2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
 
 In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository. Make sure to use `main` branch.
+workflow in `airflow-site` repository - but make sure to use `staging` branch.
 
 After that workflow completes, the new version should be available in the drop-down list and stable links
-should be updated and Fastly cache should be invalidated.
+should be updated, also Fastly cache will be updated
 
 ## Update `index.yaml` in airflow-site
 

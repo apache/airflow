@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -68,9 +69,9 @@ def delete_pool(
     if pool_name == "default_pool":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
-    affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
+    affected_count = cast("CursorResult", session.execute(delete(Pool).where(Pool.pool == pool_name)))
 
-    if affected_count == 0:
+    if affected_count.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
 

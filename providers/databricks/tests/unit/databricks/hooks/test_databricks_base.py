@@ -93,7 +93,7 @@ class TestBaseDatabricksHook:
         assert "after" in hook.retry_args
 
     @pytest.mark.parametrize(
-        "input_url, expected_host",
+        ("input_url", "expected_host"),
         [
             ("https://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
             ("http://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
@@ -664,7 +664,7 @@ class TestBaseDatabricksHook:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "schema,port,host,endpoint,expected_url",
+        ("schema", "port", "host", "endpoint", "expected_url"),
         [
             ("https", 443, "example.com", "api/2.0/jobs/list", "https://example.com:443/api/2.0/jobs/list"),
             ("http", 8080, "localhost", "status", "http://localhost:8080/status"),

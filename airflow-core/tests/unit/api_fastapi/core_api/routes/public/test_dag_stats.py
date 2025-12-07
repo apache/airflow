@@ -26,6 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
@@ -66,6 +67,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_1._dag_display_property_value = DAG1_DISPLAY_NAME
         dag_1_run_1 = DagRun(
             dag_id=DAG1_ID,
             run_id="test_dag_run_id_1",
@@ -92,6 +94,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_2._dag_display_property_value = DAG2_DISPLAY_NAME
         dag_2_run_1 = DagRun(
             dag_id=dag_2.dag_id,
             run_id="test_dag_2_run_id_1",
@@ -110,6 +113,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_3._dag_display_property_value = DAG3_DISPLAY_NAME
         dag_3_run_1 = DagRun(
             dag_id=dag_3.dag_id,
             run_id="test_dag_3_run_id_1",
@@ -193,7 +197,8 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 2,
         }
 
-        response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
+        with assert_queries_count(2):
+            response = test_client.get(f"{API_PREFIX}?dag_ids={DAG1_ID}&dag_ids={DAG2_ID}")
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])
@@ -281,14 +286,15 @@ class TestGetDagStats(TestDagStatsEndpoint):
             "total_entries": 3,
         }
 
-        response = test_client.get(API_PREFIX)
+        with assert_queries_count(2):
+            response = test_client.get(API_PREFIX)
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])
         assert res_json == exp_payload
 
     @pytest.mark.parametrize(
-        "url, params, exp_payload",
+        ("url", "params", "exp_payload"),
         [
             (
                 API_PREFIX,
@@ -435,7 +441,9 @@ class TestGetDagStats(TestDagStatsEndpoint):
     )
     def test_single_dag_in_dag_ids(self, test_client, session, testing_dag_bundle, url, params, exp_payload):
         self._create_dag_and_runs(session)
-        response = test_client.get(url, params=params)
+
+        with assert_queries_count(2):
+            response = test_client.get(url, params=params)
         assert response.status_code == 200
         res_json = response.json()
         assert res_json["total_entries"] == len(res_json["dags"])

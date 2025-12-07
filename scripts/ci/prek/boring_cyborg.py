@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "pyyaml>=6.0.3",
 #   "termcolor==2.5.0",
@@ -29,6 +29,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from termcolor import colored
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -39,8 +40,7 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 CONFIG_KEY = "labelPRBasedOnFilePath"
 
-repo_root = Path(__file__).parents[3]
-cyborg_config_path = repo_root / ".github" / "boring-cyborg.yml"
+cyborg_config_path = AIRFLOW_ROOT_PATH / ".github" / "boring-cyborg.yml"
 cyborg_config = yaml.safe_load(cyborg_config_path.read_text())
 if CONFIG_KEY not in cyborg_config:
     raise SystemExit(f"Missing section {CONFIG_KEY}")
@@ -50,7 +50,7 @@ errors = []
 for label, patterns in cyborg_config[CONFIG_KEY].items():
     for pattern in patterns:
         try:
-            next(Path(repo_root).glob(pattern))
+            next(Path(AIRFLOW_ROOT_PATH).glob(pattern))
             continue
         except StopIteration:
             yaml_path = f"{CONFIG_KEY}.{label}"
@@ -60,7 +60,7 @@ for label, patterns in cyborg_config[CONFIG_KEY].items():
 
 # Check for missing providers
 EXCEPTIONS = ["edge3"]
-providers_root = repo_root / "providers"
+providers_root = AIRFLOW_ROOT_PATH / "providers"
 for p in providers_root.glob("**/provider.yaml"):
     provider_name = str(p.parent.relative_to(providers_root)).replace("/", "-")
     expected_key = f"provider:{provider_name}"
@@ -71,7 +71,7 @@ for p in providers_root.glob("**/provider.yaml"):
 
 # Check for missing translations
 EXCEPTIONS = ["en"]
-for p in repo_root.glob("airflow-core/src/airflow/ui/public/i18n/locales/*"):
+for p in AIRFLOW_ROOT_PATH.glob("airflow-core/src/airflow/ui/public/i18n/locales/*"):
     if p.is_dir():
         lang_id = p.name
         expected_key = f"translation:{lang_id}"

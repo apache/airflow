@@ -24,18 +24,13 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 XCOM_STATEMENT_ID_KEY = "statement_id"
 

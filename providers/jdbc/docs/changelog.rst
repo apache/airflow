@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+5.2.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to jdbc Provider test (#57919)``
+
+5.2.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate jdbc and jenkins providers to ''common.compat'' (#57012)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.2.3
 .....
 
@@ -45,8 +90,6 @@ Doc-only
    * ``Add rudimentary support for psycopg3 (#52976)``
    * ``Switch pre-commit to prek (#54258)``
    * ``Add CI support for SQLAlchemy 2.0 (#52233)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 5.2.2
@@ -172,8 +215,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Allow configuration of sqlalchemy query parameter for JdbcHook and PostgresHook through extras (#44910)``
 
@@ -390,7 +431,8 @@ To configure driver parameters (driver path and driver class), you can use the f
 
 * ``Restrict direct usage of driver params via extras for JDBC connection (#31849)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Improve docstrings in providers (#31681)``
    * ``Add D400 pydocstyle check - Providers (#31427)``
    * ``Add note about dropping Python 3.7 for providers (#32015)``
@@ -458,7 +500,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 3.2.0

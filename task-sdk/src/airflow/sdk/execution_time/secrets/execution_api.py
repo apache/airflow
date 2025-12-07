@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.secrets.base_secrets import BaseSecretsBackend
+from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection
@@ -63,6 +63,26 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
+        except RuntimeError as e:
+            # TriggerCommsDecoder.send() uses async_to_sync internally, which raises RuntimeError
+            # when called within an async event loop. In greenback portal contexts (triggerer),
+            # we catch this and use greenback to call the async version instead.
+            if str(e).startswith("You cannot use AsyncToSync in the same thread as an async event loop"):
+                import asyncio
+
+                import greenback
+
+                task = asyncio.current_task()
+                if greenback.has_portal(task):
+                    import warnings
+
+                    warnings.warn(
+                        "You should not use sync calls here -- use `await aget_connection` instead",
+                        stacklevel=2,
+                    )
+                    return greenback.await_(self.aget_connection(conn_id))
+            # Fall through to the general exception handler for other RuntimeErrors
+            return None
         except Exception:
             # If SUPERVISOR_COMMS fails for any reason, return None
             # to allow fallback to other backends

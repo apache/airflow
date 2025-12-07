@@ -22,7 +22,7 @@ from abc import ABC
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.providers.teradata.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class TtuHook(BaseHook, ABC):

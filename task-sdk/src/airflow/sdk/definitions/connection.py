@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from json import JSONDecodeError
@@ -26,8 +25,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 
@@ -226,24 +224,6 @@ class Connection:
             return _get_connection(conn_id)
         except AirflowRuntimeError as e:
             cls._handle_connection_error(e, conn_id)
-        except RuntimeError as e:
-            # The error from async_to_sync is a RuntimeError, so we have to fall back to text matching
-            if str(e).startswith("You cannot use AsyncToSync in the same thread as an async event loop"):
-                import greenback
-
-                task = asyncio.current_task()
-                if greenback.has_portal(task):
-                    import warnings
-
-                    warnings.warn(
-                        "You should not use sync calls here -- use `await Conn.async_get` instead",
-                        stacklevel=2,
-                    )
-
-                    return greenback.await_(cls.async_get(conn_id))
-
-            log.exception("async_to_sync failed")
-            raise
 
     @classmethod
     async def async_get(cls, conn_id: str) -> Any:
@@ -312,12 +292,6 @@ class Connection:
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
-        conn_type = kwargs.get("conn_type", None)
-        if not conn_type:
-            raise ValueError(
-                "Connection type (conn_type) is required but missing from connection configuration. "
-                "Please add 'conn_type' field to your connection definition."
-            )
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)

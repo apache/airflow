@@ -153,7 +153,13 @@ class ClearTaskInstancesBody(BaseModel):
     only_failed: Annotated[bool | None, Field(title="Only Failed")] = True
     only_running: Annotated[bool | None, Field(title="Only Running")] = False
     reset_dag_runs: Annotated[bool | None, Field(title="Reset Dag Runs")] = True
-    task_ids: Annotated[list[str | TaskIds] | None, Field(title="Task Ids")] = None
+    task_ids: Annotated[
+        list[str | TaskIds] | None,
+        Field(
+            description="A list of `task_id` or [`task_id`, `map_index`]. If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+            title="Task Ids",
+        ),
+    ] = None
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
@@ -166,6 +172,7 @@ class ClearTaskInstancesBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = False
+    prevent_running_task: Annotated[bool | None, Field(title="Prevent Running Task")] = False
 
 
 class Value(RootModel[list]):
@@ -249,6 +256,7 @@ class CreateAssetEventsBody(BaseModel):
         extra="forbid",
     )
     asset_id: Annotated[int, Field(title="Asset Id")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
@@ -867,6 +875,7 @@ class TriggerDAGRunPostBody(BaseModel):
     run_after: Annotated[datetime | None, Field(title="Run After")] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class TriggerResponse(BaseModel):
@@ -916,6 +925,7 @@ class VariableBody(BaseModel):
     key: Annotated[str, Field(max_length=250, title="Key")]
     value: JsonValue
     description: Annotated[str | None, Field(title="Description")] = None
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VariableResponse(BaseModel):
@@ -927,6 +937,7 @@ class VariableResponse(BaseModel):
     value: Annotated[str, Field(title="Value")]
     description: Annotated[str | None, Field(title="Description")] = None
     is_encrypted: Annotated[bool, Field(title="Is Encrypted")]
+    team_id: Annotated[UUID | None, Field(title="Team Id")] = None
 
 
 class VersionInfo(BaseModel):
@@ -1032,13 +1043,14 @@ class AssetEventResponse(BaseModel):
     uri: Annotated[str | None, Field(title="Uri")] = None
     name: Annotated[str | None, Field(title="Name")] = None
     group: Annotated[str | None, Field(title="Group")] = None
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int, Field(title="Source Map Index")]
     created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetResponse(BaseModel):
@@ -1050,7 +1062,7 @@ class AssetResponse(BaseModel):
     name: Annotated[str, Field(title="Name")]
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
     created_at: Annotated[datetime, Field(title="Created At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]
     scheduled_dags: Annotated[list[DagScheduleAssetReference], Field(title="Scheduled Dags")]
@@ -1303,6 +1315,7 @@ class DAGDetailsResponse(BaseModel):
     default_args: Annotated[dict[str, Any] | None, Field(title="Default Args")] = None
     owner_links: Annotated[dict[str, str] | None, Field(title="Owner Links")] = None
     is_favorite: Annotated[bool | None, Field(title="Is Favorite")] = False
+    active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     file_token: Annotated[str, Field(description="Return file token.", title="File Token")]
     concurrency: Annotated[
         int,
@@ -1390,6 +1403,7 @@ class DAGRunResponse(BaseModel):
     dag_versions: Annotated[list[DagVersionResponse], Field(title="Dag Versions")]
     bundle_version: Annotated[str | None, Field(title="Bundle Version")] = None
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class DAGRunsBatchBody(BaseModel):
@@ -1477,7 +1491,7 @@ class EventLogCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
-class HITLDetailHisotry(BaseModel):
+class HITLDetailHistory(BaseModel):
     """
     Schema for Human-in-the-loop detail history.
     """
@@ -1661,7 +1675,7 @@ class TaskInstanceHistoryResponse(BaseModel):
     executor: Annotated[str | None, Field(title="Executor")] = None
     executor_config: Annotated[str, Field(title="Executor Config")]
     dag_version: DagVersionResponse | None = None
-    hitl_detail: HITLDetailHisotry | None = None
+    hitl_detail: HITLDetailHistory | None = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -1724,7 +1738,7 @@ class TaskResponse(BaseModel):
     pool_slots: Annotated[float | None, Field(title="Pool Slots")] = None
     execution_timeout: TimeDelta | None = None
     retry_delay: TimeDelta | None = None
-    retry_exponential_backoff: Annotated[bool, Field(title="Retry Exponential Backoff")]
+    retry_exponential_backoff: Annotated[float, Field(title="Retry Exponential Backoff")]
     priority_weight: Annotated[float | None, Field(title="Priority Weight")] = None
     weight_rule: Annotated[str | None, Field(title="Weight Rule")] = None
     ui_color: Annotated[str | None, Field(title="Ui Color")] = None

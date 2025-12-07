@@ -78,6 +78,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
@@ -105,7 +106,6 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
@@ -226,6 +226,7 @@ class FabAuthManager(BaseAuthManager[User]):
         from airflow.providers.fab.auth_manager.api_fastapi.routes.login import (
             login_router,
         )
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
 
         flask_app = create_app(enable_plugins=False)
 
@@ -241,6 +242,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         # Add the login router to the FastAPI app
         app.include_router(login_router)
+        app.include_router(roles_router)
 
         app.mount("/", WSGIMiddleware(flask_app))
 
@@ -567,7 +569,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def get_url_logout(self) -> str | None:
         """Return the logout page url."""
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/")
+        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def register_views(self) -> None:
         self.security_manager.register_views()

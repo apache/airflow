@@ -22,12 +22,15 @@ from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import (
+    COOKIE_NAME_JWT_TOKEN,
+    BaseAuthManager,
+)
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
@@ -63,13 +66,26 @@ from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
-    from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+
+def auth_manager_from_app(request: Request) -> BaseAuthManager:
+    """
+    FastAPI dependency resolver that returns the shared AuthManager instance from app.state.
+
+    This ensures that all API routes using AuthManager via dependency injection receive the same
+    singleton instance that was initialized at app startup.
+    """
+    return request.app.state.auth_manager
+
+
+AuthManagerDep = Annotated[BaseAuthManager, Depends(auth_manager_from_app)]
 
 auth_description = (
     "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
@@ -154,47 +170,48 @@ class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagModel.dag_id.in_(self.value))
+        # self.value may be None (OrmClause holds Optional), ensure we pass an Iterable to in_
+        return select.where(DagModel.dag_id.in_(self.value or set()))
 
 
 class PermittedDagRunFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag runs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagRun.dag_id.in_(self.value))
+        return select.where(DagRun.dag_id.in_(self.value or set()))
 
 
 class PermittedDagWarningFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag warnings for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagWarning.dag_id.in_(self.value))
+        return select.where(DagWarning.dag_id.in_(self.value or set()))
 
 
 class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(TI.dag_id.in_(self.value))
+        return select.where(TI.dag_id.in_(self.value or set()))
 
 
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value))
+        return select.where(XComModel.dag_id.in_(self.value or set()))
 
 
 class PermittedTagFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag tags for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagTag.dag_id.in_(self.value))
+        return select.where(DagTag.dag_id.in_(self.value or set()))
 
 
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
-) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
@@ -203,10 +220,9 @@ def permitted_dag_filter_factory(
     """
 
     def depends_permitted_dags_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
         return filter_class(authorized_dags)
 
@@ -253,12 +269,12 @@ class PermittedPoolFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted pools for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Pool.pool.in_(self.value))
+        return select.where(Pool.pool.in_(self.value or set()))
 
 
 def permitted_pool_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedPoolFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedPoolFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted pools for the user.
 
@@ -266,10 +282,9 @@ def permitted_pool_filter_factory(
     """
 
     def depends_permitted_pools_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedPoolFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_pools: set[str] = auth_manager.get_authorized_pools(user=user, method=method)
         return PermittedPoolFilter(authorized_pools)
 
@@ -346,12 +361,12 @@ class PermittedConnectionFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted connections for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Connection.conn_id.in_(self.value))
+        return select.where(Connection.conn_id.in_(self.value or set()))
 
 
 def permitted_connection_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedConnectionFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedConnectionFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted connections for the user.
 
@@ -359,10 +374,9 @@ def permitted_connection_filter_factory(
     """
 
     def depends_permitted_connections_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedConnectionFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_connections: set[str] = auth_manager.get_authorized_connections(user=user, method=method)
         return PermittedConnectionFilter(authorized_connections)
 
@@ -461,16 +475,39 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
+class PermittedTeamFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted teams for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Team.name.in_(self.value or set()))
+
+
+def permitted_team_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedTeamFilter]:
+    """Create a callable for Depends in FastAPI that returns a filter of the permitted teams for the user."""
+
+    def depends_permitted_teams_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedTeamFilter:
+        authorized_teams: set[str] = auth_manager.get_authorized_teams(user=user, method="GET")
+        return PermittedTeamFilter(authorized_teams)
+
+    return depends_permitted_teams_filter
+
+
+ReadableTeamsFilterDep = Annotated[PermittedTeamFilter, Depends(permitted_team_filter_factory())]
+
+
 class PermittedVariableFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted variables for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Variable.key.in_(self.value))
+        return select.where(Variable.key.in_(self.value or set()))
 
 
 def permitted_variable_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedVariableFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedVariableFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted variables for the user.
 
@@ -478,10 +515,9 @@ def permitted_variable_filter_factory(
     """
 
     def depends_permitted_variables_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedVariableFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_variables: set[str] = auth_manager.get_authorized_variables(user=user, method=method)
         return PermittedVariableFilter(authorized_variables)
 

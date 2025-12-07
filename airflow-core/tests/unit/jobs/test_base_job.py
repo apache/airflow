@@ -78,8 +78,8 @@ class TestJob:
         job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))
         run_job(job=job, execute_callable=job_runner._execute)
 
-        assert lifecycle_listener.started_component is job
-        assert lifecycle_listener.stopped_component is job
+        assert lifecycle_listener.get_listener_state().started_component is job
+        assert lifecycle_listener.get_listener_state().stopped_component is job
 
     def test_state_failed(self):
         def abort():
@@ -94,7 +94,7 @@ class TestJob:
         assert job.end_date is not None
 
     @pytest.mark.parametrize(
-        "job_runner, job_type,job_heartbeat_sec",
+        ("job_runner", "job_type", "job_heartbeat_sec"),
         [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
     )
     def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
@@ -116,7 +116,7 @@ class TestJob:
             session.rollback()
 
     @pytest.mark.parametrize(
-        "job_runner, job_type,job_heartbeat_sec",
+        ("job_runner", "job_type", "job_heartbeat_sec"),
         [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
     )
     def test_heart_rate_via_constructor_persists(self, job_runner, job_type, job_heartbeat_sec):

@@ -25,12 +25,15 @@ import re
 import selectors
 import signal
 import socket
+import subprocess
 import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+from datetime import datetime
 from operator import attrgetter
 from random import randint
+from textwrap import dedent
 from time import sleep
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -83,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
@@ -103,9 +107,11 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SentFDs,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetXCom,
     SkipDownstreamTasks,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -171,7 +177,7 @@ def client_with_ti_start(make_ti_context):
 @pytest.mark.usefixtures("disable_capturing")
 class TestSupervisor:
     @pytest.mark.parametrize(
-        "server, dry_run, expectation",
+        ("server", "dry_run", "expectation"),
         [
             ("/execution/", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
             ("", False, pytest.raises(ValueError, match="Invalid execution API server URL")),
@@ -224,6 +230,26 @@ class TestWatchedSubprocess:
     @pytest.fixture(autouse=True)
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
+
+    @pytest.fixture(autouse=True)
+    def use_real_secrets_backends(self, monkeypatch):
+        """
+        Ensure that real secrets backend instances are used instead of mocks.
+
+        This prevents Python 3.13 RuntimeWarning when hasattr checks async methods
+        on mocked backends. The warning occurs because hasattr on AsyncMock creates
+        unawaited coroutines.
+
+        This fixture ensures test isolation when running in parallel with pytest-xdist,
+        regardless of what other tests patch.
+        """
+        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+        )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
@@ -857,7 +883,7 @@ class TestWatchedSubprocess:
                 "level": "warning",
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
-                "exception": mocker.ANY,
+                "exc_info": mocker.ANY,
                 "loc": mocker.ANY,
             }
 
@@ -882,7 +908,7 @@ class TestWatchedSubprocess:
         } in captured_logs
 
     @pytest.mark.parametrize(
-        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        ("terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"),
         [
             pytest.param(
                 None,
@@ -954,7 +980,7 @@ class TestWatchedSubprocess:
             mock_logger.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        ["signal_to_raise", "log_pattern", "level"],
+        ("signal_to_raise", "log_pattern", "level"),
         (
             pytest.param(
                 signal.SIGKILL,
@@ -1097,7 +1123,7 @@ class TestWatchedSubprocessKill:
         mock_process.wait.assert_called_once_with(timeout=0)
 
     @pytest.mark.parametrize(
-        ["signal_to_send", "exit_after"],
+        ("signal_to_send", "exit_after"),
         [
             pytest.param(
                 signal.SIGINT,
@@ -1204,7 +1230,7 @@ class TestWatchedSubprocessKill:
 
     def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
         """Test `_service_subprocess` processes selector events and handles subprocess exit."""
-        ## Given
+        # Given
 
         # Mock file objects and handlers
         mock_stdout = mocker.Mock()
@@ -1224,10 +1250,10 @@ class TestWatchedSubprocessKill:
         # Mock to simulate process exited successfully
         mock_process.wait.return_value = 0
 
-        ## Our actual test
+        # Our actual test
         watched_subprocess._service_subprocess(max_wait_time=1.0)
 
-        ## Validations!
+        # Validations!
         # Validate selector interactions
         watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
 
@@ -1269,7 +1295,7 @@ class TestWatchedSubprocessKill:
         assert timeout_arg >= 0.01, f"Expected timeout >= 0.01, got {timeout_arg}"
 
     @pytest.mark.parametrize(
-        ["heartbeat_timeout", "min_interval", "heartbeat_ago", "expected_min_timeout"],
+        ("heartbeat_timeout", "min_interval", "heartbeat_ago", "expected_min_timeout"),
         [
             # Normal case: heartbeat is recent, should use calculated value
             pytest.param(30, 5, 5, 0.01, id="normal_heartbeat"),
@@ -1604,6 +1630,15 @@ REQUEST_TEST_CASES = [
         test_id="set_rtif",
     ),
     RequestTestCase(
+        message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),
+        client_mock=ClientMock(
+            method_path="task_instances.set_rendered_map_index",
+            args=(TI_ID, "Label: task_1"),
+            response=OKResponse(ok=True),
+        ),
+        test_id="set_rendered_map_index",
+    ),
+    RequestTestCase(
         message=SucceedTask(
             end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test success task"
         ),
@@ -1654,7 +1689,14 @@ REQUEST_TEST_CASES = [
         },
         client_mock=ClientMock(
             method_path="asset_events.get",
-            kwargs={"uri": "s3://bucket/obj", "name": "test"},
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+            },
             response=AssetEventsResult(
                 asset_events=[
                     AssetEventResponse(
@@ -1667,6 +1709,49 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_uri_and_name",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name="test",
+            after=datetime(2024, 10, 1, 12, 0, 0, tzinfo=timezone.utc),
+            before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
+            limit=5,
+            ascending=False,
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": "test",
+                "after": timezone.parse("2024-10-01T12:00:00Z"),
+                "before": timezone.parse("2024-10-15T12:00:00Z"),
+                "limit": 5,
+                "ascending": False,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    ),
+                ],
+            ),
+        ),
+        test_id="get_asset_events_by_uri_and_name_with_filters",
     ),
     RequestTestCase(
         message=GetAssetEventByAsset(uri="s3://bucket/obj", name=None),
@@ -1683,7 +1768,14 @@ REQUEST_TEST_CASES = [
         },
         client_mock=ClientMock(
             method_path="asset_events.get",
-            kwargs={"uri": "s3://bucket/obj", "name": None},
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": None,
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+            },
             response=AssetEventsResult(
                 asset_events=[
                     AssetEventResponse(
@@ -1696,6 +1788,49 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_uri",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri="s3://bucket/obj",
+            name=None,
+            after=datetime(2024, 10, 1, 12, 0, 0, tzinfo=timezone.utc),
+            before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
+            limit=5,
+            ascending=False,
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": "s3://bucket/obj",
+                "name": None,
+                "after": timezone.parse("2024-10-01T12:00:00Z"),
+                "before": timezone.parse("2024-10-15T12:00:00Z"),
+                "limit": 5,
+                "ascending": False,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ],
+            ),
+        ),
+        test_id="get_asset_events_by_uri_with_filters",
     ),
     RequestTestCase(
         message=GetAssetEventByAsset(uri=None, name="test"),
@@ -1712,7 +1847,14 @@ REQUEST_TEST_CASES = [
         },
         client_mock=ClientMock(
             method_path="asset_events.get",
-            kwargs={"uri": None, "name": "test"},
+            kwargs={
+                "uri": None,
+                "name": "test",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+            },
             response=AssetEventsResult(
                 asset_events=[
                     AssetEventResponse(
@@ -1725,6 +1867,49 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_name",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAsset(
+            uri=None,
+            name="test",
+            after=datetime(2024, 10, 1, 12, 0, 0, tzinfo=timezone.utc),
+            before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
+            limit=5,
+            ascending=False,
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "uri": None,
+                "name": "test",
+                "after": timezone.parse("2024-10-01T12:00:00Z"),
+                "before": timezone.parse("2024-10-15T12:00:00Z"),
+                "limit": 5,
+                "ascending": False,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_name_with_filters",
     ),
     RequestTestCase(
         message=GetAssetEventByAssetAlias(alias_name="test_alias"),
@@ -1741,7 +1926,13 @@ REQUEST_TEST_CASES = [
         },
         client_mock=ClientMock(
             method_path="asset_events.get",
-            kwargs={"alias_name": "test_alias"},
+            kwargs={
+                "alias_name": "test_alias",
+                "after": None,
+                "before": None,
+                "limit": None,
+                "ascending": True,
+            },
             response=AssetEventsResult(
                 asset_events=[
                     AssetEventResponse(
@@ -1754,6 +1945,47 @@ REQUEST_TEST_CASES = [
             ),
         ),
         test_id="get_asset_events_by_asset_alias",
+    ),
+    RequestTestCase(
+        message=GetAssetEventByAssetAlias(
+            alias_name="test_alias",
+            after=datetime(2024, 10, 1, 12, 0, 0, tzinfo=timezone.utc),
+            before=datetime(2024, 10, 15, 12, 0, 0, tzinfo=timezone.utc),
+            limit=5,
+            ascending=False,
+        ),
+        expected_body={
+            "asset_events": [
+                {
+                    "id": 1,
+                    "timestamp": timezone.parse("2024-10-31T12:00:00Z"),
+                    "asset": {"name": "asset", "uri": "s3://bucket/obj", "group": "asset"},
+                    "created_dagruns": [],
+                }
+            ],
+            "type": "AssetEventsResult",
+        },
+        client_mock=ClientMock(
+            method_path="asset_events.get",
+            kwargs={
+                "alias_name": "test_alias",
+                "after": timezone.parse("2024-10-01T12:00:00Z"),
+                "before": timezone.parse("2024-10-15T12:00:00Z"),
+                "limit": 5,
+                "ascending": False,
+            },
+            response=AssetEventsResult(
+                asset_events=[
+                    AssetEventResponse(
+                        id=1,
+                        asset=AssetResponse(name="asset", uri="s3://bucket/obj", group="asset"),
+                        created_dagruns=[],
+                        timestamp=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                ]
+            ),
+        ),
+        test_id="get_asset_events_by_asset_alias_with_filters",
     ),
     RequestTestCase(
         message=ValidateInletsAndOutlets(ti_id=TI_ID),
@@ -1837,6 +2069,7 @@ REQUEST_TEST_CASES = [
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "partition_key": None,
                 "run_type": "scheduled",
                 "start_date": timezone.parse("2024-01-15T12:00:00Z"),
                 "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2032,9 +2265,7 @@ REQUEST_TEST_CASES = [
             "subject": "This is subject",
             "body": "This is body",
             "defaults": ["Approve"],
-            "multiple": False,
             "params": {},
-            "assigned_users": None,
             "type": "HITLDetailRequestResult",
         },
         client_mock=ClientMock(
@@ -2089,6 +2320,37 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="skip_downstream_tasks",
+    ),
+    RequestTestCase(
+        message=GetTaskBreadcrumbs(dag_id="test_dag", run_id="test_run"),
+        client_mock=ClientMock(
+            method_path="task_instances.get_task_breakcrumbs",
+            kwargs={"dag_id": "test_dag", "run_id": "test_run"},
+            response=TaskBreadcrumbsResult(
+                breadcrumbs=[
+                    {
+                        "task_id": "test_task",
+                        "map_index": 2,
+                        "state": "success",
+                        "operator": "PythonOperator",
+                        "duration": 432.0,
+                    },
+                ],
+            ),
+        ),
+        expected_body={
+            "breadcrumbs": [
+                {
+                    "task_id": "test_task",
+                    "map_index": 2,
+                    "state": "success",
+                    "operator": "PythonOperator",
+                    "duration": 432.0,
+                },
+            ],
+            "type": "TaskBreadcrumbsResult",
+        },
+        test_id="get_task_breadcrumbs",
     ),
 ]
 
@@ -2388,6 +2650,14 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
+    # Patch configurations in both airflow-core and task-sdk due to shared library refactoring.
+    #
+    # conf_vars() patches airflow.configuration.conf (airflow-core):
+    #   - remote_logging: needed by airflow_local_settings.py to decide whether to set up REMOTE_TASK_LOG
+    #   - remote_base_log_folder: needed by airflow_local_settings.py to create the CloudWatch handler
+    #
+    # task_sdk_conf_vars() patches airflow.sdk.configuration.conf (task-sdk):
+    #   - remote_log_conn_id: needed by load_remote_conn_id() to return the correct connection id
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),
@@ -2395,41 +2665,131 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             ("logging", "remote_log_conn_id"): remote_conn,
         }
     ):
-        env = os.environ.copy()
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        with conf_vars(
+            {
+                ("logging", "remote_log_conn_id"): remote_conn,
+            }
+        ):
+            env = os.environ.copy()
+            client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with _remote_logging_conn(client):
-            new_keys = os.environ.keys() - env.keys()
-            if remote_logging:
-                assert new_keys == {expected_env}
-            else:
-                assert not new_keys
+            with _remote_logging_conn(client):
+                new_keys = os.environ.keys() - env.keys()
+                if remote_logging:
+                    assert new_keys == {expected_env}
+                else:
+                    assert not new_keys
 
-        if remote_logging and expected_env:
-            connection_available = {"available": False, "conn_uri": None}
+            if remote_logging and expected_env:
+                connection_available = {"available": False, "conn_uri": None}
 
-            def mock_upload_to_remote(process_log, ti):
-                connection_available["available"] = expected_env in os.environ
-                connection_available["conn_uri"] = os.environ.get(expected_env)
+                def mock_upload_to_remote(process_log, ti):
+                    connection_available["available"] = expected_env in os.environ
+                    connection_available["conn_uri"] = os.environ.get(expected_env)
 
-            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+                mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
 
-            activity_subprocess = ActivitySubprocess(
-                process_log=mocker.MagicMock(),
-                id=TI_ID,
-                pid=12345,
-                stdin=mocker.MagicMock(),
-                client=client,
-                process=mocker.MagicMock(),
-            )
-            activity_subprocess.ti = mocker.MagicMock()
+                activity_subprocess = ActivitySubprocess(
+                    process_log=mocker.MagicMock(),
+                    id=TI_ID,
+                    pid=12345,
+                    stdin=mocker.MagicMock(),
+                    client=client,
+                    process=mocker.MagicMock(),
+                )
+                activity_subprocess.ti = mocker.MagicMock()
 
-            activity_subprocess._upload_logs()
+                activity_subprocess._upload_logs()
 
-            assert connection_available["available"], (
-                f"Connection {expected_env} was not available during upload_to_remote call"
-            )
-            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+                assert connection_available["available"], (
+                    f"Connection {expected_env} was not available during upload_to_remote call"
+                )
+                assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+
+
+class TestSignalRetryLogic:
+    """Test retry logic for exit codes (signals and non-signal failures) in ActivitySubprocess."""
+
+    @pytest.mark.parametrize(
+        "signal",
+        [
+            signal.SIGTERM,
+            signal.SIGKILL,
+            signal.SIGABRT,
+            signal.SIGSEGV,
+        ],
+    )
+    def test_signals_with_retry(self, mocker, signal):
+        """Test that signals with task retries."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        mock_watched_subprocess._exit_code = -signal
+        mock_watched_subprocess._should_retry = True
+
+        result = mock_watched_subprocess.final_state
+        assert result == TaskInstanceState.UP_FOR_RETRY
+
+    @pytest.mark.parametrize(
+        "signal",
+        [
+            signal.SIGKILL,
+            signal.SIGTERM,
+            signal.SIGABRT,
+            signal.SIGSEGV,
+        ],
+    )
+    def test_signals_without_retry_always_fail(self, mocker, signal):
+        """Test that signals without task retries enabled always fail."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._should_retry = False
+        mock_watched_subprocess._exit_code = -signal
+
+        result = mock_watched_subprocess.final_state
+        assert result == TaskInstanceState.FAILED
+
+    def test_non_signal_exit_code_with_retry_goes_to_up_for_retry(self, mocker):
+        """Test that non-signal exit codes with retries enabled go to UP_FOR_RETRY."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = True
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
+        """Test that non-signal exit codes without retries enabled go to FAILED."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = False
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 
 
 def test_remote_logging_conn_caches_connection_not_client(monkeypatch):
@@ -2495,3 +2855,68 @@ def test_process_log_messages_from_subprocess(monkeypatch, caplog):
         (None, logging.DEBUG, "A debug"),
         (None, logging.ERROR, "An error"),
     ]
+
+
+def test_reinit_supervisor_comms(monkeypatch, client_with_ti_start, caplog):
+    def subprocess_main():
+        # This is run in the subprocess!
+
+        # Ensure we follow the "protocol" and get the startup message before we do anything else
+        c = CommsDecoder()
+        c._get_response()
+
+        # This mirrors what the VirtualEnvProvider puts in it's script
+        script = """
+            import os
+            import sys
+            import structlog
+
+            from airflow.sdk import Connection
+            from airflow.sdk.execution_time.task_runner import reinit_supervisor_comms
+
+            reinit_supervisor_comms()
+
+            Connection.get("a")
+            print("ok")
+            sys.stdout.flush()
+
+            structlog.get_logger().info("is connected")
+        """
+        # Now we launch a new process, as VirtualEnvOperator will do
+        subprocess.check_call([sys.executable, "-c", dedent(script)])
+
+    client_with_ti_start.connections.get.return_value = ConnectionResult(
+        conn_id="test_conn", conn_type="mysql", login="a", password="password1"
+    )
+    proc = ActivitySubprocess.start(
+        dag_rel_path=os.devnull,
+        bundle_info=FAKE_BUNDLE,
+        what=TaskInstance(
+            id="4d828a62-a417-4936-a7a6-2b3fabacecab",
+            task_id="b",
+            dag_id="c",
+            run_id="d",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        client=client_with_ti_start,
+        target=subprocess_main,
+    )
+
+    rc = proc.wait()
+
+    assert rc == 0, caplog.text
+    # Check that the log messages are write. We should expect stdout to apper right, and crucially, we should
+    # expect logs from the venv process to appear without extra "wrapping"
+    assert {
+        "logger": "task.stdout",
+        "event": "ok",
+        "log_level": "info",
+        "timestamp": mock.ANY,
+    } in caplog, caplog.text
+    assert {
+        "logger_name": "task",
+        "log_level": "info",
+        "event": "is connected",
+        "timestamp": mock.ANY,
+    } in caplog, caplog.text

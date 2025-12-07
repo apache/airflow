@@ -29,7 +29,7 @@ from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.psrp.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
     MessageType.DEBUG_RECORD: DEBUG,

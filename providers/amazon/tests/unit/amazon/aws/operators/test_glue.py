@@ -665,7 +665,7 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
             self.operator.validate_inputs()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -798,7 +798,7 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
             operator.execute({})
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

@@ -121,12 +121,11 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each dag run.
+        This is also configurable per-dag with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new dag run with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
@@ -1421,9 +1420,9 @@ api:
       default: "8080"
     workers:
       description: |
-        Number of workers to run on the API server. Should be roughly equal to the number of
-        cpu cores available. If you need to scale the API server, consider deploying multiple API
-        servers instead of increasing the number of workers.
+        Number of workers to run on the API server. Should be roughly equal to the number of cpu cores
+        available. If you need to scale the API server, strongly consider deploying multiple API servers
+        instead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.
       version_added: ~
       type: integer
       example: ~
@@ -1618,6 +1617,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    execution_api_timeout:
+      description: |
+        The timeout (in seconds) for HTTP requests from workers to the Execution API server.
+        This controls how long a worker will wait for a response from the API server before
+        timing out. Increase this value if you experience timeout errors under high load.
+      version_added: 3.1.1
+      type: float
+      example: ~
+      default: "5.0"
     socket_cleanup_timeout:
       description: |
         Number of seconds to wait after a task process exits before forcibly closing any
@@ -2080,6 +2088,14 @@ scheduler:
       type: float
       example: ~
       default: "30.0"
+    dagrun_metrics_interval:
+      description: |
+        How often (in seconds) the scheduler emits metrics on running DAG runs
+        to StatsD (if statsd_on is enabled)
+      version_added: 3.1.0
+      type: float
+      example: ~
+      default: "30.0"
     scheduler_health_check_threshold:
       description: |
         If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
@@ -2497,6 +2513,11 @@ dag_processor:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
         be stored on the dag run and therefore, the latest code will always be used.
+
+        .. note::
+
+          This setting only applies to bundles that support versioning and does not affect
+          DAG versions displayed in the UI.
       version_added: ~
       type: boolean
       example: ~
@@ -2552,3 +2573,26 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+profiling:
+  description: |
+    Configuration for memory profiling in Airflow component.
+    Currently, we provide profiling using Memray and additional tools may be added in the future
+    Also, see the guide in Link (TBD)
+  options:
+    memray_trace_components:
+      description: |
+        Comma-separated list of Airflow components to profile with memray.
+        Valid components are: scheduler, api, dag_processor
+
+        This option only takes effect when it is not set to blank (default option).
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.1.2
+      type: string
+      example: "scheduler,api,dag_processor"
+      default: ""

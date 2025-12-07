@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -191,7 +191,7 @@ class SqlToS3Operator(BaseOperator):
             if df[col].dtype.name == "object" and file_format == FILE_FORMAT.PARQUET:
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
-                df[col] = df[col].astype(str)
+                df[col] = cast("pd.Series", df[col].astype(str))  # type: ignore[call-overload]
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
@@ -201,13 +201,13 @@ class SqlToS3Operator(BaseOperator):
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released as currently NumPy does not consider None as valid for x/y.
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Int64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Int64Dtype()))  # type: ignore[call-overload]
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(pd.Float64Dtype())
+                    df[col] = cast("pd.Series", df[col].astype(pd.Float64Dtype()))  # type: ignore[call-overload]
 
     @staticmethod
     def _strip_suffixes(
@@ -304,12 +304,11 @@ class SqlToS3Operator(BaseOperator):
                     group_df.reset_index(drop=True),
                 )
         elif isinstance(df, pl.DataFrame):
-            for group_label, group_df in df.group_by(**self.groupby_kwargs):  # type: ignore[assignment]
-                if random_column_name:
-                    group_df = group_df.drop(random_column_name)
+            for group_label, group_df_in in df.group_by(**self.groupby_kwargs):  # type: ignore[assignment]
+                group_df2 = group_df_in.drop(random_column_name) if random_column_name else group_df_in
                 yield (
                     cast("str", group_label[0] if isinstance(group_label, tuple) else group_label),
-                    group_df,
+                    group_df2,
                 )
 
     def _get_hook(self) -> DbApiHook:

@@ -36,7 +36,8 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import TaskNotFound
+from airflow.observability.stats import Stats
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
@@ -44,6 +45,8 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetPreviousDagRun,
     GetPrevSuccessfulDagRun,
+    GetTaskStates,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -54,6 +57,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousDagRunResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    TaskStatesResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -61,9 +65,8 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -92,6 +95,9 @@ class DagFileParseRequest(BaseModel):
     bundle_path: Path
     """Passing bundle path around lets us figure out relative file path."""
 
+    bundle_name: str
+    """Bundle name for team-specific executor validation."""
+
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
@@ -116,6 +122,8 @@ ToManager = Annotated[
     | GetConnection
     | GetVariable
     | PutVariable
+    | GetTaskStates
+    | GetTICount
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
@@ -131,6 +139,7 @@ ToDagProcessor = Annotated[
     DagFileParseRequest
     | ConnectionResult
     | VariableResult
+    | TaskStatesResult
     | PreviousDagRunResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
@@ -165,6 +174,10 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
 
 
 def _parse_file_entrypoint():
+    # Mark as client-side (runs user DAG code)
+    # Prevents inheriting server context from parent DagProcessorManager
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+
     import structlog
 
     from airflow.sdk.execution_time import comms, task_runner
@@ -197,6 +210,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
+        bundle_name=msg.bundle_name,
         include_examples=False,
         load_op_links=False,
     )
@@ -443,7 +457,9 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
     )
 
     try:
-        _send_task_error_email(task.email, runtime_ti, request.msg, log)
+        context = runtime_ti.get_template_context()
+        error = Exception(request.msg) if request.msg else None
+        _send_error_email_notification(task, runtime_ti, context, error, log)
     except Exception:
         log.exception(
             "Failed to send %s email",
@@ -487,6 +503,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         *,
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_name: str,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
@@ -498,7 +515,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
 
     def _on_child_started(
@@ -506,10 +523,12 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_name: str,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
+            bundle_name=bundle_name,
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
@@ -517,6 +536,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
+            TaskStatesResponse,
             VariableResponse,
             XComSequenceIndexResponse,
         )
@@ -589,6 +609,29 @@ class DagFileProcessorProcess(WatchedSubprocess):
             from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetTICount):
+            resp = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+        elif isinstance(msg, GetTaskStates):
+            task_states_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(task_states_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(task_states_map)
+            else:
+                resp = task_states_map
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

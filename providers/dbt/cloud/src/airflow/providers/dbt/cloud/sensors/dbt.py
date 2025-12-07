@@ -22,15 +22,10 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
-from airflow.providers.dbt.cloud.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -60,6 +55,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         run_id: int,
         account_id: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         if deferrable:
@@ -73,13 +69,13 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.run_id = run_id
         self.account_id = account_id
-
+        self.hook_params = hook_params or {}
         self.deferrable = deferrable
 
     @cached_property
     def hook(self):
         """Returns DBT Cloud hook."""
-        return DbtCloudHook(self.dbt_cloud_conn_id)
+        return DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
 
     def poke(self, context: Context) -> bool:
         job_run_status = self.hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
@@ -115,6 +111,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                         account_id=self.account_id,
                         poll_interval=self.poke_interval,
                         end_time=end_time,
+                        hook_params=self.hook_params,
                     ),
                     method_name="execute_complete",
                 )

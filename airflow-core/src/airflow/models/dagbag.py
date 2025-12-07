@@ -66,13 +66,13 @@ class DBDagBag:
         return self._read_dag(serdag)
 
     @staticmethod
-    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion:
+    def _version_from_dag_run(dag_run: DagRun, *, session: Session) -> DagVersion | None:
         if not dag_run.bundle_version:
             if dag_version := DagVersion.get_latest_version(dag_id=dag_run.dag_id, session=session):
                 return dag_version
 
         # Check if created_dag_version relationship is already loaded to avoid DetachedInstanceError
-        info = inspect(dag_run)
+        info: Any = inspect(dag_run)
         if info.attrs.created_dag_version.loaded_value is not NO_VALUE:
             # Relationship is already loaded, safe to access
             return dag_run.created_dag_version
@@ -146,10 +146,12 @@ def __getattr__(name: str) -> Any:
     if name in {"DagBag", "FileLoadStat", "timeout"}:
         import warnings
 
+        from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
         warnings.warn(
             f"Importing {name} from airflow.models.dagbag is deprecated and will be removed in a future "
             "release. Please import from airflow.dag_processing.dagbag instead.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
         # Import on demand to avoid import-time side effects

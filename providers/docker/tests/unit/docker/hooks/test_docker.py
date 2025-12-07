@@ -42,7 +42,6 @@ TEST_CONN = {"host": "some.docker.registry.com", "login": "some_user", "password
 MOCK_CONNECTION_NOT_EXIST_MSG = "Testing connection not exists"
 MOCK_CONNECTION_NOT_EXISTS_EX = AirflowNotFoundException(MOCK_CONNECTION_NOT_EXIST_MSG)
 HOOK_LOGGER_NAME = "airflow.task.hooks.airflow.providers.docker.hooks.docker.DockerHook"
-AIRFLOW_V_2_7_HOOK_LOGGER_NAME = "airflow.providers.docker.hooks.docker"
 
 
 @pytest.fixture
@@ -92,7 +91,7 @@ def test_optional_hook_attributes(hook_attr, hook_kwargs):
 
 
 @pytest.mark.parametrize(
-    "conn_id, hook_conn",
+    ("conn_id", "hook_conn"),
     [
         pytest.param(TEST_CONN_ID, None, id="conn-specified"),
         pytest.param(None, MOCK_CONNECTION_NOT_EXISTS_EX, id="conn-not-specified"),
@@ -108,7 +107,6 @@ def test_create_api_client(conn_id, hook_conn, docker_api_client_patcher, caplog
         - If `docker_conn_id` not provided that hook doesn't try access to Airflow Connections.
     """
     caplog.set_level(logging.DEBUG, logger=HOOK_LOGGER_NAME)
-    caplog.set_level(logging.DEBUG, logger=AIRFLOW_V_2_7_HOOK_LOGGER_NAME)
     hook = DockerHook(
         docker_conn_id=conn_id, base_url=TEST_TLS_BASE_URL, version=TEST_VERSION, tls=True, timeout=42
     )
@@ -133,7 +131,7 @@ def test_failed_create_api_client(docker_api_client_patcher):
 
 
 @pytest.mark.parametrize(
-    "hook_conn, expected",
+    ("hook_conn", "expected"),
     [
         pytest.param(
             TEST_CONN,
@@ -204,7 +202,7 @@ def test_failed_login_to_registry(hook_conn, docker_api_client_patcher, caplog):
 
 
 @pytest.mark.parametrize(
-    "hook_conn, ex, error_message",
+    ("hook_conn", "ex", "error_message"),
     [
         pytest.param(
             {k: v for k, v in TEST_CONN.items() if k != "login"},

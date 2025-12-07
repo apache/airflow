@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -37,10 +38,9 @@ from airflow.providers.google.cloud.triggers.dataflow import (
     DataflowJobStatusTrigger,
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.version_compat import BaseSensorOperator, PokeReturnValue
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DataflowJobStatusSensor(BaseSensorOperator):

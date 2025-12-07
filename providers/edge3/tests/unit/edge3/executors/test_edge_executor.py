@@ -25,10 +25,10 @@ import time_machine
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.providers.edge3.version_compat import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
@@ -67,7 +67,7 @@ class TestEdgeExecutor:
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
     @pytest.mark.parametrize(
-        "pool_slots, expected_concurrency",
+        ("pool_slots", "expected_concurrency"),
         [
             pytest.param(1, 1, id="default_pool_size"),
             pytest.param(5, 5, id="increased_pool_size"),
@@ -86,7 +86,7 @@ class TestEdgeExecutor:
         assert jobs[0].task_id == "test_task"
         assert jobs[0].concurrency_slots == expected_concurrency
 
-    @patch("airflow.stats.Stats.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 

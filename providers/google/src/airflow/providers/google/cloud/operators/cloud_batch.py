@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFin
 if TYPE_CHECKING:
     from google.api_core import operation
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
@@ -244,7 +244,7 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
     :param job_name: Required. The name of the job for which to list tasks.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param filter: The filter based on which to list the jobs. If left empty, all the jobs are listed.
-    :param group_name: The name of the group that owns the task. By default it's `group0`.
+    :param group_name: The name of the group that owns the task. By default, it's `group0`.
     :param limit: The number of tasks to list.
         If left empty, all the tasks matching the filter will be returned.
     :param impersonation_chain: Optional service account to impersonate using short-term

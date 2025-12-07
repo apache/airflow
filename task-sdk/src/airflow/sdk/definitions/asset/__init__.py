@@ -35,9 +35,11 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
+    from pydantic.types import JsonValue
+
     from airflow.models.asset import AssetModel
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.serialization.serialized_objects import SerializedAssetWatcher
+    from airflow.serialization.definitions.assets import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
     AttrsInstance = attrs.AttrsInstance
@@ -58,7 +60,7 @@ __all__ = [
     "AssetWatcher",
 ]
 
-from airflow.configuration import conf
+from airflow.sdk.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -164,15 +166,16 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
         return uri
     if normalized_scheme == "airflow":
         raise ValueError("Asset scheme 'airflow' is reserved")
-    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
-    if auth_exists:
+    if parsed.password:
         # TODO: Collect this into a DagWarning.
         warnings.warn(
-            "An Asset URI should not contain auth info (e.g. username or "
-            "password). It has been automatically dropped.",
+            "An Asset URI should not contain a password. User info has been automatically dropped.",
             UserWarning,
             stacklevel=3,
         )
+        _, _, normalized_netloc = parsed.netloc.rpartition("@")
+    else:
+        normalized_netloc = parsed.netloc
     if parsed.query:
         normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:
@@ -196,8 +199,8 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    ## We use latin1_general_cs to store the name (and group, asset values etc) on MySQL.
-    ## relaxing this check for non mysql backend
+    # We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
+    # relaxing this check for non mysql backend
     if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
@@ -216,7 +219,7 @@ def _validate_asset_name(instance, attribute, value):
     return value
 
 
-def _set_extra_default(extra: dict | None) -> dict:
+def _set_extra_default(extra: dict[str, JsonValue] | None) -> dict:
     """
     Automatically convert None to an empty dict.
 
@@ -319,7 +322,7 @@ class Asset(os.PathLike, BaseAsset):
         default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
         validator=[_validate_identifier],
     )
-    extra: dict[str, Any] = attrs.field(
+    extra: dict[str, JsonValue] = attrs.field(
         factory=dict,
         converter=_set_extra_default,
     )
@@ -337,7 +340,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         *,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
@@ -348,7 +351,7 @@ class Asset(os.PathLike, BaseAsset):
         name: str,
         *,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
@@ -359,7 +362,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         uri: str | ObjectStoragePath,
         group: str = ...,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
@@ -370,7 +373,7 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
-        extra: dict | None = None,
+        extra: dict[str, JsonValue] | None = None,
         watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
     ) -> None:
         if name is None and uri is None:
@@ -425,6 +428,10 @@ class Asset(os.PathLike, BaseAsset):
             return NotImplemented
         f = attrs.filters.include(*attrs.fields_dict(Asset))
         return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
+
+    def __hash__(self):
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return hash(attrs.asdict(self, filter=f))
 
     @property
     def normalized_uri(self) -> str | None:
@@ -682,4 +689,5 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
+    dest_asset_extra: dict[str, JsonValue]
+    extra: dict[str, JsonValue]

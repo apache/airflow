@@ -153,19 +153,19 @@ jobs:
         with:
           python-version: ${{steps.breeze.outputs.host-python-version}}
           platform: ${{ inputs.platform }}
-          save-cache: false
+          save-cache: true
       - name: "Static checks"
-        # We have added cache cleaning here as otherwise it was failing on rst-backticks hook
-        # This increases the time of this step from ~9 minutes 25 seconds to ~12 minutes 37 seconds
-        # If we want to remove the first part, we need to find root cause of the problem
-        run: prek cache clean && prek --all-files --show-diff-on-failure --color always
+        run: prek --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: "false"
+          VERBOSE: "true"
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.branch }}
           RUFF_FORMAT: "github"
+      - name: "Show prek log on failure"
+        run: cat ~/.cache/prek/prek.log || true
+        if: failure()
 
   mypy:
     timeout-minutes: 45

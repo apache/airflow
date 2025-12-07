@@ -89,7 +89,7 @@ class TestSingularityOperator:
         client_mock.execute.assert_called_once_with(mock.ANY, "echo hello", return_result=True)
 
     @pytest.mark.parametrize(
-        "volumes, expected_options",
+        ("volumes", "expected_options"),
         [
             (
                 None,
@@ -140,7 +140,7 @@ class TestSingularityOperator:
         )
 
     @pytest.mark.parametrize(
-        "working_dir, expected_working_dir",
+        ("working_dir", "expected_working_dir"),
         [
             (
                 None,

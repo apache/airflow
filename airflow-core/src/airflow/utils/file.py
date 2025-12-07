@@ -102,24 +102,25 @@ class _GlobIgnoreRule(NamedTuple):
             relative_to = definition_file.parent
 
         ignore_pattern = GitWildMatchPattern(pattern)
-        return _GlobIgnoreRule(ignore_pattern, relative_to)
+        return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to)
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
-        """Match a list of ignore rules against the supplied path."""
+        """Match a list of ignore rules against the supplied path, accounting for exclusion rules and ordering."""
         matched = False
-        for r in rules:
-            if not isinstance(r, _GlobIgnoreRule):
-                raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(r)}")
-            rule: _GlobIgnoreRule = r  # explicit typing to make mypy play nicely
-            rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
-            matched = rule.wild_match_pattern.match_file(rel_path) is not None
-
-            if matched:
-                if not rule.wild_match_pattern.include:
-                    return False
-
-                return matched
+        for rule in rules:
+            if not isinstance(rule, _GlobIgnoreRule):
+                raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(rule)}")
+            rel_obj = path.relative_to(rule.relative_to) if rule.relative_to else Path(path.name)
+            if path.is_dir():
+                rel_path = f"{rel_obj.as_posix()}/"
+            else:
+                rel_path = rel_obj.as_posix()
+            if (
+                rule.wild_match_pattern.include is not None
+                and rule.wild_match_pattern.match_file(rel_path) is not None
+            ):
+                matched = rule.wild_match_pattern.include
 
         return matched
 

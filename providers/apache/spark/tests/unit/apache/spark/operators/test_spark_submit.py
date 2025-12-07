@@ -467,7 +467,10 @@ class TestSparkSubmitOperator:
             )
             operator.execute(MagicMock())
 
-            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+            assert (
+                "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
         assert operator.conf == {
             "parquet.compression": "SNAPPY",
         }

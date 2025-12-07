@@ -458,7 +458,7 @@ class TestBatchClientDelays:
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
     @pytest.mark.parametrize(
-        "tries, lower, upper",
+        ("tries", "lower", "upper"),
         [
             (0, 0, 1),
             (1, 0, 2),

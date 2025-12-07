@@ -32,7 +32,7 @@ example:
 .. code-block:: ini
 
     [logging]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Airflow can store logs remotely in AWS S3, Azure Blob Storage, Google Cloud Storage or Elastic Search.
     # Users must supply an Airflow connection id that provides access to the storage
     # location. If remote_logging is set to true, see UPDATING.md for additional
     # configuration requirements.

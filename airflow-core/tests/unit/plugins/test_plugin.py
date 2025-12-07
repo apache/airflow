@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
-from flask import Blueprint
 
 try:
     # if flask_appbuilder is installed, we can use AppBuilderBaseView
@@ -90,13 +89,20 @@ def plugin_macro():
 
 
 # Creating a flask blueprint to integrate the templates and static folder
-bp = Blueprint(
-    "test_plugin",
-    __name__,
-    template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
-    static_folder="static",
-    static_url_path="/static/test_plugin",
-)
+try:
+    from flask import Blueprint
+except ImportError:
+    flask_blueprints = []
+else:
+    flask_blueprints = [
+        Blueprint(
+            "test_plugin",
+            __name__,
+            template_folder="templates",  # registers airflow/plugins/templates as a Jinja template folder
+            static_folder="static",
+            static_url_path="/static/test_plugin",
+        )
+    ]
 
 app = FastAPI()
 
@@ -149,7 +155,7 @@ class CustomPriorityWeightStrategy(PriorityWeightStrategy):
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     macros = [plugin_macro]
-    flask_blueprints = [bp]
+    flask_blueprints = flask_blueprints
     fastapi_apps = [app_with_metadata]
     fastapi_root_middlewares = [middleware_with_metadata]
     external_views = [external_view_with_metadata]

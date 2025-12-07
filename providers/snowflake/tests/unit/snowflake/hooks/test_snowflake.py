@@ -106,7 +106,7 @@ def base64_encoded_encrypted_private_key(encrypted_temporary_private_key: Path) 
 
 class TestPytestSnowflakeHook:
     @pytest.mark.parametrize(
-        "connection_kwargs,expected_uri,expected_conn_params",
+        ("connection_kwargs", "expected_uri", "expected_conn_params"),
         [
             (
                 BASE_CONNECTION_KWARGS,
@@ -704,6 +704,44 @@ class TestPytestSnowflakeHook:
         assert "region" in conn_params
         assert "account" in conn_params
 
+    @mock.patch("requests.post")
+    def test_get_conn_params_include_scope(self, mock_requests_post):
+        """
+        Verify that `_get_conn_params` includes the `scope` field when it is present
+        in the connection extras.
+        """
+        mock_requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "access_token": "dummy",
+                "expires_in": 600,
+                "token_type": "Bearer",
+                "username": "test_user",
+            },
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "test_client_id",
+            "password": "test_client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "client_credentials",
+                "scope": "default",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            params = hook._get_conn_params
+        mock_requests_post.assert_called_once()
+        assert "scope" in params
+        assert params["scope"] == "default"
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
@@ -857,7 +895,7 @@ class TestPytestSnowflakeHook:
             )
 
     @pytest.mark.parametrize(
-        "sql,expected_sql,expected_query_ids",
+        ("sql", "expected_sql", "expected_query_ids"),
         [
             ("select * from table", ["select * from table"], ["uuid"]),
             (
@@ -1110,22 +1148,22 @@ class TestPytestSnowflakeHook:
         mock_azure_base_hook.get_token.assert_called_once_with(SnowflakeHook.default_azure_oauth_scope)
         assert token == mock_azure_token
 
-    def test_get_azure_oauth_token_expect_failure_on_get_token(self, mocker):
-        """Test get_azure_oauth_token method gets token from provided connection id"""
+    def test_get_azure_oauth_token_expect_failure_on_older_azure_provider_package(self, mocker):
+        class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
 
-        class MockAzureBaseHookWithoutGetToken:
-            def __init__(self):
+            def __init__(self, sdk_client, conn_id="azure_default"):
                 pass
 
         azure_conn_id = "azure_test_conn"
         mock_connection_class = mocker.patch("airflow.providers.snowflake.hooks.snowflake.Connection")
-        mock_connection_class.get.return_value.get_hook.return_value = MockAzureBaseHookWithoutGetToken()
+        mock_connection_class.get.return_value.get_hook = MockAzureBaseHookOldVersion
 
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         with pytest.raises(
-            AttributeError,
+            AirflowOptionalProviderFeatureException,
             match=(
-                "'AzureBaseHook' object has no attribute 'get_token'. "
+                "Getting azure token is not supported.*"
                 "Please upgrade apache-airflow-providers-microsoft-azure>="
             ),
         ):
@@ -1133,3 +1171,73 @@ class TestPytestSnowflakeHook:
 
         # Check AzureBaseHook initialization
         mock_connection_class.get.assert_called_once_with(azure_conn_id)
+
+    @mock.patch("requests.post")
+    def test_get_oauth_token_with_scope(self, mock_requests_post):
+        """
+        Verify that `get_oauth_token` returns an access token and includes the
+        provided scope in the outgoing OAuth request payload.
+        """
+
+        mock_requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token"},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "client_credentials",
+                "scope": "default",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token(grant_type="client_credentials")
+
+        assert token == "dummy_token"
+
+        called_data = mock_requests_post.call_args.kwargs["data"]
+
+        assert called_data["scope"] == "default"
+        assert called_data["grant_type"] == "client_credentials"
+
+    @mock.patch("requests.post")
+    def test_get_oauth_token_without_scope(self, mock_requests_post):
+        """
+        Verify that `get_oauth_token` returns an access token and sends `scope=None`
+        when no scope is defined in the connection extras.
+        """
+        mock_requests_post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"access_token": "dummy_token"},
+        )
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {"account": "airflow", "authenticator": "oauth", "grant_type": "client_credentials"},
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            token = hook.get_oauth_token(grant_type="client_credentials")
+
+        assert token == "dummy_token"
+
+        called_data = mock_requests_post.call_args.kwargs["data"]
+
+        assert "scope" not in called_data
+        assert called_data["grant_type"] == "client_credentials"

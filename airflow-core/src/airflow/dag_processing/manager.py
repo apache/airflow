@@ -31,7 +31,6 @@ import sys
 import time
 import zipfile
 from collections import defaultdict, deque
-from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -59,10 +58,10 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -74,9 +73,11 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
     from socket import socket
 
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.bundles.base import BaseDagBundle
@@ -250,6 +251,16 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+        # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
+        # The manager needs MetastoreBackend to retrieve connections from the database
+        # during bundle initialization (e.g., GitDagBundle.__init__ → GitHook needs git credentials).
+        # This marks the manager as "server" context so ensure_secrets_backend_loaded() provides
+        # MetastoreBackend instead of falling back to EnvironmentVariablesBackend only.
+        # Child parser processes explicitly override this by setting _AIRFLOW_PROCESS_CONTEXT=client
+        # in _parse_file_entrypoint() to prevent inheriting server privileges.
+        # Related: https://github.com/apache/airflow/pull/57459
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
         self.register_exit_signals()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -320,7 +331,7 @@ class DagFileProcessorManager(LoggingMixin):
                 .values(is_stale=True)
                 .execution_options(synchronize_session="fetch")
             )
-            deactivated = deactivated_dagmodel.rowcount
+            deactivated = getattr(deactivated_dagmodel, "rowcount", 0)
             if deactivated:
                 self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
@@ -450,15 +461,22 @@ class DagFileProcessorManager(LoggingMixin):
 
         callback_queue: list[CallbackRequest] = []
         with prohibit_commit(session) as guard:
-            query = select(DbCallbackRequest)
+            bundle_names = [bundle.name for bundle in self._dag_bundles]
+            query: Select[tuple[DbCallbackRequest]] = select(DbCallbackRequest)
             query = query.order_by(DbCallbackRequest.priority_weight.desc()).limit(
                 self.max_callbacks_per_loop
             )
-            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
+            query = cast(
+                "Select[tuple[DbCallbackRequest]]",
+                with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True),
+            )
             callbacks = session.scalars(query)
             for callback in callbacks:
+                req = callback.get_callback_request()
+                if req.bundle_name not in bundle_names:
+                    continue
                 try:
-                    callback_queue.append(callback.get_callback_request())
+                    callback_queue.append(req)
                     session.delete(callback)
                 except Exception as e:
                     self.log.warning("Error adding callback for execution: %s, %s", callback, e)
@@ -511,7 +529,10 @@ class DagFileProcessorManager(LoggingMixin):
                     continue
             # TODO: AIP-66 test to make sure we get a fresh record from the db and it's not cached
             with create_session() as session:
-                bundle_model: DagBundleModel = session.get(DagBundleModel, bundle.name)
+                bundle_model = session.get(DagBundleModel, bundle.name)
+                if bundle_model is None:
+                    self.log.warning("Bundle model not found for %s", bundle.name)
+                    continue
                 elapsed_time_since_refresh = (
                     now - (bundle_model.last_refreshed or utc_epoch())
                 ).total_seconds()
@@ -625,12 +646,15 @@ class DagFileProcessorManager(LoggingMixin):
                     rel_filelocs.append(str(rel_sub_path))
 
         with create_session() as session:
-            DagModel.deactivate_deleted_dags(
+            any_deactivated = DagModel.deactivate_deleted_dags(
                 bundle_name=bundle_name,
                 rel_filelocs=rel_filelocs,
                 session=session,
             )
-            remove_references_to_deleted_dags(session=session)
+            # Only run cleanup if we actually deactivated any DAGs
+            # This avoids unnecessary DELETE queries in the common case where no DAGs were deleted
+            if any_deactivated:
+                remove_references_to_deleted_dags(session=session)
 
     def print_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """Occasionally print out stats about how fast the files are getting processed."""
@@ -834,6 +858,7 @@ class DagFileProcessorManager(LoggingMixin):
                 parsing_result=proc.parsing_result,
                 session=session,
                 is_callback_only=is_callback_only,
+                relative_fileloc=str(file.rel_path),
             )
 
         for file in finished:
@@ -907,6 +932,7 @@ class DagFileProcessorManager(LoggingMixin):
             id=id,
             path=dag_file.absolute_path,
             bundle_path=cast("Path", dag_file.bundle_path),
+            bundle_name=dag_file.bundle_name,
             callbacks=callback_to_execute_for_file,
             selector=self.selector,
             logger=logger,
@@ -1122,6 +1148,7 @@ def process_parse_results(
     session: Session,
     *,
     is_callback_only: bool = False,
+    relative_fileloc: str | None = None,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     if is_callback_only:
@@ -1156,6 +1183,14 @@ def process_parse_results(
             import_errors = {
                 (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
             }
+
+        # Build the set of files that were parsed. This includes the file that was parsed,
+        # even if it no longer contains DAGs, so we can clear old import errors.
+        files_parsed: set[tuple[str, str]] | None = None
+        if relative_fileloc is not None:
+            files_parsed = {(bundle_name, relative_fileloc)}
+            files_parsed.update(import_errors.keys())
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
@@ -1164,6 +1199,7 @@ def process_parse_results(
             parse_duration=run_duration,
             warnings=set(parsing_result.warnings or []),
             session=session,
+            files_parsed=files_parsed,
         )
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:

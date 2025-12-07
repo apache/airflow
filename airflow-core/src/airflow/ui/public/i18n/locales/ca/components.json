@@ -89,10 +89,13 @@
   },
   "limitedList": "+{{count}} més",
   "limitedList.allItems": "Tots els {{count}} elements:",
+  "limitedList.allTags_one": "Totes les etiquetes ({{count}})",
+  "limitedList.allTags_other": "Totes les etiquetes ({{count}})",
   "limitedList.clickToInteract": "Fes clic en una etiqueta per filtrar els Dags",
   "limitedList.clickToOpenFull": "Fes clic a \"+{{count}} més\" per veure la llista completa",
   "limitedList.copyPasteText": "Pots copiar i enganxar el text de dalt",
-  "limitedList.showingItems": "Mostrant {{count}} elements",
+  "limitedList.showingItems_one": "Mostrant {{count}} element",
+  "limitedList.showingItems_other": "Mostrant {{count}} elements",
   "logs": {
     "file": "Fitxer",
     "location": "línia {{line}} a {{name}}"

@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.1.0",
+            "default": "3.1.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -225,6 +225,23 @@
             "additionalProperties": {
                 "type": "string"
             }
+        },
+        "imagePullSecrets": {
+            "description": "List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private registries (will get passed to imagePullSecrets).",
+            "type": "array",
+            "default": [],
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "oneOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.LocalObjectReference"
+                    }
+                ]
+            },
+            "uniqueItems": true
         },
         "ingress": {
             "description": "Ingress configuration.",
@@ -2855,7 +2872,7 @@
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -2865,7 +2882,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
@@ -4207,6 +4224,14 @@
                         }
                     }
                 },
+                "labels": {
+                    "description": "Labels specific to dag processor objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to dag processor.",
                     "type": "array",
@@ -4930,6 +4955,11 @@
             "x-docsSection": "API Server",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable Airflow API server deployment.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "configMapAnnotations": {
                     "description": "Extra annotations to apply to the API server configmap.",
                     "type": "object",
@@ -5144,7 +5174,7 @@
                 "podDisruptionBudget": {
                     "description": "API server pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5154,7 +5184,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for API server.",
@@ -5912,7 +5942,7 @@
                 "podDisruptionBudget": {
                     "description": "Webserver pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5922,7 +5952,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
@@ -7311,6 +7341,14 @@
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
                 },
+                "labels": {
+                    "description": "Labels specific to statsd objects and pods",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to statsd container.",
                     "type": "array",
@@ -7489,7 +7527,7 @@
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enabled PodDistributionBudget.",
@@ -7499,7 +7537,7 @@
                         "config": {
                             "description": "Pod distribution configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
@@ -8300,6 +8338,14 @@
                         }
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the redis objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "uid": {
                     "description": "Redis run as user parameter.",
                     "type": "integer",
@@ -8330,7 +8376,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets) (Deprecated - renamed to `registry.secretNames`).",
                     "type": [
                         "string",
                         "null"
@@ -8338,7 +8384,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets) (create manually the credentials secret and add to `imagePullSecrets` instead).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -8901,6 +8947,341 @@
                         "null"
                     ],
                     "default": null,
+                    "x-docsSection": null
+                }
+            }
+        },
+        "databaseCleanup": {
+            "description": "This runs as a CronJob to cleanup the database after the retention period.",
+            "type": "object",
+            "x-docsSection": "Jobs",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable database cleanup.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "schedule": {
+                    "description": "Database cleanup schedule (templated).",
+                    "type": "string",
+                    "default": "0 0 * * 0"
+                },
+                "retentionDays": {
+                    "description": "Number of days to retain records in the metadata database.",
+                    "type": "integer",
+                    "default": 90,
+                    "minimum": 1
+                },
+                "skipArchive": {
+                    "description": "Don't preserve purged records in an archive table.",
+                    "type": "boolean",
+                    "default": false
+                },
+                "tables": {
+                    "description": "Table names to perform maintenance on. Supported values in: https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#clean",
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": []
+                },
+                "batchSize": {
+                    "description": "Maximum number of rows to delete or archive in a single transaction.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "verbose": {
+                    "description": "Make logging output more verbose.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "command": {
+                    "description": "Command to use when running the database cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash"
+                    ]
+                },
+                "args": {
+                    "description": "Args to use when running the database cleanup cronjob (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "-c",
+                        "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
+                    ]
+                },
+                "jobAnnotations": {
+                    "description": "Annotations to add to the database cleanup cronjob.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for database cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for database cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for database cleanup pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "labels to add to database cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "resources": {
+                    "description": "Resources for database cleanup pods",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ]
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the database cleanup CronJob Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the database cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the database cleanup. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the database cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the database cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to database cleanup.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            },
+                            "valueFrom": {
+                                "type": "object",
+                                "properties": {
+                                    "configMapKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.ConfigMapKeySelector",
+                                        "description": "Selects a key of a ConfigMap."
+                                    },
+                                    "secretKeyRef": {
+                                        "$ref": "#/definitions/io.k8s.api.core.v1.SecretKeySelector",
+                                        "description": "Selects a key of a secret in the pod's namespace"
+                                    }
+                                },
+                                "anyOf": [
+                                    {
+                                        "required": [
+                                            "configMapKeyRef"
+                                        ]
+                                    },
+                                    {
+                                        "required": [
+                                            "secretKeyRef"
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        "required": [
+                            "name"
+                        ],
+                        "anyOf": [
+                            {
+                                "required": [
+                                    "value"
+                                ]
+                            },
+                            {
+                                "required": [
+                                    "valueFrom"
+                                ]
+                            }
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "failedJobsHistoryLimit": {
+                    "description": "The failed jobs history limit specifies the number of failed jobs to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 1,
+                    "x-docsSection": null
+                },
+                "successfulJobsHistoryLimit": {
+                    "description": "The successful jobs history limit specifies the number of finished jobs to retain.",
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "default": 1,
                     "x-docsSection": null
                 }
             }

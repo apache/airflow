@@ -29,6 +29,7 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     DagInfo,
@@ -53,9 +54,6 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag import get_next_data_interval
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS, SecretsMasker
@@ -70,11 +68,10 @@ else:
         SecretsMasker,
     )
 
+from airflow.providers.common.compat.sdk import DAG
+
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG
     from airflow.utils.types import DagRunTriggeredByType
-else:
-    from airflow import DAG
 
 
 class SafeStrDict(dict):

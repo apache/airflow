@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -83,7 +84,7 @@ class TaskInstanceResponse(BaseModel):
 class TaskInstanceCollectionResponse(BaseModel):
     """Task Instance Collection serializer for responses."""
 
-    task_instances: list[TaskInstanceResponse]
+    task_instances: Iterable[TaskInstanceResponse]
     total_entries: int
 
 
@@ -150,7 +151,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     only_failed: bool = True
     only_running: bool = False
     reset_dag_runs: bool = True
-    task_ids: list[str | tuple[str, int]] | None = None
+    task_ids: list[str | tuple[str, int]] | None = Field(
+        default=None,
+        description="A list of `task_id` or [`task_id`, `map_index`]. "
+        "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
@@ -161,6 +166,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the dag after "
         "clearing the task instances.",
     )
+    prevent_running_task: bool = False
 
     @model_validator(mode="before")
     @classmethod

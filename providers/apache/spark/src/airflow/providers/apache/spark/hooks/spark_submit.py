@@ -32,7 +32,7 @@ from typing import Any
 
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.spark.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -600,8 +600,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :param itr: An iterator which iterates over the input of the subprocess
         """
         # Consume the iterator
-        for line in itr:
-            line = line.strip()
+        for line_raw in itr:
+            line = line_raw.strip()
             # If we run yarn cluster mode, we want to extract the application id from
             # the logs so we can kill the application when we stop it unexpectedly
             if self._is_yarn and self._connection["deploy_mode"] == "cluster":
@@ -652,8 +652,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         driver_found = False
         valid_response = False
         # Consume the iterator
-        for line in itr:
-            line = line.strip()
+        for line_raw in itr:
+            line = line_raw.strip()
 
             # A valid Spark status response should contain a submissionId
             if "submissionId" in line:

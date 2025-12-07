@@ -87,7 +87,7 @@ class TestClient:
         assert err.value.args == ("Client error message: {'detail': 'Not found'}",)
 
     @pytest.mark.parametrize(
-        "base_url, client_kind, expected_base_url",
+        ("base_url", "client_kind", "expected_base_url"),
         [
             ("http://localhost:8080", ClientKind.CLI, "http://localhost:8080/api/v2/"),
             ("http://localhost:8080", ClientKind.AUTH, "http://localhost:8080/auth/"),

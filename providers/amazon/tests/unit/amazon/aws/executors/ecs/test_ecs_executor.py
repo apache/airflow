@@ -35,7 +35,6 @@ from semver import VersionInfo
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.executors import base_executor
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -1096,10 +1095,9 @@ class TestAwsEcsExecutor:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor, mock_cmd):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "name" or "command"'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
-        assert raised.match('Executor Config should never override "name" or "command"')
         assert len(mock_executor.pending_tasks) == 0
 
     @mock.patch.object(ecs_executor_config, "build_task_kwargs")
@@ -1159,7 +1157,7 @@ class TestAwsEcsExecutor:
         self.sync_call_count += 1
 
     @pytest.mark.parametrize(
-        "desired_status, last_status, exit_code, expected_status",
+        ("desired_status", "last_status", "exit_code", "expected_status"),
         [
             ("RUNNING", "QUEUED", 0, State.QUEUED),
             ("STOPPED", "RUNNING", 0, State.RUNNING),
@@ -1344,14 +1342,12 @@ class TestEcsExecutorConfig:
             (CONFIG_GROUP_NAME, AllEcsConfigKeys.SECURITY_GROUPS): "sg1,sg2",
         }
         with conf_vars(conf_overrides):
-            with pytest.raises(ValueError) as raised:
+            with pytest.raises(ValueError, match="At least one subnet is required to run a task"):
                 ecs_executor_config.build_task_kwargs(conf)
-        assert raised.match("At least one subnet is required to run a task.")
 
     # TODO: When merged this needs updating to the actually supported version
-    @pytest.mark.skipif(
-        not hasattr(base_executor, "ExecutorConf"),
-        reason="Test requires a version of airflow which includes updates to support multi team",
+    @pytest.mark.skip(
+        reason="Test requires a version of airflow which includes updates to support multi team"
     )
     def test_team_config(self):
         # Team name to be used throughout
@@ -1422,7 +1418,7 @@ class TestEcsExecutorConfig:
         task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs(conf))
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
-        for expected_key, expected_value in CONFIG_DEFAULTS.items():
+        for expected_key, expected_value_raw in CONFIG_DEFAULTS.items():
             # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
             # but are not expected to appear in the task_kwargs.
             if expected_key in [
@@ -1434,8 +1430,11 @@ class TestEcsExecutorConfig:
             else:
                 assert expected_key in found_keys.keys()
                 # Make sure to convert "assign_public_ip" from True/False to ENABLE/DISABLE.
-                if expected_key is AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
-                    expected_value = parse_assign_public_ip(expected_value)
+                expected_value = (
+                    parse_assign_public_ip(expected_value_raw)
+                    if expected_key is AllEcsConfigKeys.ASSIGN_PUBLIC_IP
+                    else expected_value_raw
+                )
                 assert expected_value == task_kwargs[found_keys[expected_key]]
 
     def test_provided_values_override_defaults(self, assign_subnets, assign_container_name, monkeypatch):
@@ -1669,7 +1668,7 @@ class TestEcsExecutorConfig:
             assert task_kwargs["launchType"] == "FARGATE"
 
     @pytest.mark.parametrize(
-        "run_task_kwargs, exec_config, expected_result",
+        ("run_task_kwargs", "exec_config", "expected_result"),
         [
             # No input run_task_kwargs or executor overrides
             (

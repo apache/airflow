@@ -23,6 +23,7 @@ from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypeVar, Union, cast
 
+import pendulum
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
@@ -41,7 +42,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, backref, load_only, relationship
+from sqlalchemy.orm import Mapped, Session, backref, joinedload, load_only, relationship
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -68,9 +69,6 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from typing import TypeAlias
-
-    from sqlalchemy.orm.query import Query
-    from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -134,11 +132,20 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
-    data_interval = _get_model_data_interval(run, "data_interval_start", "data_interval_end")
-    if data_interval is not None:
+    if (
+        data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
+    ) is not None:
         return data_interval
+
+    if (
+        data_interval := timetable.infer_manual_data_interval(run_after=pendulum.instance(run.run_after))
+    ) is not None:
+        return data_interval
+
     # Compatibility: runs created before AIP-39 implementation don't have an
     # explicit data interval. Try to infer from the logical date.
+    if TYPE_CHECKING:
+        assert run.logical_date is not None
     return infer_automated_data_interval(timetable, run.logical_date)
 
 
@@ -206,7 +213,7 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def get_last_dagrun(dag_id, session, include_manually_triggered=False):
+def get_last_dagrun(dag_id: str, session: Session, include_manually_triggered: bool = False) -> DagRun | None:
     """
     Return the last dag run for a dag, None if there was none.
 
@@ -300,7 +307,7 @@ class DagOwnerAttributes(Base):
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
 
     @classmethod
-    def get_all(cls, session) -> dict[str, dict[str, str]]:
+    def get_all(cls, session: Session) -> dict[str, dict[str, str]]:
         dag_links: dict = defaultdict(dict)
         for obj in session.scalars(select(cls)):
             dag_links[obj.dag_id].update({obj.owner: obj.link})
@@ -322,12 +329,12 @@ class DagModel(Base):
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
     # Last time the scheduler started
-    last_parsed_time: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
     last_parse_duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
-    last_expired: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_expired: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
@@ -375,14 +382,14 @@ class DagModel(Base):
     fail_fast: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
     # The logical date of the next dag run.
-    next_dagrun: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Must be either both NULL or both datetime.
-    next_dagrun_data_interval_start: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    next_dagrun_data_interval_end: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_start: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_data_interval_end: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     # Earliest time at which this ``next_dagrun`` can be created.
-    next_dagrun_create_after: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    next_dagrun_create_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
@@ -494,11 +501,13 @@ class DagModel(Base):
 
     @classmethod
     @provide_session
-    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel:
+    def get_current(cls, dag_id: str, session: Session = NEW_SESSION) -> DagModel | None:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
-    def get_last_dagrun(self, session=NEW_SESSION, include_manually_triggered=False):
+    def get_last_dagrun(
+        self, session: Session = NEW_SESSION, include_manually_triggered: bool = False
+    ) -> DagRun | None:
         return get_last_dagrun(
             self.dag_id, session=session, include_manually_triggered=include_manually_triggered
         )
@@ -517,14 +526,13 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = session.execute(
+        paused_dag_ids = session.scalars(
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
-        return paused_dag_ids
+        return set(paused_dag_ids)
 
     @property
     def safe_dag_id(self):
@@ -553,13 +561,14 @@ class DagModel(Base):
         bundle_name: str,
         rel_filelocs: list[str],
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> bool:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param bundle_name: bundle for filelocs
         :param rel_filelocs: relative filelocs for bundle
         :param session: ORM Session
+        :return: True if any DAGs were marked as stale, False otherwise
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
         dag_models = session.scalars(
@@ -575,37 +584,52 @@ class DagModel(Base):
             )
         )
 
+        any_deactivated = False
         for dm in dag_models:
             if dm.relative_fileloc not in rel_filelocs:
                 dm.is_stale = True
+                any_deactivated = True
+
+        return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, datetime]]:
+    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
         This will return a resultset of rows that is row-level-locked with a "SELECT ... FOR UPDATE" query,
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
+
+        :meta private:
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
         evaluator = AssetEvaluator(session)
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
-            # if dag was serialized before 2.9 and we *just* upgraded,
-            # we may be dealing with old version.  In that case,
-            # just wait for the dag to be reserialized.
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool:
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
-                log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
-                return None
+                # if dag was serialized before 2.9 and we *just* upgraded,
+                # we may be dealing with old version.  In that case,
+                # just wait for the dag to be reserialized.
+                log.warning("Dag '%s' has old serialization; skipping run creation.", dag_id)
+                return False
+            except Exception:
+                log.exception("Dag '%s' failed to be evaluated; assuming not ready", dag_id)
+                return False
 
         # this loads all the ADRQ records.... may need to limit num dags
         adrq_by_dag: dict[str, list[AssetDagRunQueue]] = defaultdict(list)
-        for r in session.scalars(select(AssetDagRunQueue)):
-            adrq_by_dag[r.target_dag_id].append(r)
+        for adrq in session.scalars(select(AssetDagRunQueue).options(joinedload(AssetDagRunQueue.dag_model))):
+            if adrq.dag_model.asset_expression is None:
+                # The dag referenced does not actually depend on an asset! This
+                # could happen if the dag DID depend on an asset at some point,
+                # but no longer does. Delete the stale adrq.
+                session.delete(adrq)
+            else:
+                adrq_by_dag[adrq.target_dag_id].append(adrq)
 
         dag_statuses: dict[str, dict[AssetUniqueKey, bool]] = {
             dag_id: {AssetUniqueKey.from_asset(adrq.asset): True for adrq in adrqs}
@@ -701,7 +725,9 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
+    def get_asset_triggered_next_run_info(
+        self, *, session: Session = NEW_SESSION
+    ) -> dict[str, int | str] | None:
         if self.asset_expression is None:
             return None
 
@@ -711,7 +737,7 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_team_name(dag_id: str, session=NEW_SESSION) -> str | None:
+    def get_team_name(dag_id: str, session: Session = NEW_SESSION) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
         stmt = (
             select(Team.name)
@@ -723,7 +749,9 @@ class DagModel(Base):
 
     @staticmethod
     @provide_session
-    def get_dag_id_to_team_name_mapping(dag_ids: list[str], session=NEW_SESSION) -> dict[str, str | None]:
+    def get_dag_id_to_team_name_mapping(
+        dag_ids: list[str], session: Session = NEW_SESSION
+    ) -> dict[str, str | None]:
         stmt = (
             select(DagModel.dag_id, Team.name)
             .join(DagBundleModel.teams)
@@ -750,10 +778,12 @@ def __getattr__(name: str):
 
     import warnings
 
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
     warnings.warn(
         f"Import {name!r} directly from the airflow module is deprecated and "
         f"will be removed in the future. Please import it from 'airflow.sdk'.",
-        DeprecationWarning,
+        DeprecatedImportWarning,
         stacklevel=2,
     )
 

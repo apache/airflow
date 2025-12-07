@@ -32,11 +32,11 @@ distinguish between various installations of Airflow or simply amend the page te
 
 To make this change, simply:
 
-1.  Add the configuration option of ``instance_name`` under the ``[webserver]`` section inside ``airflow.cfg``:
+1.  Add the configuration option of ``instance_name`` under the ``[api]`` section inside ``airflow.cfg``:
 
 .. code-block::
 
-  [webserver]
+  [api]
 
   instance_name = "DevEnv"
 
@@ -45,7 +45,7 @@ To make this change, simply:
 
 .. code-block::
 
-  AIRFLOW__WEBSERVER__INSTANCE_NAME = "DevEnv"
+  AIRFLOW__API__INSTANCE_NAME = "DevEnv"
 
 
 Screenshots
@@ -84,10 +84,10 @@ To add static alert messages that remain constant until the webserver is restart
 
   .. code-block:: python
 
-      from airflow.www.utils import UIAlert
+      from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow"),
+          UIAlert("Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
@@ -121,7 +121,7 @@ message of heading 2 with a link included:
 
 .. code-block:: python
 
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
     DASHBOARD_UIALERTS = [
         UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
@@ -163,7 +163,7 @@ cases might include alerts yielded from APIs, database queries or files.
 .. code-block:: python
 
     import random
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
 
     class DynamicAlerts(list):

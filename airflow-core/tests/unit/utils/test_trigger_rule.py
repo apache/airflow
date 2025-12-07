@@ -39,5 +39,5 @@ class TestTriggerRule:
         assert TriggerRule.is_valid(TriggerRule.ALL_DONE_MIN_ONE_SUCCESS)
         assert len(TriggerRule.all_triggers()) == 13
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="'NOT_EXIST_TRIGGER_RULE' is not a valid TriggerRule"):
             TriggerRule("NOT_EXIST_TRIGGER_RULE")

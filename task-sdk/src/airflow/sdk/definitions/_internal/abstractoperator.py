@@ -30,8 +30,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 import methodtools
 
-from airflow.configuration import conf
 from airflow.sdk import TriggerRule, WeightRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
@@ -68,6 +68,7 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
+DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
@@ -304,12 +305,15 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     rendered_content = self.render_template(value, context, jinja_env, seen_oids)
             except Exception:
-                # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
+                masked_value = redact(value)
                 log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    masked_value,
                 )
                 raise
             else:
@@ -322,7 +326,7 @@ class AbstractOperator(Templater, DAGNode):
         For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an Dag node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -364,7 +368,7 @@ class AbstractOperator(Templater, DAGNode):
         For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an Dag node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
         """
         return (
             downstream

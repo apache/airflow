@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
+repos:
+  - repo: local
+    hooks:
+      - id: mypy-airflow-ctl
+        stages: ['pre-push']
+        name: Run mypy for airflow-ctl
+        language: python
+        entry: ../scripts/ci/prek/mypy.py
+        files:
+          (?x)
+          ^src/airflowctl/.*\.py$|
+          ^tests/.*\.py$
+        exclude: .*generated.py
+        require_serial: true
+      - id: mypy-airflow-ctl
+        stages: ['manual']
+        name: Run mypy for airflow-ctl (manual)
+        language: python
+        entry: ../scripts/ci/prek/mypy_folder.py airflow-ctl
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+      - id: generate-airflowctl-help-images
+        name: Generate SVG from Airflow CTL Commands
+        entry: ../scripts/ci/prek/capture_airflowctl_help.py
+        language: python
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflowctl/ctl/cli_config.py$|
+          ^src/airflowctl/api/operations.py$|
+          ^src/airflowctl/ctl/commands/.*\.py$
+      - id: check-airflowctl-command-coverage
+        name: Check airflowctl CLI command test coverage
+        entry: ../scripts/ci/prek/check_airflowctl_command_coverage.py
+        language: python
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflowctl/api/operations.py$|
+          ^../airflow-ctl-tests/tests/airflowctl_tests/conftest.py$|
+          ^../scripts/ci/prek/check_airflowctl_command_coverage.py$

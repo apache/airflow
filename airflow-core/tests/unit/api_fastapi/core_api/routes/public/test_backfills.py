@@ -35,6 +35,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dag_bundles,
@@ -124,7 +125,10 @@ class TestListBackfills(TestBackfillEndpoint):
         b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(b)
         session.commit()
-        response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
         assert response.status_code == 200
         assert response.json() == {
             "backfills": [
@@ -190,7 +194,7 @@ class TestGetBackfill(TestBackfillEndpoint):
 
 class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "repro_act, repro_exp",
+        ("repro_act", "repro_exp"),
         [
             (None, ReprocessBehavior.NONE),
             ("none", ReprocessBehavior.NONE),
@@ -290,7 +294,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
 
     @pytest.mark.parametrize(
-        "repro_act, repro_exp, run_backwards, status_code",
+        ("repro_act", "repro_exp", "run_backwards", "status_code"),
         [
             ("none", ReprocessBehavior.NONE, False, 422),
             ("completed", ReprocessBehavior.COMPLETED, False, 200),
@@ -404,7 +408,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
     # todo: AIP-83 amendment must fix
     @pytest.mark.parametrize(
-        "reprocess_behavior, expected_dates",
+        ("reprocess_behavior", "expected_dates"),
         [
             (
                 "none",
@@ -581,7 +585,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "reprocess_behavior, expected_dates",
+        ("reprocess_behavior", "expected_dates"),
         [
             (
                 "none",
@@ -666,7 +670,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         assert response_json["backfills"] == expected_dates
 
     @pytest.mark.parametrize(
-        "repro_act, repro_exp, run_backwards, status_code",
+        ("repro_act", "repro_exp", "run_backwards", "status_code"),
         [
             ("none", ReprocessBehavior.NONE, False, 422),
             ("completed", ReprocessBehavior.COMPLETED, False, 200),

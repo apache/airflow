@@ -130,6 +130,7 @@ def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, sp
             .first()
         )
 
+        assert dag_run is not None
         assert dag_run.state == state, f"Dag Run state isn't {state}. State: {dag_run.state}"
         assert dag_run.span_status == span_status, (
             f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
@@ -147,6 +148,7 @@ def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_s
             .first()
         )
 
+        assert ti is not None
         assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
 
         if span_status is not None:
@@ -608,7 +610,7 @@ class TestOtelIntegration:
         "--daemon",
     ]
 
-    dags: dict[str, DAG] = {}
+    dags: dict[str, SerializedDAG] = {}
 
     @classmethod
     def setup_class(cls):

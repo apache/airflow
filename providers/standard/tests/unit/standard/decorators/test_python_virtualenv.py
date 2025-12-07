@@ -203,7 +203,7 @@ class TestPythonVirtualenvDecorator:
         dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -249,7 +249,7 @@ class TestPythonVirtualenvDecorator:
             dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),
@@ -276,7 +276,7 @@ class TestPythonVirtualenvDecorator:
         dag_maker.run_ti("f", dr)
 
     @pytest.mark.parametrize(
-        "serializer, extra_requirements",
+        ("serializer", "extra_requirements"),
         [
             pytest.param("pickle", [], id="pickle"),
             pytest.param("dill", ["dill"], marks=DILL_MARKER, id="dill"),

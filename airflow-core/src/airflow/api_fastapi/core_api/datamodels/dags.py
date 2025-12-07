@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import inspect
-from collections import abc
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -28,6 +28,7 @@ from pydantic import (
     AliasGenerator,
     ConfigDict,
     computed_field,
+    field_serializer,
     field_validator,
 )
 
@@ -84,6 +85,11 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: datetime | None
     owners: list[str]
 
+    @field_serializer("tags")
+    def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:
+        """Sort tags alphabetically by name."""
+        return sorted(tags, key=lambda tag: tag.name)
+
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:
@@ -127,7 +133,7 @@ class DAGPatchBody(StrictBaseModel):
 class DAGCollectionResponse(BaseModel):
     """DAG Collection serializer for responses."""
 
-    dags: list[DAGResponse]
+    dags: Iterable[DAGResponse]
     total_entries: int
 
 
@@ -153,14 +159,15 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    params: abc.Mapping | None
+    params: Mapping | None
     render_template_as_native_obj: bool
     template_search_path: list[str] | None
     timezone: str | None
     last_parsed: datetime | None
-    default_args: abc.Mapping | None
+    default_args: Mapping | None
     owner_links: dict[str, str] | None = None
     is_favorite: bool = False
+    active_runs_count: int = 0
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -184,7 +191,7 @@ class DAGDetailsResponse(DAGResponse):
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {k: v.resolve(suppress_exception=True) for k, v in params.items()}
+        return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field(deprecated=True)  # type: ignore[prop-decorator]
@@ -202,7 +209,9 @@ class DAGDetailsResponse(DAGResponse):
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
+        latest_dag_version = DagVersion.get_latest_version(
+            self.dag_id, load_dag_model=True, load_bundle_model=True
+        )
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

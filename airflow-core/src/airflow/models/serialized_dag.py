@@ -22,14 +22,14 @@ from __future__ import annotations
 import logging
 import zlib
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Literal
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_
+from sqlalchemy import ForeignKey, LargeBinary, String, select, tuple_, update
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, joinedload, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
@@ -49,10 +49,12 @@ from airflow.serialization.serialized_objects import LazyDeserializedDAG, Serial
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.attributes import InstrumentedAttribute
+    from sqlalchemy.sql.elements import ColumnElement
 
 
 log = logging.getLogger(__name__)
@@ -145,7 +147,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_name_ref_to_ids_names(self, asset_ref_names) -> dict[str, tuple[int, str]]:
+    def collect_asset_name_ref_to_ids_names(self, asset_ref_names: set[str]) -> dict[str, tuple[int, str]]:
         return {
             name: (asset_id, name)
             for name, asset_id in self.session.execute(
@@ -155,7 +157,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris) -> dict[str, tuple[int, str]]:
+    def collect_asset_uri_ref_to_ids_names(self, asset_ref_uris: set[str]) -> dict[str, tuple[int, str]]:
         return {
             uri: (asset_id, name)
             for uri, name, asset_id in self.session.execute(
@@ -165,7 +167,7 @@ class _DagDependenciesResolver:
             )
         }
 
-    def collect_alias_to_assets(self, asset_alias_names) -> dict[str, list[tuple[int, str]]]:
+    def collect_alias_to_assets(self, asset_alias_names: set[str]) -> dict[str, list[tuple[int, str]]]:
         return {
             aam.name: [(am.id, am.name) for am in aam.assets]
             for aam in self.session.scalars(
@@ -219,7 +221,7 @@ class _DagDependenciesResolver:
                 dependency_id=dep_id,
             )
 
-    def resolve_asset_name_ref_dag_dep(self, dep_data) -> Iterator[DagDependency]:
+    def resolve_asset_name_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
         return self.resolve_asset_ref_dag_dep(dep_data=dep_data, ref_type="asset-name-ref")
 
     def resolve_asset_uri_ref_dag_dep(self, dep_data: dict) -> Iterator[DagDependency]:
@@ -286,8 +288,8 @@ class SerializedDagModel(Base):
         "data", sqlalchemy_jsonfield.JSONField(json=json).with_variant(JSONB, "postgresql"), nullable=True
     )
     _data_compressed: Mapped[bytes | None] = mapped_column("data_compressed", LargeBinary, nullable=True)
-    created_at: Mapped[UtcDateTime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
-    last_updated: Mapped[UtcDateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, nullable=False, default=timezone.utcnow)
+    last_updated: Mapped[datetime] = mapped_column(
         UtcDateTime, nullable=False, default=timezone.utcnow, onupdate=timezone.utcnow
     )
     dag_hash: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -333,7 +335,7 @@ class SerializedDagModel(Base):
 
         # serve as cache so no need to decompress and load, when accessing data field
         # when COMPRESS_SERIALIZED_DAGS is True
-        self.__data_cache = dag_data
+        self.__data_cache: dict[Any, Any] | None = dag_data
 
     def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
@@ -414,7 +416,13 @@ class SerializedDagModel(Base):
         serialized_dag_hash = session.scalars(
             select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
         ).first()
-        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+        dag_version = session.scalar(
+            select(DagVersion)
+            .where(DagVersion.dag_id == dag.dag_id)
+            .options(joinedload(DagVersion.task_instances))
+            .order_by(DagVersion.created_at.desc())
+            .limit(1)
+        )
 
         if (
             serialized_dag_hash == new_serialized_dag.dag_hash
@@ -428,14 +436,23 @@ class SerializedDagModel(Base):
             # This is for dynamic DAGs that the hashes changes often. We should update
             # the serialized dag, the dag_version and the dag_code instead of a new version
             # if the dag_version is not associated with any task instances
-            latest_ser_dag = cls.get(dag.dag_id, session=session)
-            if TYPE_CHECKING:
-                assert latest_ser_dag is not None
-            # Update the serialized DAG with the new_serialized_dag
-            latest_ser_dag._data = new_serialized_dag._data
-            latest_ser_dag._data_compressed = new_serialized_dag._data_compressed
-            latest_ser_dag.dag_hash = new_serialized_dag.dag_hash
-            session.merge(latest_ser_dag)
+
+            # Use direct UPDATE to avoid loading the full serialized DAG
+            result = session.execute(
+                update(cls)
+                .where(cls.dag_version_id == dag_version.id)
+                .values(
+                    {
+                        cls._data: new_serialized_dag._data,
+                        cls._data_compressed: new_serialized_dag._data_compressed,
+                        cls.dag_hash: new_serialized_dag.dag_hash,
+                    }
+                )
+            )
+
+            if getattr(result, "rowcount", 0) == 0:
+                # No rows updated - serialized DAG doesn't exist
+                return False
             # The dag_version and dag_code may not have changed, still we should
             # do the below actions:
             # Update the latest dag version
@@ -461,13 +478,22 @@ class SerializedDagModel(Base):
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
+        from airflow.settings import engine
+
+        if engine.dialect.name == "mysql":
+            # Prevent "Out of sort memory" caused by large values in cls.data column for MySQL.
+            # Details in https://github.com/apache/airflow/pull/55589
+            latest_item_id = (
+                select(cls.id).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
+            )
+            return select(cls).where(cls.id == latest_item_id)
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
     @provide_session
     def get_latest_serialized_dags(
         cls, *, dag_ids: list[str], session: Session = NEW_SESSION
-    ) -> list[SerializedDagModel]:
+    ) -> Sequence[SerializedDagModel]:
         """
         Get the latest serialized dags of given DAGs.
 
@@ -589,21 +615,23 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        load_json: Callable | None
+        load_json: Callable
+        data_col_to_select: ColumnElement[Any] | InstrumentedAttribute[bytes | None]
         if COMPRESS_SERIALIZED_DAGS is False:
-            if session.bind.dialect.name in ["sqlite", "mysql"]:
+            dialect = get_dialect_name(session)
+            if dialect in ["sqlite", "mysql"]:
                 data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
 
                 def load_json(deps_data):
                     return json.loads(deps_data) if deps_data else []
-            elif session.bind.dialect.name == "postgresql":
+            elif dialect == "postgresql":
                 # Use #> operator which works for both JSON and JSONB types
                 # Returns the JSON sub-object at the specified path
                 data_col_to_select = cls._data.op("#>")(literal('{"dag","dag_dependencies"}'))
-                load_json = None
+                load_json = lambda x: x
             else:
                 data_col_to_select = func.json_extract_path(cls._data, "dag", "dag_dependencies")
-                load_json = None
+                load_json = lambda x: x
         else:
             data_col_to_select = cls._data_compressed
 
@@ -623,11 +651,7 @@ class SerializedDagModel(Base):
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )
-        iterator = (
-            [(dag_id, load_json(deps_data)) for dag_id, deps_data in query]
-            if load_json is not None
-            else query.all()
-        )
-        resolver = _DagDependenciesResolver(dag_id_dependencies=iterator, session=session)
+        dag_depdendencies = [(str(dag_id), load_json(deps_data)) for dag_id, deps_data in query]
+        resolver = _DagDependenciesResolver(dag_id_dependencies=dag_depdendencies, session=session)
         dag_depdendencies_by_dag = resolver.resolve()
         return dag_depdendencies_by_dag

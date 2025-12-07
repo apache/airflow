@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -76,11 +78,14 @@ def update_orm_from_pydantic(
         )
 
     # Apply patch via utility
-    return BulkService.apply_patch_with_update_mask(
-        model=old_variable,
-        patch_body=patch_body,
-        update_mask=update_mask,
-        non_update_fields=non_update_fields,
+    return cast(
+        "Variable",
+        BulkService.apply_patch_with_update_mask(
+            model=old_variable,
+            patch_body=patch_body,
+            update_mask=update_mask,
+            non_update_fields=non_update_fields,
+        ),
     )
 
 
@@ -143,9 +148,11 @@ class BulkVariableService(BulkService[VariableBody]):
             for variable in action.entities:
                 if variable.key not in update_keys:
                     continue
-                variable = update_orm_from_pydantic(variable.key, variable, action.update_mask, self.session)
+                updated_variable = update_orm_from_pydantic(
+                    variable.key, variable, action.update_mask, self.session
+                )
 
-                results.success.append(variable.key)
+                results.success.append(updated_variable.key)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

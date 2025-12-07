@@ -18,19 +18,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.providers.alibaba.version_compat import BaseOperator
+    from airflow.providers.common.compat.sdk import BaseOperator
     from airflow.utils.context import Context
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 
 class MaxComputeLogViewLink(BaseOperatorLink):

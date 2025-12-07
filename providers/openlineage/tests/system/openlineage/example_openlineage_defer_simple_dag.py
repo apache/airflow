@@ -24,14 +24,12 @@ It checks:
 
 from __future__ import annotations
 
-import warnings
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Variable
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.sensors.time_delta import TimeDeltaSensorAsync
+from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
@@ -54,9 +52,7 @@ with DAG(
 ) as dag:
     # Timedelta is compared to the DAGRun start timestamp, which can occur long before a worker picks up the
     # task. We need to ensure the sensor gets deferred at least once, so setting 180s.
-    with warnings.catch_warnings():  # TODO Switch to TimeDeltaSensor when deferrable is released
-        warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
-        wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=180))
+    wait = TimeDeltaSensor(task_id="wait", delta=timedelta(seconds=180), deferrable=True)
 
     check_events_number = PythonOperator(
         task_id="check_events_number", python_callable=check_events_number_func
@@ -65,7 +61,7 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        allow_duplicate_events=True,
+        allow_duplicate_events_regex="openlineage_defer_simple_dag.wait.event.start",
     )
 
     wait >> check_events_number >> check_events

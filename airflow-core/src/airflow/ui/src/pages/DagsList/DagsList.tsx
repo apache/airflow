@@ -119,7 +119,7 @@ const createColumns = (
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].dag_run_id}`}>
+          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}>
             <DagRunInfo
               endDate={original.latest_dag_runs[0].end_date}
               logicalDate={original.latest_dag_runs[0].logical_date}
@@ -164,6 +164,7 @@ const createColumns = (
     header: "",
   },
   {
+    accessorKey: "favourite",
     cell: ({ row: { original } }) => (
       <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} withText={false} />
     ),

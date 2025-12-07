@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-impala``
 
-Release: ``1.7.2``
+Release: ``1.8.0``
 
 
 `Apache Impala <https://impala.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.impala`` provider. All classes for this 
 are in ``airflow.providers.apache.impala`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.7.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.8.0/>`_.
 
 Installation
 ------------
@@ -53,9 +53,9 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``impyla``                               ``>=0.18.0,<1.0``
+``impyla``                               ``>=0.22.0,<1.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``apache-airflow``                       ``>=2.10.0``
+``apache-airflow``                       ``>=2.11.0``
 =======================================  ==================
 
 Cross provider package dependencies
@@ -77,5 +77,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
 ============================================================================================================  ==============
 
+Optional dependencies
+----------------------
+
+============  ===================
+Extra         Dependencies
+============  ===================
+``kerberos``  ``kerberos>=1.3.0``
+============  ===================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.7.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-impala/1.8.0/changelog.html>`_.

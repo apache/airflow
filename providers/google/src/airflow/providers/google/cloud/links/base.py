@@ -20,22 +20,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
-from airflow.providers.google.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    BaseOperator,
-    BaseOperatorLink,
-    BaseSensorOperator,
-)
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
+from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOperator, XCom
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-    from airflow.utils.context import Context
 
 BASE_LINK = "https://console.cloud.google.com"
 

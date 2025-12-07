@@ -52,7 +52,6 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 from airflow.api_fastapi.core_api.datamodels.ui.dags import (
@@ -126,6 +125,7 @@ def get_dags(
             last_dag_run_state,
         ],
         order_by=order_by,
+        dag_ids=readable_dags_filter.value,
     )
 
     dags_select, total_entries = paginated_select(
@@ -183,7 +183,15 @@ def get_dags(
     recent_dag_runs_select = (
         select(
             recent_runs_subquery.c.run_after,
-            DagRun,
+            DagRun.id,
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.end_date,
+            DagRun.logical_date,
+            DagRun.run_after,
+            DagRun.start_date,
+            DagRun.state,
+            DagRun.duration.expression,  # type: ignore[attr-defined]
         )
         .join(
             DagRun,
@@ -205,7 +213,7 @@ def get_dags(
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
-    if has_pending_actions.value is not False:
+    if has_pending_actions.value:
         pending_actions_select = (
             select(
                 TaskInstance.dag_id,
@@ -241,9 +249,8 @@ def get_dags(
     }
 
     for row in recent_dag_runs:
-        _, dag_run = row
-        dag_id = dag_run.dag_id
-        dag_run_response = DAGRunResponse.model_validate(dag_run)
+        dag_run_response = DAGRunLightResponse.model_validate(row)
+        dag_id = dag_run_response.dag_id
         dag_runs_by_dag_id[dag_id].latest_dag_runs.append(dag_run_response)
 
     return DAGWithLatestDagRunsCollectionResponse(
@@ -264,7 +271,8 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
             status.HTTP_400_BAD_REQUEST,
             "`~` was supplied as dag_id, but querying multiple dags is not supported.",
         )
-    return session.execute(
+
+    latest_run_info_select = (
         select(
             DagRun.id,
             DagRun.dag_id,
@@ -278,4 +286,7 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
         .where(DagRun.dag_id == dag_id)
         .order_by(DagRun.run_after.desc())
         .limit(1)
-    ).one_or_none()
+    )
+    latest_run_info = session.execute(latest_run_info_select).one_or_none()
+
+    return DAGRunLightResponse(**latest_run_info._mapping) if latest_run_info else None

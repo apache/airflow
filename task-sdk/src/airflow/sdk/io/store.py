@@ -120,6 +120,9 @@ class ObjectStore:
         except ValueError:
             return False
 
+    def __hash__(self):
+        return hash((self.conn_id, self.fsid))
+
 
 _STORE_CACHE: dict[str, ObjectStore] = {}
 

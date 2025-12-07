@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+from datetime import datetime, timezone
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -28,9 +29,9 @@ import jmespath
 import jsonschema
 import requests
 import yaml
-from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.github import log_github_rate_limit_error
 from kubernetes.client.api_client import ApiClient
+from requests import Response
+from rich.console import Console
 
 api_client = ApiClient()
 
@@ -55,6 +56,47 @@ crd_lookup = {
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
+console = Console(width=400, color_system="standard")
+
+
+def log_github_rate_limit_error(response: Response) -> None:
+    """
+    Logs info about GitHub rate limit errors (primary or secondary).
+    """
+    if response.status_code not in (403, 429):
+        return
+
+    remaining = response.headers.get("x-rateLimit-remaining")
+    reset = response.headers.get("x-rateLimit-reset")
+    retry_after = response.headers.get("retry-after")
+
+    try:
+        message = response.json().get("message", "")
+    except Exception:
+        message = response.text or ""
+
+    remaining_int = int(remaining) if remaining and remaining.isdigit() else None
+
+    if reset and reset.isdigit():
+        reset_dt = datetime.fromtimestamp(int(reset), tz=timezone.utc)
+        reset_time = reset_dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    else:
+        reset_time = "unknown"
+
+    if remaining_int == 0:
+        print(f"Primary rate limit exceeded. No requests remaining. Reset at {reset_time}.")
+        return
+
+    # Message for secondary looks like: "You have exceeded a secondary rate limit"
+    if "secondary rate limit" in message.lower():
+        if retry_after and retry_after.isdigit():
+            print(f"Secondary rate limit exceeded. Retry after {retry_after} seconds.")
+        else:
+            print(f"Secondary rate limit exceeded. Please wait until {reset_time} or at least 60 seconds.")
+        return
+
+    print(f"Rate limit error. Status: {response.status_code}, Message: {message}")
+
 
 @cache
 def get_schema_k8s(api_version, kind, kubernetes_version):
@@ -75,7 +117,7 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
         headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
         headers["X-GitHub-Api-Version"] = "2022-11-28"
     else:
-        get_console().print("[info] No GITHUB_TOKEN found. Using unauthenticated requests.")
+        console.print("[bright_blue] No GITHUB_TOKEN found. Using unauthenticated requests.")
 
     response = requests.get(url, headers=headers)
     log_github_rate_limit_error(response)
@@ -160,7 +202,7 @@ def render_chart(
         if show_only:
             for i in show_only:
                 command.extend(["--show-only", i])
-        result = subprocess.run(command, capture_output=True, cwd=chart_dir)
+        result = subprocess.run(command, check=False, capture_output=True, cwd=chart_dir)
         if result.returncode:
             raise HelmFailedError(result.returncode, result.args, result.stdout, result.stderr)
         templates = result.stdout

@@ -37,6 +37,7 @@ Prerequisites
 * `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
+
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
@@ -51,10 +52,12 @@ For Breeze (local development):
 
     uv tool install prek
     prek install -f
+    prek install -f --hook-type pre-push
+
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03b_contributors_quick_start_seasoned_developers.html#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
 
 Option A – Breeze on Your Laptop
 --------------------------------
@@ -152,6 +155,7 @@ Option B – One-Click GitHub Codespaces
       curl -LsSf https://astral.sh/uv/install.sh | sh
       uv tool install prek
       prek install -f
+      prek install -f --hook-type pre-push # for running mypy checks when pushing to repo
       uv tool install -e ./dev/breeze
       uv run setup_vscode.py
       breeze start-airflow

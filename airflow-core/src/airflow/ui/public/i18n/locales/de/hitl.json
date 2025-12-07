@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Nachricht",
+    "createdAt": "Erstellt um",
     "response": {
       "all": "Alle",
       "pending": "Ausstehend",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "{{count}} offene Interaktionen",
   "requiredActionState": "Status der Interaktion",
   "response": {
+    "created": "Antwort erstellt um ",
     "error": "Senden der Antwort fehlgeschlagen",
     "optionsDescription": "Wählen Sie Ihre Optionen für diesen Task",
     "optionsLabel": "Optionen",
     "received": "Antwort empfangen um ",
     "respond": "Antworten",
+    "responded_by_user_name": "Beantwortet von (Benutzername)",
     "success": "{{taskId}} Interaktion erfolgreich",
     "title": "Erforderliche Interaktion - {{taskId}}"
   },

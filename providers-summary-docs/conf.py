@@ -55,10 +55,10 @@ from docs.utils.conf_constants import (
 )
 from sphinx_exts.provider_yaml_utils import load_package_data
 
-import airflow
-
 PACKAGE_NAME = "apache-airflow-providers"
 PROVIDERS_SUMMARY_DOCS_PATH = AIRFLOW_REPO_ROOT_PATH / "providers-summary-docs"
+LAST_PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_REPO_ROOT_PATH / "providers" / ".last_release_date.txt"
+LAST_PROVIDERS_RELEASE_DATE = LAST_PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
 
 os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 
@@ -73,13 +73,6 @@ os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 # the docs are being built. The main objective was to alter the
 # behavior of the utils.apply_default that was hiding function headers
 os.environ["BUILDING_AIRFLOW_DOCS"] = "TRUE"
-
-# Use for generate rst_epilog and other post-generation substitutions
-global_substitutions = {
-    "version": PACKAGE_VERSION,
-    "airflow-version": airflow.__version__,
-    "experimental": "This is an :ref:`experimental feature <experimental>`.",
-}
 
 # == Sphinx configuration ======================================================
 
@@ -176,6 +169,10 @@ html_context = get_html_context(conf_py_path)
 jinja_contexts = {
     "official_download_page": {
         "all_providers": ALL_PROVIDER_YAMLS,
+        "base_url": "https://downloads.apache.org/airflow/providers",
+        "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/providers",
+        "providers_release_date": LAST_PROVIDERS_RELEASE_DATE,
+        "experimental": "This is an :ref:`experimental feature <experimental>`.",
     },
 }
 

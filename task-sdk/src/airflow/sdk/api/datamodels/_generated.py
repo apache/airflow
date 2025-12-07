@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-10-10"
+API_VERSION: Final[str] = "2025-11-07"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -61,30 +61,6 @@ class AssetProfile(BaseModel):
     name: Annotated[str | None, Field(title="Name")] = None
     uri: Annotated[str | None, Field(title="Uri")] = None
     type: Annotated[str, Field(title="Type")]
-
-
-class AssetReferenceAssetEventDagRun(BaseModel):
-    """
-    Schema for AssetModel used in AssetEventDagRunReference.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    extra: Annotated[dict[str, Any], Field(title="Extra")]
-
-
-class AssetResponse(BaseModel):
-    """
-    Asset schema for responses with fields that are needed for Runtime.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    uri: Annotated[str, Field(title="Uri")]
-    group: Annotated[str, Field(title="Group")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -208,7 +184,7 @@ class TIDeferredStatePayload(BaseModel):
     trigger_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Trigger Kwargs")] = None
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
-    next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    next_kwargs: Annotated[dict[str, Any] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
@@ -300,6 +276,14 @@ class TITargetStatePayload(BaseModel):
         extra="forbid",
     )
     state: IntermediateTIState
+
+
+class TaskBreadcrumbsResponse(BaseModel):
+    """
+    Response for task breadcrumbs.
+    """
+
+    breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
 
 
 class TaskStatesResponse(BaseModel):
@@ -477,70 +461,28 @@ class TriggerRule(str, Enum):
     ALL_SKIPPED = "all_skipped"
 
 
-class AssetEventDagRunReference(BaseModel):
+class AssetReferenceAssetEventDagRun(BaseModel):
     """
-    Schema for AssetEvent model used in DagRun.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    asset: AssetReferenceAssetEventDagRun
-    extra: Annotated[dict[str, Any], Field(title="Extra")]
-    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
-    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
-    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
-    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
-    source_aliases: Annotated[list[AssetAliasReferenceAssetEventDagRun], Field(title="Source Aliases")]
-    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
-
-
-class AssetEventResponse(BaseModel):
-    """
-    Asset event schema with fields that are needed for Runtime.
-    """
-
-    id: Annotated[int, Field(title="Id")]
-    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
-    extra: Annotated[dict[str, Any] | None, Field(title="Extra")] = None
-    asset: AssetResponse
-    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
-    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
-    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
-    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
-    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = -1
-
-
-class AssetEventsResponse(BaseModel):
-    """
-    Collection of AssetEventResponse.
-    """
-
-    asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
-
-
-class DagRun(BaseModel):
-    """
-    Schema for DagRun model with minimal required fields needed for Runtime.
+    Schema for AssetModel used in AssetEventDagRunReference.
     """
 
     model_config = ConfigDict(
         extra="forbid",
     )
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
-    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
-    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
-    run_after: Annotated[AwareDatetime, Field(title="Run After")]
-    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
-    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
-    clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
-    run_type: DagRunType
-    state: DagRunState
-    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
-    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
-    consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    extra: Annotated[dict[str, JsonValue], Field(title="Extra")]
+
+
+class AssetResponse(BaseModel):
+    """
+    Asset schema for responses with fields that are needed for Runtime.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    uri: Annotated[str, Field(title="Uri")]
+    group: Annotated[str, Field(title="Group")]
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
 
 
 class HITLDetailRequest(BaseModel):
@@ -574,6 +516,87 @@ class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
 
 
+class TITerminalStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a terminal state except SUCCESS state.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: TerminalStateNonSuccess
+    end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+
+
+class AssetEventDagRunReference(BaseModel):
+    """
+    Schema for AssetEvent model used in DagRun.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    asset: AssetReferenceAssetEventDagRun
+    extra: Annotated[dict[str, JsonValue], Field(title="Extra")]
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
+    source_aliases: Annotated[list[AssetAliasReferenceAssetEventDagRun], Field(title="Source Aliases")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+
+
+class AssetEventResponse(BaseModel):
+    """
+    Asset event schema with fields that are needed for Runtime.
+    """
+
+    id: Annotated[int, Field(title="Id")]
+    timestamp: Annotated[AwareDatetime, Field(title="Timestamp")]
+    extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+    asset: AssetResponse
+    created_dagruns: Annotated[list[DagRunAssetReference], Field(title="Created Dagruns")]
+    source_task_id: Annotated[str | None, Field(title="Source Task Id")] = None
+    source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
+    source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
+    source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
+class AssetEventsResponse(BaseModel):
+    """
+    Collection of AssetEventResponse.
+    """
+
+    asset_events: Annotated[list[AssetEventResponse], Field(title="Asset Events")]
+
+
+class DagRun(BaseModel):
+    """
+    Schema for DagRun model with minimal required fields needed for Runtime.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    data_interval_start: Annotated[AwareDatetime | None, Field(title="Data Interval Start")] = None
+    data_interval_end: Annotated[AwareDatetime | None, Field(title="Data Interval End")] = None
+    run_after: Annotated[AwareDatetime, Field(title="Run After")]
+    start_date: Annotated[AwareDatetime, Field(title="Start Date")]
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
+    clear_number: Annotated[int | None, Field(title="Clear Number")] = 0
+    run_type: DagRunType
+    state: DagRunState
+    conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
+    triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
+    consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
+
+
 class TIRunContext(BaseModel):
     """
     Response schema for TaskInstance run context.
@@ -591,16 +614,3 @@ class TIRunContext(BaseModel):
     next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
     xcom_keys_to_clear: Annotated[list[str] | None, Field(title="Xcom Keys To Clear")] = None
     should_retry: Annotated[bool | None, Field(title="Should Retry")] = False
-
-
-class TITerminalStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a terminal state except SUCCESS state.
-    """
-
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    state: TerminalStateNonSuccess
-    end_date: Annotated[AwareDatetime, Field(title="End Date")]
-    rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None

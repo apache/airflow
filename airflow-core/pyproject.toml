@@ -34,13 +34,14 @@ build-backend = "hatchling.build"
 name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
 # and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
 # also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -55,7 +56,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -75,14 +75,17 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=5.2.1",
+    "cadwyn>=5.6.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
+    # limited due to changes needed https://github.com/fastapi/fastapi/pull/14434
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, !=0.123.5",
+    "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -150,6 +153,9 @@ dependencies = [
     "pygtrie>=2.5.0",
     "structlog>=25.4.0",
     # End of shared logging dependencies
+    # Start of shared configuration dependencies
+    "pyyaml>=6.0.3",
+    # End of shared configuration dependencies
 ]
 
 
@@ -171,19 +177,17 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
+"memray" = [
+    "memray>=1.19.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
-]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]
@@ -208,6 +212,7 @@ path = "src/airflow/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = [
     "src/airflow",
+    "LICENSE",
     "NOTICE"
 ]
 exclude = [
@@ -217,9 +222,12 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/_shared/configuration"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -287,7 +295,10 @@ apache-airflow-devel-common = { workspace = true }
 
 [tool.airflow]
 shared_distributions = [
+    "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

@@ -17,7 +17,19 @@
 
 from __future__ import annotations
 
-# Re-export from lazy_compat for backward compatibility
-from airflow.providers.common.compat.lazy_compat import prepare_virtualenv, write_python_script
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-__all__ = ["write_python_script", "prepare_virtualenv"]
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    "write_python_script": (
+        "airflow.providers.standard.utils.python_virtualenv",
+        "airflow.utils.python_virtualenv",
+    ),
+    "prepare_virtualenv": (
+        "airflow.providers.standard.utils.python_virtualenv",
+        "airflow.utils.python_virtualenv",
+    ),
+}
+
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
+
+__all__ = sorted(_IMPORT_MAP.keys())

@@ -96,10 +96,15 @@
   },
   "limitedList": "+ {{count}} נוספים",
   "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList.allTags_one": "כל התגיות (1)",
+  "limitedList.allTags_other": "כל התגיות ({{count}})",
+  "limitedList.allTags_two": "כל התגיות (2)",
   "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
   "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
   "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
-  "limitedList.showingItems": "מציג {{count}} פריטים",
+  "limitedList.showingItems_one": "מציג פריט אחד",
+  "limitedList.showingItems_other": "מציג {{count}} פריטים",
+  "limitedList.showingItems_two": "מציג שני פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"

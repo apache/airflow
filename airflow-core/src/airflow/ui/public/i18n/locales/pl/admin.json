@@ -142,8 +142,6 @@
       "tooltip": "Usuń wybrane zmienne"
     },
     "edit": "Edytuj zmienną",
-    "export": "Eksportuj",
-    "exportTooltip": "Eksportuj zmienne",
     "form": {
       "invalidJson": "Nieprawidłowy JSON",
       "keyMaxLength": "Klucz może zawierać maksymalnie 250 znaków",

@@ -65,7 +65,7 @@ class TaskResponse(BaseModel):
     pool_slots: float | None
     execution_timeout: TimeDeltaWithValidation | None
     retry_delay: TimeDeltaWithValidation | None
-    retry_exponential_backoff: bool
+    retry_exponential_backoff: float
     priority_weight: float | None
     weight_rule: str | None
     ui_color: str | None
@@ -100,7 +100,7 @@ class TaskResponse(BaseModel):
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {k: v.resolve(suppress_exception=True) for k, v in params.items()}
+        return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[prop-decorator]

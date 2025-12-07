@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 #   "tomli>=2.0.1",
@@ -164,11 +164,7 @@ def check_ruff(pyproject: dict, shared_path: Path) -> tuple[bool, dict]:
 def check_ruff_lint_rules(ruff: dict, shared_path: Path) -> bool:
     ruff_lint = ruff.get("lint", {})
     per_file_ignores = ruff_lint.get("per-file-ignores", {})
-    flake8_tidy_imports = ruff_lint.get("flake8-tidy-imports", {})
-    if (
-        per_file_ignores.get("!src/*", None) == ["D", "S101", "TRY002"]
-        and flake8_tidy_imports.get("ban-relative-imports", None) == "parents"
-    ):
+    if per_file_ignores.get("!src/*", None) == ["D", "S101", "TRY002"]:
         console.print(
             f"  tool.ruff.lint rules are correct for [magenta]{shared_path.name}[/magenta] [bold green]OK[/bold green]"
         )

@@ -24,8 +24,9 @@ name = "apache-airflow-client"
 dynamic = ["version"]
 description = "Apache Airflow API (Stable)"
 readme = "README.md"
-license-files.globs = ["LICENSE", "NOTICE"]
-requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -41,7 +42,6 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -102,9 +102,14 @@ include = [
     "/airflow_client",
 ]
 
-[tool.pytest.ini_options]
+[tool.pytest]
 # make sure that pytest.ini is not read from pyproject.toml in paraent directories
-addopts = "--color=yes --cov-config=pyproject.toml --cov=airflow_client"
+addopts = [
+    "--color=yes",
+    "--cov-config=pyproject.toml",
+    "--cov=airflow_client",
+]
+
 norecursedirs = [
 ]
 log_level = "INFO"

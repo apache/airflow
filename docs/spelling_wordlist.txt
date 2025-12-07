@@ -253,6 +253,8 @@ chakra
 Changelog
 changelog
 charset
+chatbot
+chatbots
 Checklicence
 checklicence
 CheckOperator
@@ -364,6 +366,7 @@ csrf
 CSRFProtect
 css
 csv
+Ctl
 ctor
 Ctrl
 cubeName
@@ -373,6 +376,8 @@ customizable
 customizations
 cwd
 cx
+Cypher
+cypher
 Daemonize
 daemonize
 daemonized
@@ -699,11 +704,14 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore
 firestore
 firstname
+Flamegraph
+flamegraph
 Flink
 flink
 flinkDeployment
@@ -1120,6 +1128,7 @@ memberOf
 memcached
 Memorystore
 memorystore
+memray
 Mesos
 mesos
 MessageAttributes
@@ -1615,6 +1624,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
@@ -1811,6 +1822,7 @@ tasksetmeta
 tasksState
 taskTree
 tblproperties
+tbuild
 TCP
 tcp
 teardown
@@ -1867,6 +1879,7 @@ toolchain
 Tooltip
 tooltip
 tooltips
+tpt
 traceback
 tracebacks
 tracemalloc
@@ -1885,6 +1898,8 @@ tsql
 tsv
 ttl
 ttlSecondsAfterFinished
+TTU
+Ttu
 TTY
 Tunables
 tunables

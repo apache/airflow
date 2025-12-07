@@ -62,110 +62,210 @@ PY313 = sys.version_info >= (3, 13)
 INVALID_DAG_WITH_DEPTH_FILE_CONTENTS = "def something():\n    return airflow_DAG\nsomething()"
 
 
-@pytest.fixture
-def mock_dag_bundle_manager():
-    """Fixture to create a mock DAG bundle manager with team configuration."""
-    from airflow.dag_processing.bundles.base import BaseDagBundle
-    from airflow.dag_processing.bundles.manager import _InternalBundleConfig
-
-    class MockDagBundle(BaseDagBundle):
-        @property
-        def path(self):
-            return None
-
-        def get_current_version(self):
-            return "1.0.0"
-
-        def refresh(self):
-            pass
-
-    @contextlib.contextmanager
-    def _create_bundle_manager(bundle_name="test_bundle", team_name="test_team"):
-        mock_bundle_config = _InternalBundleConfig(bundle_class=MockDagBundle, kwargs={}, team_name=team_name)
-
-        bundle_config = {bundle_name: mock_bundle_config}
-
-        with patch("airflow.dag_processing.bundles.manager.DagBundlesManager") as mock_manager_class:
-            mock_manager = mock_manager_class.return_value
-            mock_manager._bundle_config = bundle_config
-            yield mock_manager
-
-    return _create_bundle_manager
-
-
-@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-def test_validate_executor_field_with_team_restriction(mock_executor_lookup, mock_dag_bundle_manager):
-    """Test executor validation with team-based restrictions using bundle configuration."""
-    with mock_dag_bundle_manager():
-        mock_executor_lookup.side_effect = UnknownExecutorException("Executor not available for team")
-
-        with DAG("test-dag", schedule=None) as dag:
-            # Simulate DAG having bundle_name set during parsing
-            dag.bundle_name = "test_bundle"
-            BaseOperator(task_id="t1", executor="team.restricted.executor")
-
-        with pytest.raises(
-            UnknownExecutorException,
-            match=re.escape(
-                "Task 't1' specifies executor 'team.restricted.executor', which is not available "
-                "for team 'test_team' (the team associated with DAG 'test-dag'). "
-                "Make sure 'team.restricted.executor' is configured for team 'test_team' in your "
-                "[core] executors configuration, or update the task's executor to use one of the "
-                "configured executors for team 'test_team'."
-            ),
-        ):
-            with conf_vars({("core", "multi_team"): "True"}):
-                _validate_executor_fields(dag)
-
-        # Verify the executor lookup was called with the team name from config
-        mock_executor_lookup.assert_called_with("team.restricted.executor", team_name="test_team")
-
-
-@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-def test_validate_executor_field_no_team_associated(mock_executor_lookup):
-    """Test executor validation when no team is associated with DAG (no bundle_name)."""
-    mock_executor_lookup.side_effect = UnknownExecutorException("Unknown executor")
-
-    with DAG("test-dag", schedule=None) as dag:
-        # No bundle_name attribute, so no team will be found, see final assertion below
-        BaseOperator(task_id="t1", executor="unknown.executor")
-
-    with pytest.raises(
-        UnknownExecutorException,
-        match=re.escape(
-            "Task 't1' specifies executor 'unknown.executor', which is not available. "
-            "Make sure it is listed in your [core] executors configuration, or update the task's "
-            "executor to use one of the configured executors."
-        ),
-    ):
-        with conf_vars({("core", "multi_team"): "True"}):
-            _validate_executor_fields(dag)
-
-    mock_executor_lookup.assert_called_with("unknown.executor", team_name=None)
-
-
-@patch.object(ExecutorLoader, "lookup_executor_name_by_str")
-def test_validate_executor_field_valid_team_executor(mock_executor_lookup, mock_dag_bundle_manager):
-    """Test executor validation when executor is valid for the DAG's team (happy path)."""
-    with mock_dag_bundle_manager():
-        mock_executor_lookup.return_value = None
-
-        with DAG("test-dag", schedule=None) as dag:
-            dag.bundle_name = "test_bundle"
-            BaseOperator(task_id="t1", executor="team.valid.executor")
-
-        with conf_vars({("core", "multi_team"): "True"}):
-            _validate_executor_fields(dag)
-
-        # Verify the executor lookup was called with the team name which is fetched from bundle config
-        mock_executor_lookup.assert_called_with("team.valid.executor", team_name="test_team")
-
-
 def db_clean_up():
     db.clear_db_dags()
     db.clear_db_runs()
     db.clear_db_serialized_dags()
     db.clear_dag_specific_permissions()
+
+
+class TestValidateExecutorFields:
+    """Comprehensive tests for _validate_executor_fields function."""
+
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_multi_team_disabled_ignores_bundle_name(self, mock_lookup):
+        """Test that when multi_team is disabled, bundle_name is ignored and no team lookup occurs."""
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="test.executor")
+
+        # multi_team disabled by default, no need to add conf_vars
+        _validate_executor_fields(dag, bundle_name="some_bundle")
+
+        # Should call ExecutorLoader without team_name (defaults to None)
+        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_multi_team_enabled_bundle_exists_with_team(self, mock_lookup, mock_manager_class):
+        """Test successful team lookup when bundle exists and has team_name."""
+        # Setup mock bundle manager
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = "test_team"
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="team.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag, bundle_name="test_bundle")
+
+        # Should call ExecutorLoader with team from bundle config
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_multi_team_enabled_bundle_exists_no_team(self, mock_lookup, mock_manager_class):
+        """Test when bundle exists but has no team_name (None or empty)."""
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = None  # No team associated
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="test.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag, bundle_name="test_bundle")
+
+        mock_lookup.assert_called_once_with("test.executor", team_name=None)
+
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_multiple_tasks_with_executors(self, mock_lookup):
+        """Test that all tasks with executors are validated."""
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="t1", executor="executor1")
+            BaseOperator(task_id="t2", executor="executor2")
+            BaseOperator(task_id="t3")  # No executor, should be skipped
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag)
+
+        # Should be called for each task with executor
+        assert mock_lookup.call_count == 2
+        mock_lookup.assert_any_call("executor1", team_name=None)
+        mock_lookup.assert_any_call("executor2", team_name=None)
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_executor_validation_failure_with_team(self, mock_lookup, mock_manager_class):
+        """Test executor validation failure when team is associated (team-specific error)."""
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = "test_team"
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        # ExecutorLoader raises exception
+        mock_lookup.side_effect = UnknownExecutorException("Executor not found")
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="task1", executor="invalid.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(
+                UnknownExecutorException,
+                match=re.escape(
+                    "Task 'task1' specifies executor 'invalid.executor', which is not available "
+                    "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
+                    "Make sure 'invalid.executor' is configured for team 'test_team' or globally in your "
+                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "configured executors for team 'test_team' or available global executors."
+                ),
+            ):
+                _validate_executor_fields(dag, bundle_name="test_bundle")
+
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_executor_validation_failure_no_team(self, mock_lookup):
+        """Test executor validation failure when no team is associated (generic error)."""
+        mock_lookup.side_effect = UnknownExecutorException("Executor not found")
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="task1", executor="invalid.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(
+                UnknownExecutorException,
+                match=re.escape(
+                    "Task 'task1' specifies executor 'invalid.executor', which is not available. "
+                    "Make sure it is listed in your [core] executors configuration, or update the task's "
+                    "executor to use one of the configured executors."
+                ),
+            ):
+                _validate_executor_fields(dag)  # No bundle_name
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_global_executor_fallback_success(self, mock_lookup, mock_manager_class):
+        """Test that team-specific executor failure falls back to global executor successfully."""
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = "test_team"
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        # First call (team-specific) fails, second call (global) succeeds
+        mock_lookup.side_effect = [UnknownExecutorException("Team executor not found"), None]
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="task1", executor="global.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            # Should not raise exception due to global fallback
+            _validate_executor_fields(dag, bundle_name="test_bundle")
+
+        # Should call lookup twice: first for team, then for global
+        assert mock_lookup.call_count == 2
+        mock_lookup.assert_any_call("global.executor", team_name="test_team")
+        mock_lookup.assert_any_call("global.executor", team_name=None)
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_global_executor_fallback_failure(self, mock_lookup, mock_manager_class):
+        """Test that when both team-specific and global executors fail, appropriate error is raised."""
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = "test_team"
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        # Both calls fail
+        mock_lookup.side_effect = UnknownExecutorException("Executor not found")
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="task1", executor="unknown.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(
+                UnknownExecutorException,
+                match=re.escape(
+                    "Task 'task1' specifies executor 'unknown.executor', which is not available "
+                    "for team 'test_team' (the team associated with DAG 'test-dag') or as a global executor. "
+                    "Make sure 'unknown.executor' is configured for team 'test_team' or globally in your "
+                    "[core] executors configuration, or update the task's executor to use one of the "
+                    "configured executors for team 'test_team' or available global executors."
+                ),
+            ):
+                _validate_executor_fields(dag, bundle_name="test_bundle")
+
+        # Should call lookup twice: first for team, then for global fallback
+        assert mock_lookup.call_count == 2
+        mock_lookup.assert_any_call("unknown.executor", team_name="test_team")
+        mock_lookup.assert_any_call("unknown.executor", team_name=None)
+
+    @patch("airflow.dag_processing.bundles.manager.DagBundlesManager")
+    @patch.object(ExecutorLoader, "lookup_executor_name_by_str")
+    def test_team_specific_executor_success_no_fallback(self, mock_lookup, mock_manager_class):
+        """Test that when team-specific executor succeeds, global fallback is not attempted."""
+        mock_bundle_config = mock.MagicMock()
+        mock_bundle_config.team_name = "test_team"
+
+        mock_manager = mock_manager_class.return_value
+        mock_manager._bundle_config = {"test_bundle": mock_bundle_config}
+
+        # First call (team-specific) succeeds
+        mock_lookup.return_value = None
+
+        with DAG("test-dag", schedule=None) as dag:
+            BaseOperator(task_id="task1", executor="team.executor")
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            _validate_executor_fields(dag, bundle_name="test_bundle")
+
+        # Should only call lookup once for team-specific executor
+        mock_lookup.assert_called_once_with("team.executor", team_name="test_team")
 
 
 def test_validate_executor_field_executor_not_configured():
@@ -196,6 +296,15 @@ class TestDagBag:
     def teardown_class(self):
         db_clean_up()
 
+    def test_dagbag_with_bundle_name(self, tmp_path):
+        """Test that DagBag constructor accepts and stores bundle_name parameter."""
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False, bundle_name="test_bundle")
+        assert dagbag.bundle_name == "test_bundle"
+
+        # Test with None (default)
+        dagbag2 = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+        assert dagbag2.bundle_name is None
+
     def test_timeout_context_manager_raises_exception(self):
         """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
         import time
@@ -211,7 +320,7 @@ class TestDagBag:
         """
         Test that we're able to parse some example DAGs and retrieve them
         """
-        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=True, bundle_name="test_bundle")
 
         some_expected_dag_ids = ["example_bash_operator", "example_branch_operator"]
 
@@ -728,7 +837,7 @@ with airflow.DAG(
             + "NameError: name 'airflow_DAG' is not defined\n"
         )
 
-    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    @pytest.mark.parametrize("depth", (None, 1))
     def test_import_error_tracebacks(self, tmp_path, depth):
         unparseable_filename = tmp_path.joinpath("dag.py").as_posix()
         with open(unparseable_filename, "w") as unparseable_file:
@@ -743,7 +852,7 @@ with airflow.DAG(
         assert unparseable_filename in import_errors
         assert import_errors[unparseable_filename] == self._make_test_traceback(unparseable_filename, depth)
 
-    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    @pytest.mark.parametrize("depth", (None, 1))
     def test_import_error_tracebacks_zip(self, tmp_path, depth):
         invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, "dag.py")
@@ -823,7 +932,12 @@ with airflow.DAG(
         assert "has no tags" in dagbag.import_errors[dag_file]
 
     def test_dagbag_dag_collection(self):
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
+        dagbag = DagBag(
+            dag_folder=TEST_DAGS_FOLDER,
+            include_examples=False,
+            collect_dags=False,
+            bundle_name="test_collection",
+        )
         # since collect_dags is False, dagbag.dags should be empty
         assert not dagbag.dags
 
@@ -831,7 +945,7 @@ with airflow.DAG(
         assert dagbag.dags
 
         # test that dagbag.dags is not empty if collect_dags is True
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, bundle_name="test_collection")
         assert dagbag.dags
 
     def test_dabgag_captured_warnings(self):

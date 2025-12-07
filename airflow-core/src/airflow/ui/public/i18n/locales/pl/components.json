@@ -1,8 +1,4 @@
 {
-  "allTags_few": "Wszystkie tagi ({{count}})",
-  "allTags_many": "Wszystkie tagi ({{count}})",
-  "allTags_one": "Wszystkie tagi ({{count}})",
-  "allTags_other": "Wszystkie tagi ({{count}})",
   "backfill": {
     "affected_few": "{{count}} wykonania zostaną uruchomione.",
     "affected_many": "{{count}} wykonań zostanie uruchomionych.",
@@ -60,6 +56,13 @@
     "warning_one": "1 Ostrzeżenie",
     "warning_other": "{{count}} Ostrzeżenia"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Nieprawidłowy format daty.",
+      "invalidTimeFormat": "Nieprawidłowy format czasu.",
+      "startBeforeEnd": "Data/czas rozpoczęcia musi być wcześniejszy niż data/czas zakończenia"
+    }
+  },
   "durationChart": {
     "duration": "Czas trwania (sekundy)",
     "lastDagRun_few": "Ostatnie {{count}} wykonania",
@@ -107,19 +110,22 @@
   },
   "limitedList": "+{{count}} więcej",
   "limitedList.allItems": "Wszystkie {{count}} elementy:",
+  "limitedList.allTags_few": "Wszystkie tagi ({{count}})",
+  "limitedList.allTags_many": "Wszystkie tagi ({{count}})",
+  "limitedList.allTags_one": "Wszystkie tagi (1)",
+  "limitedList.allTags_other": "Wszystkie tagi ({{count}})",
   "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować Dagi",
   "limitedList.clickToOpenFull": "Kliknij \"+{{count}} więcej\", aby zobaczyć pełną listę",
   "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
-  "limitedList.showingItems": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_few": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_many": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_one": "Wyświetlanie 1 elementu",
+  "limitedList.showingItems_other": "Wyświetlanie {{count}} elementów",
   "logs": {
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
   },
   "reparseDag": "Ponowne przetworznie Daga",
-  "showingItems_few": "Wyświetlanie {{count}} elementy",
-  "showingItems_many": "Wyświetlanie {{count}} elementów",
-  "showingItems_one": "Wyświetlanie {{count}} elementu",
-  "showingItems_other": "Wyświetlanie {{count}} elementów",
   "sortedAscending": "posortowane rosnąco",
   "sortedDescending": "posortowane malejąco",
   "sortedUnsorted": "nieposortowane",

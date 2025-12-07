@@ -40,8 +40,8 @@ from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):

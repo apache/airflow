@@ -22,7 +22,7 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.pig.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class PigCliHook(BaseHook):

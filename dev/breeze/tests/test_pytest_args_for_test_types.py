@@ -39,7 +39,7 @@ def _find_all_integration_folders() -> list[str]:
 
 
 @pytest.mark.parametrize(
-    "test_group, test_type, pytest_args",
+    ("test_group", "test_type", "pytest_args"),
     [
         # Those list needs to be updated every time we add a new directory to airflow-core/tests/ folder
         (
@@ -167,6 +167,7 @@ def _find_all_integration_folders() -> list[str]:
                 "airflow-core/tests/unit/listeners",
                 "airflow-core/tests/unit/logging",
                 "airflow-core/tests/unit/macros",
+                "airflow-core/tests/unit/observability",
                 "airflow-core/tests/unit/plugins",
                 "airflow-core/tests/unit/security",
                 "airflow-core/tests/unit/sensors",
@@ -211,7 +212,7 @@ def test_pytest_args_for_missing_provider():
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types, folders",
+    ("test_group", "parallel_test_types", "folders"),
     [
         (
             GroupOfTests.CORE,
@@ -344,7 +345,7 @@ def test_folders_for_parallel_test_types(
 
 
 @pytest.mark.parametrize(
-    "test_group, parallel_test_types",
+    ("test_group", "parallel_test_types"),
     [
         (
             GroupOfTests.CORE,

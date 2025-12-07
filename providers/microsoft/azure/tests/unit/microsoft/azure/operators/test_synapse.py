@@ -164,7 +164,7 @@ class TestAzureSynapseRunPipelineOperator:
 
     @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     @pytest.mark.parametrize(
-        "pipeline_run_status,expected_output",
+        ("pipeline_run_status", "expected_output"),
         [
             (AzureSynapsePipelineRunStatus.SUCCEEDED, None),
             (AzureSynapsePipelineRunStatus.FAILED, "exception"),

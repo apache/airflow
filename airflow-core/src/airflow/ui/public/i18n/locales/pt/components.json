@@ -103,10 +103,17 @@
   },
   "limitedList": "+{{count}} mais",
   "limitedList.allItems": "Todos os {{count}} itens:",
+  "limitedList.allTags_many": "Todas as etiquetas ({{count}})",
+  "limitedList.allTags_one": "Todas as etiquetas (1)",
+  "limitedList.allTags_other": "Todas as etiquetas ({{count}})",
+  "limitedList.allTags_zero": "Todas as etiquetas (0)",
   "limitedList.clickToInteract": "Clique em uma etiqueta para filtrar os Dags",
   "limitedList.clickToOpenFull": "Clique em \"+{{count}} mais\" para ver a lista completa",
   "limitedList.copyPasteText": "Você pode copiar e colar o texto acima",
-  "limitedList.showingItems": "Exibindo {{count}} itens",
+  "limitedList.showingItems_many": "Mostrando {{count}} itens",
+  "limitedList.showingItems_one": "Mostrando 1 item",
+  "limitedList.showingItems_other": "Mostrando {{count}} itens",
+  "limitedList.showingItems_zero": "Mostrando 0 itens",
   "logs": {
     "file": "Arquivo",
     "location": "linha {{line}} em {{name}}"

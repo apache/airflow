@@ -22,6 +22,7 @@ import { NumberInputField, NumberInputRoot } from "src/components/ui/NumberInput
 
 import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
+import { isValidFilterValue } from "../utils";
 
 const NumberInputWithRef = forwardRef<
   HTMLInputElement,
@@ -63,12 +64,14 @@ const NumberInputWithRef = forwardRef<
 NumberInputWithRef.displayName = "NumberInputWithRef";
 
 export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
-  const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
+  const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
-  const [inputValue, setInputValue] = useState(filter.value?.toString() ?? "");
+  const [inputValue, setInputValue] = useState(
+    typeof filter.value === "number" ? filter.value.toString() : "",
+  );
 
   useEffect(() => {
-    setInputValue(filter.value?.toString() ?? "");
+    setInputValue(typeof filter.value === "number" ? filter.value.toString() : "");
   }, [filter.value]);
 
   const handleValueChange = ({ value }: { value: string }) => {
@@ -94,7 +97,7 @@ export const NumberFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
 
   return (
     <FilterPill
-      displayValue={hasValue ? String(filter.value) : ""}
+      displayValue={hasValue && typeof filter.value === "number" ? filter.value.toString() : ""}
       filter={filter}
       hasValue={hasValue}
       onChange={onChange}

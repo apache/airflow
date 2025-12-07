@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pendulum
@@ -45,6 +46,8 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
+
+logger = logging.getLogger(__name__)
 
 pytestmark = pytest.mark.db_test
 
@@ -286,9 +289,15 @@ class TestSerializedDagModel:
             example_dags = self._write_example_dags()
             ordered_example_dags = dict(sorted(example_dags.items()))
             hashes = set()
+            dag_hash_map = {}
             for dag_id in ordered_example_dags.keys():
                 smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
                 hashes.add(smd.dag_hash)
+                dag_hash_map[dag_id] = smd.dag_hash
+            # TODO: Remove this logging once the origin of flaky test is identified and fixed.
+            # Log (dag_id, hash) pairs for debugging flaky test failures.
+            for dag_id, dag_hash in sorted(dag_hash_map.items()):
+                logger.info("(%s, %s)", dag_id, dag_hash)
             return hashes
 
         first_hashes = get_hash_set()
@@ -475,7 +484,7 @@ class TestSerializedDagModel:
         db.clear_db_assets()
 
     @pytest.mark.parametrize(
-        "provide_interval, new_task, should_write",
+        ("provide_interval", "new_task", "should_write"),
         [
             (True, True, False),
             (True, False, False),
@@ -544,3 +553,141 @@ class TestSerializedDagModel:
         # Verify that the original data still has fileloc (method shouldn't modify original)
         assert "fileloc" in test_data["dag"]
         assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
+
+    def test_dynamic_dag_update_preserves_null_check(self, dag_maker, session):
+        """
+        Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
+        This preserves the null-check fix from PR #56422 and tests the direct UPDATE path.
+        """
+        with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Write the DAG first
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        SDM.write_dag(
+            dag=lazy_dag,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            session=session,
+        )
+        session.commit()
+
+        # Get the dag_version
+        dag_version = session.scalar(
+            select(DagVersion).where(DagVersion.dag_id == "test_missing_serdag").limit(1)
+        )
+        assert dag_version is not None
+
+        # Manually delete SerializedDagModel (simulates edge case)
+        session.query(SDM).filter(SDM.dag_id == "test_missing_serdag").delete()
+        session.commit()
+
+        # Verify no SerializedDagModel exists
+        assert SDM.get("test_missing_serdag", session=session) is None
+
+        # Try to update - should return False gracefully (not crash)
+        result = SDM.write_dag(
+            dag=lazy_dag,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            min_update_interval=None,
+            session=session,
+        )
+
+        assert result is False  # Should return False when SerializedDagModel is missing
+
+    def test_dynamic_dag_update_success(self, dag_maker, session):
+        """
+        Test that dynamic DAG update successfully updates the serialized DAG hash
+        when no task instances exist.
+        """
+        with dag_maker(dag_id="test_dynamic_success", session=session) as dag:
+            EmptyOperator(task_id="task1")
+
+        # Write the DAG first
+        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        result1 = SDM.write_dag(
+            dag=lazy_dag,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            session=session,
+        )
+        session.commit()
+
+        assert result1 is True
+        initial_sdag = SDM.get("test_dynamic_success", session=session)
+        assert initial_sdag is not None
+        initial_hash = initial_sdag.dag_hash
+
+        # Modify the DAG (add a task)
+        EmptyOperator(task_id="task2", dag=dag)
+        lazy_dag_updated = LazyDeserializedDAG.from_dag(dag)
+
+        # Write again - should use UPDATE path (no task instances yet)
+        result2 = SDM.write_dag(
+            dag=lazy_dag_updated,
+            bundle_name="test_bundle",
+            bundle_version=None,
+            session=session,
+        )
+        session.commit()
+
+        # Verify update succeeded
+        assert result2 is True
+        updated_sdag = SDM.get("test_dynamic_success", session=session)
+        assert updated_sdag.dag_hash != initial_hash  # Hash should change
+        assert len(updated_sdag.dag.task_dict) == 2  # Should have 2 tasks now
+
+    def test_write_dag_atomicity_on_dagcode_failure(self, dag_maker, session):
+        """
+        Test that SerializedDagModel.write_dag maintains atomicity.
+
+        If DagCode.write_code fails, the entire transaction should rollback,
+        including the DagVersion. This test verifies that DagVersion is not
+        committed separately, which would leave orphaned records.
+
+        This test would fail if DagVersion.write_dag() was used (which commits
+        immediately), because the DagVersion would be persisted even though
+        the rest of the transaction failed.
+        """
+        from airflow.models.dagcode import DagCode
+
+        with dag_maker("test_atomicity_dag"):
+            EmptyOperator(task_id="task1")
+
+        dag = dag_maker.dag
+        initial_version_count = session.query(DagVersion).filter(DagVersion.dag_id == dag.dag_id).count()
+        assert initial_version_count == 1, "Should have one DagVersion after initial write"
+        dag_maker.create_dagrun()  # ensure the second dag version is created
+
+        EmptyOperator(task_id="task2", dag=dag)
+        modified_lazy_dag = LazyDeserializedDAG.from_dag(dag)
+
+        # Mock DagCode.write_code to raise an exception
+        with mock.patch.object(
+            DagCode, "write_code", side_effect=RuntimeError("Simulated DagCode.write_code failure")
+        ):
+            with pytest.raises(RuntimeError, match="Simulated DagCode.write_code failure"):
+                SDM.write_dag(
+                    dag=modified_lazy_dag,
+                    bundle_name="testing",
+                    bundle_version=None,
+                    session=session,
+                )
+            session.rollback()
+
+            # Verify that no new DagVersion was committed
+            # Use a fresh session to ensure we're reading from committed data
+            with create_session() as fresh_session:
+                final_version_count = (
+                    fresh_session.query(DagVersion).filter(DagVersion.dag_id == dag.dag_id).count()
+                )
+                assert final_version_count == initial_version_count, (
+                    "DagVersion should not be committed when DagCode.write_code fails"
+                )
+
+                sdag = SDM.get(dag.dag_id, session=fresh_session)
+                assert sdag is not None, "Original SerializedDagModel should still exist"
+                assert len(sdag.dag.task_dict) == 1, (
+                    "SerializedDagModel should not be updated when write fails"
+                )

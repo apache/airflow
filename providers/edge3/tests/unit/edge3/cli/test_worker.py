@@ -32,6 +32,7 @@ from requests import HTTPError, Response
 
 from airflow.cli import cli_parser
 from airflow.executors import executor_loader
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
 from airflow.providers.edge3.cli.worker import EdgeWorker
@@ -40,7 +41,6 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.version_compat import timezone
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -164,15 +164,15 @@ class TestEdgeWorker:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @pytest.mark.parametrize(
-        "configs, expected_url",
+        ("configs", "expected_url"),
         [
             (
-                {("edge", "api_url"): "https://api-endpoint"},
-                "https://api-endpoint/execution/",
+                {("edge", "api_url"): "https://api-host/edge_worker/v1/rpcapi"},
+                "https://api-host/execution",
             ),
             (
-                {("edge", "api_url"): "https://api:1234/endpoint"},
-                "https://api:1234/execution/",
+                {("edge", "api_url"): "https://api:1234/subpath/edge_worker/v1/rpcapi"},
+                "https://api:1234/subpath/execution",
             ),
             (
                 {
@@ -183,16 +183,25 @@ class TestEdgeWorker:
             ),
         ],
     )
+    def test_execution_api_server_url(
+        self,
+        configs,
+        expected_url,
+    ):
+        with conf_vars(configs):
+            EdgeWorker._execution_api_server_url.cache_clear()
+            url = EdgeWorker._execution_api_server_url()
+            assert url == expected_url
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @patch("airflow.providers.edge3.cli.worker.Process")
     @patch("airflow.providers.edge3.cli.worker.Popen")
-    def test_use_execution_api_server_url(
+    def test_supervise_launch(
         self,
         mock_popen,
         mock_process,
         mock_supervise,
-        configs,
-        expected_url,
         worker_with_job: EdgeWorker,
     ):
         mock_popen.side_effect = [MagicMock()]
@@ -200,16 +209,15 @@ class TestEdgeWorker:
         mock_process.side_effect = [mock_process_instance]
 
         edge_job = EdgeWorker.jobs.pop().edge_job
-        with conf_vars(configs):
-            worker_with_job._launch_job(edge_job)
+        worker_with_job._launch_job(edge_job)
 
-            mock_process_callback = mock_process.call_args.kwargs["target"]
-            mock_process_callback(workload=MagicMock())
+        mock_process_callback = mock_process.call_args.kwargs["target"]
+        mock_process_callback(workload=MagicMock(), execution_api_server_url="http://mock-url")
 
-            assert mock_supervise.call_args.kwargs["server"] == expected_url
+        assert mock_supervise.call_args.kwargs["server"] == "http://mock-url"
 
     @pytest.mark.parametrize(
-        "reserve_result, fetch_result, expected_calls",
+        ("reserve_result", "fetch_result", "expected_calls"),
         [
             pytest.param(None, False, (0, 0), id="no_job"),
             pytest.param(
@@ -349,7 +357,7 @@ class TestEdgeWorker:
         )
 
     @pytest.mark.parametrize(
-        "drain, maintenance_mode, jobs, expected_state",
+        ("drain", "maintenance_mode", "jobs", "expected_state"),
         [
             pytest.param(False, False, False, EdgeWorkerState.IDLE, id="idle"),
             pytest.param(False, False, True, EdgeWorkerState.RUNNING, id="running_jobs"),

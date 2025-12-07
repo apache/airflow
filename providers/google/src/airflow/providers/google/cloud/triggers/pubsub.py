@@ -86,26 +86,22 @@ class PubsubPullTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        try:
-            while True:
-                if pulled_messages := await self.hook.pull(
-                    project_id=self.project_id,
-                    subscription=self.subscription,
-                    max_messages=self.max_messages,
-                    return_immediately=True,
-                ):
-                    if self.ack_messages:
-                        await self.message_acknowledgement(pulled_messages)
+        while True:
+            if pulled_messages := await self.hook.pull(
+                project_id=self.project_id,
+                subscription=self.subscription,
+                max_messages=self.max_messages,
+                return_immediately=True,
+            ):
+                if self.ack_messages:
+                    await self.message_acknowledgement(pulled_messages)
 
-                    messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
+                messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
 
-                    yield TriggerEvent({"status": "success", "message": messages_json})
-                    return
-                self.log.info("Sleeping for %s seconds.", self.poke_interval)
-                await asyncio.sleep(self.poke_interval)
-        except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
-            return
+                yield TriggerEvent({"status": "success", "message": messages_json})
+                return
+            self.log.info("Sleeping for %s seconds.", self.poke_interval)
+            await asyncio.sleep(self.poke_interval)
 
     async def message_acknowledgement(self, pulled_messages):
         await self.hook.acknowledge(

@@ -67,7 +67,7 @@ class TestRedshiftDataHook:
         mock_conn.describe_statement.assert_not_called()
 
     @pytest.mark.parametrize(
-        "cluster_identifier, workgroup_name, session_id",
+        ("cluster_identifier", "workgroup_name", "session_id"),
         [
             (None, None, None),
             ("some_cluster", "some_workgroup", None),
@@ -95,7 +95,7 @@ class TestRedshiftDataHook:
             )
 
     @pytest.mark.parametrize(
-        "cluster_identifier, workgroup_name, session_id",
+        ("cluster_identifier", "workgroup_name", "session_id"),
         [
             (None, None, None),
             ("some_cluster", "some_workgroup", None),
@@ -418,7 +418,7 @@ class TestRedshiftDataHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "describe_statement_response, expected_result",
+        ("describe_statement_response", "expected_result"),
         [
             ({"Status": "PICKED"}, True),
             ({"Status": "STARTED"}, True),
@@ -453,7 +453,7 @@ class TestRedshiftDataHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "describe_statement_response, expected_exception",
+        ("describe_statement_response", "expected_exception"),
         (
             (
                 {"Id": "uuid", "Status": "FAILED", "QueryString": "select 1", "Error": "Test error"},

@@ -26,7 +26,7 @@ from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.winrm.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.platform import getuser
 
 # TODO: FIXME please - I have too complex implementation
@@ -226,6 +226,7 @@ class WinRMHook(BaseHook):
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
         return_output: bool = True,
+        working_directory: str | None = None,
     ) -> tuple[int, list[bytes], list[bytes]]:
         """
         Run a command.
@@ -235,12 +236,13 @@ class WinRMHook(BaseHook):
             If specified, it will execute the command as powershell script.
         :param output_encoding: the encoding used to decode stout and stderr.
         :param return_output: Whether to accumulate and return the stdout or not.
+        :param working_directory: specify working directory.
         :return: returns a tuple containing return_code, stdout and stderr in order.
         """
         winrm_client = self.get_conn()
         self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
         try:
-            shell_id = winrm_client.open_shell()
+            shell_id = winrm_client.open_shell(working_directory=working_directory)
         except Exception as error:
             error_msg = f"Error connecting to host: {self.remote_host}, error: {error}"
             self.log.error(error_msg)

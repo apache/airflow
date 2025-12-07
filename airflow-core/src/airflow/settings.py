@@ -18,25 +18,40 @@
 from __future__ import annotations
 
 import atexit
-import functools
-import json
+import json as json_lib
 import logging
 import os
 import sys
 import warnings
 from collections.abc import Callable
+from functools import cache, partial
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Literal
 
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession as SAAsyncSession,
+    create_async_engine,
+)
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+try:
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+except ImportError:
+    async_sessionmaker = sessionmaker  # type: ignore[assignment,misc]
+
 from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
-from airflow._shared.timezones.timezone import local_timezone, parse_timezone, utc
+from airflow._shared.timezones.timezone import (
+    initialize as initialize_timezone,
+    local_timezone,
+    parse_timezone,
+    utc,
+)
 from airflow.configuration import AIRFLOW_HOME, conf
 from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.logging_config import configure_logging
@@ -61,12 +76,15 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 try:
-    if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
-        TIMEZONE = parse_timezone(tz)
+    tz_str = conf.get_mandatory_value("core", "default_timezone")
+    initialize_timezone(tz_str)
+    if tz_str != "system":
+        TIMEZONE = parse_timezone(tz_str)
     else:
         TIMEZONE = local_timezone()
 except Exception:
     TIMEZONE = utc
+    initialize_timezone("UTC")
 
 log.info("Configured default timezone %s", TIMEZONE)
 
@@ -100,7 +118,6 @@ SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 SQL_ALCHEMY_CONN: str | None = None
 SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
-LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
@@ -111,18 +128,33 @@ Mapping of sync scheme to async scheme.
 :meta private:
 """
 
-engine: Engine
-Session: scoped_session
+engine: Engine | None = None
+Session: scoped_session | None = None
 # NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
 # additional precautions. The only use case is when the session lifecycle needs
 # custom handling. Most of the time we only want one unique thread local session object,
 # this is achieved by the Session factory above.
-NonScopedSession: sessionmaker
-async_engine: AsyncEngine
-AsyncSession: Callable[..., SAAsyncSession]
+NonScopedSession: sessionmaker | None = None
+async_engine: AsyncEngine | None = None
+AsyncSession: Callable[..., SAAsyncSession] | None = None
+
+
+def get_engine():
+    """Get the configured engine, raising an error if not configured."""
+    if engine is None:
+        raise RuntimeError("Engine not configured. Call configure_orm() first.")
+    return engine
+
+
+def get_session():
+    """Get the configured Session, raising an error if not configured."""
+    if Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
+    return Session
+
 
 # The JSON library to use for DAG Serialization and De-Serialization
-json = json
+json = json_lib
 
 # Display alerts on the dashboard
 # Useful for warning about setup issues or announcing changes to end users
@@ -138,7 +170,7 @@ json = json
 DASHBOARD_UIALERTS: list[UIAlert] = []
 
 
-@functools.cache
+@cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
@@ -174,44 +206,42 @@ def replace_showwarning(replacement):
 
 
 original_show_warning = replace_showwarning(custom_show_warning)
-atexit.register(functools.partial(replace_showwarning, original_show_warning))
-
-POLICY_PLUGIN_MANAGER: Any = None
+atexit.register(partial(replace_showwarning, original_show_warning))
 
 
 def task_policy(task):
-    return POLICY_PLUGIN_MANAGER.hook.task_policy(task=task)
+    return get_policy_plugin_manager().hook.task_policy(task=task)
 
 
 def dag_policy(dag):
-    return POLICY_PLUGIN_MANAGER.hook.dag_policy(dag=dag)
+    return get_policy_plugin_manager().hook.dag_policy(dag=dag)
 
 
 def task_instance_mutation_hook(task_instance):
-    return POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook(task_instance=task_instance)
+    return get_policy_plugin_manager().hook.task_instance_mutation_hook(task_instance=task_instance)
 
 
 task_instance_mutation_hook.is_noop = True  # type: ignore
 
 
 def pod_mutation_hook(pod):
-    return POLICY_PLUGIN_MANAGER.hook.pod_mutation_hook(pod=pod)
+    return get_policy_plugin_manager().hook.pod_mutation_hook(pod=pod)
 
 
 def get_airflow_context_vars(context):
-    return POLICY_PLUGIN_MANAGER.hook.get_airflow_context_vars(context=context)
+    return get_policy_plugin_manager().hook.get_airflow_context_vars(context=context)
 
 
 def get_dagbag_import_timeout(dag_file_path: str):
-    return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
+    return get_policy_plugin_manager().hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
 
-def configure_policy_plugin_manager():
-    global POLICY_PLUGIN_MANAGER
-
-    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
-    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
-    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
+@cache
+def get_policy_plugin_manager() -> pluggy.PluginManager:
+    plugin_mgr = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    plugin_mgr.add_hookspecs(policies)
+    plugin_mgr.register(policies.DefaultPolicy)
+    return plugin_mgr
 
 
 def load_policy_plugins(pm: pluggy.PluginManager):
@@ -353,19 +383,22 @@ def _configure_async_session() -> None:
     this does not work well with Pytest and you can end up with issues when the
     session and runs in a different event loop from the test itself.
     """
-    global AsyncSession
-    global async_engine
+    global AsyncSession, async_engine
+
+    if not SQL_ALCHEMY_CONN_ASYNC:
+        async_engine = None
+        AsyncSession = None
+        return
 
     async_engine = create_async_engine(
         SQL_ALCHEMY_CONN_ASYNC,
         connect_args=_get_connect_args("async"),
         future=True,
     )
-    AsyncSession = sessionmaker(
+    AsyncSession = async_sessionmaker(
         bind=async_engine,
-        autocommit=False,
-        autoflush=False,
         class_=SAAsyncSession,
+        autoflush=False,
         expire_on_commit=False,
     )
 
@@ -414,12 +447,14 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     if conf.has_option("database", "sql_alchemy_session_maker"):
         _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
     else:
-        _session_maker = functools.partial(
+        _session_maker = partial(
             sessionmaker,
             autocommit=False,
             autoflush=False,
             expire_on_commit=False,
         )
+    if engine is None:
+        raise RuntimeError("Engine must be initialized before creating a session")
     NonScopedSession = _session_maker(engine)
     Session = scoped_session(NonScopedSession)
 
@@ -671,7 +706,7 @@ def import_local_settings():
             names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         plugin_functions = policies.make_plugin_from_local_settings(
-            POLICY_PLUGIN_MANAGER, airflow_local_settings, names
+            get_policy_plugin_manager(), airflow_local_settings, names
         )
 
         # If we have already handled a function by adding it to the plugin,
@@ -679,7 +714,7 @@ def import_local_settings():
         for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
-        if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
+        if get_policy_plugin_manager().hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
@@ -689,28 +724,26 @@ def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath_for_config_and_plugins()
-    configure_policy_plugin_manager()
+    policy_mgr = get_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
-    load_policy_plugins(POLICY_PLUGIN_MANAGER)
+    load_policy_plugins(policy_mgr)
     import_local_settings()
-    global LOGGING_CLASS_PATH
-    LOGGING_CLASS_PATH = configure_logging()
+    configure_logging()
 
     configure_adapters()
     # The webservers import this file from models.py with the default settings.
 
-    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None):
-        is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
-        if not is_worker:
-            configure_orm()
-    configure_action_logging()
-
     # Configure secrets masker before masking secrets
     _configure_secrets_masker()
 
-    # mask the sensitive_config_values
-    conf.mask_secrets()
+    is_worker = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") == "1"
+    if not os.environ.get("PYTHON_OPERATORS_VIRTUAL_ENV_MODE", None) and not is_worker:
+        configure_orm()
+
+        # mask the sensitive_config_values
+        conf.mask_secrets()
+    configure_action_logging()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

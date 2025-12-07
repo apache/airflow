@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy_utils import JSONType
@@ -45,7 +47,7 @@ class DagBundleModel(Base, LoggingMixin):
     name: Mapped[str] = mapped_column(StringID(length=250), primary_key=True, nullable=False)
     active: Mapped[bool | None] = mapped_column(Boolean, default=True, nullable=True)
     version: Mapped[str | None] = mapped_column(String(200), nullable=True)
-    last_refreshed: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_refreshed: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     signed_url_template: Mapped[str | None] = mapped_column(String(200), nullable=True)
     template_params: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     teams = relationship("Team", secondary=dag_bundle_team_association_table, back_populates="dag_bundles")
@@ -66,6 +68,9 @@ class DagBundleModel(Base, LoggingMixin):
             from itsdangerous import BadSignature, URLSafeSerializer
 
             from airflow.configuration import conf
+
+            if not self.signed_url_template:
+                return None
 
             serializer = URLSafeSerializer(conf.get_mandatory_value("core", "fernet_key"))
             payload = serializer.loads(self.signed_url_template)

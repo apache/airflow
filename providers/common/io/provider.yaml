@@ -22,12 +22,15 @@ description: |
   Common IO Provider
 
 state: ready
-source-date-epoch: 1758176132
+source-date-epoch: 1764109882
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.7.0
+  - 1.6.5
+  - 1.6.4
   - 1.6.3
   - 1.6.2
   - 1.6.1
@@ -53,6 +56,7 @@ integrations:
     external-doc-url: https://filesystem-spec.readthedocs.io/en/latest/index.html
     how-to-guide:
       - /docs/apache-airflow-providers-common-io/operators.rst
+      - /docs/apache-airflow-providers-common-io/transfer.rst
     tags: [software]
 
 operators:

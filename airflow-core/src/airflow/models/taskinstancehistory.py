@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import dill
@@ -76,8 +77,8 @@ class TaskInstanceHistory(Base):
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
     try_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    start_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    end_date: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     duration: Mapped[float | None] = mapped_column(Float, nullable=True)
     state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     max_tries: Mapped[int | None] = mapped_column(Integer, server_default=text("-1"), nullable=True)
@@ -89,13 +90,13 @@ class TaskInstanceHistory(Base):
     priority_weight: Mapped[int | None] = mapped_column(Integer, nullable=True)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    queued_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
-    scheduled_dttm: Mapped[UtcDateTime | None] = mapped_column(UtcDateTime, nullable=True)
+    queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     executor: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     executor_config: Mapped[dict | None] = mapped_column(ExecutorConfigType(pickler=dill), nullable=True)
-    updated_at: Mapped[UtcDateTime | None] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=True
     )
     rendered_map_index: Mapped[str | None] = mapped_column(String(250), nullable=True)

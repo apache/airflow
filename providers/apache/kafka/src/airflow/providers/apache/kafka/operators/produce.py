@@ -23,7 +23,7 @@ from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.produce import KafkaProducerHook
-from airflow.providers.apache.kafka.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.utils.module_loading import import_string
 
 local_logger = logging.getLogger("airflow")

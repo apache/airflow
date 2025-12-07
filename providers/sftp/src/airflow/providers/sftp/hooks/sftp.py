@@ -34,21 +34,20 @@ from typing import IO, TYPE_CHECKING, Any, cast
 
 import asyncssh
 from asgiref.sync import sync_to_async
+from paramiko.config import SSH_PORT
 
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
 )
+from airflow.providers.common.compat.sdk import BaseHook, Connection
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
-from airflow.providers.sftp.version_compat import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
     from paramiko.sftp_attr import SFTPAttributes
     from paramiko.sftp_client import SFTPClient
-
-    from airflow.models.connection import Connection
 
 
 def handle_connection_management(func: Callable) -> Callable:
@@ -705,10 +704,10 @@ class SFTPHookAsync(BaseHook):
     def __init__(  # nosec: B107
         self,
         sftp_conn_id: str = default_conn_name,
-        host: str = "",
-        port: int = 22,
-        username: str = "",
-        password: str = "",
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
         known_hosts: str = default_known_hosts,
         key_file: str = "",
         passphrase: str = "",
@@ -764,11 +763,19 @@ class SFTPHookAsync(BaseHook):
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
-        conn_config: dict[str, Any] = {
-            "host": conn.host,
-            "port": conn.port,
-            "username": conn.login,
-            "password": conn.password,
+        def _get_value(self_val, conn_val, default=None):
+            """Return the first non-None value among self, conn, default."""
+            if self_val is not None:
+                return self_val
+            if conn_val is not None:
+                return conn_val
+            return default
+
+        conn_config = {
+            "host": _get_value(self.host, conn.host),
+            "port": _get_value(self.port, conn.port, SSH_PORT),
+            "username": _get_value(self.username, conn.login),
+            "password": _get_value(self.password, conn.password),
         }
         if self.key_file:
             conn_config.update(client_keys=self.key_file)

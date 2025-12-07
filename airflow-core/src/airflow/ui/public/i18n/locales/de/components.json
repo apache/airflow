@@ -50,6 +50,13 @@
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Ungültiges Datumsformat.",
+      "invalidTimeFormat": "Ungültiges Zeitformat.",
+      "startBeforeEnd": "Startdatum/-uhrzeit muss vor Enddatum/-uhrzeit liegen."
+    }
+  },
   "durationChart": {
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
@@ -89,17 +96,20 @@
   },
   "limitedList": "+{{count}} mehr",
   "limitedList.allItems": "Alle {{count}} Einträge:",
+  "limitedList.allTags_one": "Alle Markierungen ({{count}})",
+  "limitedList.allTags_other": "Alle Markierungen ({{count}})",
   "limitedList.clickToInteract": "Klicken Sie auf eine Markierung, um Dags zu filtern",
   "limitedList.clickToOpenFull": "Klicken Sie auf \"+{{count}} mehr\" für die vollständige Ansicht",
   "limitedList.copyPasteText": "Sie können den obigen Text kopieren und einfügen",
-  "limitedList.showingItems": "{{count}} Einträge werden angezeigt",
+  "limitedList.showingItems_one": "{{count}} Eintrag wird angezeigt",
+  "limitedList.showingItems_other": "{{count}} Einträge werden angezeigt",
   "logs": {
     "file": "Datei",
     "location": "Zeile {{line}} in {{name}}"
   },
   "reparseDag": "Dag neu parsen",
-  "sortedAscending": "aufsteigend sortier",
-  "sortedDescending": "absteigend sortier",
+  "sortedAscending": "aufsteigend sortiert",
+  "sortedDescending": "absteigend sortiert",
   "sortedUnsorted": "unsortiert",
   "taskTries": "Versuch des Tasks",
   "toggleCardView": "Kachelansicht anzeigen",
