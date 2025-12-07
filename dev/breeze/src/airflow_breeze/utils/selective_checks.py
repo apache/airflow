@@ -1009,47 +1009,6 @@ class SelectiveChecks:
             return INTEGRATION_TESTS_CORE_BRANCHES
         return [branch]
 
-    @cached_property
-    def prod_image_build_sha_map(self) -> dict[str, str]:
-        """
-        Map of branches to SHAs for building prod images for integration tests.
-
-        For main branch, we use the latest commit on main for each supported branch.
-        For other branches, we use HEAD of that branch.
-        """
-        sha_map = {}
-        for branch in self.prod_image_build_matrix:
-            try:
-                # Fetch the branch if it doesn't exist locally
-                run_command(
-                    ["git", "fetch", f"origin/{branch}"],
-                    capture_output=True,
-                    check=False,
-                    cwd=AIRFLOW_ROOT_PATH,
-                )
-                # Try to get SHA from origin first, fall back to local branch
-                result = run_command(
-                    ["git", "rev-parse", f"origin/{branch}"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                    cwd=AIRFLOW_ROOT_PATH,
-                )
-                if result.returncode != 0:
-                    result = run_command(
-                        ["git", "rev-parse", branch],
-                        capture_output=True,
-                        text=True,
-                        check=True,
-                        cwd=AIRFLOW_ROOT_PATH,
-                    )
-                sha_map[branch] = result.stdout.strip() if branch != AIRFLOW_BRANCH else self._commit_ref
-            except Exception as e:
-                get_console().print(f"[warning]Failed to get SHA for branch {branch}: {e}[/]")
-                # Fall back to HEAD if we can't get the branch SHA
-                sha_map[branch] = self._commit_ref
-        return sha_map
-
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
     ) -> list[str]:
