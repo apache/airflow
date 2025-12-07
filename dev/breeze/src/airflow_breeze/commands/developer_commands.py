@@ -515,7 +515,7 @@ option_executor_start_airflow = click.option(
 @click.option(
     "--dev-mode",
     help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-assets-compilation).",
+    "(mutually exclusive with --skip-assets-compilation and --use-airflow-version).",
     is_flag=True,
 )
 @click.option(
@@ -627,6 +627,14 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    if dev_mode and use_airflow_version:
+        get_console().print(
+            "[Error][bold red] You cannot set Airflow version in dev mode! Consider switching to the respective"
+            "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
+        )
+
+        sys.exit(1)
 
     # Automatically enable file polling for hot reloading under WSL
     if dev_mode and is_wsl():
