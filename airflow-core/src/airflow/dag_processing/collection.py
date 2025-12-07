@@ -427,7 +427,9 @@ def update_dag_parsing_results_in_db(
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
             import_errors.update(serialize_errors)
-    # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
+    # Record import errors into the ORM.
+    # While this operation is not retried (unlike DAG serialization above), failures here
+    # should not crash the DAG processor - they are logged and the processor continues.
     try:
         _update_import_errors(
             files_parsed=files_parsed if files_parsed is not None else set(),
@@ -437,14 +439,23 @@ def update_dag_parsing_results_in_db(
         )
     except Exception:
         log.exception("Error logging import errors!")
+        session.rollback()  # Clean up session state to prevent subsequent operations from failing
 
     # Record DAG warnings in the metadatabase.
     try:
         _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
     except Exception:
         log.exception("Error logging DAG warnings.")
+        session.rollback()  # Clean up session state to prevent subsequent operations from failing
 
-    session.flush()
+    # Flush all changes to the database.
+    # This is wrapped in error handling to prevent crashes from session state issues
+    # that could occur if earlier operations failed without proper cleanup.
+    try:
+        session.flush()
+    except Exception:
+        log.exception("Error flushing session after parsing results")
+        session.rollback()  # Clean up session state even on flush failure
 
 
 class DagModelOperation(NamedTuple):
