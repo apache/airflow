@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from collections.abc import Sequence
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -33,6 +34,7 @@ from airflow import settings
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun, Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
@@ -448,3 +450,71 @@ class TestRenderedTaskInstanceFields:
         # rerun the old run. this will shouldn't fail
         ti.task = task
         ti.run()
+
+    def test_nested_dictionary_template_field_rendering(self, dag_maker):
+        """
+        Test that nested dictionary items in template fields are properly rendered
+        when using template_fields_renderers with dot-separated paths.
+
+        This test verifies the fix for rendering dictionary items in templates.
+        Before the fix, nested dictionary items specified in template_fields_renderers
+        (e.g., "configuration.query.sql") would not be rendered. After the fix,
+        these nested items are properly extracted and rendered.
+        """
+
+        # Create a custom operator with a dictionary template field
+        class MyConfigOperator(BaseOperator):
+            template_fields: Sequence[str] = ("configuration",)
+            template_fields_renderers = {
+                "configuration": "json",
+                "configuration.query.sql": "sql",
+            }
+
+            def __init__(self, configuration: dict, **kwargs):
+                super().__init__(**kwargs)
+                self.configuration = configuration
+
+        # Create a configuration dictionary with nested structure
+        configuration = {
+            "query": {
+                "job_id": "123",
+                "sql": "select * from my_table where date = '{{ ds }}'",
+            }
+        }
+
+        with dag_maker("test_nested_dict_rendering"):
+            task = MyConfigOperator(task_id="test_config", configuration=configuration)
+        dr = dag_maker.create_dagrun()
+
+        session = dag_maker.session
+        ti = dr.task_instances[0]
+        ti.task = task
+        rtif = RTIF(ti=ti)
+
+        # Verify that the base configuration field is rendered
+        assert "configuration" in rtif.rendered_fields
+        rendered_config = rtif.rendered_fields["configuration"]
+        assert isinstance(rendered_config, dict)
+        assert rendered_config["query"]["job_id"] == "123"
+        # The SQL should be templated (ds should be replaced with actual date)
+        assert "select * from my_table where date = '" in rendered_config["query"]["sql"]
+        assert rendered_config["query"]["sql"] != configuration["query"]["sql"]
+
+        # Verify that the nested dictionary item is also rendered
+        # This is the key test - before the fix, this would not exist
+        assert "configuration.query.sql" in rtif.rendered_fields
+        rendered_sql = rtif.rendered_fields["configuration.query.sql"]
+        assert isinstance(rendered_sql, str)
+        assert "select * from my_table where date = '" in rendered_sql
+        # The template should be rendered (ds should be replaced)
+        assert "{{ ds }}" not in rendered_sql
+
+        # Store in database and verify retrieval
+        session.add(rtif)
+        session.flush()
+
+        retrieved_fields = RTIF.get_templated_fields(ti=ti, session=session)
+        assert retrieved_fields is not None
+        assert "configuration" in retrieved_fields
+        assert "configuration.query.sql" in retrieved_fields
+        assert retrieved_fields["configuration.query.sql"] == rendered_sql
