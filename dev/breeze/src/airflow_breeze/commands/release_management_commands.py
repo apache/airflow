@@ -1367,6 +1367,11 @@ def tag_providers(
 @option_airflow_constraints_mode_ci
 @option_github_repository
 @option_use_uv
+@click.option(
+    "--target-branch",
+    default="main",
+    help="Target branch to use for constraints generation.",
+)
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1380,6 +1385,7 @@ def generate_constraints(
     run_in_parallel: bool,
     skip_cleanup: bool,
     use_uv: bool,
+    target_branch: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -1419,9 +1425,16 @@ def generate_constraints(
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
+                airflow_branch=target_branch,
             )
             for python in python_version_list
         ]
+        # Use the CI image built from main
+        if target_branch != AIRFLOW_BRANCH:
+            shell_params_list = [
+                shell_param.airflow_image_name.replace(target_branch, AIRFLOW_BRANCH)
+                for shell_param in shell_params_list
+            ]
         run_generate_constraints_in_parallel(
             debug_resources=debug_resources,
             include_success_outputs=True,
@@ -1438,6 +1451,10 @@ def generate_constraints(
             python=python,
             use_uv=use_uv,
         )
+        # Use the CI image built from main
+        if target_branch != AIRFLOW_BRANCH:
+            shell_params = shell_params.airflow_image_name.replace(target_branch, AIRFLOW_BRANCH)
+
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
             output=None,
