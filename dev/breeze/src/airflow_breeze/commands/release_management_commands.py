@@ -1370,7 +1370,7 @@ def tag_providers(
 @click.option(
     "--target-branch",
     default="main",
-    help="Target branch to use for constraints generation.",
+    help="Target branch to use CI image.",
 )
 @option_verbose
 @option_dry_run
