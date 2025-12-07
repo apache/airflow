@@ -38,8 +38,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def show_config(args):
     """Show current application configuration."""
-    show_values = getattr(args, "show_values", False)
-    if not show_values:
+    if not args.show_values:
         print(
             "Values are hidden by default. Use `--show-values` to display them (may include sensitive data).",
             file=sys.stderr,
@@ -55,7 +54,7 @@ def show_config(args):
             include_providers=not args.exclude_providers,
             comment_out_everything=args.comment_out_everything or args.defaults,
             only_defaults=args.defaults,
-            non_sensitive=args.non_sensitive,
+            hide_sensitive=args.hide_sensitive,
             show_values=args.show_values,
         )
         code = output.getvalue()
