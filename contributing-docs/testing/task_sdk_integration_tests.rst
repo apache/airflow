@@ -19,7 +19,7 @@ Task SDK Integration Tests
 ==========================
 
 Task SDK Integration Tests are a specialized type of test that verify the integration between the
-`Apache Airflow Task SDK <../task-sdk/>`__ and a running Airflow instance (mainly the execution API server).
+`Apache Airflow Task SDK <../../task-sdk/>`__ and a running Airflow instance (mainly the execution API server).
 These tests ensure that the Task SDK can properly communicate with Airflow's execution API server
 and that the integration between the two works correctly in a realistic environment.
 

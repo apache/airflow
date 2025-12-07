@@ -113,7 +113,7 @@ jobs:
           USE_LOCAL_HATCH: "${{ inputs.use-local-venv }}"
         run: |
           uv tool uninstall hatch || true
-          uv tool install hatch==1.16.0
+          uv tool install hatch==1.16.2
           breeze release-management "${DISTRIBUTION_TYPE}" --distribution-format wheel
         if: ${{ matrix.python-version == inputs.default-python-version }}
       - name: "Verify wheel packages with twine"

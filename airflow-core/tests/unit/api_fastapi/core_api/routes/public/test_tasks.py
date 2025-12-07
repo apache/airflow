@@ -102,7 +102,7 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+            "params": {"foo": {"value": "bar", "schema": {}, "description": None, "source": "task"}},
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -180,7 +180,14 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"is_unscheduled": {"value": True, "schema": {}, "description": None}},
+            "params": {
+                "is_unscheduled": {
+                    "value": True,
+                    "schema": {},
+                    "description": None,
+                    "source": "task",
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -239,7 +246,14 @@ class TestGetTask(TestTaskEndpoint):
             "extra_links": [],
             "operator_name": "EmptyOperator",
             "owner": "airflow",
-            "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+            "params": {
+                "foo": {
+                    "value": "bar",
+                    "schema": {},
+                    "description": None,
+                    "source": "task",
+                }
+            },
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
@@ -304,7 +318,14 @@ class TestGetTasks(TestTaskEndpoint):
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
-                    "params": {"foo": {"value": "bar", "schema": {}, "description": None}},
+                    "params": {
+                        "foo": {
+                            "value": "bar",
+                            "schema": {},
+                            "description": None,
+                            "source": "task",
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
@@ -459,7 +480,14 @@ class TestGetTasks(TestTaskEndpoint):
                     "extra_links": [],
                     "operator_name": "EmptyOperator",
                     "owner": "airflow",
-                    "params": {"is_unscheduled": {"value": True, "schema": {}, "description": None}},
+                    "params": {
+                        "is_unscheduled": {
+                            "value": True,
+                            "schema": {},
+                            "description": None,
+                            "source": "task",
+                        }
+                    },
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,

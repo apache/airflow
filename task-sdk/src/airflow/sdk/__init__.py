@@ -24,6 +24,7 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetOrTimeSchedule",
     "AssetWatcher",
     "BaseHook",
     "BaseNotifier",
@@ -32,16 +33,23 @@ __all__ = [
     "BaseSensorOperator",
     "Connection",
     "Context",
+    "CronDataIntervalTimetable",
+    "CronTriggerTimetable",
     "DAG",
     "DagRunState",
+    "DeltaDataIntervalTimetable",
+    "DeltaTriggerTimetable",
     "EdgeModifier",
+    "EventsTimetable",
     "Label",
     "Metadata",
+    "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
+    "Trace",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -49,6 +57,7 @@ __all__ = [
     "asset",
     "chain",
     "chain_linear",
+    "conf",
     "cross_downstream",
     "dag",
     "get_current_context",
@@ -62,6 +71,8 @@ __all__ = [
 
 __version__ = "1.2.0"
 
+from airflow.sdk.observability.trace import Trace
+
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
@@ -69,6 +80,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -81,15 +93,29 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
+    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.events import EventsTimetable
+    from airflow.sdk.definitions.timetables.interval import (
+        CronDataIntervalTimetable,
+        DeltaDataIntervalTimetable,
+    )
+    from airflow.sdk.definitions.timetables.trigger import (
+        CronTriggerTimetable,
+        DeltaTriggerTimetable,
+        MultipleCronTriggerTimetable,
+    )
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
+
+    conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
     "AssetAlias": ".definitions.asset",
     "AssetAll": ".definitions.asset",
     "AssetAny": ".definitions.asset",
+    "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
@@ -98,17 +124,24 @@ __lazy_imports: dict[str, str] = {
     "BaseSensorOperator": ".bases.sensor",
     "Connection": ".definitions.connection",
     "Context": ".definitions.context",
+    "CronDataIntervalTimetable": ".definitions.timetables.interval",
+    "CronTriggerTimetable": ".definitions.timetables.trigger",
     "DAG": ".definitions.dag",
     "DagRunState": ".api.datamodels._generated",
+    "DeltaDataIntervalTimetable": ".definitions.timetables.interval",
+    "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
+    "EventsTimetable": ".definitions.timetables.events",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
+    "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
+    "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
@@ -116,6 +149,7 @@ __lazy_imports: dict[str, str] = {
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
+    "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",

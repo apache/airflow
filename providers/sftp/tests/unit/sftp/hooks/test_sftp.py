@@ -886,6 +886,67 @@ class TestSFTPHookAsync:
 
         mock_connect.assert_called_with(**expected_connection_details)
 
+    @pytest.mark.asyncio
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
+    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect):
+        from unittest.mock import Mock, call
+
+        mock_get_connection.return_value = Mock(
+            host="localhost",
+            port=None,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={},
+        )
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+        assert mock_connect.mock_calls == [
+            call(
+                host="localhost",
+                # Even if the port is not specified in conn_config, it should still default to 22.
+                # This behavior is consistent with STPHook.
+                port=22,
+                username="username",
+                password="password",
+                known_hosts=None,
+            ),
+        ]
+
+    @pytest.mark.asyncio
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
+    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect):
+        from unittest.mock import Mock, call
+
+        mock_get_connection.return_value = Mock(
+            host="localhost",
+            port=None,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={},
+        )
+
+        hook = SFTPHookAsync(
+            host="localhost-from-init",
+            port=25,
+            username="username-from-init",
+            password="password-from-init",
+        )
+        await hook._get_conn()
+        assert mock_connect.mock_calls == [
+            call(
+                host="localhost-from-init",
+                port=25,
+                username="username-from-init",
+                password="password-from-init",
+                known_hosts=None,
+            ),
+        ]
+
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio
     async def test_list_directory_path_does_not_exist(self, mock_hook_get_conn):

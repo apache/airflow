@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.10.0", # use next version
     # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
     # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
     # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).

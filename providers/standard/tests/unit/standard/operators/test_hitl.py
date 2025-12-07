@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -240,18 +240,22 @@ class TestHITLOperator:
         assert hitl_detail_model.responded_by is None
         assert hitl_detail_model.chosen_options is None
         assert hitl_detail_model.params_input == {}
-        if AIRFLOW_V_3_1_3_PLUS:
-            assert hitl_detail_model.params == {
-                "input_1": {
-                    "value": 1,
-                    "description": None,
-                    "schema": {},
-                }
-            }
+        expected_params: dict[str, Any]
+        if AIRFLOW_V_3_2_PLUS:
+            expected_params = {"input_1": {"value": 1, "description": None, "schema": {}, "source": "task"}}
+        elif AIRFLOW_V_3_1_3_PLUS:
+            expected_params = {"input_1": {"value": 1, "description": None, "schema": {}}}
         else:
-            assert hitl_detail_model.params == {"input_1": 1}
+            expected_params = {"input_1": 1}
+        assert hitl_detail_model.params == expected_params
 
         assert notifier.called is True
+
+        expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
+        if AIRFLOW_V_3_2_PLUS:
+            expected_params_in_trigger_kwargs = expected_params
+        else:
+            expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
 
         registered_trigger = session.scalar(
             select(Trigger).where(Trigger.classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger")
@@ -261,13 +265,7 @@ class TestHITLOperator:
             "ti_id": ti.id,
             "options": ["1", "2", "3", "4", "5"],
             "defaults": ["1"],
-            "params": {
-                "input_1": {
-                    "value": 1,
-                    "description": None,
-                    "schema": {},
-                }
-            },
+            "params": expected_params_in_trigger_kwargs,
             "multiple": False,
             "timeout_datetime": None,
             "poke_interval": 5.0,
@@ -323,6 +321,10 @@ class TestHITLOperator:
             options=["1", "2", "3", "4", "5"],
             params=input_params,
         )
+        if AIRFLOW_V_3_2_PLUS:
+            for key in expected_params:
+                expected_params[key]["source"] = "task"
+
         assert hitl_op.serialized_params == expected_params
 
     @pytest.mark.skipif(
