@@ -727,9 +727,9 @@ Container-Specific Security
 The Service Account Token Volume is mounted **only** in containers that require Kubernetes API access, implementing the
 **Principle of Least Privilege**:
 
-* **Scheduler Container**: ✅ Receives Service Account Token (needs API access for pod management)
-* **Init Container "wait-for-airflow-migrations"**: ❌ No Service Account Token (only performs database migrations)
-* **Sidecar Container "scheduler-log-groomer"**: ❌ No Service Account Token (only performs log cleanup operations)
+* **Scheduler Container**: Receives Service Account Token (needs API access for pod management)
+* **Init Container "wait-for-airflow-migrations"**: No Service Account Token (only performs database migrations)
+* **Sidecar Container "scheduler-log-groomer"**: No Service Account Token (only performs log cleanup operations)
 
 This container-specific approach ensures that:
 
@@ -784,19 +784,19 @@ Security Implications
 **Why Init and Sidecar Containers Don't Need API Access:**
 
 * **Init Container (wait-for-airflow-migrations)**:
-  
+
   - **Purpose**: Performs database schema migrations using ``airflow db migrate``
   - **Required Access**: Database connection only
   - **Security Rationale**: Database operations don't require Kubernetes API interaction
-  
+
 * **Sidecar Container (scheduler-log-groomer)**:
-  
+
   - **Purpose**: Cleans up old log files from the filesystem
   - **Required Access**: Local filesystem access only
   - **Security Rationale**: Log cleanup is purely filesystem-based, no API calls needed
 
 * **Scheduler Container**:
-  
+
   - **Purpose**: Manages DAG scheduling and launches task pods
   - **Required Access**: Kubernetes API for pod creation, monitoring, and cleanup
   - **Security Rationale**: Pod-launching executors require API access for container orchestration
