@@ -105,8 +105,8 @@
   "toggleTableView": "Toon tabelweergave",
   "triggerDag": {
     "button": "Trigger",
-    "loading": "DAG informatie aan het laden...",
-    "loadingFailed": "Mislukt om DAG informatie te laden. Probeer het opnieuw.",
+    "loading": "Dag informatie aan het laden...",
+    "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",
