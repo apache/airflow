@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-06T15:45:28.796930
+# This constraints file was automatically generated on 2025-12-07T04:01:31.509315
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -115,7 +115,7 @@ azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
-backports.zstd==1.1.0
+backports.zstd==1.2.0
 bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
@@ -275,7 +275,7 @@ grpcio==1.76.0
 gssapi==1.10.1
 h11==0.16.0
 h2==4.3.0
-hatch==1.16.1
+hatch==1.16.2
 hatchling==1.28.0
 hdfs==2.7.3
 hf-xet==1.2.0
@@ -344,7 +344,7 @@ kubernetes_asyncio==33.3.0
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
-librt==0.7.2
+librt==0.7.3
 limits==5.6.0
 linkify-it-py==2.0.3
 litellm==1.80.5
@@ -419,7 +419,7 @@ opentelemetry-semantic-conventions==0.60b0
 opsgenie-sdk==2.1.5
 oracledb==3.4.1
 ordered-set==4.1.0
-orjson==3.11.4
+orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
@@ -459,9 +459,9 @@ propcache==0.4.1
 proto-plus==1.26.1
 protobuf==6.31.1
 psutil==7.1.3
-psycopg-binary==3.3.1
+psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
-psycopg==3.3.1
+psycopg==3.3.2
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
@@ -505,7 +505,7 @@ pytest-rerunfailures==16.1
 pytest-timeouts==1.2.1
 pytest-unordered==0.7.0
 pytest-xdist==3.8.0
-pytest==9.0.1
+pytest==9.0.2
 python-arango==8.2.3
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
@@ -668,7 +668,7 @@ uritemplate==4.2.0
 urllib3==2.5.0
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.15
+uv==0.9.16
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0
