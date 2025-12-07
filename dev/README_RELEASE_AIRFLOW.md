@@ -712,6 +712,7 @@ As a PMC member, you should be able to clone the SVN repository
 or update it if you already checked it out:
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow
@@ -728,12 +729,12 @@ Optionally you can use the `breeze release-management check-release-files` comma
 present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-breeze release-management check-release-files airflow --version ${VERSION_RC} --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
+breeze release-management check-release-files airflow --version ${VERSION_RC}
 ```
 
 
 ```shell script
-breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC} --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}/task-sdk"
+breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC}
 ```
 
 ## Licence check
