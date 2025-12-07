@@ -89,6 +89,7 @@
     "back": "Geri",
     "defaultMessage": "Beklenmeyen bir hata oluştu",
     "home": "Ana Sayfa",
+    "invalidUrl": "Sayfa Bulunamadı. Lütfen URL'yi kontrol edin ve tekrar deneyin.",
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
