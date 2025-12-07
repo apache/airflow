@@ -926,6 +926,7 @@ class OnFinishAction(str, enum.Enum):
 
     KEEP_POD = "keep_pod"
     DELETE_POD = "delete_pod"
+    DELETE_ACTIVE_POD = "delete_active_pod"
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
 
 
