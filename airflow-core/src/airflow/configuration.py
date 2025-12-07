@@ -747,6 +747,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 include_providers=True,
                 extra_spacing=True,
                 only_defaults=True,
+                show_values=True,
             )
     return conf
 
