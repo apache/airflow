@@ -249,6 +249,7 @@ AIRFLOW_UI_DIR = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
 # Do not delete it - it is used for old commit retrieval from providers
 AIRFLOW_ORIGINAL_PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "airflow" / "providers"
 AIRFLOW_PROVIDERS_ROOT_PATH = AIRFLOW_ROOT_PATH / "providers"
+AIRFLOW_PROVIDERS_LAST_RELEASE_DATE_PATH = AIRFLOW_PROVIDERS_ROOT_PATH / ".last_release_date.txt"
 AIRFLOW_DIST_PATH = AIRFLOW_ROOT_PATH / "dist"
 
 TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
@@ -279,8 +280,18 @@ UI_ASSET_COMPILE_LOCK = UI_CACHE_PATH / ".asset_compile.lock"
 UI_ASSET_OUT_FILE = UI_CACHE_PATH / "asset_compile.out"
 UI_ASSET_OUT_DEV_MODE_FILE = UI_CACHE_PATH / "asset_compile_dev_mode.out"
 UI_ASSET_HASH_PATH = AIRFLOW_ROOT_PATH / ".build" / "ui" / "hash.txt"
+
 UI_NODE_MODULES_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "node_modules"
 UI_DIST_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui" / "dist"
+UI_VITE_MANIFEST_PATH = UI_DIST_PATH / ".vite" / "manifest.json"
+FAST_API_SIMPLE_AUTH_MANAGER_PATH = (
+    AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple"
+)
+FAST_API_SIMPLE_AUTH_MANAGER_NODE_MODULES_PATH = FAST_API_SIMPLE_AUTH_MANAGER_PATH / "ui" / "node_modules"
+FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH = FAST_API_SIMPLE_AUTH_MANAGER_PATH / "ui" / "dist"
+FAST_API_SIMPLE_AUTH_MANAGER_VITE_MANIFEST_PATH = (
+    FAST_API_SIMPLE_AUTH_MANAGER_DIST_PATH / ".vite" / "manifest.json"
+)
 
 DAGS_PATH = AIRFLOW_ROOT_PATH / "dags"
 FILES_PATH = AIRFLOW_ROOT_PATH / "files"
