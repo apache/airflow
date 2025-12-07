@@ -624,7 +624,7 @@ class DagFileProcessorManager(LoggingMixin):
                         if might_contain_dag(info.filename, True, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s %s", abs_path)
+                self.log.exception("There was an error accessing ZIP file %s", abs_path)
 
         rel_filelocs: list[str] = []
         for info in present:
