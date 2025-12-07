@@ -32,7 +32,7 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "ระยะหมดเวลาของ DAG Run",
+    "dagRunTimeout": "ระยะหมดเวลาของ Dag Run",
     "defaultArgs": "ค่า Arguments เริ่มต้น",
     "description": "คำอธิบาย",
     "documentation": "เอกสารประกอบ Dag",
