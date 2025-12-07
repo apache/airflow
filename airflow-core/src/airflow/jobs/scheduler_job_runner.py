@@ -1762,6 +1762,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+                # Use a savepoint to isolate each DAG run creation attempt.
+                # If a database error occurs, we can roll back to this savepoint without
+                # affecting the rest of the transaction or other DAG runs being created.
+                savepoint = session.begin_nested()
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
                         dag.create_dagrun(
@@ -1784,12 +1788,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         if dag_model.next_dagrun is None:
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
+                    savepoint.commit()
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
                 # dag.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next dag.
+                # and continue to the next dag. Database errors (like OperationalError) also
+                # need to be caught and rolled back to prevent contaminating the transaction.
                 except Exception:
                     self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    savepoint.rollback()
                     continue
             if self._should_update_dag_next_dagruns(
                 dag,

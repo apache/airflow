@@ -4421,6 +4421,49 @@ class TestSchedulerJob:
         assert dr.start_date is None
         assert dr.creating_job_id == scheduler_job.id
 
+    def test_create_dag_runs_with_db_error_rollback(self, dag_maker):
+        """
+        Test that database errors during DAG run creation are properly rolled back
+        using savepoints, allowing subsequent DAG runs to be created successfully.
+        """
+        # Create two DAGs
+        with dag_maker(dag_id="test_dag_1") as dag1:
+            EmptyOperator(task_id="dummy1")
+        dag_model_1 = dag_maker.dag_model
+
+        with dag_maker(dag_id="test_dag_2") as dag2:
+            EmptyOperator(task_id="dummy2")
+        dag_model_2 = dag_maker.dag_model
+
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        # Mock create_dagrun to fail for the first DAG but succeed for the second
+        original_create_dagrun = dag1.__class__.create_dagrun
+
+        def mock_create_dagrun_side_effect(self, *args, **kwargs):
+            if self.dag_id == "test_dag_1":
+                # Simulate a database error
+                from sqlalchemy.exc import OperationalError
+                raise OperationalError("Simulated database error", None, None)
+            return original_create_dagrun(self, *args, **kwargs)
+
+        with create_session() as session:
+            with mock.patch.object(
+                dag1.__class__, "create_dagrun", side_effect=mock_create_dagrun_side_effect, autospec=True
+            ):
+                # Create dag runs for both DAGs - first should fail, second should succeed
+                self.job_runner._create_dag_runs([dag_model_1, dag_model_2], session)
+
+            # Verify that no DagRun was created for the first DAG
+            dr1_count = session.query(DagRun).filter(DagRun.dag_id == dag1.dag_id).count()
+            assert dr1_count == 0, "DagRun should not be created when database error occurs"
+
+            # Verify that the second DAG run was created successfully despite the first failure
+            dr2 = session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one()
+            assert dr2.state == State.QUEUED
+            assert dr2.creating_job_id == scheduler_job.id
+
     @pytest.mark.need_serialized_dag
     def test_create_dag_runs_assets(self, session, dag_maker):
         """
