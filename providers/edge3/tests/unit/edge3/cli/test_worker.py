@@ -136,10 +136,7 @@ class TestEdgeWorker:
         return test_edgeworker
 
     @patch("airflow.providers.edge3.cli.worker.Process")
-    @patch("airflow.providers.edge3.cli.worker.logs_logfile_path")
-    @patch("airflow.providers.edge3.cli.worker.Popen")
-    def test_launch_job(self, mock_popen, mock_logfile_path, mock_process, worker_with_job: EdgeWorker):
-        mock_popen.side_effect = [MagicMock()]
+    def test_launch_job(self, mock_process, worker_with_job: EdgeWorker):
         mock_process_instance = MagicMock()
         mock_process.side_effect = [mock_process_instance]
 
@@ -185,15 +182,12 @@ class TestEdgeWorker:
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @patch("airflow.providers.edge3.cli.worker.Process")
-    @patch("airflow.providers.edge3.cli.worker.Popen")
     def test_supervise_launch(
         self,
-        mock_popen,
         mock_process,
         mock_supervise,
         worker_with_job: EdgeWorker,
     ):
-        mock_popen.side_effect = [MagicMock()]
         mock_process_instance = MagicMock()
         mock_process.side_effect = [mock_process_instance]
 
