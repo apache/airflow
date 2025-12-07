@@ -789,6 +789,11 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_NON_SENSITIVE = Arg(
+    ("--non-sensitive",),
+    action="store_true",
+    help="When used with --show-values, hide sensitive values (passwords, keys, tokens, etc.) and only show non-sensitive configuration values.",
+)
 ARG_CONFIG_SHOW_VALUES = Arg(
     ("--show-values",),
     action="store_true",
@@ -1726,7 +1731,8 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
-            ARG_CONFIG_SHOW_VALUES
+            ARG_NON_SENSITIVE,
+            ARG_CONFIG_SHOW_VALUES,
         ),
     ),
     ActionCommand(
