@@ -653,7 +653,7 @@ def is_async_callable(func):
     func = unwrap_callable(func)
 
     # If it's not callable, bail out early
-    if not hasattr(func, "__call__"):
+    if not callable(func):
         return False
 
     return inspect.iscoroutinefunction(func)
