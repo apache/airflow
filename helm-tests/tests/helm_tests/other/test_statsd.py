@@ -30,7 +30,7 @@ class TestStatsd:
             values={
                 "statsd": {
                     "enabled": True,
-                    "cacheSize": "1000",
+                    "cacheSize": 1000,
                     "cacheType": "lru", 
                     "ttl": "0s"
                 }
@@ -53,10 +53,10 @@ class TestStatsd:
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
         expected_args = [
-            "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
             "--statsd.cache-size=1000",
             "--statsd.cache-type=lru",
-            "--ttl=0s"
+            "--ttl=0s",
+            "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml",
         ]
         assert expected_args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
@@ -309,13 +309,23 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--statsd.mapping-config=/custom/path"]
+        args = ["--statsd.cache-size=",
+                "--statsd.cache-type=",
+                "--ttl=",
+                "--statsd.mapping-config=/custom/path"]
         docs = render_chart(
-            values={"statsd": {"enabled": True, "args": args}},
+            values={"statsd": {"enabled": True, "args": args,  "cacheSize": 0, "cacheType": "", "ttl": ""}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == args
+        expected_args = [
+            "--statsd.cache-size=",
+            "--statsd.cache-type=",
+            "--ttl=",
+            "--statsd.mapping-config=/custom/path"
+        ]
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == expected_args
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
