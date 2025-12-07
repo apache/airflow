@@ -205,6 +205,32 @@ class TestPrepareVirtualenv:
             env=mock.ANY,
         )
 
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_should_create_virtualenv_with_index_urls_uv(self, mock_execute_in_subprocess):
+        """Test that uv venv creation receives UV index environment variables when index_urls are provided."""
+        index_urls = ["https://custom-pypi.example.com/simple", "https://backup-pypi.example.com/simple"]
+        python_bin = prepare_virtualenv(
+            venv_directory="/VENV",
+            python_bin="pythonVER",
+            system_site_packages=False,
+            requirements=["certifi"],
+            index_urls=index_urls,
+        )
+        assert python_bin == "/VENV/bin/python"
+
+        # Verify venv creation call includes UV index environment variables
+        venv_call = mock_execute_in_subprocess.call_args_list[0]
+        assert venv_call[0][0] == ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", "/VENV"]
+        assert venv_call[1]["env"]["UV_DEFAULT_INDEX"] == "https://custom-pypi.example.com/simple"
+        assert venv_call[1]["env"]["UV_INDEX"] == "https://backup-pypi.example.com/simple"
+
+        # Verify pip install call also includes UV index environment variables
+        pip_call = mock_execute_in_subprocess.call_args_list[1]
+        assert pip_call[0][0] == ["uv", "pip", "install", "--python", "/VENV/bin/python", "certifi"]
+        assert pip_call[1]["env"]["UV_DEFAULT_INDEX"] == "https://custom-pypi.example.com/simple"
+        assert pip_call[1]["env"]["UV_INDEX"] == "https://backup-pypi.example.com/simple"
+
     @pytest.mark.parametrize(
         ("decorators", "expected_decorators"),
         [
