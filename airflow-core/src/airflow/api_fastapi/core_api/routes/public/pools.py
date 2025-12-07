@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryPoolNamePatternSearch,
     SortParam,
 )
+from airflow.api_fastapi.common.responses import ORJSONResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
@@ -96,6 +97,8 @@ def get_pool(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[Depends(requires_access_pool(method="GET"))],
+    response_model=PoolCollectionResponse,
+    response_class=ORJSONResponse,
 )
 def get_pools(
     limit: QueryLimit,
@@ -107,7 +110,7 @@ def get_pools(
     pool_name_pattern: QueryPoolNamePatternSearch,
     readable_pools_filter: ReadablePoolsFilterDep,
     session: SessionDep,
-) -> PoolCollectionResponse:
+):
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         statement=select(Pool),
@@ -120,10 +123,11 @@ def get_pools(
 
     pools = session.scalars(pools_select)
 
-    return PoolCollectionResponse(
+    pool_collection = PoolCollectionResponse(
         pools=pools,
         total_entries=total_entries,
     )
+    return ORJSONResponse(content=pool_collection.model_dump())
 
 
 @pools_router.patch(

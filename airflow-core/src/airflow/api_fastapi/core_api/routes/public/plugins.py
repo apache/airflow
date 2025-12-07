@@ -24,6 +24,7 @@ from pydantic import ValidationError
 from airflow import plugins_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.responses import ORJSONResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.plugins import (
     PluginCollectionResponse,
@@ -40,11 +41,13 @@ plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 @plugins_router.get(
     "",
     dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
+    response_model=PluginCollectionResponse,
+    response_class=ORJSONResponse,
 )
 def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
-) -> PluginCollectionResponse:
+):
     plugins_info = sorted(plugins_manager.get_plugin_info(), key=lambda x: x["name"])
     valid_plugins: list[PluginResponse] = []
     for plugin_dict in plugins_info:
@@ -64,10 +67,11 @@ def get_plugins(
     limit_value = limit.value if limit.value is not None else len(valid_plugins)
 
     paginated_plugins = valid_plugins[offset_value : offset_value + limit_value]
-    return PluginCollectionResponse(
+    plugin_collection = PluginCollectionResponse(
         plugins=paginated_plugins,
         total_entries=len(valid_plugins),
     )
+    return ORJSONResponse(content=plugin_collection.model_dump())
 
 
 @plugins_router.get(
