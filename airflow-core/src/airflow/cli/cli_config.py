@@ -806,6 +806,15 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_CONFIG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help=(
+        "Show configuration values. "
+        "By default only option names are shown and values (including potentially "
+        "sensitive ones) are hidden."
+    ),
+)
 
 # lint
 ARG_LINT_CONFIG_SECTION = Arg(
@@ -1734,6 +1743,7 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_CONFIG_SHOW_VALUES
         ),
     ),
     ActionCommand(

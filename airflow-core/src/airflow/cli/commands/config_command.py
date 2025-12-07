@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, NamedTuple
@@ -37,6 +38,12 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def show_config(args):
     """Show current application configuration."""
+    show_values = getattr(args, "show_values", False)
+    if not show_values:
+        print(
+            "Values are hidden by default. Use `--show-values` to display them (may include sensitive data).",
+            file=sys.stderr,
+        )
     with StringIO() as output:
         conf.write(
             output,
@@ -48,6 +55,8 @@ def show_config(args):
             include_providers=not args.exclude_providers,
             comment_out_everything=args.comment_out_everything or args.defaults,
             only_defaults=args.defaults,
+            non_sensitive=args.non_sensitive,
+            show_values=args.show_values,
         )
         code = output.getvalue()
     if should_use_colors(args):
