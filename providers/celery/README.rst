@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.0``
 ``celery[redis]``                           ``>=5.5.0,<6``
 ``flower``                                  ``>=1.0.0``
 ==========================================  ==================

@@ -90,6 +90,7 @@
     "back": "뒤로",
     "defaultMessage": "예기치 않은 오류가 발생했습니다.",
     "home": "홈",
+    "invalidUrl": "페이지를 찾을 수 없습니다. URL을 확인하고 다시 시도해 주세요.",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
   },
@@ -109,10 +110,13 @@
   "filters": {
     "durationFrom": "기간 (시작)",
     "durationTo": "기간 (종료)",
+    "endTime": "종료 시간",
     "logicalDateFrom": "논리적 날짜 (시작)",
     "logicalDateTo": "논리적 날짜 (종료)",
     "runAfterFrom": "실행 이후 (시작)",
-    "runAfterTo": "실행 이후 (종료)"
+    "runAfterTo": "실행 이후 (종료)",
+    "selectDateRange": "날짜 범위 선택",
+    "startTime": "시작 시간"
   },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",

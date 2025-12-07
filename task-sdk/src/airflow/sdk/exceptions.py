@@ -62,6 +62,10 @@ class AirflowRuntimeError(Exception):
         super().__init__(f"{error.error.value}: {error.detail}")
 
 
+class AirflowTimetableInvalid(AirflowException):
+    """Raise when a DAG has an invalid timetable."""
+
+
 class ErrorType(enum.Enum):
     """Error types used in the API client."""
 

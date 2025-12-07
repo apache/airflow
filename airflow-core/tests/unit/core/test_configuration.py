@@ -1943,6 +1943,7 @@ def test_sensitive_values():
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
+        ("keycloak_auth_manager", "client_secret"),
         ("core", "sql_alchemy_conn"),
         ("celery_broker_transport_options", "sentinel_kwargs"),
         ("celery", "broker_url"),

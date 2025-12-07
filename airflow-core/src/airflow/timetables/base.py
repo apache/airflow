@@ -16,56 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
-from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
+from airflow.sdk.bases.timetable import NullAsset  # TODO: Separate asset definitions.
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetRef
-    from airflow.serialization.dag_dependency import DagDependency
+    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.utils.types import DagRunType
-
-
-class _NullAsset(BaseAsset):
-    """
-    Sentinel type that represents "no assets".
-
-    This is only implemented to make typing easier in timetables, and not
-    expected to be used anywhere else.
-
-    :meta private:
-    """
-
-    def __bool__(self) -> bool:
-        return False
-
-    def __or__(self, other: BaseAsset) -> BaseAsset:
-        return NotImplemented
-
-    def __and__(self, other: BaseAsset) -> BaseAsset:
-        return NotImplemented
-
-    def as_expression(self) -> Any:
-        return None
-
-    def evaluate(self, statuses: dict[AssetUniqueKey, bool], *, session: Session | None = None) -> bool:
-        return False
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        return iter(())
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        return iter(())
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        return iter(())
-
-    def iter_dag_dependencies(self, source, target) -> Iterator[DagDependency]:
-        return iter(())
 
 
 class DataInterval(NamedTuple):
@@ -169,6 +129,7 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     can_be_scheduled: bool = True
     """
     Whether this timetable can actually schedule runs in an automated manner.
@@ -184,6 +145,7 @@ class Timetable(Protocol):
     This should be a list of field names on the DAG run object.
     """
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     active_runs_limit: int | None = None
     """Maximum active runs that can be active at one time for a DAG.
 
@@ -193,7 +155,7 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    asset_condition: BaseAsset = _NullAsset()
+    asset_condition: BaseAsset = NullAsset()
     """The asset condition that triggers a DAG using this timetable.
 
     If this is not *None*, this should be an asset, or a combination of, that

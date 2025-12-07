@@ -701,6 +701,8 @@ class TestStringifiedDAGs:
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
+        from airflow.serialization.encoders import _serializer
+
         exclusion_list = {
             # Doesn't implement __eq__ properly. Check manually.
             "timetable",
@@ -733,9 +735,10 @@ class TestStringifiedDAGs:
                         f"{dag.dag_id}.default_args[{k}] does not match"
                     )
 
-        assert serialized_dag.timetable.summary == dag.timetable.summary
-        assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
-        assert serialized_dag.timezone == dag.timezone
+        if (tt_type := type(dag.timetable)) in _serializer.BUILTIN_TIMETABLES:
+            assert _serializer.BUILTIN_TIMETABLES[tt_type] == qualname(serialized_dag.timetable)
+        else:
+            assert qualname(dag.timetable) == qualname(serialized_dag.timetable)
 
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
@@ -1051,7 +1054,7 @@ class TestStringifiedDAGs:
         }
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
-        assert dag.timetable_summary == expected_timetable_summary
+        assert dag.timetable.summary == expected_timetable_summary
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {

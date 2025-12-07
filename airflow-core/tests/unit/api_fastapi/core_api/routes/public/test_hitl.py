@@ -697,6 +697,10 @@ class TestGetHITLDetailsEndpoint:
             reverse=reverse,
         )
 
+        # Remove entries with None, because None orders depends on the DB implementation
+        hitl_details = [d for d in hitl_details if get_key_lambda(d) is not None]
+        sorted_hitl_details = [d for d in sorted_hitl_details if get_key_lambda(d) is not None]
+
         assert hitl_details == sorted_hitl_details
 
     def test_should_respond_200_without_response(self, test_client: TestClient) -> None:

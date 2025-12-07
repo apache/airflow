@@ -688,9 +688,9 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 Or update it if you already checked it out:
 
 ```shell script
-cd asf-dist/dev/airflow
-svn update .
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
+
 
 Set environment variables: PATH_TO_AIRFLOW_SVN to the root of folder where you have providers and RELEASE_DATE to
 the release date you are verifying.
@@ -709,7 +709,7 @@ in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
 directory.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}/dev
+cd ${AIRFLOW_REPO_ROOT}
 # Copy packages.txt extracted from the mail sent by the release manager here
 breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```

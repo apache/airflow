@@ -35,7 +35,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
+from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
@@ -252,11 +252,6 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            # MySQL does not support `nullslast`, and True/False ordering depends on the
-            # database implementation.
-            nullscheck = case((column.isnot(None), 0), else_=1)
-
-            columns.append(nullscheck)
             if order_by_value.startswith("-"):
                 columns.append(column.desc())
             else:
