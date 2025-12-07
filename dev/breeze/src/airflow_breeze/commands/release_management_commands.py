@@ -4117,9 +4117,8 @@ def version_check(
 @click.option(
     "--packages-file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, path_type=Path),
-    default="packages.txt",
     show_default=True,
-    help="File containing list of packages to check (for providers only).",
+    help="File containing list of packages to check (for providers only). use path to local packages.txt for providers releases.",
 )
 @click.argument(
     "release_type",
@@ -4132,7 +4131,7 @@ def check_release_files(
     path: Path,
     version: str | None,
     release_date: str | None,
-    packages_file: Path,
+    packages_file: Path | None,
     release_type: str,
 ):
     """
@@ -4198,6 +4197,9 @@ def check_release_files(
     missing_files = []
 
     if release_type == "providers":
+        if not packages_file:
+            console.print(f"[error]--packages-file is required for {release_type}[/]")
+            sys.exit(1)
         packages = get_packages(packages_file)
         missing_files = check_providers(files, release_date, packages)
         pips = [f"{name}=={ver}" for name, ver in packages]
