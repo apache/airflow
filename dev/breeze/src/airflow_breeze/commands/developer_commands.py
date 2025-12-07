@@ -630,7 +630,7 @@ def start_airflow(
 
     if dev_mode and use_airflow_version:
         get_console().print(
-            "[Error][bold red] You cannot set Airflow version in dev mode! Consider switching to the respective"
+            "[error]You cannot set Airflow version in dev mode! Consider switching to the respective"
             "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
         )
 
