@@ -1241,3 +1241,149 @@ class TestPytestSnowflakeHook:
 
         assert "scope" not in called_data
         assert called_data["grant_type"] == "client_credentials"
+
+    def test_get_conn_params_with_proxy_host_only(self):
+        """Test proxy configuration with only host specified."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+            assert conn_params["proxy_host"] == "proxy.example.com"
+            assert "proxy_port" not in conn_params
+            assert "proxy_user" not in conn_params
+            assert "proxy_password" not in conn_params
+
+    def test_get_conn_params_with_proxy_host_and_port(self):
+        """Test proxy configuration with host and port."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = "8080"
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+            assert conn_params["proxy_host"] == "proxy.example.com"
+            assert conn_params["proxy_port"] == 8080
+            assert "proxy_user" not in conn_params
+            assert "proxy_password" not in conn_params
+
+    def test_get_conn_params_with_proxy_port_as_int(self):
+        """Test proxy configuration with port as integer."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = 8080  # Integer instead of string
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+            assert conn_params["proxy_host"] == "proxy.example.com"
+            assert conn_params["proxy_port"] == 8080
+            assert isinstance(conn_params["proxy_port"], int)
+
+    def test_get_conn_params_with_proxy_full_config(self):
+        """Test proxy configuration with all parameters."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = "8080"
+        connection_kwargs["extra"]["proxy_user"] = "proxy_username"
+        connection_kwargs["extra"]["proxy_password"] = "proxy_password"
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+            assert conn_params["proxy_host"] == "proxy.example.com"
+            assert conn_params["proxy_port"] == 8080
+            assert conn_params["proxy_user"] == "proxy_username"
+            assert conn_params["proxy_password"] == "proxy_password"
+
+    def test_get_conn_params_with_proxy_backcompat_prefix(self):
+        """Test proxy configuration with backcompat prefix."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["extra__snowflake__proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["extra__snowflake__proxy_port"] = "8080"
+        connection_kwargs["extra"]["extra__snowflake__proxy_user"] = "proxy_username"
+        connection_kwargs["extra"]["extra__snowflake__proxy_password"] = "proxy_password"
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn_params = hook._get_conn_params
+
+            assert conn_params["proxy_host"] == "proxy.example.com"
+            assert conn_params["proxy_port"] == 8080
+            assert conn_params["proxy_user"] == "proxy_username"
+            assert conn_params["proxy_password"] == "proxy_password"
+
+    def test_get_conn_with_proxy_should_call_connect(self):
+        """Test that proxy parameters are passed to connector.connect()."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = "8080"
+        connection_kwargs["extra"]["proxy_user"] = "proxy_user"
+        connection_kwargs["extra"]["proxy_password"] = "proxy_pass"
+
+        with (
+            mock.patch.dict(
+                "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+            ),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.connector") as mock_connector,
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            hook.get_conn()
+            
+            call_args = mock_connector.connect.call_args[1]
+            assert call_args["proxy_host"] == "proxy.example.com"
+            assert call_args["proxy_port"] == 8080
+            assert call_args["proxy_user"] == "proxy_user"
+            assert call_args["proxy_password"] == "proxy_pass"
+
+    def test_sqlalchemy_uri_excludes_proxy_params(self):
+        """Test that proxy parameters are excluded from SQLAlchemy URI."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = "8080"
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            uri = hook.get_uri()
+
+            # Proxy parameters should NOT appear in the URI
+            assert "proxy_host" not in uri
+            assert "proxy_port" not in uri
+            assert "proxy.example.com" not in uri
+            assert "8080" not in uri
+
+    def test_get_sqlalchemy_engine_with_proxy(self):
+        """Test get_sqlalchemy_engine does not include proxy params in URI but passes to connect_args if needed."""
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["proxy_host"] = "proxy.example.com"
+        connection_kwargs["extra"]["proxy_port"] = "8080"
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine,
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            hook.get_sqlalchemy_engine()
+
+            # Check that the URI doesn't contain proxy params
+            called_uri = mock_create_engine.call_args[0][0]
+            assert "proxy_host" not in str(called_uri)
+            assert "proxy_port" not in str(called_uri)
