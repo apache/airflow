@@ -94,6 +94,32 @@ When testing from HEAD of the branch when the tag
   :width: 100%
   :alt: Breeze release-management prepare-tarball
 
+Validating Release Candidate for PMC
+"""""""""""""""""""""""""""""""""""""
+
+PMC members can use Breeze to automate verification of release candidates instead of manually
+running multiple verification steps. This command validates SVN files, GPG signatures, SHA512
+checksums, Apache RAT licenses, and reproducible builds.
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc --distribution airflow --version 3.1.3rc1 --task-sdk-version 1.1.3rc1 --svn-path ~/asf-dist/dev/airflow
+
+You can run individual checks by specifying the ``--checks`` flag:
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc \
+      --distribution airflow \
+      --version 3.1.3rc1 \
+      --svn-path ~/asf-dist/dev/airflow \
+      --checks svn,signatures,checksums,licenses
+
+.. image:: ./images/output_release-management_validate-rc-by-pmc.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_validate-rc-by-pmc.svg
+  :width: 100%
+  :alt: Breeze release-management validate-rc-by-pmc
+
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
 
@@ -281,10 +307,10 @@ This command can be utilized to manage git tags for providers within the Airflow
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
-The flag ``--clean-local-tags`` can be used to delete the local tags.
+The flag ``--clean-tags`` can be used to delete the local tags.
 
 However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-local-tags`` flag.
+``--no-clean-tags`` flag.
 
 .. code-block:: bash
 
@@ -381,6 +407,23 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Updating provider next version
+""""""""""""""""""""""""""""""
+
+You can use Breeze to update references to other providers automatically to the
+next version of dependent providers, when they are commented with ``# use next version``.
+
+The below example perform the upgrade.
+
+.. code-block:: bash
+
+     breeze release-management update-providers-next-version
+
+
+.. image:: ./images/output_release-management_update-providers-next-version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_update-providers-next-version.svg
+  :alt: Breeze update-providers-next-version
+
 Preparing providers
 """""""""""""""""""
 
@@ -428,7 +471,7 @@ Installing providers
 """"""""""""""""""""
 
 In some cases we want to just see if the providers generated can be installed with Airflow without
-verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+verifying them. This happens automatically on CI for ``sdist`` packages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash
