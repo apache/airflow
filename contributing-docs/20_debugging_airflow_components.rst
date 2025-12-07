@@ -157,17 +157,17 @@ Setting up VSCode for Remote Debugging
 
    .. code-block:: json
 
-{
-    "servers": {
-        "chakra-ui": {
-            "command": "npx",
-            "args": [
-                "-y",
-                "@chakra-ui/react-mcp"
-            ]
+    {
+        "servers": {
+            "chakra-ui": {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@chakra-ui/react-mcp"
+                ]
+            }
         }
     }
-}
 
    **Benefits of MCP Integration:**
 
