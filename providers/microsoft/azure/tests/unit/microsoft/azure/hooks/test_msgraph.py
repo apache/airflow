@@ -312,7 +312,7 @@ class TestKiotaRequestAdapterHook:
             with pytest.warns(AirflowProviderDeprecationWarning):
                 actual = hook.get_conn()
 
-                assert actual._http_client._mounts
+            assert actual._http_client._mounts
 
     @pytest.mark.asyncio
     async def test_proxies_override_with_empty_dict(self):
@@ -327,7 +327,7 @@ class TestKiotaRequestAdapterHook:
             with pytest.warns(AirflowProviderDeprecationWarning):
                 actual = hook.get_conn()
 
-                assert not actual._http_client._mounts
+            assert not actual._http_client._mounts
 
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(
