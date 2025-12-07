@@ -49,6 +49,74 @@ class BaseXCom:
 
     XCOM_RETURN_KEY = "return_value"
 
+    @staticmethod
+    def _get_supervisor_comms():
+        """Get SUPERVISOR_COMMS if available, None otherwise."""
+        try:
+            from airflow.sdk.execution_time import task_runner
+
+            return getattr(task_runner, "SUPERVISOR_COMMS", None)
+        except (ImportError, AttributeError):
+            return None
+
+    @classmethod
+    def _get_xcom_from_db(
+        cls,
+        *,
+        key: str,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        map_index: int | None = None,
+        include_prior_dates: bool = False,
+    ) -> Any | None:
+        """
+        Retrieve an XCom value directly from the database.
+
+        :param key: Key for the XCom.
+        :param dag_id: DAG ID.
+        :param task_id: Task ID.
+        :param run_id: DAG run ID.
+        :param map_index: Map index for mapped tasks.
+        :param include_prior_dates: If True, search across prior dates.
+        :return: Deserialized XCom value or None if not found.
+        """
+        from airflow.models.xcom import XComModel
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            query = XComModel.get_many(
+                key=key,
+                run_id=run_id,
+                dag_ids=dag_id,
+                task_ids=task_id,
+                map_indexes=map_index if map_index is not None else None,
+                include_prior_dates=include_prior_dates,
+            )
+
+            result = session.execute(
+                query.with_only_columns(
+                    XComModel.run_id,
+                    XComModel.task_id,
+                    XComModel.dag_id,
+                    XComModel.map_index,
+                    XComModel.value,
+                )
+            ).first()
+
+            if result is None:
+                log.debug(
+                    "No XCom value found in database; returning None.",
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
+                )
+                return None
+
+            return XComModel.deserialize_value(result)
+
     @classmethod
     def set(
         cls,
@@ -177,6 +245,8 @@ class BaseXCom:
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
 
+        Falls back to database when SUPERVISOR_COMMS is unavailable.
+
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
@@ -190,22 +260,52 @@ class BaseXCom:
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        comms = cls._get_supervisor_comms()
 
-        msg = SUPERVISOR_COMMS.send(
-            GetXCom(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                map_index=map_index,
-            ),
-        )
+        if comms is not None:
+            msg = comms.send(
+                GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
+                ),
+            )
 
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
+            if not isinstance(msg, XComResult):
+                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
-        return msg
+            return msg
+        else:
+            from airflow.models.xcom import XComModel
+            from airflow.sdk.execution_time.comms import XComResult
+            from airflow.utils.session import create_session
+
+            with create_session() as session:
+                query = XComModel.get_many(
+                    key=key,
+                    run_id=run_id,
+                    dag_ids=dag_id,
+                    task_ids=task_id,
+                    map_indexes=map_index if map_index is not None else None,
+                    include_prior_dates=False,
+                )
+
+                xcom_row = session.execute(
+                    query.with_only_columns(
+                        XComModel.run_id,
+                        XComModel.task_id,
+                        XComModel.dag_id,
+                        XComModel.map_index,
+                        XComModel.value,
+                    )
+                ).first()
+
+                if xcom_row is None:
+                    return XComResult(key=key, value=None)
+
+                return XComResult(key=key, value=xcom_row.value)
 
     @classmethod
     def get_one(
@@ -227,6 +327,8 @@ class BaseXCom:
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
 
+        Falls back to database when SUPERVISOR_COMMS is unavailable.
+
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
@@ -243,33 +345,43 @@ class BaseXCom:
             specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        comms = cls._get_supervisor_comms()
 
-        msg = SUPERVISOR_COMMS.send(
-            GetXCom(
+        if comms is not None:
+            msg = comms.send(
+                GetXCom(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    map_index=map_index,
+                    include_prior_dates=include_prior_dates,
+                ),
+            )
+
+            if not isinstance(msg, XComResult):
+                raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
+
+            if msg.value is not None:
+                return cls.deserialize_value(msg)
+            log.warning(
+                "No XCom value found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
+            return None
+        else:
+            return cls._get_xcom_from_db(
                 key=key,
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
                 include_prior_dates=include_prior_dates,
-            ),
-        )
-
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-        if msg.value is not None:
-            return cls.deserialize_value(msg)
-        log.warning(
-            "No XCom value found; defaulting to None.",
-            key=key,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
-        return None
+            )
 
     @classmethod
     def get_all(
@@ -290,6 +402,8 @@ class BaseXCom:
         This is particularly useful for getting all XCom values from all map
         indexes of a mapped task at once.
 
+        Falls back to database when SUPERVISOR_COMMS is unavailable.
+
         :param key: A key for the XCom. Only XComs with this key will be returned.
         :param run_id: Dag run ID for the task.
         :param dag_id: Dag ID to pull XComs from.
@@ -299,28 +413,57 @@ class BaseXCom:
             returned regardless of the run they belong to.
         :return: List of all XCom values if found.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        comms = cls._get_supervisor_comms()
 
-        msg = SUPERVISOR_COMMS.send(
-            msg=GetXComSequenceSlice(
-                key=key,
-                dag_id=dag_id,
-                task_id=task_id,
-                run_id=run_id,
-                start=None,
-                stop=None,
-                step=None,
-                include_prior_dates=include_prior_dates,
-            ),
-        )
+        if comms is not None:
+            msg = comms.send(
+                msg=GetXComSequenceSlice(
+                    key=key,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    run_id=run_id,
+                    start=None,
+                    stop=None,
+                    step=None,
+                    include_prior_dates=include_prior_dates,
+                ),
+            )
 
-        if not isinstance(msg, XComSequenceSliceResult):
-            raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
+            if not isinstance(msg, XComSequenceSliceResult):
+                raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if not msg.root:
-            return None
+            if not msg.root:
+                return None
 
-        return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
+            return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
+        else:
+            from airflow.models.xcom import XComModel
+            from airflow.utils.session import create_session
+
+            with create_session() as session:
+                query = XComModel.get_many(
+                    key=key,
+                    run_id=run_id,
+                    dag_ids=dag_id,
+                    task_ids=task_id,
+                    map_indexes=None,
+                    include_prior_dates=include_prior_dates,
+                )
+
+                results = session.execute(
+                    query.with_only_columns(
+                        XComModel.run_id,
+                        XComModel.task_id,
+                        XComModel.dag_id,
+                        XComModel.map_index,
+                        XComModel.value,
+                    )
+                ).all()
+
+                if not results:
+                    return None
+
+                return [XComModel.deserialize_value(row) for row in results]
 
     @staticmethod
     def serialize_value(
