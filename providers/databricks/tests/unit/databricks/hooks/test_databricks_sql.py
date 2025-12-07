@@ -628,3 +628,38 @@ def test_get_df(df_type, df_class, description):
             assert df.row(1)[0] == result_sets[1][0]
 
         assert isinstance(df, df_class)
+
+
+def test_xcom_pickle_results_with_row_objects(mock_get_conn, mock_get_requests):
+    """Test that Row objects from fetch_all are converted to namedtuples and can be pickled for XCom."""
+    import pickle
+    
+    # Create mock cursor with Row objects
+    mock_cursor = mock.MagicMock()
+    mock_cursor.description = [("id",), ("value",)]
+    mock_cursor.fetchall.return_value = [Row(id=1, value=2), Row(id=11, value=12)]
+    mock_cursor.query_id = "query_123"
+    mock_cursor.rowcount = 2
+    
+    mock_conn = mock.MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    mock_get_conn.return_value = mock_conn
+    
+    hook = DatabricksSqlHook(sql_endpoint_name="Test")
+    
+    # Run with fetch_all_handler (the default)
+    results = hook.run(sql="select * from test.test", handler=fetch_all_handler)
+    
+    # Verify results are namedtuples and can be pickled
+    assert results is not None
+    # The results should be a list of namedtuples
+    assert len(results) == 2
+    assert hasattr(results[0], 'id')
+    assert hasattr(results[0], 'value')
+    assert results[0].id == 1
+    assert results[0].value == 2
+    
+    # Most importantly, verify they can be pickled (for XCom)
+    pickled = pickle.dumps(results)
+    unpickled = pickle.loads(pickled)
+    assert unpickled == results

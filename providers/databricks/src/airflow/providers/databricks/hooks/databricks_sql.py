@@ -52,6 +52,62 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+class PicklableRow:
+    """A wrapper for databricks Row objects that ensures they are picklable for XCom storage."""
+    
+    def __init__(self, fields: tuple[str, ...], values: tuple[Any, ...]):
+        """Initialize a picklable row with field names and values."""
+        # Use object.__setattr__ to avoid triggering __getattr__
+        object.__setattr__(self, '_original_fields', fields)
+        object.__setattr__(self, '_values', values)
+        # Create a namedtuple type for this row
+        namedtuple_class = namedtuple("Row", fields, rename=True)
+        namedtuple_instance = namedtuple_class(*values)
+        object.__setattr__(self, '_namedtuple_instance', namedtuple_instance)
+    
+    def __getattr__(self, name: str) -> Any:
+        """Forward attribute access to the namedtuple instance."""
+        # Get from namedtuple first to get renamed field names
+        try:
+            nt_instance = object.__getattribute__(self, '_namedtuple_instance')
+            return getattr(nt_instance, name)
+        except AttributeError:
+            pass
+        # If not found in namedtuple, raise AttributeError
+        raise AttributeError(f"'PicklableRow' object has no attribute '{name}'")
+    
+    def _asdict(self) -> dict[str, Any]:
+        """Return a dictionary representation of the row."""
+        original_fields = object.__getattribute__(self, '_original_fields')
+        values = object.__getattribute__(self, '_values')
+        return dict(zip(original_fields, values))
+    
+    def __iter__(self):
+        """Make the row iterable."""
+        values = object.__getattribute__(self, '_values')
+        return iter(values)
+    
+    def __repr__(self) -> str:
+        """Return a string representation."""
+        nt_instance = object.__getattribute__(self, '_namedtuple_instance')
+        return f"PicklableRow{nt_instance!r}"
+    
+    def __eq__(self, other: Any) -> bool:
+        """Check equality."""
+        if isinstance(other, PicklableRow):
+            my_values = object.__getattribute__(self, '_values')
+            other_values = object.__getattribute__(other, '_values')
+            return my_values == other_values
+        nt_instance = object.__getattribute__(self, '_namedtuple_instance')
+        return nt_instance == other
+    
+    def __reduce__(self):
+        """Support for pickle serialization."""
+        original_fields = object.__getattribute__(self, '_original_fields')
+        values = object.__getattribute__(self, '_values')
+        return (PicklableRow, (original_fields, values))
+
+
 def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
     if execution_timeout is not None:
         seconds_to_timeout = execution_timeout.total_seconds()
@@ -313,31 +369,40 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         else:
                             results.append(result)
                             self.descriptions.append(cur.description)
+                    else:
+                        # When no handler is provided, still need to fetch and convert Row objects
+                        # to namedtuples for proper XCom serialization
+                        if cur.description is not None:
+                            raw_result = cur.fetchall()
+                            if raw_result:
+                                result = self._make_common_data_structure(raw_result)
+                                if return_single_query_results(sql, return_last, split_statements):
+                                    results = [result]
+                                    self.descriptions = [cur.description]
+                                else:
+                                    results.append(result)
+                                    self.descriptions.append(cur.description)
         if conn:
             conn.close()
             self._sql_conn = None
 
-        if handler is None:
+        if not results:
             return None
         if return_single_query_results(sql, return_last, split_statements):
             return results[-1]
         return results
 
     def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple[Any, ...] | list[tuple[Any, ...]]:
-        """Transform the databricks Row objects into namedtuple."""
-        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
-        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        """Transform the databricks Row objects into picklable PicklableRow objects."""
         if isinstance(result, list):
             rows: Sequence[Row] = result
             if not rows:
                 return []
             rows_fields = tuple(rows[0].__fields__)
-            rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
-            return cast("list[tuple[Any, ...]]", [rows_object(*row) for row in rows])
+            return cast("list[tuple[Any, ...]]", [PicklableRow(rows_fields, tuple(row)) for row in rows])
         if isinstance(result, Row):
             row_fields = tuple(result.__fields__)
-            row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore
-            return cast("tuple[Any, ...]", row_object(*result))
+            return cast("tuple[Any, ...]", PicklableRow(row_fields, tuple(result)))
         raise TypeError(f"Expected Sequence[Row] or Row, but got {type(result)}")
 
     def bulk_dump(self, table, tmp_file):
