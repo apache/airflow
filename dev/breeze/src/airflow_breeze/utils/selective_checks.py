@@ -1009,6 +1009,32 @@ class SelectiveChecks:
             return INTEGRATION_TESTS_CORE_BRANCHES
         return [branch]
 
+    @property
+    def prod_image_build_sha_map(self) -> dict[str, str]:
+        """
+        Map of branches to SHAs for building prod images for airflowctl integration tests.
+
+        For main branch, we use the latest commit on main for each supported branch.
+        For other branches, we use the current commit SHA.
+
+        Returns:
+            - For main branch: {"v3-1-test": "<latest-sha>", "main": "<latest-sha>"}
+            - For other branches: {"<branch-name>": "<current-sha>"}
+        """
+        sha_map = {}
+        for branch in self.prod_image_build_matrix:
+            if branch == AIRFLOW_BRANCH:
+                sha_map[branch] = self._commit_ref
+            else:
+                sha_map[branch] = run_command(
+                    ["git", "rev-parse", branch],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=True,
+                ).stdout.strip()
+        return sha_map
+
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
     ) -> list[str]:
