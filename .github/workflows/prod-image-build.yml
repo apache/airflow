@@ -109,6 +109,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a prod-image build (true/false)"
         required: true
         type: string
+      prod-image-build-sha-map:
+        description: "JSON-formatted map of prod-image-build SHAs for different branches"
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -261,7 +265,7 @@ jobs:
         run: >
           breeze prod-image build
           --builder airflow_cache
-          --commit-sha "${{ github.sha }}"
+          --commit-sha "${COMMIT_SHA}"
           --install-distributions-from-context
           --airflow-constraints-mode constraints-source-providers
           --use-constraints-for-context-distributions
@@ -274,6 +278,7 @@ jobs:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
           USE_UV: ${{ inputs.use-uv }}
+          COMMIT_SHA: ${{ fromJSON( inputs.prod-image-build-sha-map )[ inputs.branch ] || github.sha }}
       - name: "Verify PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         run: breeze prod-image verify
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"

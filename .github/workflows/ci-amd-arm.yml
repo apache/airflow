@@ -97,6 +97,7 @@ jobs:
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       prod-image-build-matrix: ${{ steps.selective-checks.outputs.prod-image-build-matrix }}
+      prod-image-build-sha-map: ${{ steps.selective-checks.outputs.prod-image-build-sha-map }}
       # yamllint disable rule:line-length
       providers-compatibility-tests-matrix: >
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
