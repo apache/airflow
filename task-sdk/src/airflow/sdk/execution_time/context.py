@@ -349,7 +349,8 @@ class ConnectionAccessor:
         return "<ConnectionAccessor (dynamic access)>"
 
     def __iter__(self):
-        """Prevent debugger introspection from triggering infinite loops.
+        """
+        Prevent debugger introspection from triggering infinite loops.
 
         Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
         potentially causing infinite loops when accessing variables/connections/macros.
@@ -397,7 +398,8 @@ class VariableAccessor:
         return "<VariableAccessor (dynamic access)>"
 
     def __iter__(self):
-        """Prevent debugger introspection from triggering infinite loops.
+        """
+        Prevent debugger introspection from triggering infinite loops.
 
         Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
         potentially causing infinite loops when accessing variables/connections/macros.
@@ -435,7 +437,8 @@ class MacrosAccessor:
         return "<MacrosAccessor (dynamic access to macros)>"
 
     def __iter__(self):
-        """Prevent debugger introspection from triggering infinite loops.
+        """
+        Prevent debugger introspection from triggering infinite loops.
 
         Debuggers call hasattr(obj, '__iter__') which triggers __getattr__ for dynamic access,
         potentially causing infinite loops when accessing variables/connections/macros.
