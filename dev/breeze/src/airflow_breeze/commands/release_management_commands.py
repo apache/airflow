@@ -4415,6 +4415,9 @@ def check_release_files(
         create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
+        if not version:
+            get_console().print("[error]--version is required for task-sdk[/]")
+            sys.exit(1)
         airflow_version = version.replace("1", "3", 1)
         create_docker(
             TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
