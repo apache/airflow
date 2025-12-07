@@ -4282,6 +4282,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Whether the create user job should be created.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "command": {
                     "description": "Command to use when running create user job (templated).",
                     "type": [
