@@ -306,6 +306,11 @@ jobs:
     name: "Generate constraints"
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        # yamllint disable rule: line-length
+        airflow-core-branch: ${{ fromJSON(needs.build-info.outputs.prod-image-build-matrix) }}
     if: needs.build-info.outputs.ci-image-build == 'true'
     with:
       runners: ${{ needs.build-info.outputs.runner-type }}
@@ -318,6 +323,7 @@ jobs:
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      branch: ${{ matrix.airflow-core-branch }}
 
   ci-image-checks:
     name: "CI image checks"
