@@ -34,6 +34,10 @@
       "error": "{{type}}을(를) 지우지 못했습니다.",
       "title": "{{type}} 지우기"
     },
+    "confirmationDialog": {
+      "description": "태스크가 현재 {{time}}에 사용자 {{user}} 님에 의해 시작되어, 현재 {{state}} 상태입니다. \n실행이 완료되거나 태스크 지우기 대화 상자에서 \"실행 중인 태스크 재실행 방지\" 옵션을 선택 해제할 때까지 이 태스크를 지울 수 없습니다.",
+      "title": "태스크 인스턴스를 삭제할 수 없습니다."
+    },
     "delete": {
       "button": "{{type}} 삭제",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "미래",
       "onlyFailed": "실패한 작업만 지우기",
       "past": "과거",
+      "preventRunningTasks": "실행 중인 태스크 재실행 방지",
       "queueNew": "새 작업 대기열에 추가",
       "runOnLatestVersion": "최신 번들 버전으로 실행",
       "upstream": "업스트림"

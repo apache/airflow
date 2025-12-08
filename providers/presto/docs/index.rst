@@ -78,7 +78,7 @@ apache-airflow-providers-presto package
 `Presto <https://prestodb.io/>`__
 
 
-Release: 5.9.3
+Release: 5.10.0
 
 Provider package
 ----------------
@@ -96,19 +96,20 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ======================================
-PIP package                              Version required
-=======================================  ======================================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``presto-python-client``                 ``>=0.8.4``
-``pandas``                               ``>=2.1.2; python_version < "3.13"``
-``pandas``                               ``>=2.2.3; python_version >= "3.13"``
-``psycopg2-binary``                      ``>=2.9.9; python_version < "3.13"``
-``psycopg2-binary``                      ``>=2.9.10; python_version >= "3.13"``
-=======================================  ======================================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``presto-python-client``                    ``>=0.8.4``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
+``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -120,15 +121,16 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-presto[common.sql]
+    pip install apache-airflow-providers-presto[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_          ``google``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -136,5 +138,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-presto 5.9.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-presto 5.9.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.9.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-presto 5.10.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-presto 5.10.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.10.0-py3-none-any.whl.sha512>`__)

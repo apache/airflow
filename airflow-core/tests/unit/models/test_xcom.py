@@ -133,7 +133,10 @@ class TestXCom:
 
     @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
+        from airflow.sdk.configuration import conf as sdk_conf
+
         conf.remove_option("core", "xcom_backend")
+        sdk_conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls.serialize_value([1]) == [1]

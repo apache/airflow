@@ -26,9 +26,8 @@ from typing import TYPE_CHECKING, Any
 from slack_sdk import WebhookClient
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
 
 if TYPE_CHECKING:

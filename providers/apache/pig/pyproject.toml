@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-pig"
-version = "4.7.3"
+version = "4.8.0"
 description = "Provider package apache-airflow-providers-apache-pig for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,14 +58,8 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-]
-
-# The optional dependencies should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
-[project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
 ]
 
 [dependency-groups]
@@ -103,8 +97,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.7.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.7.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-pig/4.8.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

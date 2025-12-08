@@ -63,7 +63,6 @@ from airflow.exceptions import (
     AirflowException,
     DeserializationError,
     SerializationError,
-    TaskDeferred,
     TaskNotFound,
 )
 from airflow.models.connection import Connection
@@ -76,7 +75,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
-from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, BaseOperator, XComArg
+from airflow.observability.stats import Stats
+from airflow.sdk import DAG, Asset, AssetAlias, AssetAll, AssetAny, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
@@ -94,13 +94,24 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.definitions.xcom_arg import serialize_xcom_arg
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
 from airflow.serialization.dag_dependency import DagDependency
+from airflow.serialization.decoders import (
+    decode_asset,
+    decode_asset_condition,
+    decode_relativedelta,
+    decode_timetable,
+)
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.encoders import (
+    encode_asset_condition,
+    encode_relativedelta,
+    encode_timetable,
+    encode_timezone,
+)
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import serialize_template_field
+from airflow.serialization.helpers import TimetableNotRegistered, serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
-from airflow.stats import Stats
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -117,12 +128,11 @@ from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.docs import get_docs_url
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -138,7 +148,7 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-    from airflow.triggers.base import BaseEventTrigger
+    from airflow.timetables.simple import PartitionMapper
 
     try:
         from kubernetes.client import models as k8s  # noqa: TC004
@@ -163,64 +173,6 @@ DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
 log = logging.getLogger(__name__)
 
 
-def encode_relativedelta(var: relativedelta.relativedelta) -> dict[str, Any]:
-    """Encode a relativedelta object."""
-    encoded = {k: v for k, v in var.__dict__.items() if not k.startswith("_") and v}
-    if var.weekday and var.weekday.n:
-        # Every n'th Friday for example
-        encoded["weekday"] = [var.weekday.weekday, var.weekday.n]
-    elif var.weekday:
-        encoded["weekday"] = [var.weekday.weekday]
-    return encoded
-
-
-def decode_relativedelta(var: dict[str, Any]) -> relativedelta.relativedelta:
-    """Dencode a relativedelta object."""
-    if "weekday" in var:
-        var["weekday"] = relativedelta.weekday(*var["weekday"])
-    return relativedelta.relativedelta(**var)
-
-
-def encode_timezone(var: Timezone | FixedTimezone) -> str | int:
-    """
-    Encode a Pendulum Timezone for serialization.
-
-    Airflow only supports timezone objects that implements Pendulum's Timezone
-    interface. We try to keep as much information as possible to make conversion
-    round-tripping possible (see ``decode_timezone``). We need to special-case
-    UTC; Pendulum implements it as a FixedTimezone (i.e. it gets encoded as
-    0 without the special case), but passing 0 into ``pendulum.timezone`` does
-    not give us UTC (but ``+00:00``).
-    """
-    if isinstance(var, FixedTimezone):
-        if var.offset == 0:
-            return "UTC"
-        return var.offset
-    if isinstance(var, Timezone):
-        return var.name
-    raise ValueError(
-        f"DAG timezone should be a pendulum.tz.Timezone, not {var!r}. "
-        f"See {get_docs_url('timezone.html#time-zone-aware-dags')}"
-    )
-
-
-def decode_timezone(var: str | int) -> Timezone | FixedTimezone:
-    """Decode a previously serialized Pendulum Timezone."""
-    return parse_timezone(var)
-
-
-def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
-    from airflow import plugins_manager
-
-    if importable_string.startswith("airflow.timetables."):
-        return import_string(importable_string)
-    plugins_manager.initialize_timetables_plugins()
-    if plugins_manager.timetable_classes:
-        return plugins_manager.timetable_classes.get(importable_string)
-    else:
-        return None
-
-
 def _get_registered_priority_weight_strategy(
     importable_string: str,
 ) -> type[PriorityWeightStrategy] | None:
@@ -235,13 +187,13 @@ def _get_registered_priority_weight_strategy(
         return None
 
 
-class _TimetableNotRegistered(ValueError):
+class _PartitionMapperNotFound(ValueError):
     def __init__(self, type_string: str) -> None:
         self.type_string = type_string
 
     def __str__(self) -> str:
         return (
-            f"Timetable class {self.type_string!r} is not registered or "
+            f"PartitionMapper class {self.type_string!r} could not be imported or "
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
@@ -257,126 +209,6 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-
-
-def _encode_trigger(trigger: BaseEventTrigger | dict):
-    def _ensure_serialized(d):
-        """
-        Make sure the kwargs dict is JSON-serializable.
-
-        This is done with BaseSerialization logic. A simple check is added to
-        ensure we don't double-serialize, which is possible when a trigger goes
-        through multiple serialization layers.
-        """
-        if isinstance(d, dict) and Encoding.TYPE in d:
-            return d
-        return BaseSerialization.serialize(d)
-
-    if isinstance(trigger, dict):
-        classpath = trigger["classpath"]
-        kwargs = trigger["kwargs"]
-    else:
-        classpath, kwargs = trigger.serialize()
-    return {
-        "classpath": classpath,
-        "kwargs": {k: _ensure_serialized(v) for k, v in kwargs.items()},
-    }
-
-
-def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
-    """
-    Encode an asset condition.
-
-    :meta private:
-    """
-    if isinstance(var, Asset):
-
-        def _encode_watcher(watcher: AssetWatcher):
-            return {
-                "name": watcher.name,
-                "trigger": _encode_trigger(watcher.trigger),
-            }
-
-        asset = {
-            "__type": DAT.ASSET,
-            "name": var.name,
-            "uri": var.uri,
-            "group": var.group,
-            "extra": var.extra,
-        }
-
-        if len(var.watchers) > 0:
-            asset["watchers"] = [_encode_watcher(watcher) for watcher in var.watchers]
-
-        return asset
-    if isinstance(var, AssetAlias):
-        return {"__type": DAT.ASSET_ALIAS, "name": var.name, "group": var.group}
-    if isinstance(var, AssetAll):
-        return {
-            "__type": DAT.ASSET_ALL,
-            "objects": [encode_asset_condition(x) for x in var.objects],
-        }
-    if isinstance(var, AssetAny):
-        return {
-            "__type": DAT.ASSET_ANY,
-            "objects": [encode_asset_condition(x) for x in var.objects],
-        }
-    if isinstance(var, AssetRef):
-        return {"__type": DAT.ASSET_REF, **attrs.asdict(var)}
-    raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
-
-
-def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
-    """
-    Decode a previously serialized asset condition.
-
-    :meta private:
-    """
-    dat = var["__type"]
-    if dat == DAT.ASSET:
-        return decode_asset(var)
-    if dat == DAT.ASSET_ALL:
-        return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
-    if dat == DAT.ASSET_ANY:
-        return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
-    if dat == DAT.ASSET_ALIAS:
-        return AssetAlias(name=var["name"], group=var["group"])
-    if dat == DAT.ASSET_REF:
-        return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
-    raise ValueError(f"deserialization not implemented for DAT {dat!r}")
-
-
-def smart_decode_trigger_kwargs(d):
-    """
-    Slightly clean up kwargs for display or execution.
-
-    This detects one level of BaseSerialization and tries to deserialize the
-    content, removing some __type __var ugliness when the value is displayed
-    in UI to the user and/or while execution.
-    """
-    if not isinstance(d, dict) or Encoding.TYPE not in d:
-        return d
-    return BaseSerialization.deserialize(d)
-
-
-def decode_asset(var: dict[str, Any]):
-    watchers = var.get("watchers", [])
-    return Asset(
-        name=var["name"],
-        uri=var["uri"],
-        group=var["group"],
-        extra=var["extra"],
-        watchers=[
-            SerializedAssetWatcher(
-                name=watcher["name"],
-                trigger={
-                    "classpath": watcher["trigger"]["classpath"],
-                    "kwargs": smart_decode_trigger_kwargs(watcher["trigger"]["kwargs"]),
-                },
-            )
-            for watcher in watchers
-        ],
-    )
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
@@ -399,6 +231,8 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
                 dest_asset_key=AssetUniqueKey(
                     name=e["dest_asset_key"]["name"], uri=e["dest_asset_key"]["uri"]
                 ),
+                # fallback for backward compatibility
+                dest_asset_extra=e.get("dest_asset_extra", {}),
                 extra=e["extra"],
             )
             for e in asset_alias_events
@@ -426,25 +260,31 @@ def decode_outlet_event_accessors(var: dict[str, Any]) -> OutletEventAccessors:
     return d
 
 
-def encode_timetable(var: Timetable) -> dict[str, Any]:
+def _load_partition_mapper(importable_string) -> PartitionMapper | None:
+    if importable_string.startswith("airflow.timetables."):
+        return import_string(importable_string)
+    return None
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
     """
-    Encode a timetable instance.
+    Encode a PartitionMapper instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
 
     :meta private:
     """
-    timetable_class = type(var)
-    importable_string = qualname(timetable_class)
-    if _get_registered_timetable(importable_string) is None:
-        raise _TimetableNotRegistered(importable_string)
+    partition_mapper_class = type(var)
+    importable_string = qualname(partition_mapper_class)
+    if _load_partition_mapper(importable_string) is None:
+        raise _PartitionMapperNotFound(importable_string)
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def decode_timetable(var: dict[str, Any]) -> Timetable:
+def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     """
-    Decode a previously serialized timetable.
+    Decode a previously serialized PartitionMapper.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
@@ -452,10 +292,10 @@ def decode_timetable(var: dict[str, Any]) -> Timetable:
     :meta private:
     """
     importable_string = var[Encoding.TYPE]
-    timetable_class = _get_registered_timetable(importable_string)
-    if timetable_class is None:
-        raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var[Encoding.VAR])
+    partition_mapper_class = _load_partition_mapper(importable_string)
+    if partition_mapper_class is None:
+        raise _PartitionMapperNotFound(importable_string)
+    return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
 def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
@@ -736,7 +576,12 @@ class BaseSerialization:
 
         :meta private:
         """
-        if cls._is_primitive(var):
+        from airflow.sdk.definitions._internal.types import is_arg_set
+        from airflow.sdk.exceptions import TaskDeferred
+
+        if not is_arg_set(var):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
+        elif cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
                 return var.value
@@ -867,8 +712,6 @@ class BaseSerialization:
                 obj = cls.serialize(v, strict=strict)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
-        elif isinstance(var, ArgNotSet):
-            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -936,7 +779,7 @@ class BaseSerialization:
         elif type_ == DAT.TIMEDELTA:
             return datetime.timedelta(seconds=var)
         elif type_ == DAT.TIMEZONE:
-            return decode_timezone(var)
+            return parse_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
         elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
@@ -981,6 +824,8 @@ class BaseSerialization:
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif type_ == DAT.ARG_NOT_SET:
+            from airflow.serialization.definitions.notset import NOTSET
+
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
             return DeadlineAlert.deserialize_deadline_alert(var)
@@ -1031,6 +876,7 @@ class BaseSerialization:
             "default": cls.serialize(param.value),
             "description": cls.serialize(param.description),
             "schema": cls.serialize(param.schema),
+            "source": cls.serialize(getattr(param, "source", None)),
         }
 
     @classmethod
@@ -1042,7 +888,7 @@ class BaseSerialization:
         this class's ``serialize`` method.  So before running through ``deserialize``,
         we first verify that it's necessary to do.
         """
-        attrs = ("default", "description", "schema")
+        attrs = ("default", "description", "schema", "source")
         kwargs = {}
 
         def is_serialized(val):
@@ -1062,6 +908,7 @@ class BaseSerialization:
         return SerializedParam(
             default=kwargs.get("default"),
             description=kwargs.get("description"),
+            source=kwargs.get("source", None),
             **(kwargs.get("schema") or {}),
         )
 
@@ -1237,6 +1084,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _json_schema: ClassVar[Validator] = lazy_object_proxy.Proxy(load_dag_schema)
 
+    _const_fields: ClassVar[set[str] | None] = None
+
     _can_skip_downstream: bool
     _is_empty: bool
     _needs_expansion: bool
@@ -1299,7 +1148,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     run_as_user: str | None = None
 
     start_date: datetime.datetime | None = None
@@ -1633,6 +1482,11 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
             elif k == "weight_rule":
                 k = "_weight_rule"
                 v = decode_priority_weight_strategy(v)
+            elif k == "retry_exponential_backoff":
+                if isinstance(v, bool):
+                    v = 2.0 if v else 0
+                else:
+                    v = float(v)
             else:
                 # Apply centralized deserialization for all other fields
                 v = cls._deserialize_field_value(k, v)
@@ -1706,6 +1560,22 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         for task_id in task.downstream_task_ids:
             # Bypass set_upstream etc here - it does more than we want
             dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+
+    @classmethod
+    def get_operator_const_fields(cls) -> set[str]:
+        """Get the set of operator fields that are marked as const in the JSON schema."""
+        if (schema_loader := cls._json_schema) is None:
+            return set()
+
+        schema_data = schema_loader.schema
+        operator_def = schema_data.get("definitions", {}).get("operator", {})
+        properties = operator_def.get("properties", {})
+
+        return {
+            field_name
+            for field_name, field_def in properties.items()
+            if isinstance(field_def, dict) and field_def.get("const")
+        }
 
     @classmethod
     @lru_cache(maxsize=1)  # Only one type: "operator"
@@ -1862,10 +1732,39 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         # Check if value matches client_defaults (hierarchical defaults optimization)
         if cls._matches_client_defaults(var, attrname):
             return True
-        schema_defaults = cls.get_schema_defaults("operator")
 
+        # for const fields, we should always be excluded when False, regardless of client_defaults
+        # Use class-level cache for optimisation
+        if cls._const_fields is None:
+            cls._const_fields = cls.get_operator_const_fields()
+        if attrname in cls._const_fields and var is False:
+            return True
+
+        schema_defaults = cls.get_schema_defaults("operator")
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
+                # If it also matches client_defaults, exclude (optimization)
+                client_defaults = cls.generate_client_defaults()
+                if attrname in client_defaults:
+                    if client_defaults[attrname] == var:
+                        return True
+                    # If client_defaults differs, preserve explicit override from user
+                    # Example: default_args={"retries": 0}, schema default=0, client_defaults={"retries": 3}
+                    if client_defaults[attrname] != var:
+                        if op.has_dag():
+                            dag = op.dag
+                            if dag and attrname in dag.default_args and dag.default_args[attrname] == var:
+                                return False
+                        if (
+                            hasattr(op, "_BaseOperator__init_kwargs")
+                            and attrname in op._BaseOperator__init_kwargs
+                            and op._BaseOperator__init_kwargs[attrname] == var
+                        ):
+                            return False
+
+                # If client_defaults doesn't have this field (matches schema default),
+                # exclude for optimization even if in default_args
+                # Example: default_args={"depends_on_past": False}, schema default=False
                 return True
         optional_fields = cls.get_operator_optional_fields_from_schema()
         if var is None:
@@ -2533,7 +2432,7 @@ class SerializedDAG(BaseSerialization):
         except SerializationError:
             raise
         except Exception as e:
-            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}")
+            raise SerializationError(f"Failed to serialize DAG {dag.dag_id!r}: {e}") from e
 
     @classmethod
     def deserialize_dag(
@@ -2550,7 +2449,7 @@ class SerializedDAG(BaseSerialization):
 
         try:
             return cls._deserialize_dag_internal(encoded_dag, client_defaults)
-        except (_TimetableNotRegistered, DeserializationError):
+        except (TimetableNotRegistered, DeserializationError):
             # Let specific errors bubble up unchanged
             raise
         except Exception as err:
@@ -2768,7 +2667,7 @@ class SerializedDAG(BaseSerialization):
             from airflow.sdk.definitions.dag import _create_timetable
 
             if tzs := dag_dict.get("timezone"):
-                timezone = decode_timezone(tzs)
+                timezone = parse_timezone(tzs)
             else:
                 timezone = settings.TIMEZONE
             timetable = _create_timetable(value, timezone)
@@ -2932,10 +2831,6 @@ class SerializedDAG(BaseSerialization):
     @property
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
-
-    @property
-    def timetable_summary(self) -> str:
-        return self.timetable.summary
 
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
@@ -3849,12 +3744,6 @@ class TaskGroupSerialization(BaseSerialization):
         group.upstream_task_ids.update(cls.deserialize(encoded_group["upstream_task_ids"]))
         group.downstream_task_ids.update(cls.deserialize(encoded_group["downstream_task_ids"]))
         return group
-
-
-class SerializedAssetWatcher(AssetWatcher):
-    """JSON serializable representation of an asset watcher."""
-
-    trigger: dict
 
 
 @cache

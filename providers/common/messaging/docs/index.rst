@@ -77,7 +77,7 @@ apache-airflow-providers-common-messaging package
 ``Common Messaging Provider``
 
 
-Release: 2.0.0
+Release: 2.0.1
 
 Provider package
 ----------------

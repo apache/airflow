@@ -27,14 +27,14 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 

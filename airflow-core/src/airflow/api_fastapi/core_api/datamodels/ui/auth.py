@@ -26,3 +26,10 @@ class MenuItemCollectionResponse(BaseModel):
 
     authorized_menu_items: list[MenuItem]
     extra_menu_items: list[ExtraMenuItem]
+
+
+class AuthenticatedMeResponse(BaseModel):
+    """Authenticated user information serializer for responses."""
+
+    id: str
+    username: str

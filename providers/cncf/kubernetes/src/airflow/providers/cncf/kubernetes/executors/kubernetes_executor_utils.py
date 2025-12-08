@@ -27,7 +27,6 @@ from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
@@ -46,6 +45,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_unique_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState

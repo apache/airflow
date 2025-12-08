@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 import re
 from contextlib import contextmanager, nullcontext
-from io import BytesIO
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, mock_open, patch
@@ -28,13 +27,7 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
-from urllib3 import HTTPResponse
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    TaskDeferred,
-)
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
@@ -46,6 +39,12 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+from airflow.providers.common.compat.sdk import (
+    XCOM_RETURN_KEY,
+    AirflowException,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -1736,7 +1735,7 @@ class TestKubernetesPodOperator:
         with pytest.raises(AirflowException):
             k.execute(context=context)
 
-        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
+        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -2595,17 +2594,25 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
+    @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
     @patch(KUB_OP_PATH.format("pod_manager"))
-    @pytest.mark.xfail
     def test_async_write_logs_should_execute_successfully(
-        self, mock_manager, mocked_hook, mock_extract_xcom, post_complete_action, get_logs
+        self,
+        mock_manager,
+        mocked_hook,
+        mock_extract_xcom,
+        mocked_client,
+        post_complete_action,
+        get_logs,
+        caplog,
     ):
         test_logs = "ok"
-        mock_manager.read_pod_logs.return_value = HTTPResponse(
-            body=BytesIO(test_logs.encode("utf-8")),
-            preload_content=False,
+        # Mock client.read_namespaced_pod_log to return an iterable of bytes
+        mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
+        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
         )
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
@@ -2619,14 +2626,14 @@ class TestKubernetesPodOperatorAsync:
         self.run_pod_async(k)
 
         if get_logs:
-            # Note: the test below is broken and failing. Either the mock is wrong
-            # or the mocked container is not in a state that logging methods are called at-all.
-            # See https://github.com/apache/airflow/issues/57515
-            assert f"Container logs: {test_logs}"  # noqa: PLW0129
+            # Verify that client.read_namespaced_pod_log was called
+            mocked_client.read_namespaced_pod_log.assert_called_once()
+            # Verify the log output using caplog
+            assert f"[base] logs: {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
-            mock_manager.return_value.read_pod_logs.assert_called()
         else:
-            mock_manager.return_value.read_pod_logs.assert_not_called()
+            # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called
+            mocked_client.read_namespaced_pod_log.assert_not_called()
 
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
@@ -2791,7 +2798,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.trigger_reentry({}, success_event)
+    context = create_context(k)
+    context["ti"].xcom_push = MagicMock()
+
+    result = k.trigger_reentry(context, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2799,8 +2809,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
+        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, mock_extract_xcom.return_value)
     else:
         mock_extract_xcom.assert_not_called()
+        assert result is None
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3

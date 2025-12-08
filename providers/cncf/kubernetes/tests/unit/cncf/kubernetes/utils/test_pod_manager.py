@@ -27,10 +27,8 @@ import pendulum
 import pytest
 import time_machine
 from kubernetes.client.rest import ApiException
-from tenacity import wait_none
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
@@ -39,6 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     parse_log_line,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import utc
 
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
@@ -66,23 +65,6 @@ class TestPodManager:
             kube_client=self.mock_kube_client,
             callbacks=[MockKubernetesPodOperatorCallback],
         )
-        # List of PodManager methods that may use tenacity retry
-        tenacity_methods = [
-            "await_pod_start",
-            "read_pod_logs",
-            "create_pod",
-            "get_init_container_names",
-            "get_container_names",
-            "read_pod_events",
-            "read_pod",
-            "extract_xcom_json",
-            "extract_xcom_kill",
-        ]
-        # Patch tenacity retry wait for all relevant methods to disable waiting in tests
-        for method_name in tenacity_methods:
-            method = getattr(self.pod_manager, method_name, None)
-            if method and hasattr(method, "retry"):
-                method.retry.wait = wait_none()
 
     def test_read_pod_logs_successfully_returns_logs(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -255,6 +237,8 @@ class TestPodManager:
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
         ]
         with pytest.raises(AirflowException):
             self.pod_manager.read_pod_events(mock.sentinel)
@@ -323,6 +307,8 @@ class TestPodManager:
     def test_read_pod_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod.side_effect = [
+            BaseHTTPError("Boom"),
+            BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
             BaseHTTPError("Boom"),
@@ -415,10 +401,11 @@ class TestPodManager:
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
 
+    @pytest.mark.parametrize("status", [409, 429])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
-    def test_start_pod_retries_on_409_error(self, mock_run_pod_async):
+    def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, status):
         mock_run_pod_async.side_effect = [
-            ApiException(status=409),
+            ApiException(status=status),
             mock.MagicMock(),
         ]
         self.pod_manager.create_pod(mock.sentinel)
@@ -426,7 +413,7 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_fails_on_other_exception(self, mock_run_pod_async):
-        mock_run_pod_async.side_effect = [ApiException(status=504)]
+        mock_run_pod_async.side_effect = [ApiException(status=401)]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
@@ -437,11 +424,13 @@ class TestPodManager:
             ApiException(status=409),
             ApiException(status=409),
             ApiException(status=409),
+            ApiException(status=409),
+            ApiException(status=409),
         ]
         with pytest.raises(ApiException):
             self.pod_manager.create_pod(mock.sentinel)
 
-        assert mock_run_pod_async.call_count == 3
+        assert mock_run_pod_async.call_count == 5
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
@@ -740,18 +729,6 @@ class TestAsyncPodManager:
             async_hook=self.mock_async_hook,
             callbacks=[],
         )
-        # List of PodManager methods that may use tenacity retry
-        tenacity_methods = [
-            "await_pod_start",
-            "fetch_container_logs_before_current_sec",
-            "read_pod_events",
-            "read_pod",
-        ]
-        # Patch tenacity retry wait for all relevant methods to disable waiting in tests
-        for method_name in tenacity_methods:
-            method = getattr(self.async_pod_manager, method_name, None)
-            if method and hasattr(method, "retry"):
-                method.retry.wait = wait_none()
 
     @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):

@@ -23,7 +23,6 @@ from uuid import UUID
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
@@ -31,7 +30,8 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStartJobOperator,
     EmrServerlessStopApplicationOperator,
 )
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

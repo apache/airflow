@@ -56,8 +56,9 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     PERMISSIONS_CLEANUP_COMMAND,
@@ -78,6 +79,7 @@ from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_BACKFILL,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
@@ -105,7 +107,6 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.security.permissions import RESOURCE_BACKFILL
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 

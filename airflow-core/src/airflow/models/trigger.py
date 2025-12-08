@@ -373,7 +373,9 @@ class Trigger(Base):
         # It prioritizes callbacks, then DAGs over event driven scheduling which is fair
         queries = [
             # Callback triggers
-            select(cls.id).where(cls.callback.has()).order_by(cls.created_date),
+            select(cls.id)
+            .join(Callback, isouter=False)
+            .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")

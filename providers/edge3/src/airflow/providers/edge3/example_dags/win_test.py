@@ -32,42 +32,52 @@ from subprocess import STDOUT, Popen
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-try:
-    from airflow.sdk import task, task_group
-except ImportError:
-    # Airflow 2 path
-    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.variable import Variable
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowNotFoundException,
+    AirflowSkipException,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.execution_time.context import context_to_airflow_vars
 
+try:
+    from airflow.sdk import task, task_group
+except ImportError:
+    from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 try:
     from airflow.sdk import BaseHook
 except ImportError:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-from airflow.sdk import Param
-
+try:
+    from airflow.sdk import Param
+except ImportError:
+    from airflow.models import Param  # type: ignore[attr-defined,no-redef]
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
-    # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
-from airflow.sdk.execution_time.context import context_to_airflow_vars
-from airflow.utils.types import ArgNotSet
+try:
+    from airflow.providers.common.compat.standard.operators import PythonOperator
+except ImportError:
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef]
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk.definitions._internal.types import is_arg_set
+except ImportError:
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
-    except ImportError:
-        from airflow.models import TaskInstance  # type: ignore[assignment]
-    from airflow.utils.context import Context
-
-try:
-    from airflow.operators.python import PythonOperator
-except ImportError:
-    from airflow.providers.common.compat.standard.operators import PythonOperator  # type: ignore[no-redef]
+    from airflow.sdk import Context
+    from airflow.sdk.types import RuntimeTaskInstanceProtocol as TaskInstance
 
 
 class CmdOperator(BaseOperator):
@@ -163,7 +173,7 @@ class CmdOperator(BaseOperator):
         # When using the @task.command decorator, the command is not known until the underlying Python
         # callable is executed and therefore set to NOTSET initially. This flag is useful during execution to
         # determine whether the command value needs to re-rendered.
-        self._init_command_not_set = isinstance(self.command, ArgNotSet)
+        self._init_command_not_set = not is_arg_set(self.command)
 
     @staticmethod
     def refresh_command(ti: TaskInstance) -> None:

@@ -89,9 +89,13 @@
   },
   "limitedList": "+{{count}} meer",
   "limitedList.allItems": "Alle {{count}} items:",
+  "limitedList.allTags_one": "Alle labels (1)",
+  "limitedList.allTags_other": "Alle labels ({{count}})",
   "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
   "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
   "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
+  "limitedList.showingItems_one": "Toont 1 item",
+  "limitedList.showingItems_other": "Toont {{count}} items",
   "logs": {
     "file": "Bestand",
     "location": "regel {{line}} in {{name}}"
@@ -105,8 +109,8 @@
   "toggleTableView": "Toon tabelweergave",
   "triggerDag": {
     "button": "Trigger",
-    "loading": "DAG informatie aan het laden...",
-    "loadingFailed": "Mislukt om DAG informatie te laden. Probeer het opnieuw.",
+    "loading": "Dag informatie aan het laden...",
+    "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
     "selectDescription": "Trigger een enkele run van deze Dag",
     "selectLabel": "Enkele Run",

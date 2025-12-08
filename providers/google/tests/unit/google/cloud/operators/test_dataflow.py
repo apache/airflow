@@ -23,7 +23,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowJobStatus,
@@ -305,6 +305,7 @@ class TestDataflowStartFlexTemplateOperator:
             cancel_timeout=600,
             wait_until_finished=None,
             impersonation_chain=None,
+            poll_sleep=10,
         )
         mock_dataflow.return_value.start_flex_template.assert_called_once_with(
             body={"launchParameter": TEST_FLEX_PARAMETERS},

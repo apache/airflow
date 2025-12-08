@@ -50,6 +50,13 @@
     "warning_one": "1 Warnung",
     "warning_other": "{{count}} Warnungen"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Ungültiges Datumsformat.",
+      "invalidTimeFormat": "Ungültiges Zeitformat.",
+      "startBeforeEnd": "Startdatum/-uhrzeit muss vor Enddatum/-uhrzeit liegen."
+    }
+  },
   "durationChart": {
     "duration": "Laufzeit (Sekunden)",
     "lastDagRun_one": "Letzter Dag Lauf",
@@ -109,13 +116,16 @@
   "toggleTableView": "Tabellenansicht anzeigen",
   "triggerDag": {
     "button": "Auslösen",
-    "loading": "Lade DAG Information...",
-    "loadingFailed": "Das Laden der DAG Information fehlgeschlagen. Bitt versuchen Sie es noch einmal.",
+    "loading": "Lade Dag Information...",
+    "loadingFailed": "Das Laden der Dag Informationen ist fehlgeschlagen. Bitte versuchen Sie es noch einmal.",
     "runIdHelp": "Optional - wird automatisch erzeugt wenn nicht angegeben",
-    "selectDescription": "Einen einzelnen Lauf dieses Dag auslösen",
+    "selectDescription": "Einen einzelnen Lauf dieses Dags auslösen",
     "selectLabel": "Einzelner Lauf",
     "title": "Dag Auslösen",
     "toaster": {
+      "error": {
+        "title": "Fehler beim Auslösen des Dags"
+      },
       "success": {
         "description": "Dag-Lauf wurde erfolgreich ausgelöst.",
         "title": "Dag-Lauf ausgelöst"

@@ -21,11 +21,11 @@ import copy
 import json
 import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import ParamValidationError
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -51,15 +51,27 @@ class Param:
 
     CLASS_IDENTIFIER = "__class"
 
-    def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
+    def __init__(
+        self,
+        default: Any = NOTSET,
+        description: str | None = None,
+        source: Literal["dag", "task"] | None = None,
+        **kwargs,
+    ):
         if default is not NOTSET:
             self._check_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
+        self.source = source
 
     def __copy__(self) -> Param:
-        return Param(self.value, self.description, schema=self.schema)
+        return Param(
+            self.value,
+            self.description,
+            schema=self.schema,
+            source=self.source,
+        )
 
     @staticmethod
     def _check_json(value):
@@ -90,7 +102,7 @@ class Param:
         if value is not NOTSET:
             self._check_json(value)
         final_val = self.value if value is NOTSET else value
-        if isinstance(final_val, ArgNotSet):
+        if not is_arg_set(final_val):
             if suppress_exception:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
@@ -119,14 +131,24 @@ class Param:
         return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
-        return {"value": self.value, "description": self.description, "schema": self.schema}
+        return {
+            "value": self.value,
+            "description": self.description,
+            "schema": self.schema,
+            "source": self.source,
+        }
 
     @staticmethod
     def deserialize(data: dict[str, Any], version: int) -> Param:
         if version > Param.__version__:
             raise TypeError("serialized version > class version")
 
-        return Param(default=data["value"], description=data["description"], schema=data["schema"])
+        return Param(
+            default=data["value"],
+            description=data["description"],
+            schema=data["schema"],
+            source=data.get("source", None),
+        )
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -253,6 +275,20 @@ class ParamsDict(MutableMapping[str, Any]):
 
         return ParamsDict(data)
 
+    def _fill_missing_param_source(
+        self,
+        source: Literal["dag", "task"] | None = None,
+    ) -> None:
+        for key in self.__dict:
+            if self.__dict[key].source is None:
+                self.__dict[key].source = source
+
+    @staticmethod
+    def filter_params_by_source(params: ParamsDict, source: Literal["dag", "task"]) -> ParamsDict:
+        return ParamsDict(
+            {key: param for key, param in params.__dict.items() if param.source == source},
+        )
+
 
 class DagParam(ResolveMixin):
     """
@@ -297,7 +333,7 @@ class DagParam(ResolveMixin):
             return self._default
         with contextlib.suppress(KeyError):
             return context["params"][self._name]
-        raise AirflowException(f"No value could be resolved for parameter {self._name}")
+        raise RuntimeError(f"No value could be resolved for parameter {self._name}")
 
     def serialize(self) -> dict:
         """Serialize the DagParam object into a dictionary."""
@@ -332,7 +368,7 @@ def process_params(
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     dagrun_conf = dagrun_conf or {}
 

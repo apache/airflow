@@ -817,10 +817,12 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == params["limit"]
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
+    # Ordering of nulls values is DB specific.
+    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
         ("params", "expected_map_indexes"),
         [
-            ({"order_by": "rendered_map_index", "limit": 108}, [0] + list(range(1, 108))),  # Asc
+            ({"order_by": "rendered_map_index", "limit": 108}, list(range(1, 109))),  # Asc
             ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
         ],
     )
@@ -1324,6 +1326,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 3,
                 id="test map_index filter",
+            ),
+            pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_pattern": "TEST_DAG_"},
+                1,  # apart from the TIs in the fixture, we also get one from
+                # the create_task_instances method
+                3,
+                id="test run_id_pattern filter",
             ),
             pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
@@ -2705,6 +2719,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 4,
                 id="clear mapped tasks with and without map index",
             ),
+            pytest.param(
+                "example_task_group_mapping",
+                [
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_group_mapping",
+                {
+                    "task_ids": [["op.mul_2", 0]],
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_upstream": True,
+                },
+                2,
+                id="clear tasks in mapped task group",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -2903,7 +2938,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
-        mock_clearti.assert_called_once_with([], mock.ANY, DagRunState.QUEUED, run_on_latest_version=False)
+        mock_clearti.assert_called_once_with(
+            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+        )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""

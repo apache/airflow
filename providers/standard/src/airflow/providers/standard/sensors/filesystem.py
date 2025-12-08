@@ -26,8 +26,7 @@ from glob import glob
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.providers.standard.triggers.file import FileTrigger
 
