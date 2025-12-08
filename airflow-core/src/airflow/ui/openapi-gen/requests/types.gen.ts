@@ -1594,7 +1594,7 @@ export type VariableBody = {
     key: string;
     value: JsonValue;
     description?: string | null;
-    team_id?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1613,7 +1613,7 @@ export type VariableResponse = {
     value: string;
     description: string | null;
     is_encrypted: boolean;
-    team_id: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2048,7 +2048,6 @@ export type TeamCollectionResponse = {
  * Base serializer for Team.
  */
 export type TeamResponse = {
-    id: string;
     name: string;
 };
 
@@ -3436,7 +3435,7 @@ export type ListTeamsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      */
     orderBy?: Array<(string)>;
 };
