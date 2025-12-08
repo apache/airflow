@@ -113,7 +113,7 @@ class Trigger(Base):
 
     callback = relationship("Callback", back_populates="trigger", uselist=False)
 
-    max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=10)
+    max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=50)
 
     def __init__(
         self,

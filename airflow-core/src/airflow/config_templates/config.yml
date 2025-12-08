@@ -2332,7 +2332,7 @@ triggerer:
       version_added: 3.2.0
       type: integer
       example: ~
-      default: "10"
+      default: "50"
 kerberos:
   description: ~
   options:
