@@ -113,7 +113,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         status = invocation.get("Status", "")
 
                         # AWS-level failures should always raise
-                        if self.hook().is_aws_level_failure(status):
+                        if SsmHook.is_aws_level_failure(status):
                             raise
 
                         # Command-level failure - tolerate it in enhanced mode

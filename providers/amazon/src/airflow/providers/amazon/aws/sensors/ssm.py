@@ -124,7 +124,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
                     raise RuntimeError(self.FAILURE_MESSAGE)  # Traditional behavior
 
                 # Only fail on AWS-level issues, tolerate command failures
-                if self.hook.is_aws_level_failure(state):
+                if SsmHook.is_aws_level_failure(state):
                     raise RuntimeError(f"SSM command {self.command_id} {state}")
 
                 # Command failed but we're tolerating it
