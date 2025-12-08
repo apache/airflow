@@ -21,7 +21,7 @@ from __future__ import annotations
 import inspect
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 
 from typing_extensions import ParamSpec
 
@@ -155,10 +155,10 @@ def create_async_executable_runner(
         async def run(*args: P.args, **kwargs: P.kwargs) -> R:
             from airflow.sdk.definitions.asset.metadata import Metadata
 
-            if not inspect.isgeneratorfunction(func):
+            if not inspect.isasyncgenfunction(func):
                 return await func(*args, **kwargs)
 
-            results: list[R] = []
+            results: list[Any] = []
 
             async for result in func(*args, **kwargs):
                 if isinstance(result, Metadata):
@@ -168,6 +168,6 @@ def create_async_executable_runner(
 
                 results.append(result)
 
-            return results
+            return cast(R, results)
 
     return cast("_AsyncExecutionCallableRunner[P, R]", _AsyncExecutionCallableRunnerImpl)
