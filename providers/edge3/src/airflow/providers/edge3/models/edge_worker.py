@@ -28,9 +28,8 @@ from sqlalchemy.orm import Mapped
 
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
-from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session

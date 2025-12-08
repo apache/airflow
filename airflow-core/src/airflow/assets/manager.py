@@ -38,7 +38,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import get_dialect_name
 
@@ -351,7 +351,7 @@ class AssetManager(LoggingMixin):
         target_dag: SerializedDagModel,
         session: Session,
     ) -> AssetPartitionDagRun:
-        latest_apdr: AssetPartitionDagRun = session.scalar(
+        latest_apdr: AssetPartitionDagRun | None = session.scalar(
             select(AssetPartitionDagRun)
             .where(
                 AssetPartitionDagRun.partition_key == target_key,

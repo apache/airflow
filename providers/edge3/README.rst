@@ -65,7 +65,7 @@ Requirements
 ==========================================  ====================
 PIP package                                 Version required
 ==========================================  ====================
-``apache-airflow``                          ``>=2.11.0,!=3.1.0``
+``apache-airflow``                          ``>=3.0.0,!=3.1.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.0``
 ``pydantic``                                ``>=2.11.0``
 ``retryhttp``                               ``>=1.2.0,!=1.3.0``
