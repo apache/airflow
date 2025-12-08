@@ -293,7 +293,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def create_job(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/create`` endpoint.
+        Call the ``api/2.2/jobs/create`` endpoint.
 
         :param json: The data used in the body of the request to the ``create`` endpoint.
         :return: the job_id as an int
@@ -303,7 +303,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def reset_job(self, job_id: str, json: dict) -> None:
         """
-        Call the ``api/2.1/jobs/reset`` endpoint.
+        Call the ``api/2.2/jobs/reset`` endpoint.
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
@@ -321,7 +321,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_job(self, job_id: str, json: dict) -> None:
         """
-        Call the ``api/2.1/jobs/update`` endpoint.
+        Call the ``api/2.2/jobs/update`` endpoint.
 
         :param job_id: The id of the job to update.
         :param json: The data used in the new_settings of the request to the ``update`` endpoint.
@@ -330,7 +330,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/run-now`` endpoint.
+        Call the ``api/2.2/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -340,7 +340,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Call the ``api/2.1/jobs/runs/submit`` endpoint.
+        Call the ``api/2.2/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
