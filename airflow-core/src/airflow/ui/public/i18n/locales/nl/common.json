@@ -39,6 +39,7 @@
     "fileLocation": "Bestandslocatie",
     "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
     "lastExpired": "Laatst verlopen",
+    "lastParseDuration": "Laatste parse duur",
     "lastParsed": "Laatst geparsed",
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
@@ -58,6 +59,7 @@
     "dataIntervalEnd": "Data interval einde",
     "dataIntervalStart": "Data interval begin",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
     "runType": "Run type",
@@ -76,6 +78,11 @@
     "documentation": "Documentatie",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
+  },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Druk op {{hotkey}} om logs te downloaden"
   },
   "duration": "Duur",
   "endDate": "Einddatum",
@@ -100,6 +107,8 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Duur van",
+    "durationTo": "Duur tot",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
     "runAfterFrom": "Van Run na",
@@ -160,7 +169,6 @@
     },
     "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Acties",
     "permissions": "Permissies",

@@ -26,9 +26,9 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -389,7 +389,7 @@ class TestSFTPOperator:
         assert task_3.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="1 paths in local_filepath != 2 paths in remote_filepath"):
             SFTPOperator(
                 task_id="test_sftp_unequal_paths",
                 local_filepath="/tmp/test",
@@ -593,7 +593,7 @@ class TestSFTPOperator:
             ).execute(None)
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
@@ -624,7 +624,7 @@ class TestSFTPOperator:
         assert lineage.outputs == expected[1]
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)

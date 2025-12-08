@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 from google.cloud.storage_transfer_v1.types.transfer_types import TransferOperation
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
     GcpTransferOperationStatus,
@@ -151,7 +151,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
             (
@@ -186,7 +186,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], GcpTransferOperationStatus.ABORTED),
             (
@@ -223,3 +223,21 @@ class TestCloudDataTransferServiceAsyncHook:
             operations, expected_norm
         )
         assert result is True
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRANSFER_HOOK_PATH}.CloudDataTransferServiceAsyncHook.get_conn")
+    @mock.patch(f"{TRANSFER_HOOK_PATH}.RunTransferJobRequest")
+    async def test_run_transfer_job(self, mock_run_transfer_job_request, mock_get_conn):
+        expected_job_result = AsyncMock()
+        mock_get_conn.return_value.run_transfer_job.side_effect = AsyncMock(return_value=expected_job_result)
+
+        expected_request = mock.MagicMock()
+        mock_run_transfer_job_request.return_value = expected_request
+
+        hook = CloudDataTransferServiceAsyncHook(project_id=TEST_PROJECT_ID)
+        job_name = "Job0"
+        jobs = await hook.run_transfer_job(job_name=job_name)
+
+        assert jobs == expected_job_result
+        mock_run_transfer_job_request.assert_called_once_with(project_id=TEST_PROJECT_ID, job_name=job_name)
+        mock_get_conn.return_value.run_transfer_job.assert_called_once_with(request=expected_request)

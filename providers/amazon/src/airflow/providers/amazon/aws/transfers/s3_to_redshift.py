@@ -19,13 +19,12 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
-from airflow.providers.amazon.version_compat import BaseOperator
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet, is_arg_set
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -122,12 +121,12 @@ class S3ToRedshiftOperator(BaseOperator):
         # actually provide a connection note that, because we don't want to let the exception bubble up in
         # that case (since we're silently injecting a connection on their behalf).
         self._aws_conn_id: str | None
-        if isinstance(aws_conn_id, ArgNotSet):
-            self.conn_set = False
-            self._aws_conn_id = "aws_default"
-        else:
+        if is_arg_set(aws_conn_id):
             self.conn_set = True
             self._aws_conn_id = aws_conn_id
+        else:
+            self.conn_set = False
+            self._aws_conn_id = "aws_default"
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:

@@ -21,7 +21,6 @@ import heapq
 import io
 import itertools
 import logging
-import logging.config
 import os
 import re
 from http import HTTPStatus
@@ -72,6 +71,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.file_task_handler import (
     convert_list_to_stream,
     extract_events,
@@ -79,11 +79,20 @@ from tests_common.test_utils.file_task_handler import (
 )
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
-pytestmark = [pytest.mark.db_test, pytest.mark.xfail()]
+pytestmark = [pytest.mark.db_test]
 
 DEFAULT_DATE = pendulum.datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
+
+
+@pytest.fixture(autouse=True)
+def cleanup_tables():
+    clear_db_runs()
+    clear_db_connections()
+    yield
+    clear_db_runs()
+    clear_db_connections()
 
 
 class TestFileTaskLogHandler:
@@ -156,7 +165,8 @@ class TestFileTaskLogHandler:
         # Remove the generated tmp log file.
         os.remove(log_filename)
 
-    def test_file_task_handler_when_ti_is_skipped(self, dag_maker):
+    @pytest.mark.parametrize("ti_state", [TaskInstanceState.SKIPPED, TaskInstanceState.UPSTREAM_FAILED])
+    def test_file_task_handler_when_ti_is_not_run(self, dag_maker, ti_state):
         def task_callable(ti):
             ti.log.info("test")
 
@@ -170,10 +180,10 @@ class TestFileTaskLogHandler:
         ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
 
         ti.try_number = 0
-        ti.state = State.SKIPPED
+        ti.state = ti_state
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -295,8 +305,8 @@ class TestFileTaskLogHandler:
                 ti.executor = executor_name
             ti.try_number = 1
             ti.state = TaskInstanceState.RUNNING
-            logger = ti.log
-            ti.log.disabled = False
+            logger = logging.getLogger(TASK_LOGGER)
+            logger.disabled = False
 
             file_handler = next(
                 (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -344,8 +354,8 @@ class TestFileTaskLogHandler:
         ti.try_number = 2
         ti.state = State.RUNNING
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -396,8 +406,8 @@ class TestFileTaskLogHandler:
         ti.try_number = 1
         ti.state = State.RUNNING
 
-        logger = ti.log
-        ti.log.disabled = False
+        logger = logging.getLogger(TASK_LOGGER)
+        logger.disabled = False
 
         file_handler = next(
             (handler for handler in logger.handlers if handler.name == FILE_TASK_HANDLER), None
@@ -413,7 +423,7 @@ class TestFileTaskLogHandler:
         assert log_filename.endswith("1.log"), log_filename
 
         # mock to generate 2000 lines of log, the total size is larger than max_bytes_size
-        for i in range(1, 2000):
+        for i in range(1, 3000):
             logger.info("this is a Test. %s", i)
 
         # this is the rotate log file
@@ -483,7 +493,7 @@ class TestFileTaskLogHandler:
         assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
-        "remote_logs, local_logs, served_logs_checked",
+        ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
             (True, False, False),
@@ -601,6 +611,72 @@ class TestFileTaskLogHandler:
             expected += f".trigger.{job.id}.log"
         actual = h.handler.baseFilename
         assert actual == os.fspath(tmp_path / expected)
+
+    @skip_if_force_lowest_dependencies_marker
+    def test_read_remote_logs_with_real_s3_remote_log_io(self, create_task_instance, session):
+        """Test _read_remote_logs method using real S3RemoteLogIO with mock AWS"""
+        import tempfile
+
+        import boto3
+        from moto import mock_aws
+
+        from airflow.models.connection import Connection
+        from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
+
+        def setup_mock_aws():
+            """Set up mock AWS S3 bucket and connection."""
+            s3_client = boto3.client("s3", region_name="us-east-1")
+            s3_client.create_bucket(Bucket="test-airflow-logs")
+            return s3_client
+
+        with mock_aws():
+            aws_conn = Connection(
+                conn_id="aws_s3_conn",
+                conn_type="aws",
+                login="test_access_key",
+                password="test_secret_key",
+                extra='{"region_name": "us-east-1"}',
+            )
+            session.add(aws_conn)
+            session.commit()
+            s3_client = setup_mock_aws()
+
+            ti = create_task_instance(
+                dag_id="test_dag_s3_remote_logs",
+                task_id="test_task_s3_remote_logs",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.try_number = 1
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                s3_remote_log_io = S3RemoteLogIO(
+                    remote_base="s3://test-airflow-logs/logs",
+                    base_log_folder=temp_dir,
+                    delete_local_copy=False,
+                )
+
+                with conf_vars({("logging", "REMOTE_LOG_CONN_ID"): "aws_s3_conn"}):
+                    fth = FileTaskHandler("")
+                    log_relative_path = fth._render_filename(ti, 1)
+
+                    log_content = "Log line 1 from S3\nLog line 2 from S3\nLog line 3 from S3"
+                    s3_client.put_object(
+                        Bucket="test-airflow-logs",
+                        Key=f"logs/{log_relative_path}",
+                        Body=log_content.encode("utf-8"),
+                    )
+
+                    import airflow.logging_config
+
+                    airflow.logging_config.REMOTE_TASK_LOG = s3_remote_log_io
+
+                    sources, logs = fth._read_remote_logs(ti, try_number=1)
+
+                    assert len(sources) > 0, f"Expected sources but got: {sources}"
+                    assert len(logs) > 0, f"Expected logs but got: {logs}"
+                    assert logs[0] == log_content
+                    assert f"s3://test-airflow-logs/logs/{log_relative_path}" in sources[0]
 
 
 @pytest.mark.parametrize("logical_date", ((None), (DEFAULT_DATE)))
@@ -781,7 +857,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 
 @pytest.mark.parametrize(
-    "chunk_size, expected_read_calls",
+    ("chunk_size", "expected_read_calls"),
     [
         (10, 4),
         (20, 3),
@@ -923,7 +999,7 @@ def test__create_sort_key():
 
 
 @pytest.mark.parametrize(
-    "timestamp, line_num, expected",
+    ("timestamp", "line_num", "expected"),
     [
         pytest.param(
             pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -950,7 +1026,7 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
 
 
 @pytest.mark.parametrize(
-    "log_stream, expected",
+    ("log_stream", "expected"),
     [
         pytest.param(
             convert_list_to_stream(
@@ -1052,7 +1128,7 @@ def test__add_log_from_parsed_log_streams_to_heap():
 
 
 @pytest.mark.parametrize(
-    "heap_setup, flush_size, last_log, expected_events",
+    ("heap_setup", "flush_size", "last_log", "expected_events"),
     [
         pytest.param(
             [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],

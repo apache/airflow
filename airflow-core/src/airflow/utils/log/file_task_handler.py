@@ -68,16 +68,15 @@ HALF_HEAP_DUMP_SIZE = HEAP_DUMP_SIZE // 2
 
 # These types are similar, but have distinct names to make processing them less error prone
 LogMessages: TypeAlias = list[str]
-"""The legacy format of log messages before 3.0.2"""
+"""The legacy format of log messages before 3.0.4"""
 LogSourceInfo: TypeAlias = list[str]
 """Information _about_ the log fetching process for display to a user"""
 RawLogStream: TypeAlias = Generator[str, None, None]
 """Raw log stream, containing unparsed log lines."""
-LegacyLogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages]
+LogResponse: TypeAlias = tuple[LogSourceInfo, LogMessages | None]
 """Legacy log response, containing source information and log messages."""
-LogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
-LogResponseWithSize: TypeAlias = tuple[LogSourceInfo, list[RawLogStream], int]
-"""Log response, containing source information, stream of log lines, and total log size."""
+StreamingLogResponse: TypeAlias = tuple[LogSourceInfo, list[RawLogStream]]
+"""Streaming log response, containing source information, stream of log lines."""
 StructuredLogStream: TypeAlias = Generator["StructuredLogMessage", None, None]
 """Structured log stream, containing structured log messages."""
 LogHandlerOutputStream: TypeAlias = (
@@ -177,7 +176,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
         algorithm="HS512",
         # We must set an empty private key here as otherwise it can be automatically loaded by JWTGenerator
         # and secret_key and private_key cannot be set together
-        private_key=None,  #  type: ignore[arg-type]
+        private_key=None,  # type: ignore[arg-type]
         issuer=None,
         valid_for=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
@@ -525,12 +524,14 @@ class FileTaskHandler(logging.Handler):
         dag_run = ti.get_dagrun(session=session)
 
         date = dag_run.logical_date or dag_run.run_after
-        date = date.isoformat()
+        formatted_date = date.isoformat()
 
         template = dag_run.get_log_template(session=session).filename
         str_tpl, jinja_tpl = parse_template_string(template)
         if jinja_tpl:
-            return render_template(jinja_tpl, {"ti": ti, "ts": date, "try_number": try_number}, native=False)
+            return render_template(
+                jinja_tpl, {"ti": ti, "ts": formatted_date, "try_number": try_number}, native=False
+            )
 
         if str_tpl:
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
@@ -548,7 +549,7 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                logical_date=date,
+                logical_date=formatted_date,
                 try_number=try_number,
             )
         raise RuntimeError(f"Unable to render log filename for {ti}. This should never happen")
@@ -691,10 +692,11 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance | TaskInstanceHistory):
-        pod_override = ti.executor_config.get("pod_override")
+        pod_override = getattr(ti.executor_config, "pod_override", None)
+        metadata = getattr(pod_override, "metadata", None)
         namespace = None
         with suppress(Exception):
-            namespace = pod_override.metadata.namespace
+            namespace = getattr(metadata, "namespace", None)
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
@@ -741,7 +743,10 @@ class FileTaskHandler(logging.Handler):
         if try_number is None:
             try_number = task_instance.try_number
 
-        if try_number == 0 and task_instance.state == TaskInstanceState.SKIPPED:
+        if try_number == 0 and task_instance.state in (
+            TaskInstanceState.SKIPPED,
+            TaskInstanceState.UPSTREAM_FAILED,
+        ):
             logs = [StructuredLogMessage(event="Task was skipped, no logs available.")]
             return chain(logs), {"end_of_log": True}
 
@@ -850,7 +855,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(
         worker_log_path: Path,
-    ) -> LogResponse:
+    ) -> StreamingLogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
@@ -867,7 +872,7 @@ class FileTaskHandler(logging.Handler):
         self,
         ti: TaskInstance | TaskInstanceHistory,
         worker_log_rel_path: str,
-    ) -> LogResponse:
+    ) -> StreamingLogResponse:
         sources: LogSourceInfo = []
         log_streams: list[RawLogStream] = []
         try:
@@ -905,7 +910,7 @@ class FileTaskHandler(logging.Handler):
                 logger.exception("Could not read served logs")
         return sources, log_streams
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> LegacyLogResponse | LogResponse:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> LogResponse | StreamingLogResponse:
         """
         Implement in subclasses to read from the remote service.
 
@@ -930,5 +935,10 @@ class FileTaskHandler(logging.Handler):
         # This living here is not really a good plan, but it just about works for now.
         # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
+        if stream_method := getattr(remote_io, "stream", None):
+            # Use .stream interface if provider's RemoteIO supports it
+            sources, logs = stream_method(path, ti)
+            return sources, logs or []
+        # Fallback to .read interface
         sources, logs = remote_io.read(path, ti)
         return sources, logs or []

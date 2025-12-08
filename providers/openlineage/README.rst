@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.7.0``
+Release: ``2.9.0``
 
 
 `OpenLineage <https://openlineage.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.7.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.0/>`_.
 
 Installation
 ------------
@@ -53,12 +53,12 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
-``apache-airflow-providers-common-compat``  ``>=1.4.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.36.0``
-``openlineage-python``                      ``>=1.36.0``
+``openlineage-integration-common``          ``>=1.40.0``
+``openlineage-python``                      ``>=1.40.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -82,4 +82,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.7.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.0/changelog.html>`_.

@@ -28,7 +28,7 @@ import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
-import type { DagRunType } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
@@ -37,6 +37,7 @@ import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
+import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -68,8 +69,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     `triggering_user_filter-${dagId}`,
     undefined,
   );
+  const [dagRunStateFilter, setDagRunStateFilter] = useLocalStorage<DagRunState | undefined>(
+    `dag_run_state_filter-${dagId}`,
+    undefined,
+  );
 
-  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -78,164 +83,176 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const direction = i18n.dir();
 
   return (
-    <OpenGroupsProvider dagId={dagId}>
-      <HStack justifyContent="space-between" mb={2}>
-        <DagBreadcrumb />
-        <Flex gap={1}>
-          <SearchDagsButton />
-          {dag === undefined ? undefined : (
-            <TriggerDAGButton
-              dagDisplayName={dag.dag_display_name}
-              dagId={dag.dag_id}
-              isPaused={dag.is_paused}
-            />
-          )}
-        </Flex>
-      </HStack>
-      <Toaster />
-      <BackfillBanner dagId={dagId} />
-      <Box flex={1} minH={0}>
-        {isRightPanelCollapsed ? (
-          <Tooltip content={translate("common:showDetailsPanel")}>
-            <IconButton
-              aria-label={translate("common:showDetailsPanel")}
-              bg="fg.subtle"
-              borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
-              boxShadow="md"
-              left={direction === "rtl" ? "-5px" : undefined}
-              onClick={() => setIsRightPanelCollapsed(false)}
-              position="absolute"
-              right={direction === "ltr" ? "-5px" : undefined}
-              size="2xs"
-              top="50%"
-              zIndex={10}
-            >
-              {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
-            </IconButton>
-          </Tooltip>
-        ) : undefined}
-        <PanelGroup
-          autoSaveId={`${dagView}-${direction}`}
-          dir={direction}
-          direction="horizontal"
-          key={`${dagView}-${direction}`}
-          ref={panelGroupRef}
-        >
-          <Panel
-            defaultSize={dagView === "graph" ? 70 : 20}
-            id="main-panel"
-            minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
-            order={1}
-          >
-            <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
-              <PanelButtons
-                dagView={dagView}
-                limit={limit}
-                panelGroupRef={panelGroupRef}
-                runTypeFilter={runTypeFilter}
-                setDagView={setDagView}
-                setLimit={setLimit}
-                setRunTypeFilter={setRunTypeFilter}
-                setShowGantt={setShowGantt}
-                setTriggeringUserFilter={setTriggeringUserFilter}
-                showGantt={showGantt}
-                triggeringUserFilter={triggeringUserFilter}
+    <HoverProvider>
+      <OpenGroupsProvider dagId={dagId}>
+        <HStack justifyContent="space-between" mb={2}>
+          <DagBreadcrumb />
+          <Flex gap={1}>
+            <SearchDagsButton />
+            {dag === undefined ? undefined : (
+              <TriggerDAGButton
+                dagDisplayName={dag.dag_display_name}
+                dagId={dag.dag_id}
+                isPaused={dag.is_paused}
               />
-              {dagView === "graph" ? (
-                <Graph />
-              ) : (
-                <HStack gap={0}>
-                  <Grid
-                    limit={limit}
-                    runType={runTypeFilter}
-                    showGantt={Boolean(runId) && showGantt}
-                    triggeringUser={triggeringUserFilter}
-                  />
-                  {showGantt ? <Gantt limit={limit} /> : undefined}
-                </HStack>
-              )}
-            </Box>
-          </Panel>
-          {!isRightPanelCollapsed && (
-            <>
-              <PanelResizeHandle
-                className="resize-handle"
-                onDragging={(isDragging) => {
-                  if (!isDragging) {
-                    const zoom = getZoom();
-
-                    void fitView({ maxZoom: zoom, minZoom: zoom });
-                  }
-                }}
+            )}
+          </Flex>
+        </HStack>
+        <Toaster />
+        <BackfillBanner dagId={dagId} />
+        <Box flex={1} minH={0}>
+          {isRightPanelCollapsed ? (
+            <Tooltip content={translate("common:showDetailsPanel")}>
+              <IconButton
+                aria-label={translate("common:showDetailsPanel")}
+                bg="fg.subtle"
+                borderRadius={direction === "ltr" ? "100% 0 0 100%" : "0 100% 100% 0"}
+                boxShadow="md"
+                left={direction === "rtl" ? "-5px" : undefined}
+                onClick={() => setIsRightPanelCollapsed(false)}
+                position="absolute"
+                right={direction === "ltr" ? "-5px" : undefined}
+                size="2xs"
+                top="50%"
+                zIndex={10}
               >
-                <Box
-                  alignItems="center"
-                  bg="border.emphasized"
-                  cursor="col-resize"
-                  display="flex"
-                  h="100%"
-                  justifyContent="center"
-                  position="relative"
-                  w={0.5}
-                  // onClick={(e) => console.log(e)}
+                {direction === "ltr" ? <FaChevronLeft /> : <FaChevronRight />}
+              </IconButton>
+            </Tooltip>
+          ) : undefined}
+          <PanelGroup
+            autoSaveId={`${dagView}-${direction}`}
+            dir={direction}
+            direction="horizontal"
+            key={`${dagView}-${direction}`}
+            ref={panelGroupRef}
+          >
+            <Panel
+              defaultSize={dagView === "graph" ? 70 : 20}
+              id="main-panel"
+              minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
+              order={1}
+            >
+              <Box height="100%" marginInlineEnd={2} overflowY="auto" paddingRight={4} position="relative">
+                <PanelButtons
+                  dagRunStateFilter={dagRunStateFilter}
+                  dagView={dagView}
+                  limit={limit}
+                  panelGroupRef={panelGroupRef}
+                  runTypeFilter={runTypeFilter}
+                  setDagRunStateFilter={setDagRunStateFilter}
+                  setDagView={setDagView}
+                  setLimit={setLimit}
+                  setRunTypeFilter={setRunTypeFilter}
+                  setShowGantt={setShowGantt}
+                  setTriggeringUserFilter={setTriggeringUserFilter}
+                  showGantt={showGantt}
+                  triggeringUserFilter={triggeringUserFilter}
                 />
-              </PanelResizeHandle>
-
-              {/* Collapse button positioned next to the resize handle */}
-
-              <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
-                <Box display="flex" flexDirection="column" h="100%" position="relative">
-                  <Tooltip content={translate("common:collapseDetailsPanel")}>
-                    <IconButton
-                      aria-label={translate("common:collapseDetailsPanel")}
-                      bg="fg.subtle"
-                      borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
-                      boxShadow="md"
-                      left={direction === "ltr" ? "-5px" : undefined}
-                      onClick={() => setIsRightPanelCollapsed(true)}
-                      position="absolute"
-                      right={direction === "rtl" ? "-5px" : undefined}
-                      size="2xs"
-                      top="50%"
-                      zIndex={2}
-                    >
-                      {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
-                    </IconButton>
-                  </Tooltip>
-                  {children}
-                  {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
-                    <>
-                      <ActionButton
-                        actionName={translate("common:dagWarnings")}
-                        colorPalette={Boolean(error) ? "red" : "orange"}
-                        icon={<LuFileWarning />}
-                        margin="2"
-                        marginBottom="-1"
-                        onClick={onOpen}
-                        rounded="full"
-                        text={String(warningData?.total_entries ?? 0 + Number(error))}
-                        variant="solid"
+                {dagView === "graph" ? (
+                  <Graph />
+                ) : (
+                  <HStack alignItems="flex-end" gap={0}>
+                    <Grid
+                      dagRunState={dagRunStateFilter}
+                      limit={limit}
+                      runType={runTypeFilter}
+                      showGantt={Boolean(runId) && showGantt}
+                      triggeringUser={triggeringUserFilter}
+                    />
+                    {showGantt ? (
+                      <Gantt
+                        dagRunState={dagRunStateFilter}
+                        limit={limit}
+                        runType={runTypeFilter}
+                        triggeringUser={triggeringUserFilter}
                       />
+                    ) : undefined}
+                  </HStack>
+                )}
+              </Box>
+            </Panel>
+            {!isRightPanelCollapsed && (
+              <>
+                <PanelResizeHandle
+                  className="resize-handle"
+                  onDragging={(isDragging) => {
+                    if (!isDragging) {
+                      const zoom = getZoom();
 
-                      <DAGWarningsModal
-                        error={error}
-                        onClose={onClose}
-                        open={open}
-                        warnings={warningData?.dag_warnings}
-                      />
-                    </>
-                  ) : undefined}
-                  <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                  <NavTabs tabs={tabs} />
-                  <Box flexGrow={1} overflow="auto" px={2}>
-                    <Outlet />
+                      void fitView({ maxZoom: zoom, minZoom: zoom });
+                    }
+                  }}
+                >
+                  <Box
+                    alignItems="center"
+                    bg="border.emphasized"
+                    cursor="col-resize"
+                    display="flex"
+                    h="100%"
+                    justifyContent="center"
+                    position="relative"
+                    w={0.5}
+                    // onClick={(e) => console.log(e)}
+                  />
+                </PanelResizeHandle>
+
+                {/* Collapse button positioned next to the resize handle */}
+
+                <Panel defaultSize={dagView === "graph" ? 30 : 80} id="details-panel" minSize={20} order={2}>
+                  <Box display="flex" flexDirection="column" h="100%" position="relative">
+                    <Tooltip content={translate("common:collapseDetailsPanel")}>
+                      <IconButton
+                        aria-label={translate("common:collapseDetailsPanel")}
+                        bg="fg.subtle"
+                        borderRadius={direction === "ltr" ? "0 100% 100% 0" : "100% 0 0 100%"}
+                        boxShadow="md"
+                        left={direction === "ltr" ? "-5px" : undefined}
+                        onClick={() => setIsRightPanelCollapsed(true)}
+                        position="absolute"
+                        right={direction === "rtl" ? "-5px" : undefined}
+                        size="2xs"
+                        top="50%"
+                        zIndex={2}
+                      >
+                        {direction === "ltr" ? <FaChevronRight /> : <FaChevronLeft />}
+                      </IconButton>
+                    </Tooltip>
+                    {children}
+                    {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
+                      <>
+                        <ActionButton
+                          actionName={translate("common:dagWarnings")}
+                          colorPalette={Boolean(error) ? "red" : "orange"}
+                          icon={<LuFileWarning />}
+                          margin="2"
+                          marginBottom="-1"
+                          onClick={onOpen}
+                          rounded="full"
+                          text={String(warningData?.total_entries ?? 0 + Number(error))}
+                          variant="solid"
+                        />
+
+                        <DAGWarningsModal
+                          error={error}
+                          onClose={onClose}
+                          open={open}
+                          warnings={warningData?.dag_warnings}
+                        />
+                      </>
+                    ) : undefined}
+                    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
+                    <NavTabs tabs={tabs} />
+                    <Box flexGrow={1} overflow="auto" px={2}>
+                      <Outlet />
+                    </Box>
                   </Box>
-                </Box>
-              </Panel>
-            </>
-          )}
-        </PanelGroup>
-      </Box>
-    </OpenGroupsProvider>
+                </Panel>
+              </>
+            )}
+          </PanelGroup>
+        </Box>
+      </OpenGroupsProvider>
+    </HoverProvider>
   );
 };

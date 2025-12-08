@@ -18,23 +18,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import Asset
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
-from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.providers.common.compat.assets import Asset
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
-else:
-    try:
-        from airflow.providers.common.compat.assets import Asset
-    except ImportError:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk.definitions.asset import Asset
-        else:
-            # dataset is renamed to asset since Airflow 3.0
-            from airflow.datasets import Dataset as Asset
 
 
 def create_asset(*, bucket: str, key: str, extra: dict | None = None) -> Asset:

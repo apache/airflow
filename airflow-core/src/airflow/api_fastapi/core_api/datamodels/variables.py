@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 
 from pydantic import Field, JsonValue, model_validator
 
@@ -34,6 +35,7 @@ class VariableResponse(BaseModel):
     val: str = Field(alias="value")
     description: str | None
     is_encrypted: bool
+    team_name: str | None
 
     @model_validator(mode="after")
     def redact_val(self) -> Self:
@@ -56,12 +58,13 @@ class VariableBody(StrictBaseModel):
     key: str = Field(max_length=ID_LEN)
     value: JsonValue = Field(serialization_alias="val")
     description: str | None = Field(default=None)
+    team_name: str | None = Field(max_length=50, default=None)
 
 
 class VariableCollectionResponse(BaseModel):
     """Variable Collection serializer for responses."""
 
-    variables: list[VariableResponse]
+    variables: Iterable[VariableResponse]
     total_entries: int
 
 

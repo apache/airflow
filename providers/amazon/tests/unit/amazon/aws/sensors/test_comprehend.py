@@ -20,12 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
@@ -137,7 +137,7 @@ class TestComprehendCreateDocumentClassifierCompletedSensor:
         assert op.hook._config.read_timeout == 42
 
     @pytest.mark.parametrize(
-        "state, message, output",
+        ("state", "message", "output"),
         [
             pytest.param("TRAINED", "", "s3://test-output", id="training succeeded"),
             pytest.param(

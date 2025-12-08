@@ -23,6 +23,7 @@ from fastapi import HTTPException
 from jwt import ExpiredSignatureError, InvalidTokenError
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
@@ -35,6 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.security import (
+    get_user,
     is_safe_url,
     requires_access_connection,
     requires_access_connection_bulk,
@@ -104,6 +106,46 @@ class TestFastApiSecurity:
 
         auth_manager.get_user_from_token.assert_called_once_with(token_str)
 
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_with_request_state(self, mock_resolve_user_from_token):
+        user = Mock()
+        request = Mock()
+        request.state.user = user
+
+        result = await get_user(request, None, None)
+
+        assert result == user
+        mock_resolve_user_from_token.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("oauth_token", "bearer_credentials_creds", "cookies", "expected"),
+        [
+            ("oauth_token", None, {}, "oauth_token"),
+            (None, "bearer_credentials_creds", {}, "bearer_credentials_creds"),
+            (None, None, {COOKIE_NAME_JWT_TOKEN: "cookie_token"}, "cookie_token"),
+        ],
+    )
+    @patch("airflow.api_fastapi.core_api.security.resolve_user_from_token")
+    async def test_get_user_with_token(
+        self, mock_resolve_user_from_token, oauth_token, bearer_credentials_creds, cookies, expected
+    ):
+        user = Mock()
+        mock_resolve_user_from_token.return_value = user
+
+        request = Mock()
+        request.state.user = None
+        request.cookies = cookies
+        bearer_credentials = None
+        if bearer_credentials_creds:
+            bearer_credentials = Mock()
+            bearer_credentials.scheme = "bearer"
+            bearer_credentials.credentials = bearer_credentials_creds
+
+        result = await get_user(request, oauth_token, bearer_credentials)
+
+        assert result == user
+        mock_resolve_user_from_token.assert_called_once_with(expected)
+
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     def test_requires_access_dag_authorized(self, mock_get_auth_manager):
@@ -135,7 +177,7 @@ class TestFastApiSecurity:
         auth_manager.is_authorized_dag.assert_called_once()
 
     @pytest.mark.parametrize(
-        "url, expected_is_safe",
+        ("url", "expected_is_safe"),
         [
             ("https://server_base_url.com/prefix/some_page?with_param=3", True),
             ("https://server_base_url.com/prefix/", True),
@@ -154,10 +196,33 @@ class TestFastApiSecurity:
             ("/some_other_page/", False),
             # traversal, escaping the `prefix` folder
             ("/../../../../some_page?with_param=3", False),
+            # encoded url
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", True),
+            ("https%3A%2F%2Fsome_netlock.com%2Fprefix%2Fsome_page%3Fwith_param%3D3", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
         ],
     )
     @conf_vars({("api", "base_url"): "https://server_base_url.com/prefix"})
     def test_is_safe_url(self, url, expected_is_safe):
+        request = Mock()
+        request.base_url = "https://requesting_server_base_url.com/prefix2"
+        assert is_safe_url(url, request=request) == expected_is_safe
+
+    @pytest.mark.parametrize(
+        ("url", "expected_is_safe"),
+        [
+            ("https://server_base_url.com/prefix", False),
+            ("https://requesting_server_base_url.com/prefix2", True),
+            ("prefix/some_other", False),
+            ("https%3A%2F%2Fserver_base_url.com%2Fprefix", False),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2", True),
+            ("https%3A%2F%2Frequesting_server_base_url.com%2Fprefix2%2Fsub_path", True),
+            ("%2F..%2F..%2F..%2F..%2Fsome_page%3Fwith_param%3D3", False),
+        ],
+    )
+    def test_is_safe_url_with_base_url_unset(self, url, expected_is_safe):
         request = Mock()
         request.base_url = "https://requesting_server_base_url.com/prefix2"
         assert is_safe_url(url, request=request) == expected_is_safe
@@ -211,6 +276,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["test3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"connection_id": "test4", "conn_type": "test4"},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -230,6 +302,14 @@ class TestFastApiSecurity:
                 {
                     "method": "DELETE",
                     "details": ConnectionDetails(conn_id="test3"),
+                },
+                {
+                    "method": "POST",
+                    "details": ConnectionDetails(conn_id="test4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": ConnectionDetails(conn_id="test4"),
                 },
             ],
             user=user,
@@ -281,6 +361,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["var3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"key": "var4", "value": "value4"},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -300,6 +387,14 @@ class TestFastApiSecurity:
                 {
                     "method": "DELETE",
                     "details": VariableDetails(key="var3"),
+                },
+                {
+                    "method": "POST",
+                    "details": VariableDetails(key="var4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": VariableDetails(key="var4"),
                 },
             ],
             user=user,
@@ -351,6 +446,13 @@ class TestFastApiSecurity:
                         "action": "delete",
                         "entities": ["pool3"],
                     },
+                    {
+                        "action": "create",
+                        "entities": [
+                            {"pool": "pool4", "slots": 1},
+                        ],
+                        "action_on_existence": "overwrite",
+                    },
                 ]
             }
         )
@@ -371,6 +473,51 @@ class TestFastApiSecurity:
                     "method": "DELETE",
                     "details": PoolDetails(name="pool3"),
                 },
+                {
+                    "method": "POST",
+                    "details": PoolDetails(name="pool4"),
+                },
+                {
+                    "method": "PUT",
+                    "details": PoolDetails(name="pool4"),
+                },
             ],
             user=user,
         )
+
+
+class TestAuthManagerDependency:
+    """Test the auth_manager_from_app dependency function."""
+
+    def test_auth_manager_from_app_returns_instance_from_state(self):
+        """Test that auth_manager_from_app correctly retrieves auth_manager from app.state."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock auth manager
+        mock_auth_manager = Mock()
+
+        # Create a mock request with app.state.auth_manager
+        mock_request = Mock()
+        mock_request.app.state.auth_manager = mock_auth_manager
+
+        # Call the dependency function
+        result = auth_manager_from_app(mock_request)
+
+        # Assert it returns the correct auth manager
+        assert result is mock_auth_manager
+
+    def test_auth_manager_from_app_integration_with_test_client(self, test_client):
+        """Test that auth_manager_from_app works with the test client setup."""
+        from airflow.api_fastapi.core_api.security import auth_manager_from_app
+
+        # Create a mock request using the test client's app
+        mock_request = Mock()
+        mock_request.app = test_client.app
+
+        # Get the auth manager
+        auth_manager = auth_manager_from_app(mock_request)
+
+        # Verify it's not None (should be SimpleAuthManager from test fixture)
+        assert auth_manager is not None
+        assert hasattr(auth_manager, "get_url_login")
+        assert hasattr(auth_manager, "get_url_logout")

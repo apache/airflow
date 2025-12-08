@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.0.6"
+defaultAirflowTag: "3.1.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.0.6"
+airflowVersion: "3.1.3"
 
 # Images
 images:
@@ -124,6 +124,9 @@ images:
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
     tag: v4.4.2
+    # NOTE:
+    # - If the tag is "v3.x.x" or any version < 4.0.0 - use GIT_SYNC_* env variables
+    # - If the tag is "v4.x.x" or "latest" - use GITSYNC_* env variables
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -135,6 +138,10 @@ schedulerName: ~
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
+
+# List of existing Kubernetes secrets containing Base64 encoded credentials to connect to private
+# registries. Items can be either strings or {name: secret} objects.
+imagePullSecrets: []
 
 # Ingress configuration
 ingress:
@@ -736,7 +743,9 @@ workers:
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
-      AND executor != 'KubernetesExecutor'
+      AND executor IS DISTINCT FROM 'KubernetesExecutor'
+      {{- else if contains "airflow.providers.edge3.executors.EdgeExecutor" .Values.executor }}
+      AND executor IS DISTINCT FROM 'EdgeExecutor'
       {{- end }}
 
     # Weather to use PGBouncer to connect to the database or not when it is enabled
@@ -1203,6 +1212,8 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Whether the create user job should be created
+  enabled: true
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
@@ -1405,8 +1416,10 @@ migrateDatabaseJob:
   env: []
 
 apiServer:
-
+  enabled: true
   # Number of Airflow API servers in the deployment
+  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
+  # as HPA will automatically manage the number of replicas based on the configured metrics.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1420,6 +1433,31 @@ apiServer:
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
   env: []
+
+  # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
+  # HPA automatically scales the number of apiServer pods based on observed metrics.
+  # HPA automatically adjusts apiServer replicas between minReplicaCount and maxReplicaCount based on metrics.
+  hpa:
+    enabled: false
+
+    # Minimum number of api-servers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of api-servers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 50
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -2169,6 +2207,10 @@ dagProcessor:
     securityContexts:
       container: {}
 
+  # Labels specific to dag processor objects
+  labels: {}
+
+  # Environment variables to add to dag processor container
   env: []
 
 # Flower settings
@@ -2399,6 +2441,10 @@ statsd:
   overrideMappings: []
 
   podAnnotations: {}
+
+  # Labels specific to statsd objects and pods
+  labels: {}
+  # Environment variables to add to statsd container
   env: []
 
 # PgBouncer settings
@@ -2712,12 +2758,20 @@ redis:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Labels specific to redis objects and pods
+  labels: {}
+
   podAnnotations: {}
-# Auth secret for a private registry
+
+# Auth secret for a private registry (Deprecated - use `imagePullSecrets` instead)
 # This is used if pulling airflow images from a private registry
 registry:
+  # Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry
+  # (Deprecated - renamed to `imagePullSecrets`).
   secretName: ~
 
+  # Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret
+  # (Deprecated - create manually the credentials secret and add to `imagePullSecrets` instead).
   # Example:
   # connection:
   #   user: ~
@@ -2779,7 +2833,8 @@ quotas: {}
 # Define default/max/min values for pods and containers in namespace
 limits: []
 
-# This runs as a CronJob to cleanup old pods.
+# This runs as a CronJob to cleanup old pods spawned by the KubernetesExecutor.
+# It is required to have KubernetesExecutor enabled.
 cleanup:
   enabled: false
   # Run every 15 minutes (templated).
@@ -2850,10 +2905,98 @@ cleanup:
   failedJobsHistoryLimit: ~
   successfulJobsHistoryLimit: ~
 
+# This runs as a CronJob to cleanup database for old entries.
+databaseCleanup:
+  enabled: false
+  # Run every week on Sunday at midnight (templated).
+  schedule: "0 0 * * 0"
+  # Command to use when running the database cleanup cronjob (templated).
+  command:
+    - "bash"
+  # Args to use when running the database cleanup cronjob (templated).
+  args:
+    - "-c"
+    - >-
+      CLEAN_TS=$(date -d "-{{ .Values.databaseCleanup.retentionDays }} days" +"%Y-%m-%dT%H:%M:%S");
+      echo "Cleaning up metadata DB entries older than ${CLEAN_TS}";
+      exec airflow db clean --clean-before-timestamp "${CLEAN_TS}" --yes
+      {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }}
+      {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }}
+      {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }}
+      {{- with .Values.databaseCleanup.tables }} --tables {{ . | join "," }}{{ end }}
+
+  # Number of days to retain entries in the metadata database.
+  retentionDays: 90
+  # Don't preserve purged records in an archive table
+  skipArchive: false
+  # Table names to perform maintenance on. Supported values in:
+  # https://airflow.apache.org/docs/apache-airflow/stable/cli-and-env-variables-ref.html#clean
+  tables: []
+  # Maximum number of rows to delete or archive in a single transaction
+  batchSize: ~
+  # Make logging output more verbose
+  verbose: true
+
+  # jobAnnotations are annotations on the database cleanup CronJob
+  jobAnnotations: {}
+
+  # Select certain nodes for airflow database cleanup pods.
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
+  topologySpreadConstraints: []
+  priorityClassName: ~
+
+  podAnnotations: {}
+
+  # Labels specific to database cleanup objects and pods
+  labels: {}
+
+  resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # Create ServiceAccount
+  serviceAccount:
+    # default value is true
+    # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+    automountServiceAccountToken: true
+    # Specifies whether a ServiceAccount should be created
+    create: true
+    # The name of the ServiceAccount to use.
+    # If not set and create is true, a name is generated using the release name
+    name: ~
+
+    # Annotations to add to database cleanup cronjob kubernetes service account.
+    annotations: {}
+
+  env: []
+
+  # Detailed default security context for database cleanup for container level
+  securityContexts:
+    pod: {}
+    container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
+  # Specify history limit
+  # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 1
+
 # Configuration for postgresql subchart
-# Not recommended for production
+# Uses bitnamilegacy images to avoid Bitnami licensing restrictions
+# Not recommended for production - use external database instead
 postgresql:
   enabled: true
+  image:
+    repository: postgres
+    tag: "13"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
@@ -2898,6 +3041,7 @@ config:
   celery:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
+    sync_parallelism: '{{ include "cpu_count" (((.Values.scheduler).resources).limits).cpu }}'
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0
@@ -3054,7 +3198,7 @@ dags:
     # sshKeySecret: airflow-ssh-secret
     #
     # Or set sshKeySecret with your key
-    # sshKey: |-
+    # sshKey: |
     #   -----BEGIN {OPENSSH PRIVATE KEY}-----
     #   ...
     #   -----END {OPENSSH PRIVATE KEY}-----

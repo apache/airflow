@@ -34,10 +34,22 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
-Airflow 3.2.0
+Airflow 3.1.4
 ~~~~~~~~~~~~~
 
-In Airflow 3.2.0 we changed the base images used for building the Airflow images. Previously the images
+In Airflow 3.1.4, the images are build without removing of .pyc and .pyo files when Python is built.
+This increases the size of the image slightly (<0.5%), but improves performance of Python in the container
+because Python does not need to recompile the files on the first run but more importantly, if you use
+``exec`` to run Health Checks, removed .pyc files caused a small but ever growing memory leak in the Unix
+kernel connected to negative ``dentries`` created when .pyc files were attempted to be compiled and failed.
+This over time could lead to out-of-memory issues on the host running the container.
+
+More information about ``dentries`` can be found in `this article <https://lwn.net/Articles/814535/>`_.
+
+Airflow 3.1.0
+~~~~~~~~~~~~~
+
+In Airflow 3.1.0 we changed the base images used for building the Airflow images. Previously the images
 were based on "official" Python images from DockerHub, however those images sometimes lag behind the
 latest security patches and their maintainers made decisions about using older setuptools and pip versions,
 however we want to be able to use the latest versions of those tools to build the images. Therefore
@@ -61,6 +73,13 @@ There might be other subtle changes in the image due to the change of the base i
 especially dev libraries installed with ``apt`` might not be installed by default if they were installed
 as a side-effect in the original image, however that should only affect those who want to customise the image.
 They should be able to install in their custom images following the :doc:`Building the image <build>`
+
+The Python 3.13 image for Airflow 3.1.0 (both slim and regular) does not contain ``fab`` provider because
+at the time of release the ``fab`` provider did not support Python 3.13. It should be possible to install
+future versions of ``fab`` provider (when they support Python 3.13) in the image using ``pip install``,
+and until it is possible - if you need ``fab`` provider (and particularly FABAuthManager) in the
+image, you should use Python 3.12 image. You can use experimental KeycloakAuthManager in Python 3.13 image
+or develop your own AuthManager.
 
 Airflow 3.0.2
 ~~~~~~~~~~~~~

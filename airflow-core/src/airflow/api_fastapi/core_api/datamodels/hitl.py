@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 from typing import Any
 
@@ -24,7 +24,6 @@ from pydantic import Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.task_instances import TaskInstanceResponse
-from airflow.sdk import Param
 
 
 class UpdateHITLDetailPayload(BaseModel):
@@ -38,7 +37,7 @@ class HITLDetailResponse(BaseModel):
     """Response of updating a Human-in-the-loop detail."""
 
     responded_by: HITLUser
-    response_at: datetime
+    responded_at: datetime
     chosen_options: list[str] = Field(min_length=1)
     params_input: Mapping = Field(default_factory=dict)
 
@@ -50,10 +49,8 @@ class HITLUser(BaseModel):
     name: str
 
 
-class HITLDetail(BaseModel):
-    """Schema for Human-in-the-loop detail."""
-
-    task_instance: TaskInstanceResponse
+class BaseHITLDetail(BaseModel):
+    """The common part within HITLDetail and HITLDetailHistory."""
 
     # User Request Detail
     options: list[str] = Field(min_length=1)
@@ -61,12 +58,13 @@ class HITLDetail(BaseModel):
     body: str | None = None
     defaults: list[str] | None = None
     multiple: bool = False
-    params: dict[str, Any] = Field(default_factory=dict)
+    params: Mapping = Field(default_factory=dict)
     assigned_users: list[HITLUser] = Field(default_factory=list)
+    created_at: datetime
 
     # Response Content Detail
     responded_by_user: HITLUser | None = None
-    response_at: datetime | None = None
+    responded_at: datetime | None = None
     chosen_options: list[str] | None = None
     params_input: dict[str, Any] = Field(default_factory=dict)
 
@@ -76,11 +74,30 @@ class HITLDetail(BaseModel):
     @classmethod
     def get_params(cls, params: dict[str, Any]) -> dict[str, Any]:
         """Convert params attribute to dict representation."""
-        return {k: v.dump() if isinstance(v, Param) else v for k, v in params.items()}
+        return {
+            key: value
+            if BaseHITLDetail._is_param(value)
+            else {
+                "value": value,
+                "description": None,
+                "schema": {},
+            }
+            for key, value in params.items()
+        }
+
+    @staticmethod
+    def _is_param(value: Any) -> bool:
+        return isinstance(value, dict) and all(key in value for key in ("description", "schema", "value"))
+
+
+class HITLDetail(BaseHITLDetail):
+    """Schema for Human-in-the-loop detail."""
+
+    task_instance: TaskInstanceResponse
 
 
 class HITLDetailCollection(BaseModel):
     """Schema for a collection of Human-in-the-loop details."""
 
-    hitl_details: list[HITLDetail]
+    hitl_details: Iterable[HITLDetail]
     total_entries: int

@@ -18,6 +18,7 @@
  */
 import { Box, VStack, Editable, Text } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+import { useState, useRef } from "react";
 
 import ReactMarkdown from "./ReactMarkdown";
 
@@ -31,36 +32,54 @@ const EditableMarkdownArea = ({
   readonly onBlur?: () => void;
   readonly placeholder?: string | null;
   readonly setMdContent: (value: string) => void;
-}) => (
-  <Box mt={4} px={4} width="100%">
-    <Editable.Root
-      onBlur={onBlur}
-      onChange={(event: ChangeEvent<HTMLInputElement>) => setMdContent(event.target.value)}
-      value={mdContent ?? ""}
-    >
-      <Editable.Preview
-        _hover={{ backgroundColor: "transparent" }}
-        alignItems="flex-start"
-        as={VStack}
-        gap="0"
-        overflowY="auto"
-        width="100%"
+}) => {
+  const [currentValue, setCurrentValue] = useState(mdContent ?? "");
+  const prevMdContentRef = useRef(mdContent);
+
+  // Sync local state with prop changes
+  if (mdContent !== prevMdContentRef.current) {
+    setCurrentValue(mdContent ?? "");
+    prevMdContentRef.current = mdContent;
+  }
+
+  return (
+    <Box height="100%" p={4} width="100%">
+      <Editable.Root
+        height="100%"
+        onBlur={onBlur}
+        onChange={(event: ChangeEvent<HTMLInputElement>) => {
+          const { value } = event.target;
+
+          setCurrentValue(value);
+          setMdContent(value);
+        }}
+        value={currentValue}
       >
-        {Boolean(mdContent) ? (
-          <ReactMarkdown>{mdContent}</ReactMarkdown>
-        ) : (
-          <Text color="fg.subtle">{placeholder}</Text>
-        )}
-      </Editable.Preview>
-      <Editable.Textarea
-        data-testid="markdown-input"
-        height="200px"
-        overflowY="auto"
-        placeholder={placeholder ?? ""}
-        resize="none"
-      />
-    </Editable.Root>
-  </Box>
-);
+        <Editable.Preview
+          _hover={{ backgroundColor: "transparent" }}
+          alignItems="flex-start"
+          as={VStack}
+          gap="0"
+          height="100%"
+          overflowY="auto"
+          width="100%"
+        >
+          {Boolean(currentValue) ? (
+            <ReactMarkdown>{currentValue}</ReactMarkdown>
+          ) : (
+            <Text color="fg.subtle">{placeholder}</Text>
+          )}
+        </Editable.Preview>
+        <Editable.Textarea
+          data-testid="markdown-input"
+          height="100%"
+          overflowY="auto"
+          placeholder={placeholder ?? ""}
+          resize="none"
+        />
+      </Editable.Root>
+    </Box>
+  );
+};
 
 export default EditableMarkdownArea;

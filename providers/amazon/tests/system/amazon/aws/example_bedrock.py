@@ -65,12 +65,12 @@ DAG_ID = "example_bedrock"
 # Creating a custom model takes nearly two hours. If SKIP_LONG_TASKS
 # is True then these tasks will be skipped. This way we can still have
 # the code snippets for docs, and we can manually run the full tests.
-SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
+SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", str(True))
 
 # No-commitment Provisioned Throughput is currently restricted to external
 # customers only and will fail with a ServiceQuotaExceededException if run
 # on the AWS System Test stack.
-SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
+SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", str(True))
 
 LLAMA_SHORT_MODEL_ID = "meta.llama3-8b-instruct-v1:0"
 TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
@@ -157,7 +157,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

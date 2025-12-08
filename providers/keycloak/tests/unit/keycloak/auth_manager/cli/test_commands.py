@@ -107,7 +107,7 @@ class TestCommands:
                 ("keycloak_auth_manager", "client_id"): "test_client_id",
             }
         ):
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="Client with ID='test_client_id' not found in realm"):
                 create_scopes_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
@@ -277,7 +277,13 @@ class TestCommands:
 
     def test_create_permissions_admin(self):
         client = Mock()
-        scopes = [{"id": "1", "name": "GET"}, {"id": "2", "name": "MENU"}, {"id": "3", "name": "PUT"}]
+        scopes = [
+            {"id": "1", "name": "GET"},
+            {"id": "2", "name": "MENU"},
+            {"id": "3", "name": "PUT"},
+            {"id": "4", "name": "LIST"},
+            {"id": "5", "name": "DUMMY"},
+        ]
 
         client.get_client_authz_scopes.return_value = scopes
 
@@ -291,7 +297,7 @@ class TestCommands:
                 "type": "scope",
                 "logic": "POSITIVE",
                 "decisionStrategy": "UNANIMOUS",
-                "scopes": ["1", "2", "3"],
+                "scopes": ["1", "2", "3", "4"],
             },
         )
 

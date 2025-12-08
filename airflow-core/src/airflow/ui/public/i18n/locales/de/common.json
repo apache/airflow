@@ -59,6 +59,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
@@ -78,12 +79,18 @@
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "download": {
+    "download": "Herunterladen",
+    "hotkey": "d",
+    "tooltip": "Drücken Sie {{hotkey}}, um Protokolle herunterzuladen"
+  },
   "duration": "Laufzeit",
   "endDate": "Enddatum",
   "error": {
     "back": "Zurück",
     "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
     "home": "Start",
+    "invalidUrl": "Seite nicht gefunden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
@@ -101,10 +108,15 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Laufzeit Von",
+    "durationTo": "Laufzeit Bis",
+    "endTime": "Endzeitpunkt",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
     "runAfterFrom": "Gelaufen-nach von filtern",
-    "runAfterTo": "Gelaufen-nach bis filtern"
+    "runAfterTo": "Gelaufen-nach bis filtern",
+    "selectDateRange": "Zeitraum auswählen",
+    "startTime": "Startzeitpunkt"
   },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
@@ -120,7 +132,7 @@
   },
   "nav": {
     "admin": "Verwaltung",
-    "assets": "Datensets (Assets)",
+    "assets": "Datensets",
     "browse": "Browsen",
     "dags": "Dags",
     "docs": "Doku",
@@ -161,7 +173,6 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",

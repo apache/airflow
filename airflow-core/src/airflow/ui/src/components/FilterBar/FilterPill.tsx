@@ -23,10 +23,11 @@ import { MdClose } from "react-icons/md";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import type { FilterState, FilterValue } from "./types";
+import { isEmptyFilterValue } from "./utils";
 
 type FilterPillProps = {
   readonly children: React.ReactNode;
-  readonly displayValue: string;
+  readonly displayValue: React.ReactNode | string;
   readonly filter: FilterState;
   readonly hasValue: boolean;
   readonly onChange: (value: FilterValue) => void;
@@ -41,7 +42,7 @@ export const FilterPill = ({
   onChange,
   onRemove,
 }: FilterPillProps) => {
-  const isEmpty = filter.value === null || filter.value === undefined || String(filter.value).trim() === "";
+  const isEmpty = isEmptyFilterValue(filter.value);
   const [isEditing, setIsEditing] = useState(isEmpty);
   const inputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -127,7 +128,7 @@ export const FilterPill = ({
     >
       <HStack align="center" gap={1}>
         {filter.config.icon ?? getDefaultFilterIcon(filter.config.type)}
-        <Box flex="1" px={2} py={2}>
+        <Box alignItems="center" display="flex" flex="1" gap={2} px={2}>
           {filter.config.label}: {displayValue}
         </Box>
 

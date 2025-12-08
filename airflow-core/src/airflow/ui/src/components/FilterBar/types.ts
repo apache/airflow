@@ -18,19 +18,27 @@
  */
 import type React from "react";
 
-export type FilterValue = Date | number | string | null | undefined;
+export type DateRangeValue = {
+  endDate?: string;
+  startDate?: string;
+};
+
+export type FilterValue = Date | DateRangeValue | number | string | null | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
+  readonly endKey?: string;
   readonly hotkeyDisabled?: boolean;
   readonly icon?: React.ReactNode;
   readonly key: string;
   readonly label: string;
   readonly max?: number;
   readonly min?: number;
+  readonly options?: Array<{ label: React.ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly required?: boolean;
-  readonly type: "date" | "number" | "text";
+  readonly startKey?: string;
+  readonly type: "date" | "daterange" | "number" | "select" | "text";
 };
 
 export type FilterState = {

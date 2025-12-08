@@ -20,18 +20,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from fastapi import HTTPException
 
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli.worker import EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
-from airflow.providers.edge3.worker_api.routes._v2_compat import HTTPException
 from airflow.providers.edge3.worker_api.routes.worker import (
     _assert_version,
     register,
     set_state,
     update_queues,
 )
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -96,7 +96,55 @@ class TestWorkerApiRoutes:
             assert worker[0].queues is None
 
     @pytest.mark.parametrize(
-        "worker_state, body_state, expected_state",
+        ("existing_state", "should_raise"),
+        [
+            pytest.param(EdgeWorkerState.RUNNING, True, id="duplicate-running"),
+            pytest.param(EdgeWorkerState.IDLE, True, id="duplicate-idle"),
+            pytest.param(EdgeWorkerState.STARTING, True, id="duplicate-starting"),
+            pytest.param(EdgeWorkerState.TERMINATING, True, id="duplicate-terminating"),
+            pytest.param(EdgeWorkerState.MAINTENANCE_MODE, True, id="duplicate-maintenance"),
+            pytest.param(EdgeWorkerState.OFFLINE, False, id="reuse-offline"),
+            pytest.param(EdgeWorkerState.UNKNOWN, False, id="reuse-unknown"),
+            pytest.param(EdgeWorkerState.OFFLINE_MAINTENANCE, False, id="reuse-offline-maintenance"),
+        ],
+    )
+    def test_register_duplicate_worker(
+        self, session: Session, existing_state: EdgeWorkerState, should_raise: bool, cli_worker: EdgeWorker
+    ):
+        # Create an existing worker
+        existing_worker = EdgeWorkerModel(
+            worker_name="test_worker",
+            state=existing_state,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(existing_worker)
+        session.commit()
+
+        # Try to register a new worker with the same name
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=["default"],
+            sysinfo=cli_worker._get_sysinfo(),
+        )
+
+        if should_raise:
+            with pytest.raises(HTTPException) as exc_info:
+                register("test_worker", body, session)
+            assert exc_info.value.status_code == 409
+            assert "already active" in str(exc_info.value.detail).lower()
+        else:
+            # Should succeed for offline/unknown states
+            register("test_worker", body, session)
+            session.commit()
+            worker = session.query(EdgeWorkerModel).filter_by(worker_name="test_worker").first()
+            assert worker is not None
+            # State should be updated (or redefined based on redefine_state logic)
+            assert worker.state is not None
+
+    @pytest.mark.parametrize(
+        ("worker_state", "body_state", "expected_state"),
         [
             pytest.param(
                 EdgeWorkerState.MAINTENANCE_REQUEST,
@@ -197,7 +245,7 @@ class TestWorkerApiRoutes:
         assert return_queues == ["default", "default2"]
 
     @pytest.mark.parametrize(
-        "add_queues, remove_queues, expected_queues",
+        ("add_queues", "remove_queues", "expected_queues"),
         [
             pytest.param(None, None, ["init"], id="no-changes"),
             pytest.param(

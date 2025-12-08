@@ -19,16 +19,11 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.exceptions import AirflowSkipException
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.utils.weekday import WeekDay
 from airflow.sdk import chain, dag, task
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+from airflow.sdk.exceptions import AirflowSkipException
 
 
 @dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
@@ -92,21 +87,14 @@ def example_bash_decorator():
     # [END howto_decorator_bash_parametrize]
 
     # [START howto_decorator_bash_build_cmd]
-    def _get_files_in_cwd() -> list[str]:
-        from pathlib import Path
-
-        dir_contents = Path.cwd().glob("airflow-core/src/airflow/example_dags/*.py")
-        files = [str(elem) for elem in dir_contents if elem.is_file()]
-
-        return files
-
     @task.bash
     def get_file_stats() -> str:
+        from pathlib import Path
         from shlex import join
 
-        files = _get_files_in_cwd()
-        files = files if files else ["."]
-        cmd = join(["stat", *files])
+        # Get stats of the current DAG file itself
+        current_file = str(Path(__file__))
+        cmd = join(["stat", current_file])
 
         return cmd
 

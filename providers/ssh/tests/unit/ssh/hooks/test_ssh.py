@@ -27,8 +27,8 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 pytestmark = pytest.mark.db_test
@@ -598,7 +598,7 @@ class TestSSHHook:
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
 
     def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Must check host key when provided"):
             SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
 
     @mock.patch("airflow.providers.ssh.hooks.ssh.paramiko.SSHClient")
@@ -646,7 +646,7 @@ class TestSSHHook:
             )
 
     @pytest.mark.parametrize(
-        "cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value",
+        ("cmd_timeout", "cmd_timeoutextra", "null_cmd_timeoutextra", "expected_value"),
         [
             (TEST_CMD_TIMEOUT, True, False, TEST_CMD_TIMEOUT),
             (TEST_CMD_TIMEOUT, True, True, TEST_CMD_TIMEOUT),

@@ -26,10 +26,10 @@ import time_machine
 from aiohttp.client_exceptions import ClientConnectorError
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
-from tenacity import Future, RetryError
+from tenacity import AsyncRetrying, Future, RetryError, retry_if_exception, stop_after_attempt, wait_fixed
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import (
     DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
     DEFAULT_DATABRICKS_SCOPE,
@@ -93,7 +93,7 @@ class TestBaseDatabricksHook:
         assert "after" in hook.retry_args
 
     @pytest.mark.parametrize(
-        "input_url, expected_host",
+        ("input_url", "expected_host"),
         [
             ("https://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
             ("http://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
@@ -664,7 +664,7 @@ class TestBaseDatabricksHook:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "schema,port,host,endpoint,expected_url",
+        ("schema", "port", "host", "endpoint", "expected_url"),
         [
             ("https", 443, "example.com", "api/2.0/jobs/list", "https://example.com:443/api/2.0/jobs/list"),
             ("http", 8080, "localhost", "status", "http://localhost:8080/status"),
@@ -768,3 +768,145 @@ class TestBaseDatabricksHook:
         exception.response = mock_response
         hook = BaseDatabricksHook()
         assert hook._get_error_code(exception) == "INVALID_REQUEST"
+
+    @mock.patch("requests.get")
+    @time_machine.travel("2025-07-12 12:00:00")
+    def test_check_azure_metadata_service_normal(self, mock_get):
+        travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
+        hook = BaseDatabricksHook()
+        mock_response = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+        mock_get.return_value.json.return_value = mock_response
+
+        hook._check_azure_metadata_service()
+
+        assert hook._metadata_cache == mock_response
+        assert int(hook._metadata_expiry) == travel_time + hook._metadata_ttl
+
+    @mock.patch("requests.get")
+    @time_machine.travel("2025-07-12 12:00:00")
+    def test_check_azure_metadata_service_cached(self, mock_get):
+        travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
+        hook = BaseDatabricksHook()
+        mock_response = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+        hook._metadata_cache = mock_response
+        hook._metadata_expiry = travel_time + 1000
+
+        hook._check_azure_metadata_service()
+        mock_get.assert_not_called()
+
+    @mock.patch("requests.get")
+    def test_check_azure_metadata_service_http_error(self, mock_get):
+        hook = BaseDatabricksHook()
+        mock_get.side_effect = requests_exceptions.RequestException("Fail")
+
+        with pytest.raises(ConnectionError, match="Can't reach Azure Metadata Service"):
+            hook._check_azure_metadata_service()
+        assert hook._metadata_cache == {}
+        assert hook._metadata_expiry == 0
+
+    @mock.patch("requests.get")
+    def test_check_azure_metadata_service_retry_error(self, mock_get):
+        hook = BaseDatabricksHook()
+
+        resp_429 = mock.Mock()
+        resp_429.status_code = 429
+        resp_429.content = b"Too many requests"
+        http_error = requests_exceptions.HTTPError(response=resp_429)
+        mock_get.side_effect = http_error
+
+        with pytest.raises(ConnectionError, match="Failed to reach Azure Metadata Service after 3 retries."):
+            hook._check_azure_metadata_service()
+        assert mock_get.call_count == 3
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get")
+    async def test_a_check_azure_metadata_service_normal(self, mock_get):
+        hook = BaseDatabricksHook()
+
+        async_mock = mock.AsyncMock()
+        async_mock.__aenter__.return_value = async_mock
+        async_mock.__aexit__.return_value = None
+        async_mock.json.return_value = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+
+        mock_get.return_value = async_mock
+
+        async with aiohttp.ClientSession() as session:
+            hook._session = session
+            mock_attempt = mock.Mock()
+            mock_attempt.__enter__ = mock.Mock(return_value=None)
+            mock_attempt.__exit__ = mock.Mock(return_value=None)
+
+            async def mock_retry_generator():
+                yield mock_attempt
+
+            hook._a_get_retry_object = mock.Mock(return_value=mock_retry_generator())
+            await hook._a_check_azure_metadata_service()
+
+            assert hook._metadata_cache["compute"]["azEnvironment"] == "AzurePublicCloud"
+            assert hook._metadata_expiry > 0
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get")
+    @time_machine.travel("2025-07-12 12:00:00")
+    async def test_a_check_azure_metadata_service_cached(self, mock_get):
+        travel_time = int(datetime(2025, 7, 12, 12, 0, 0).timestamp())
+        hook = BaseDatabricksHook()
+        hook._metadata_cache = {"compute": {"azEnvironment": "AzurePublicCloud"}}
+        hook._metadata_expiry = travel_time + 1000
+
+        async with aiohttp.ClientSession() as session:
+            hook._session = session
+            await hook._a_check_azure_metadata_service()
+            mock_get.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get")
+    async def test_a_check_azure_metadata_service_http_error(self, mock_get):
+        hook = BaseDatabricksHook()
+
+        async_mock = mock.AsyncMock()
+        async_mock.__aenter__.side_effect = aiohttp.ClientError("Fail")
+        async_mock.__aexit__.return_value = None
+        mock_get.return_value = async_mock
+
+        async with aiohttp.ClientSession() as session:
+            hook._session = session
+            mock_attempt = mock.Mock()
+            mock_attempt.__enter__ = mock.Mock(return_value=None)
+            mock_attempt.__exit__ = mock.Mock(return_value=None)
+
+            async def mock_retry_generator():
+                yield mock_attempt
+
+            hook._a_get_retry_object = mock.Mock(return_value=mock_retry_generator())
+
+            with pytest.raises(ConnectionError, match="Can't reach Azure Metadata Service"):
+                await hook._a_check_azure_metadata_service()
+            assert hook._metadata_cache == {}
+            assert hook._metadata_expiry == 0
+
+    @pytest.mark.asyncio
+    @mock.patch("aiohttp.ClientSession.get")
+    async def test_a_check_azure_metadata_service_retry_error(self, mock_get):
+        hook = BaseDatabricksHook()
+
+        mock_get.side_effect = aiohttp.ClientResponseError(
+            request_info=mock.Mock(), history=(), status=429, message="429 Too Many Requests"
+        )
+
+        async with aiohttp.ClientSession() as session:
+            hook._session = session
+
+            hook._a_get_retry_object = lambda: AsyncRetrying(
+                stop=stop_after_attempt(hook.retry_limit),
+                wait=wait_fixed(0),
+                retry=retry_if_exception(hook._retryable_error),
+            )
+
+            hook._validate_azure_metadata_service = mock.Mock()
+
+            with pytest.raises(
+                ConnectionError, match="Failed to reach Azure Metadata Service after 3 retries."
+            ):
+                await hook._a_check_azure_metadata_service()
+            assert mock_get.call_count == 3

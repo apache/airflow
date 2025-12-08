@@ -65,7 +65,7 @@ import { client } from "./queryClient";
 
 const pluginRoute = {
   element: <ExternalView />,
-  path: "plugin/:page",
+  path: "plugin/:page/*",
 };
 
 export const taskInstanceRoutes = [
@@ -226,6 +226,10 @@ export const routerConfig = [
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
+      },
+      {
+        element: <ErrorPage />,
+        path: "*",
       },
     ],
     element: <BaseLayout />,

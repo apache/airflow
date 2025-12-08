@@ -56,3 +56,14 @@ class TestDagProcessorCommand:
         with configure_testing_dag_bundle(os.devnull):
             dag_processor_command.dag_processor(args)
         assert mock_runner.call_args.kwargs["processor"].bundle_names_to_parse == ["testing"]
+
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
+    def test_dag_processor_with_dev_flag(self, mock_reloader):
+        """Ensure that dag-processor with --dev flag uses hot-reload"""
+        args = self.parser.parse_args(["dag-processor", "--dev"])
+        dag_processor_command.dag_processor(args)
+
+        # Verify that run_with_reloader was called
+        mock_reloader.assert_called_once()
+        # The callback function should be callable
+        assert callable(mock_reloader.call_args[0][0])

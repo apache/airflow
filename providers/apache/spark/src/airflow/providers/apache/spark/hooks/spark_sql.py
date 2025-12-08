@@ -20,8 +20,7 @@ from __future__ import annotations
 import subprocess
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.apache.spark.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
     try:

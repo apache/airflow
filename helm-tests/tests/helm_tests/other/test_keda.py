@@ -33,7 +33,7 @@ class TestKeda:
         assert docs == []
 
     @pytest.mark.parametrize(
-        "executor, is_created",
+        ("executor", "is_created"),
         [
             ("CeleryExecutor", True),
             ("CeleryKubernetesExecutor", True),
@@ -107,11 +107,13 @@ class TestKeda:
             queue_value = queue or "kubernetes"
             query += f" AND queue != '{queue_value}'"
         elif "KubernetesExecutor" in executor:
-            query += " AND executor != 'KubernetesExecutor'"
+            query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
+        elif "airflow.providers.edge3.executors.EdgeExecutor" in executor:
+            query += " AND executor IS DISTINCT FROM 'EdgeExecutor'"
         return query
 
     @pytest.mark.parametrize(
-        "executor,concurrency",
+        ("executor", "concurrency"),
         [
             ("CeleryExecutor", 8),
             ("CeleryExecutor", 16),
@@ -119,6 +121,8 @@ class TestKeda:
             ("CeleryKubernetesExecutor", 16),
             ("CeleryExecutor,KubernetesExecutor", 8),
             ("CeleryExecutor,KubernetesExecutor", 16),
+            ("CeleryExecutor,airflow.providers.edge3.executors.EdgeExecutor", 8),
+            ("CeleryExecutor,airflow.providers.edge3.executors.EdgeExecutor", 16),
         ],
     )
     def test_keda_concurrency(self, executor, concurrency):
@@ -135,7 +139,7 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        "executor,queue,should_filter",
+        ("executor", "queue", "should_filter"),
         [
             ("CeleryExecutor", None, False),
             ("CeleryExecutor", "my_queue", False),
@@ -166,7 +170,7 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        "enabled, kind",
+        ("enabled", "kind"),
         [
             ("enabled", "StatefulSet"),
             ("not_enabled", "Deployment"),

@@ -29,6 +29,9 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
+    from pydantic.types import JsonValue
+    from typing_extensions import Self
+
     from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
     from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.asset import AssetUniqueKey
@@ -36,7 +39,6 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
-    from airflow.typing_compat import Self
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:
@@ -66,7 +68,7 @@ class _AssetMainOperator(PythonOperator):
             ],
             outlets=[v for _, v in definition.iter_assets()],
             python_callable=definition._function,
-            definition_name=definition._function.__name__,
+            definition_name=definition.name,
         )
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
@@ -137,6 +139,7 @@ class MultiAssetDefinition(BaseAsset):
     :meta private:
     """
 
+    name: str
     _function: Callable
     _source: asset.multi
 
@@ -217,7 +220,7 @@ class asset(_DAGFactory):
     name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
-    extra: dict[str, Any] = attrs.field(factory=dict)
+    extra: dict[str, JsonValue] = attrs.field(factory=dict)
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     @attrs.define(kw_only=True)
@@ -231,7 +234,7 @@ class asset(_DAGFactory):
                 raise ValueError("nested function not supported")
             if not self.outlets:
                 raise ValueError("no outlets provided")
-            return MultiAssetDefinition(function=f, source=self)
+            return MultiAssetDefinition(function=f, source=self, name=f.__name__)
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if f.__name__ != f.__qualname__:

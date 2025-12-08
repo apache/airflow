@@ -29,7 +29,7 @@ class TestAirflowCommon:
     """
 
     @pytest.mark.parametrize(
-        "logs_values, expected_mount",
+        ("logs_values", "expected_mount"),
         [
             (
                 {"persistence": {"enabled": True, "subPath": "test/logs"}},
@@ -74,7 +74,7 @@ class TestAirflowCommon:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
     @pytest.mark.parametrize(
-        "dag_values, expected_mount",
+        ("dag_values", "expected_mount"),
         [
             (
                 {
@@ -227,7 +227,9 @@ class TestAirflowCommon:
             name=release_name,
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "dagProcessor": {"enabled": True},
             },
@@ -240,11 +242,12 @@ class TestAirflowCommon:
                 "templates/triggerer/triggerer-deployment.yaml",
                 "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
             ],
         )
 
-        # Objects in show_only are 8 but only one of Webserver or API server is created so we have 7 objects
-        assert len(k8s_objects) == 7
+        # Objects in show_only are 9 but only one of Webserver or API server is created so we have 8 objects
+        assert len(k8s_objects) == 8
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -259,7 +262,9 @@ class TestAirflowCommon:
         """Test affinity, tolerations, etc are correctly applied on all pods created."""
         k8s_objects = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
                 "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "dagProcessor": {"enabled": True},
@@ -291,6 +296,7 @@ class TestAirflowCommon:
             },
             show_only=[
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -306,8 +312,8 @@ class TestAirflowCommon:
             ],
         )
 
-        # Objects in show_only are 13 but only one of Webserver or API server is created so we have 12 objects
-        assert len(k8s_objects) == 12
+        # Objects in show_only are 14 but only one of Webserver or API server is created so we have 13 objects
+        assert len(k8s_objects) == 13
 
         for k8s_object in k8s_objects:
             if k8s_object["kind"] == "CronJob":
@@ -331,7 +337,7 @@ class TestAirflowCommon:
             assert jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec) == "foo"
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),
@@ -362,7 +368,7 @@ class TestAirflowCommon:
             assert expected_image == jmespath.search("spec.template.spec.initContainers[0].image", doc)
 
     @pytest.mark.parametrize(
-        "expected_image,tag,digest",
+        ("expected_image", "tag", "digest"),
         [
             ("apache/airflow:user-tag", "user-tag", None),
             ("apache/airflow@user-digest", None, "user-digest"),
@@ -489,6 +495,7 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor,KubernetesExecutor",
                 "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
                 "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
@@ -498,6 +505,7 @@ class TestAirflowCommon:
                 "webserver": {"priorityClassName": "low-priority-webserver"},
                 "workers": {"priorityClassName": "low-priority-worker"},
                 "cleanup": {"enabled": True, "priorityClassName": "low-priority-airflow-cleanup-pods"},
+                "databaseCleanup": {"enabled": True, "priorityClassName": "low-priority-database-cleanup"},
                 "migrateDatabaseJob": {"priorityClassName": "low-priority-run-airflow-migrations"},
                 "createUserJob": {"priorityClassName": "low-priority-create-user-job"},
             },
@@ -511,17 +519,79 @@ class TestAirflowCommon:
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/jobs/create-user-job.yaml",
             ],
         )
 
-        assert len(docs) == 10
+        assert len(docs) == 11
         for doc in docs:
             component = doc["metadata"]["labels"]["component"]
-            if component == "airflow-cleanup-pods":
+            if component in ["airflow-cleanup-pods", "database-cleanup"]:
                 priority = doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["priorityClassName"]
             else:
                 priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"
+
+    @pytest.mark.parametrize(
+        ("image_pull_secrets", "registry_secret_name", "registry_connection", "expected_image_pull_secrets"),
+        [
+            ([], None, {}, []),
+            (
+                [],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["test-basic-registry"],
+            ),
+            ([], "regcred", {}, ["regcred"]),
+            (["regcred2"], "regcred", {}, ["regcred2"]),
+            (
+                ["regcred2"],
+                None,
+                {"host": "example.com", "user": "user", "pass": "pass", "email": "user@example.com"},
+                ["regcred2"],
+            ),
+            (["regcred", {"name": "regcred2"}, ""], None, {}, ["regcred", "regcred2"]),
+        ],
+    )
+    def test_image_pull_secrets(
+        self, image_pull_secrets, registry_secret_name, registry_connection, expected_image_pull_secrets
+    ):
+        release_name = "test-basic"
+        docs = render_chart(
+            name=release_name,
+            values={
+                "imagePullSecrets": image_pull_secrets,
+                "registry": {"secretName": registry_secret_name, "connection": registry_connection},
+                "flower": {"enabled": True},
+                "pgbouncer": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "databaseCleanup": {"enabled": True},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/cleanup/cleanup-cronjob.yaml",
+                "templates/database-cleanup/database-cleanup-cronjob.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/jobs/create-user-job.yaml",
+            ],
+        )
+
+        expected_image_pull_secrets = [{"name": name} for name in expected_image_pull_secrets]
+
+        for doc in docs:
+            got_image_pull_secrets = (
+                doc["spec"]["jobTemplate"]["spec"]["template"]["spec"]["imagePullSecrets"]
+                if doc["kind"] == "CronJob"
+                else doc["spec"]["template"]["spec"]["imagePullSecrets"]
+            )
+            assert got_image_pull_secrets == expected_image_pull_secrets

@@ -54,17 +54,7 @@ REGULAR_IMAGE_PROVIDERS = [
     if not provider_id.startswith("#")
 ]
 
-# Exclude FAB provider for Python 3.13 as it is not yet supported
-py_version = os.environ.get("PYTHON_MAJOR_MINOR_VERSION", "")
-
-if py_version == "3.13":
-    if "apache-airflow-providers-fab" in REGULAR_IMAGE_PROVIDERS:
-        REGULAR_IMAGE_PROVIDERS.remove("apache-airflow-providers-fab")
-
-    if "apache-airflow-providers-fab" in SLIM_IMAGE_PROVIDERS:
-        SLIM_IMAGE_PROVIDERS.remove("apache-airflow-providers-fab")
-
-testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", False)
+testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", str(False)).lower() in ("true", "1", "yes")
 
 
 class TestCommands:
@@ -103,6 +93,12 @@ class TestPythonPackages:
         else:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
         assert len(packages_to_install) != 0
+        python_version = run_bash_in_docker(
+            "python --version",
+            image=default_docker_image,
+        )
+        if python_version.startswith("Python 3.13"):
+            packages_to_install.discard("apache-airflow-providers-fab")
         output = run_bash_in_docker(
             "airflow providers list --output json",
             image=default_docker_image,
@@ -201,10 +197,20 @@ class TestPythonPackages:
     }
 
     @pytest.mark.parametrize(
-        "package_name,import_names",
+        ("package_name", "import_names"),
         SLIM_PACKAGE_IMPORTS.items() if testing_slim_image else REGULAR_PACKAGE_IMPORTS.items(),
     )
-    def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
+    def test_check_dependencies_imports(
+        self, package_name: str, import_names: list[str], default_docker_image: str
+    ):
+        if package_name == "providers":
+            python_version = run_bash_in_docker(
+                "python --version",
+                image=default_docker_image,
+            )
+            if python_version.startswith("Python 3.13"):
+                if "airflow.providers.fab" in import_names:
+                    import_names.remove("airflow.providers.fab")
         run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 
     def test_there_is_no_opt_airflow_airflow_folder(self, default_docker_image):

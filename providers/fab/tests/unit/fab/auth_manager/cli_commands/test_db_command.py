@@ -59,7 +59,7 @@ try:
             mock_resetdb.assert_called_once_with(skip_init=True)
 
         @pytest.mark.parametrize(
-            "args, called_with",
+            ("args", "called_with"),
             [
                 (
                     [],
@@ -105,7 +105,7 @@ try:
             mock_upgradedb.assert_called_once_with(**called_with)
 
         @pytest.mark.parametrize(
-            "args, pattern",
+            ("args", "pattern"),
             [
                 pytest.param(
                     ["--to-revision", "abc", "--to-version", "1.3.0"],

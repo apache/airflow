@@ -71,17 +71,52 @@ class CronMixin:
         self._timezone = timezone
 
         try:
-            descriptor = ExpressionDescriptor(
-                expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
-            )
             # checking for more than 5 parameters in Cron and avoiding evaluation for now,
             # as Croniter has inconsistent evaluation with other libraries
             if len(croniter(self._expression).expanded) > 5:
                 raise FormatException()
-            interval_description: str = descriptor.get_description()
+
+            self.description = self._describe_with_dom_dow_fix(self._expression)
+
         except (CroniterBadCronError, FormatException, MissingFieldException):
-            interval_description = ""
-        self.description: str = interval_description
+            self.description = ""
+
+    def _describe_with_dom_dow_fix(self, expression: str) -> str:
+        """
+        Return cron description with fix for DOM+DOW conflicts.
+
+        If both DOM and DOW are restricted, explain them as OR.
+        """
+        cron_fields = expression.split()
+
+        if len(cron_fields) < 5:
+            return ExpressionDescriptor(
+                expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            ).get_description()
+
+        dom = cron_fields[2]
+        dow = cron_fields[4]
+
+        if dom != "*" and dow != "*":
+            # Case: conflict → DOM OR DOW
+            cron_fields_dom = cron_fields.copy()
+            cron_fields_dom[4] = "*"
+            day_of_month_desc = ExpressionDescriptor(
+                " ".join(cron_fields_dom), casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            ).get_description()
+
+            cron_fields_dow = cron_fields.copy()
+            cron_fields_dow[2] = "*"
+            day_of_week_desc = ExpressionDescriptor(
+                " ".join(cron_fields_dow), casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            ).get_description()
+
+            return f"{day_of_month_desc} (or) {day_of_week_desc}"
+
+        # no conflict → return normal description
+        return ExpressionDescriptor(
+            expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+        ).get_description()
 
     def __eq__(self, other: object) -> bool:
         """
@@ -89,9 +124,14 @@ class CronMixin:
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        if not isinstance(other := coerce_to_core_timetable(other), type(self)):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
+
+    def __hash__(self):
+        return hash((self._expression, self._timezone))
 
     @property
     def summary(self) -> str:

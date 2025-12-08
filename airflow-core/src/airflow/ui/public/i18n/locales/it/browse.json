@@ -17,7 +17,7 @@
   },
   "xcom": {
     "columns": {
-      "dag": "DAG",
+      "dag": "Dag",
       "key": "Chiave",
       "value": "Valore"
     },

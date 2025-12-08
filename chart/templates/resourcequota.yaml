@@ -24,7 +24,7 @@
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: {{ .Release.Name }}-resource-quota
+  name: {{ include "airflow.fullname" . }}-resource-quota
   labels:
     tier: resources
     component: resourcequota

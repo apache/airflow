@@ -27,9 +27,8 @@ from typing import Any
 
 import paramiko
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.providers.sftp.version_compat import BaseOperator
 
 
 class SFTPOperation:
@@ -144,23 +143,24 @@ class SFTPOperator(BaseOperator):
 
         file_msg = None
         try:
-            if self.ssh_conn_id:
-                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
-                else:
-                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
-                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
-
-            if not self.sftp_hook:
-                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
-
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
                     "in sftp_hook or predefined in connection of ssh_conn_id."
                 )
-                self.sftp_hook.remote_host = self.remote_host
+
+            if self.ssh_conn_id:
+                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
+                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
+                else:
+                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
+                    self.sftp_hook = SFTPHook(
+                        ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or ""
+                    )
+
+            if not self.sftp_hook:
+                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
             if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT):
                 for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):

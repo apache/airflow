@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.9.9.12",
+    "trove-classifiers==2025.9.11.17",
 ]
 build-backend = "hatchling.build"
 
@@ -33,13 +33,9 @@ build-backend = "hatchling.build"
 name = "apache-airflow"
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE"]
-# We know that it will take a while before we can support Python 3.14 because of all our dependencies
-# It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
-# proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
-# and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
-# also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10, <3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -54,12 +50,10 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Topic :: System :: Monitoring",
     "Topic :: System :: Monitoring",
 ]
 
@@ -69,7 +63,6 @@ version = "3.2.0"
 dependencies = [
     "apache-airflow-task-sdk<1.3.0,>=1.1.0",
     "apache-airflow-core==3.2.0",
-    "natsort>=8.4.0",
 ]
 
 packages = []
@@ -88,14 +81,17 @@ packages = []
 "kerberos" = [
     "apache-airflow-core[kerberos]"
 ]
+"memray" = [
+    "apache-airflow-core[memray]"
+]
 "otel" = [
     "apache-airflow-core[otel]"
 ]
-"sentry" = [
-    "apache-airflow-core[sentry]"
-]
 "statsd" = [
     "apache-airflow-core[statsd]"
+]
+"all-task-sdk" = [
+    "apache-airflow-task-sdk[all]"
 ]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
@@ -389,7 +385,7 @@ packages = []
     "apache-airflow-providers-zendesk>=4.9.0"
 ]
 "all" = [
-    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
+    "apache-airflow[aiobotocore,amazon-aws-auth,apache-atlas,apache-webhdfs,async,cloudpickle,github-enterprise,google-auth,graphviz,kerberos,ldap,memray,otel,pandas,polars,rabbitmq,s3fs,sentry,statsd,uv]",
     "apache-airflow-core[all]",
     "apache-airflow-providers-airbyte>=5.0.0",
     "apache-airflow-providers-alibaba>=3.0.0",
@@ -529,15 +525,17 @@ packages = []
 "rabbitmq" = [
     "amqp>=5.2.0",
 ]
+"sentry" = [
+    "sentry-sdk>=2.30.0",
+]
 "s3fs" = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned in aiobotocore extra
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.8.17",
+    "uv>=0.9.16",
 ]
-
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -588,6 +586,30 @@ extend-select = [
     "TID25", # flake8-tidy-imports rules
     "E", # pycodestyle rules
     "W", # pycodestyle rules
+    # Warning (PLW) re-implemented in ruff from Pylint
+    "PLW0120", # else clause on loop without a break statement; remove the else and dedent its contents
+    "PLW0127", # Self-assignment of variable
+    "PLW0128", # Redeclared variable {name} in assignment
+    "PLW0129", # Asserting on an empty string literal will never pass
+    "PLW0131", # Named expression used without context
+    "PLW0133", # Missing raise statement on exception
+    "PLW0177", # Comparing against a NaN value; use math.isnan instead
+    "PLW0211", # First argument of a static method should not be named {argument_name}
+    "PLW0245", # super call is missing parentheses
+    "PLW0406", # Module {name} imports itself
+    "PLW0602", # Using global for {name} but no assignment is done
+    "PLW0604", # global at module level is redundant
+    "PLW0642", # Reassigned {} variable in {method_type} method
+    "PLW0711", # Exception to catch is the result of a binary and operation
+    "PLW1501", # {mode} is not a valid mode for open
+    "PLW1507", # Shallow copy of os.environ via copy.copy(os.environ)
+    "PLW1508", # Invalid type for environment variable default; expected str or None
+    "PLW1509", # preexec_fn argument is unsafe when using threads
+    "PLW1510", # subprocess.run without explicit check argument
+    "PLW1641", # Object does not implement __hash__ method
+    "PLW2101", # Threading lock directly created in with statement has no effect
+    "PLW2901", # Outer {outer_kind} variable {name} overwritten by inner {inner_kind} target
+    "PLW3301", # Nested {func} calls can be flattened
     # Per rule enables
     "RUF006", # Checks for asyncio dangling task
     "RUF015", # Checks for unnecessary iterable allocation for first element
@@ -623,19 +645,17 @@ extend-select = [
 ]
 ignore = [
     "D100", # Unwanted; Docstring at the top of every file.
-    "D102", # TODO: Missing docstring in public method
-    "D103", # TODO: Missing docstring in public function
+    "D102", # Unwanted; Missing docstring in public method
+    "D103", # Unwanted; Missing docstring in public function
     "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
     "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
     "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
-    "D203",
+    "D203", # Conflicts with D211.  Both can not be enabled.
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
     "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
-    "PT011", # pytest.raises() is too broad, set the match parameter
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
     # Rules below explicitly set off which could overlap with Ruff's formatter
     # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
@@ -654,7 +674,6 @@ ignore = [
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
     "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
-    "UP038",
     "SIM105", # Use contextlib.suppress({exception}) instead of try-except-pass
 ]
 unfixable = [
@@ -752,13 +771,17 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
-"task-sdk-tests/*" = ["D", "TID253", "S101", "TRY002"]
+"task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "kubernetes-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "helm-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "providers/**/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "performance/tests/*" = ["S101"]
 
-# All of the modules which have an extra license header (i.e. that we copy from another project) need to
+# Shared distributions SHOULD use relative imports when referencing each other
+# This one disables 'ban-relative-imports'.
+"shared/*/src/**" = ["TID252"]
+
+# All the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
 "scripts/ci/prek/*.py" = [ "E402" ]
 "airflow-core/src/airflow/api/auth/backend/kerberos_auth.py" = [ "E402" ]
@@ -873,14 +896,14 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "providers".msg = "You should not import 'providers' as a Python module. Imports in providers should be done starting from 'src' or `tests' folders, for example 'from airflow.providers.airbyte'  or 'from unit.airbyte' or 'from system.airbyte'"
 
 [tool.ruff.lint.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions"]
+exempt-modules = ["typing", "typing_extensions", "sqlalchemy.orm.Mapped"]
 
 [tool.ruff.lint.flake8-pytest-style]
 mark-parentheses = false
 fixture-parentheses = false
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -1009,12 +1032,13 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/task-sdk/tests",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-ctl/tests",
+    "$MYPY_CONFIG_FILE_DIR/airflow-ctl-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/dev",
     "$MYPY_CONFIG_FILE_DIR/devel-common/src",
     "$MYPY_CONFIG_FILE_DIR/helm-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/kubernetes-tests/tests",
     "$MYPY_CONFIG_FILE_DIR/docker-tests/tests",
-    "$MYPY_CONFIG_FILE_DIR/task-sdk-tests/tests",
+    "$MYPY_CONFIG_FILE_DIR/task-sdk-integration-tests/tests",
     # Automatically generated mypy paths (update_airflow_pyproject_toml.py)
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/src",
     "$MYPY_CONFIG_FILE_DIR/providers/airbyte/tests",
@@ -1260,14 +1284,18 @@ dev = [
     "apache-airflow-dev",
     "apache-airflow-devel-common[no-doc]",
     "apache-airflow-docker-tests",
-    "apache-airflow-task-sdk-tests",
+    "apache-airflow-task-sdk-integration-tests",
     "apache-airflow-helm-tests",
     "apache-airflow-kubernetes-tests",
-    "apache-airflow-task-sdk",
+    "apache-airflow-task-sdk[all]",
     "apache-airflow-ctl",
+    "apache-airflow-ctl-tests",
+    "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]
 
 # To build docs:
@@ -1306,18 +1334,22 @@ apache-airflow-breeze = {workspace = true}
 apache-airflow-dev = {workspace = true}
 apache-airflow-core = {workspace = true}
 apache-airflow-ctl = {workspace = true}
+apache-airflow-ctl-tests = {workspace = true}
 apache-airflow-task-sdk = { workspace = true }
 apache-airflow-devel-common = { workspace = true }
 apache-airflow-docker-tests = { workspace = true }
 apache-airflow-e2e-tests = { workspace = true }
-apache-airflow-task-sdk-tests = { workspace = true }
+apache-airflow-task-sdk-integration-tests = { workspace = true }
 apache-airflow-helm-tests = { workspace = true }
 apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
+apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-observability = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1425,18 +1457,22 @@ members = [
     "airflow-e2e-tests",
     "dev/breeze",
     "airflow-ctl",
+    "airflow-ctl-tests",
     "dev",
     "devel-common",
     "docker-tests",
-    "task-sdk-tests",
+    "task-sdk-integration-tests",
     "helm-tests",
     "kubernetes-tests",
     "task-sdk",
     "providers-summary-docs",
     "docker-stack-docs",
+    "shared/configuration",
     "shared/logging",
+    "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
+    "shared/observability",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

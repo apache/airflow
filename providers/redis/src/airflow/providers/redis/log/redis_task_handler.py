@@ -61,8 +61,14 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         max_lines: int = 10000,
         ttl_seconds: int = 60 * 60 * 24 * 28,
         conn_id: str | None = None,
-    ):
-        super().__init__(base_log_folder)
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: _RedisHandler | None = None
         self.max_lines = max_lines
         self.ttl_seconds = ttl_seconds

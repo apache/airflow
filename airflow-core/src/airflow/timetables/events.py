@@ -17,8 +17,7 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Iterable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 
@@ -26,6 +25,8 @@ from airflow._shared.timezones import timezone
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from pendulum import DateTime
 
     from airflow.timetables.base import TimeRestriction
@@ -120,7 +121,7 @@ class EventsTimetable(Timetable):
         most_recent_event = next(past_events)
         return DataInterval.exact(most_recent_event)
 
-    def serialize(self):
+    def serialize(self) -> dict[str, Any]:
         return {
             "event_dates": [x.isoformat(sep="T") for x in self.event_dates],
             "restrict_to_events": self.restrict_to_events,
@@ -129,12 +130,12 @@ class EventsTimetable(Timetable):
         }
 
     @classmethod
-    def deserialize(cls, data) -> Timetable:
-        time_table = cls(
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        timetable = cls(
             event_dates=[pendulum.DateTime.fromisoformat(x) for x in data["event_dates"]],
             restrict_to_events=data["restrict_to_events"],
             presorted=True,
             description=data["description"],
         )
-        time_table._summary = data["_summary"]
-        return time_table
+        timetable._summary = data["_summary"]
+        return timetable

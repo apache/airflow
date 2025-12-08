@@ -14,7 +14,7 @@
     "missingRuns": "Run Mancanti",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
-    "selectDescription": "Esegui questo DAG per un intervallo di date",
+    "selectDescription": "Esegui questo Dag per un intervallo di date",
     "selectLabel": "Backfill",
     "title": "Correre Backfill",
     "toaster": {
@@ -58,10 +58,10 @@
   },
   "durationChart": {
     "duration": "Durata (secondi)",
-    "lastDagRun_many": "Ultimi {{count}} Run del DAG",
-    "lastDagRun_one": "Ultimo Run del DAG",
-    "lastDagRun_other": "Ultimi {{count}} Run del DAG",
-    "lastDagRun_zero": "Nessun run del DAG",
+    "lastDagRun_many": "Ultimi {{count}} Runs del Dag",
+    "lastDagRun_one": "Ultimo Run del Dag",
+    "lastDagRun_other": "Ultimi {{count}} Runs del Dag",
+    "lastDagRun_zero": "Nessun run del Dag",
     "lastTaskInstance_many": "Ultime {{count}} Istanze di Task",
     "lastTaskInstance_one": "Ultima Istanza di Task",
     "lastTaskInstance_other": "Ultime {{count}} Istanze di Task",
@@ -94,7 +94,7 @@
     "downloadImage": "Scarica l'immagine del grafico",
     "downloadImageError": "Impossibile scaricare l'immagine del grafico.",
     "downloadImageErrorTitle": "Scaricamento Fallito",
-    "otherDagRuns": "+Altri Run del DAG",
+    "otherDagRuns": "+Altri Runs del Dag",
     "taskCount_many": "{{count}} Tasks",
     "taskCount_one": "{{count}} Task",
     "taskCount_other": "{{count}} Tasks",
@@ -102,6 +102,18 @@
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} altro",
+  "limitedList.allItems": "Tutti i {{count}} elementi:",
+  "limitedList.allTags_many": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_one": "Tutte le etichette (1)",
+  "limitedList.allTags_other": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_zero": "Tutte le etichette (0)",
+  "limitedList.clickToInteract": "Fai clic su un'etichetta per filtrare i Dag",
+  "limitedList.clickToOpenFull": "Fai clic su \"+{{count}} altro\" per visualizzare tutto",
+  "limitedList.copyPasteText": "Puoi copiare e incollare il testo sopra",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_zero": "Mostrando 0 elementi",
   "logs": {
     "file": "File",
     "location": "linea {{line}} in {{name}}"
@@ -115,16 +127,16 @@
   "toggleTableView": "Mostra la vista in tabella",
   "triggerDag": {
     "button": "Trigger",
-    "loading": "Caricamento informazioni del DAG...",
-    "loadingFailed": "Impossibile caricare le informazioni del DAG. Per favore, riprova.",
+    "loading": "Caricamento informazioni del Dag...",
+    "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
-    "selectDescription": "Triggera un singolo run di questo DAG",
+    "selectDescription": "Triggera un singolo run di questo Dag",
     "selectLabel": "Singolo Run",
-    "title": "Trigger del DAG",
+    "title": "Trigger del Dag",
     "toaster": {
       "success": {
-        "description": "Il run del DAG è stato attivato con successo.",
-        "title": "Run del DAG attivato"
+        "description": "Il run del Dag è stato attivato con successo.",
+        "title": "Run del Dag attivato"
       }
     },
     "unpause": "Sospendi {{dagDisplayName}} al trigger"
@@ -142,7 +154,7 @@
     "versionId": "ID della Versione"
   },
   "versionSelect": {
-    "dagVersion": "Versione del DAG",
+    "dagVersion": "Versione del Dag",
     "versionCode": "v{{versionCode}}"
   }
 }

@@ -34,10 +34,10 @@ if AIRFLOW_V_3_0_PLUS:
 
 from flask import url_for
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
     RepairDatabricksTasks,
@@ -82,7 +82,7 @@ def test_get_dagrun_airflow2():
 
     session = MagicMock()
     dag = MagicMock(dag_id=DAG_ID)
-    session.query.return_value.filter.return_value.first.return_value = DagRun()
+    session.query.return_value.filter.return_value.one.return_value = DagRun()
 
     result = _get_dagrun(dag, RUN_ID, session=session)
 

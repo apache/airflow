@@ -142,10 +142,7 @@ spec:
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
       {{- end }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if and $persistence .Values.workers.persistence.fixPermissions }}
         - name: volume-permissions

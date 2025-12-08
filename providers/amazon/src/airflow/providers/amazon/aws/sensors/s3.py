@@ -31,12 +31,11 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sensors.base import poke_mode_only
+from airflow.providers.common.compat.sdk import AirflowException, poke_mode_only
 
 
 class S3KeySensor(AwsBaseSensor[S3Hook]):
@@ -122,8 +121,19 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         """
         if self.wildcard_match:
             prefix = re.split(r"[\[*?]", key, 1)[0]
-            keys = self.hook.get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+
+            key_matches: list[str] = []
+
+            # Is check_fn is None, then we can return True without having to iterate through each value in
+            # yielded by iter_file_metadata. Otherwise, we'll check for a match, and add all matches to the
+            # key_matches list
+            for k in self.hook.iter_file_metadata(prefix, bucket_name):
+                if fnmatch.fnmatch(k["Key"], key):
+                    if self.check_fn is None:
+                        # This will only wait for a single match, and will immediately return
+                        return True
+                    key_matches.append(k)
+
             if not key_matches:
                 return False
 
@@ -132,21 +142,23 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
             for f in key_matches:
                 metadata = {}
                 if "*" in self.metadata_keys:
-                    metadata = self.hook.head_object(f["Key"], bucket_name)
+                    metadata = self.hook.head_object(f["Key"], bucket_name)  # type: ignore[index]
                 else:
-                    for key in self.metadata_keys:
+                    for mk in self.metadata_keys:
                         try:
-                            metadata[key] = f[key]
+                            metadata[mk] = f[mk]  # type: ignore[index]
                         except KeyError:
                             # supplied key might be from head_object response
-                            self.log.info("Key %s not found in response, performing head_object", key)
-                            metadata[key] = self.hook.head_object(f["Key"], bucket_name).get(key, None)
+                            self.log.info("Key %s not found in response, performing head_object", mk)
+                            metadata[mk] = self.hook.head_object(f["Key"], bucket_name).get(mk, None)  # type: ignore[index]
                 files.append(metadata)
+
         elif self.use_regex:
-            keys = self.hook.get_file_metadata("", bucket_name)
-            key_matches = [k for k in keys if re.match(pattern=key, string=k["Key"])]
-            if not key_matches:
-                return False
+            for k in self.hook.iter_file_metadata("", bucket_name):
+                if re.match(pattern=key, string=k["Key"]):
+                    return True
+            return False
+
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:
@@ -202,6 +214,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
                 poke_interval=self.poke_interval,
                 should_check_fn=bool(self.check_fn),
                 use_regex=self.use_regex,
+                metadata_keys=self.metadata_keys,
             ),
             method_name="execute_complete",
         )
@@ -213,7 +226,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "running":
-            found_keys = self.check_fn(event["files"])  # type: ignore[misc]
+            found_keys = self.check_fn(event["files"], **context)  # type: ignore[misc]
             if not found_keys:
                 self._defer()
         elif event["status"] == "error":

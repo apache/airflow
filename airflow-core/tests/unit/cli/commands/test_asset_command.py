@@ -100,6 +100,7 @@ def test_cli_assets_details(parser: ArgumentParser, stdout_capture) -> None:
         "group": "asset",
         "extra": {},
         "aliases": [],
+        "watchers": [],
         "last_asset_event": None,
     }
 
@@ -153,6 +154,7 @@ def test_cli_assets_materialize(mock_hasattr, parser: ArgumentParser, stdout_cap
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
+        "partition_key": None,
         "run_type": "manual",
         "start_date": None,
         "state": "queued",
@@ -191,6 +193,7 @@ def test_cli_assets_materialize_with_view_url_template(parser: ArgumentParser, s
         "duration": None,
         "last_scheduling_decision": None,
         "note": None,
+        "partition_key": None,
         "run_type": "manual",
         "start_date": None,
         "state": "queued",

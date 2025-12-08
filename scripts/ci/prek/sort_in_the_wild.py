@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 #   "termcolor==2.5.0",
 #   "wcmatch==8.2",
 # ]
@@ -73,8 +73,10 @@ if __name__ == "__main__":
                     f"but it starts with {match.group(1)} Replacing the number with 1.\033[0m\n"
                 )
                 old_line = line
-                line = "1." + line.split(".", maxsplit=1)[1]
-                print(f"{old_line.strip()} => {line.strip()}")
-            companies.append(line)
+                line_out = "1." + line.split(".", maxsplit=1)[1]
+                print(f"{old_line.strip()} => {line_out.strip()}")
+            else:
+                line_out = line
+            companies.append(line_out)
     companies.sort(key=stable_sort)
     inthewild_path.write_text("".join(header) + "\n" + "".join(companies))

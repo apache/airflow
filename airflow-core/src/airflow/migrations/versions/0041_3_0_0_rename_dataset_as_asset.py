@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 import sqlalchemy as sa
 import sqlalchemy_jsonfield
 from alembic import op
+from sqlalchemy import text
 
 from airflow.migrations.utils import mysql_drop_foreignkey_if_exists
 from airflow.settings import json
@@ -74,7 +75,7 @@ def _rename_fk_constraint(
     )
 
 
-def _rename_pk_constraint_unkown(
+def _rename_pk_constraint_unknown(
     *,
     batch_op: BatchOperations,
     table_name: str,
@@ -101,14 +102,19 @@ def _rename_pk_constraint(
 
 
 def _drop_fkey_if_exists(table, constraint_name):
-    dialect = op.get_bind().dialect.name
-    if dialect == "sqlite":
+    conn = op.get_bind()
+    dialect_name = conn.dialect.name
+
+    if dialect_name == "sqlite":
+        # SQLite requires foreign key constraints to be disabled during batch operations
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
         try:
             with op.batch_alter_table(table, schema=None) as batch_op:
                 batch_op.drop_constraint(op.f(constraint_name), type_="foreignkey")
         except ValueError:
             pass
-    elif dialect == "mysql":
+        conn.execute(text("PRAGMA foreign_keys=ON"))
+    elif dialect_name == "mysql":
         mysql_drop_foreignkey_if_exists(constraint_name, table, op)
     else:
         op.execute(f"ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint_name}")
@@ -187,7 +193,7 @@ def upgrade():
 
     with op.batch_alter_table("asset_alias_asset", schema=None) as batch_op:
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
-        _rename_pk_constraint_unkown(
+        _rename_pk_constraint_unknown(
             batch_op=batch_op,
             table_name="asset_alias_asset",
             original_name="dataset_alias_dataset_pkey",
@@ -294,7 +300,7 @@ def upgrade():
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
     with op.batch_alter_table("dag_schedule_asset_reference", schema=None) as batch_op:
-        _rename_pk_constraint_unkown(
+        _rename_pk_constraint_unknown(
             batch_op=batch_op,
             table_name="dag_schedule_asset_reference",
             original_name="dag_schedule_dataset_reference_pkey",
@@ -330,7 +336,7 @@ def upgrade():
 
         batch_op.drop_constraint("todr_dag_id_fkey", type_="foreignkey")
     with op.batch_alter_table("task_outlet_asset_reference", schema=None) as batch_op:
-        _rename_pk_constraint_unkown(
+        _rename_pk_constraint_unknown(
             batch_op=batch_op,
             table_name="task_outlet_asset_reference",
             original_name="task_outlet_dataset_reference_pkey",
@@ -360,7 +366,7 @@ def upgrade():
         batch_op.alter_column("dataset_id", new_column_name="asset_id", type_=sa.Integer(), nullable=False)
 
     with op.batch_alter_table("asset_dag_run_queue", schema=None) as batch_op:
-        _rename_pk_constraint_unkown(
+        _rename_pk_constraint_unknown(
             batch_op=batch_op,
             table_name="asset_dag_run_queue",
             original_name="dataset_dag_run_queue_pkey",
@@ -414,7 +420,7 @@ def upgrade():
             remote_cols=["id"],
             ondelete="CASCADE",
         )
-        _rename_pk_constraint_unkown(
+        _rename_pk_constraint_unknown(
             batch_op=batch_op,
             table_name="dagrun_asset_event",
             original_name="dagrun_dataset_events_pkey",

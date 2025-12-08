@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
 
 import structlog
+import structlog.processors
 
 # We have to import this here, as it is used in the type annotations at runtime even if it seems it is
 # not used in the code. This is because Pydantic uses type at runtime to validate the types of the fields.
@@ -79,19 +80,25 @@ def configure_logging(
     colored_console_log: bool | None = None,
 ):
     """Set up struct logging and stdlib logging config."""
+    from airflow.sdk.configuration import conf
+
     if log_level == "DEFAULT":
         log_level = "INFO"
-        from airflow.configuration import conf
 
         log_level = conf.get("logging", "logging_level", fallback="INFO")
 
     # If colored_console_log is not explicitly set, read from configuration
     if colored_console_log is None:
-        from airflow.configuration import conf
-
         colored_console_log = conf.getboolean("logging", "colored_console_log", fallback=True)
 
-    from airflow.sdk._shared.logging.structlog import configure_logging
+    namespace_log_levels = conf.get("logging", "namespace_levels", fallback=None)
+
+    from airflow.sdk._shared.logging import configure_logging, translate_config_values
+
+    log_fmt, callsite_params = translate_config_values(
+        log_format=conf.get("logging", "log_format"),
+        callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
+    )
 
     mask_secrets = not sending_to_supervisor
     extra_processors: tuple[Processor, ...] = ()
@@ -105,10 +112,13 @@ def configure_logging(
     configure_logging(
         json_output=json_output,
         log_level=log_level,
+        namespace_log_levels=namespace_log_levels,
+        log_format=log_fmt,
         output=output,
         cache_logger_on_first_use=cache_logger_on_first_use,
         colors=colored_console_log,
         extra_processors=extra_processors,
+        callsite_parameters=callsite_params,
     )
 
     global _warnings_showwarning
@@ -134,6 +144,8 @@ def init_log_file(local_relative_path: str) -> Path:
 
     Any directories that are missing are created with the right permission bits.
     """
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
     from airflow.sdk._shared.logging import init_log_file
 
@@ -164,6 +176,9 @@ def load_remote_log_handler() -> RemoteLogIO | None:
 
 def load_remote_conn_id() -> str | None:
     import airflow.logging_config
+
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
 
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
@@ -185,6 +200,9 @@ def relative_path_from_logger(logger) -> Path | None:
     if fh.fileno() == 1 or not isinstance(fname, str):
         # Logging to stdout, or something odd about this logger, don't try to upload!
         return None
+
+    # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
+    # Currently using Core's conf for remote logging consistency
     from airflow.configuration import conf
 
     base_log_folder = conf.get("logging", "base_log_folder")
@@ -241,8 +259,10 @@ def reset_logging():
     from airflow.sdk._shared.logging.structlog import structlog_processors
 
     global _warnings_showwarning
-    warnings.showwarning = _warnings_showwarning
-    _warnings_showwarning = None
+    if _warnings_showwarning is not None:
+        warnings.showwarning = _warnings_showwarning
+        _warnings_showwarning = None
+
     structlog_processors.cache_clear()
     logging_processors.cache_clear()
 
@@ -271,5 +291,10 @@ def _showwarning(
         if _warnings_showwarning is not None:
             _warnings_showwarning(message, category, filename, lineno, file, line)
     else:
-        log = structlog.get_logger("py.warnings")
+        from airflow.sdk._shared.logging.structlog import reconfigure_logger
+
+        log = reconfigure_logger(
+            structlog.get_logger("py.warnings").bind(), structlog.processors.CallsiteParameterAdder
+        )
+
         log.warning(str(message), category=category.__name__, filename=filename, lineno=lineno)

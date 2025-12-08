@@ -17,12 +17,17 @@
 from __future__ import annotations
 
 from starlette import status
+from starlette.requests import Request  # noqa: TC002
+from starlette.responses import RedirectResponse
 
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
 login_router = AirflowRouter(tags=["FabAuthManager"])
 
@@ -35,7 +40,8 @@ login_router = AirflowRouter(tags=["FabAuthManager"])
 )
 def create_token(body: LoginBody) -> LoginResponse:
     """Generate a new API token."""
-    return FABAuthManagerLogin.create_token(body=body)
+    with get_application_builder():
+        return FABAuthManagerLogin.create_token(body=body)
 
 
 @login_router.post(
@@ -46,6 +52,30 @@ def create_token(body: LoginBody) -> LoginResponse:
 )
 def create_token_cli(body: LoginBody) -> LoginResponse:
     """Generate a new CLI API token."""
-    return FABAuthManagerLogin.create_token(
-        body=body, expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time")
-    )
+    with get_application_builder():
+        return FABAuthManagerLogin.create_token(
+            body=body, expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time")
+        )
+
+
+@login_router.get(
+    "/logout",
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+)
+def logout(request: Request) -> RedirectResponse:
+    """Generate a new API token."""
+    with get_application_builder():
+        login_url = get_auth_manager().get_url_login()
+        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        response = RedirectResponse(login_url)
+        response.delete_cookie(
+            key="session",
+            secure=secure,
+            httponly=True,
+        )
+        response.delete_cookie(
+            key=COOKIE_NAME_JWT_TOKEN,
+            secure=secure,
+            httponly=True,
+        )
+        return response

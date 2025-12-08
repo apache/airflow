@@ -26,13 +26,14 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -275,7 +276,7 @@ class TestKubernetesJobOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_job_spec(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         job_spec_name_base = job_spec.metadata.name
 
@@ -299,7 +300,7 @@ class TestKubernetesJobOperator:
         )
         assert job.metadata.labels == {"foo": "bar"}
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_job_spec_kwargs(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -376,7 +377,7 @@ class TestKubernetesJobOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_job_template_file(self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
@@ -426,7 +427,7 @@ class TestKubernetesJobOperator:
 
         assert job.spec.template.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_job_template_file_kwargs_override(
         self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles
     ):
@@ -481,7 +482,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert (
             re.match(
-                r"job-a{71}-[a-z0-9]{8}",
+                r"job-a{50}-[a-z0-9]{8}",
                 job.metadata.name,
             )
             is not None
@@ -1002,7 +1003,7 @@ class TestKubernetesDeleteJobOperator:
         mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
 
     @pytest.mark.parametrize(
-        "on_status, success, fail, deleted",
+        ("on_status", "success", "fail", "deleted"),
         [
             (None, True, True, True),
             (None, True, False, True),

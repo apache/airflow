@@ -78,7 +78,7 @@ apache-airflow-providers-keycloak package
 ``Keycloak Provider``
 
 
-Release: 0.1.0
+Release: 0.3.0
 
 Provider package
 ----------------

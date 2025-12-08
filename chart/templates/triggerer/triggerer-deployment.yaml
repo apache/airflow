@@ -54,7 +54,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ .Release.Name }}-triggerer
+  serviceName: {{ include "airflow.fullname" . }}-triggerer
   {{- end }}
   {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
@@ -130,10 +130,7 @@ spec:
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.triggerer (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}

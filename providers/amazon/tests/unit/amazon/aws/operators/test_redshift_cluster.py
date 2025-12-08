@@ -22,7 +22,6 @@ from unittest.mock import Mock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -38,6 +37,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -47,13 +47,13 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test_cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
         )
         assert redshift_operator.task_id == "task_test"
         assert redshift_operator.cluster_identifier == "test_cluster"
-        assert redshift_operator.node_type == "dc2.large"
+        assert redshift_operator.node_type == "ra3.large"
         assert redshift_operator.master_username == "adminuser"
         assert redshift_operator.master_user_password == "Test123$"
 
@@ -62,7 +62,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
@@ -80,7 +80,7 @@ class TestRedshiftCreateClusterOperator:
         }
         mock_conn.create_cluster.assert_called_once_with(
             ClusterIdentifier="test-cluster",
-            NodeType="dc2.large",
+            NodeType="ra3.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
@@ -96,7 +96,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             number_of_nodes=3,
             master_username="adminuser",
             master_user_password="Test123$",
@@ -115,7 +115,7 @@ class TestRedshiftCreateClusterOperator:
         }
         mock_conn.create_cluster.assert_called_once_with(
             ClusterIdentifier="test-cluster",
-            NodeType="dc2.large",
+            NodeType="ra3.large",
             MasterUsername="adminuser",
             MasterUserPassword="Test123$",
             **params,
@@ -129,7 +129,7 @@ class TestRedshiftCreateClusterOperator:
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",
@@ -143,7 +143,7 @@ class TestRedshiftCreateClusterOperator:
         operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
-            node_type="dc2.large",
+            node_type="ra3.large",
             master_username="adminuser",
             master_user_password="Test123$",
             cluster_type="single-node",

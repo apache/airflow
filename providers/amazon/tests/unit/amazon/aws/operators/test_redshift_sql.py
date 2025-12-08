@@ -40,7 +40,7 @@ MOCK_REGION_NAME = "eu-north-1"
 class TestRedshiftSQLOpenLineage:
     @patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
     @pytest.mark.parametrize(
-        "connection_host, connection_extra, expected_identity, expected_schemaname",
+        ("connection_host", "connection_extra", "expected_identity", "expected_schemaname"),
         [
             # test without a connection host but with a cluster_identifier in connection extra
             (

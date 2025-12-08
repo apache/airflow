@@ -160,7 +160,7 @@ class TestCloudLoggingHook:
         mock_config_client.return_value.create_sink.assert_called_once_with(request=expected_request)
 
     def test_update_sink_invalid_dict_format(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unknown field for LogSink: invalid_key"):
             self.hook.update_sink(
                 sink_name=SINK_NAME,
                 sink={"invalid_key": "value"},

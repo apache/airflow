@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.models.pool import Pool
@@ -164,7 +166,7 @@ class TestGetPool(TestPoolsEndpoint):
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
@@ -202,10 +204,22 @@ class TestGetPools(TestPoolsEndpoint):
         response = unauthorized_test_client.get("/pools", params={"pool_name_pattern": "~"})
         assert response.status_code == 403
 
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_pools")
+    def test_should_call_get_authorized_pools(self, mock_get_authorized_pools, test_client):
+        self.create_pools()
+        mock_get_authorized_pools.return_value = {Pool.DEFAULT_POOL_NAME, POOL1_NAME}
+        response = test_client.get("/pools")
+        mock_get_authorized_pools.assert_called_once_with(user=mock.ANY, method="GET")
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == 2
+        assert [pool["name"] for pool in body["pools"]] == [Pool.DEFAULT_POOL_NAME, POOL1_NAME]
+
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "pool_name, query_params, body, expected_status_code, expected_response",
+        ("pool_name", "query_params", "body", "expected_status_code", "expected_response"),
         [
             # Error
             (
@@ -252,12 +266,6 @@ class TestPatchPool(TestPoolsEndpoint):
                         },
                         {
                             "input": {"pool": POOL1_NAME},
-                            "loc": ["description"],
-                            "msg": "Field required",
-                            "type": "missing",
-                        },
-                        {
-                            "input": {"pool": POOL1_NAME},
                             "loc": ["include_deferred"],
                             "msg": "Field required",
                             "type": "missing",
@@ -269,7 +277,7 @@ class TestPatchPool(TestPoolsEndpoint):
             (
                 Pool.DEFAULT_POOL_NAME,
                 {"update_mask": ["slots"]},
-                {"slots": 150},
+                {"slots": 150, "name": Pool.DEFAULT_POOL_NAME, "include_deferred": True},
                 200,
                 {
                     "deferred_slots": 0,
@@ -384,7 +392,7 @@ class TestPatchPool(TestPoolsEndpoint):
 
 class TestPostPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        ("body", "expected_status_code", "expected_response"),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -439,7 +447,13 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        (
+            "body",
+            "first_expected_status_code",
+            "first_expected_response",
+            "second_expected_status_code",
+            "second_expected_response",
+        ),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -492,7 +506,7 @@ class TestPostPool(TestPoolsEndpoint):
 class TestBulkPools(TestPoolsEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -570,7 +584,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool2", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool2",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -583,7 +604,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool4", "slots": 20, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool4",
+                                    "slots": 20,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "skip",
                         }
                     ]
@@ -596,7 +624,14 @@ class TestBulkPools(TestPoolsEndpoint):
                     "actions": [
                         {
                             "action": "update",
-                            "entities": [{"name": "pool4", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool4",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         }
                     ]
@@ -613,6 +648,29 @@ class TestBulkPools(TestPoolsEndpoint):
                     }
                 },
                 id="test_update_not_found",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 50,
+                                    "description": "Updated description",
+                                    "include_deferred": False,
+                                }
+                            ],
+                            "update_mask": ["slots", "description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {
+                    "update": {"success": ["pool1"], "errors": []},
+                },
+                id="test_update_with_valid_update_mask",
             ),
             pytest.param(
                 {"actions": [{"action": "delete", "entities": ["pool1"], "action_on_non_existence": "skip"}]},
@@ -649,7 +707,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool1", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         },
                         {"action": "delete", "entities": ["pool2"], "action_on_non_existence": "skip"},
@@ -672,7 +737,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool1", "slots": 100, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool1",
+                                    "slots": 100,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "fail",
                         },
                         {"action": "delete", "entities": ["pool4"], "action_on_non_existence": "skip"},
@@ -703,7 +775,14 @@ class TestBulkPools(TestPoolsEndpoint):
                         },
                         {
                             "action": "update",
-                            "entities": [{"name": "pool5", "slots": 10, "description": "New Description"}],
+                            "entities": [
+                                {
+                                    "name": "pool5",
+                                    "slots": 10,
+                                    "description": "New Description",
+                                    "include_deferred": False,
+                                }
+                            ],
                             "action_on_non_existence": "skip",
                         },
                         {"action": "delete", "entities": ["pool5"], "action_on_non_existence": "skip"},
@@ -727,7 +806,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool5", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool5",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -754,7 +838,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool1", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool1",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -768,7 +857,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool8", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool8",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -783,7 +877,12 @@ class TestBulkPools(TestPoolsEndpoint):
                         {
                             "action": "update",
                             "entities": [
-                                {"name": "pool9", "slots": 100, "description": "New test Description"}
+                                {
+                                    "name": "pool9",
+                                    "slots": 100,
+                                    "description": "New test Description",
+                                    "include_deferred": False,
+                                }
                             ],
                             "action_on_non_existence": "fail",
                         },
@@ -816,6 +915,41 @@ class TestBulkPools(TestPoolsEndpoint):
                 },
                 id="test_repeated_actions",
             ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "create",
+                            "entities": [{"name": "pool6", "slots": 5, "description": "Initial Description"}],
+                            "action_on_existence": "fail",
+                        },
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "name": "pool6",
+                                    "slots": 50,
+                                    "description": "Masked Update Description",
+                                    "include_deferred": False,
+                                }
+                            ],
+                            "update_mask": ["slots"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": ["pool6"],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "create": {"success": ["pool6"], "errors": []},
+                    "update": {"success": ["pool6"], "errors": []},
+                    "delete": {"success": ["pool6"], "errors": []},
+                },
+                id="test_dependent_actions_with_update_mask",
+            ),
         ],
     )
     def test_bulk_pools(self, test_client, actions, expected_results, session):
@@ -825,6 +959,41 @@ class TestBulkPools(TestPoolsEndpoint):
         for key, value in expected_results.items():
             assert response_data[key] == value
         check_last_log(session, dag_id=None, event="bulk_pools", logical_date=None)
+
+    def test_update_mask_preserves_other_fields(self, test_client, session):
+        # Arrange: create a pool with initial values
+        self.create_pools()
+
+        # Act: update only the "slots" field via update_mask
+        response = test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "name": "pool1",
+                                "slots": 50,
+                                "description": "Should not be updated",
+                                "include_deferred": False,
+                            }
+                        ],
+                        "update_mask": ["slots"],  # only slots should update
+                        "action_on_non_existence": "fail",
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["update"]["success"] == ["pool1"]
+
+        # Assert: fetch from DB and check only masked field changed
+        updated_pool = session.query(Pool).filter_by(pool="pool1").one()
+        assert updated_pool.slots == 50  # updated
+        assert updated_pool.description is None  # unchanged
+        assert updated_pool.include_deferred is True  # unchanged
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/pools", json={})

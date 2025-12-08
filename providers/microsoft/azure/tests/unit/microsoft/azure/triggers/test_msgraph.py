@@ -21,13 +21,14 @@ import locale
 from base64 import b64decode, b64encode
 from datetime import datetime
 from os.path import dirname
-from unittest.mock import patch
 from uuid import uuid4
 
 import pendulum
+import pytest
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
@@ -37,30 +38,20 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import run_trigger
-from unit.microsoft.azure.base import Base
 from unit.microsoft.azure.test_utils import (
-    get_airflow_connection,
     mock_json_response,
     mock_response,
+    patch_hook,
+    patch_hook_and_request_adapter,
 )
 
-try:
-    import importlib.util
 
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
-
-
-class TestMSGraphTrigger(Base):
+class TestMSGraphTrigger:
     def test_run_when_valid_response(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         response = mock_json_response(200, users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = run_trigger(trigger)
 
@@ -73,7 +64,7 @@ class TestMSGraphTrigger(Base):
     def test_run_when_response_is_none(self):
         response = mock_json_response(200)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = run_trigger(trigger)
 
@@ -84,7 +75,7 @@ class TestMSGraphTrigger(Base):
             assert actual[0].payload["response"] is None
 
     def test_run_when_response_cannot_be_converted_to_json(self):
-        with self.patch_hook_and_request_adapter(AirflowException()):
+        with patch_hook_and_request_adapter(AirflowException()):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = next(iter(run_trigger(trigger)))
 
@@ -99,7 +90,7 @@ class TestMSGraphTrigger(Base):
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         response = mock_response(200, content)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             url = (
                 "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
             )
@@ -113,10 +104,7 @@ class TestMSGraphTrigger(Base):
             assert actual.payload["response"] == base64_encoded_content
 
     def test_serialize(self):
-        with patch(
-            f"{BASEHOOK_PATCH_PATH}.get_connection",
-            side_effect=get_airflow_connection,
-        ):
+        with patch_hook():
             url = "https://graph.microsoft.com/v1.0/me/drive/items"
             trigger = MSGraphTrigger(
                 url,
@@ -147,11 +135,18 @@ class TestMSGraphTrigger(Base):
                 "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
             }
 
-    def test_template_fields(self):
-        trigger = MSGraphTrigger("users/delta", response_type="bytes", conn_id="msgraph_api")
+    def test_get_conn(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
-        for template_field in MSGraphTrigger.template_fields:
-            getattr(trigger, template_field)
+            with pytest.warns(
+                DeprecationWarning,
+                match="get_conn is deprecated, please use the async get_async_conn method!",
+            ):
+                actual = hook.get_conn()
+
+            assert isinstance(actual, HttpxRequestAdapter)
+            assert actual.base_url == "https://graph.microsoft.com/v1.0/"
 
 
 class TestResponseSerializer:

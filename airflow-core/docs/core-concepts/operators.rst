@@ -84,11 +84,25 @@ Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of
 
 You can also pass in a callable instead when Python is more readable than a Jinja template. The callable must accept two named arguments ``context`` and ``jinja_env``:
 
+The ``context`` parameter is an Airflow's ``Context`` object that provides runtime information for the current task execution. Its contents can be accessed with Python's standard `dict syntax <https://docs.python.org/3/library/stdtypes.html#mapping-types-dict>`_. It includes all variables available in Jinja templates and is read-only from the perspective of template rendering - while you can access and use its values, modifications won't affect the task execution environment.
+
+For a complete list of available context variables see :ref:`Templates reference <templates:variables>`.
+
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        import jinja2
+        from airflow.sdk import Context
+
+
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
+        # Access runtime information from the context dictionary
+        task_id = context["ti"].task_id
+        execution_date = context["ds"]
         with open("file.csv") as f:
-            return do_complex_things(f)
+            return do_complex_things(f, task_id, execution_date)
 
 
     t = BashOperator(
@@ -101,7 +115,7 @@ Since each template field is only rendered once, the callable's return value wil
 
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
         with open("file.csv") as f:
             data = do_complex_things(f)
         return context["task"].render_template(data, context, jinja_env)

@@ -20,16 +20,18 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
+    from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
@@ -254,6 +256,13 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         super().__init__(**kwargs)
 
+    @cached_property
+    def hook(self) -> SpannerHook:
+        return SpannerHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
     def _validate_inputs(self) -> None:
         if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
@@ -265,10 +274,6 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
             raise AirflowException("The required parameter 'query' is empty")
 
     def execute(self, context: Context):
-        hook = SpannerHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(";")]
             self.sanitize_queries(queries)
@@ -281,7 +286,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
             self.database_id,
         )
         self.log.info("Executing queries: %s", queries)
-        result_rows_count_per_query = hook.execute_dml(
+        result_rows_count_per_query = self.hook.execute_dml(
             project_id=self.project_id,
             instance_id=self.instance_id,
             database_id=self.database_id,
@@ -291,7 +296,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
             context=context,
             instance_id=self.instance_id,
             database_id=self.database_id,
-            project_id=self.project_id or hook.project_id,
+            project_id=self.project_id or self.hook.project_id,
         )
         return result_rows_count_per_query
 
@@ -304,6 +309,17 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         """
         if queries and queries[-1] == "":
             queries.pop()
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        """Build a generic OpenLineage facet, aligned with SQL-based operators."""
+        from airflow.providers.common.compat.openlineage.utils.sql import get_openlineage_facets_with_sql
+
+        return get_openlineage_facets_with_sql(
+            hook=self.hook,
+            sql=self.query,
+            conn_id=self.gcp_conn_id,
+            database=self.database_id,
+        )
 
 
 class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):

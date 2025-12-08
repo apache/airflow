@@ -8,6 +8,12 @@
     "Variables": "变量"
   },
   "allOperators": "全部操作器",
+  "appearance": {
+    "appearance": "外观",
+    "darkMode": "深色模式",
+    "lightMode": "浅色模式",
+    "systemMode": "跟随系统设置"
+  },
   "asset_one": "资源",
   "asset_other": "资源",
   "assetEvent_one": "资源事件",
@@ -33,6 +39,7 @@
     "fileLocation": "文件位置",
     "hasTaskConcurrencyLimits": "有任务并发数限制",
     "lastExpired": "最后过期时间",
+    "lastParseDuration": "最后解析耗时",
     "lastParsed": "最后解析时间",
     "latestDagVersion": "最新 Dag 版本",
     "latestRun": "上次 Dag 执行",
@@ -93,6 +100,12 @@
     "or": "或"
   },
   "filter": "筛选",
+  "filters": {
+    "logicalDateFrom": "逻辑日期起始",
+    "logicalDateTo": "逻辑结束日期",
+    "runAfterFrom": "执行时间起始",
+    "runAfterTo": "执行时间结束"
+  },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
@@ -148,7 +161,6 @@
     },
     "tooltip": "按 {{hotkey}} 滚动到{{direction}}"
   },
-  "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
     "permissions": "权限",
@@ -184,8 +196,6 @@
     "up_for_retry": "等待重试",
     "upstream_failed": "上游任务失败"
   },
-  "switchToDarkMode": "切换到深色模式",
-  "switchToLightMode": "切换到浅色模式",
   "table": {
     "completedAt": "完成时间",
     "createdAt": "创建时间",
@@ -193,7 +203,7 @@
     "filterColumns": "筛选表格列",
     "filterReset_one": "重置筛选",
     "filterReset_other": "重置筛选",
-    "from": "从",
+    "from": "开始时间",
     "maxActiveRuns": "最大活跃执行数",
     "noTagsFound": "找不到标签",
     "tagMode": {
@@ -201,7 +211,7 @@
       "any": "任何"
     },
     "tagPlaceholder": "按标签筛选",
-    "to": "到"
+    "to": "结束时间"
   },
   "task": {
     "documentation": "任务文档",

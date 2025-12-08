@@ -36,6 +36,7 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
+    QueryParseImportErrorFilenamePatternSearch,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -126,12 +127,14 @@ def get_import_errors(
             ).dynamic_depends()
         ),
     ],
+    filename_pattern: QueryParseImportErrorFilenamePatternSearch,
     session: SessionDep,
     user: GetUserDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
         statement=select(ParseImportError),
+        filters=[filename_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -174,6 +177,7 @@ def get_import_errors(
     # Paginate the import errors query
     import_errors_select, total_entries = paginated_select(
         statement=import_errors_stmt,
+        filters=[filename_pattern],
         order_by=order_by,
         offset=offset,
         limit=limit,

@@ -69,7 +69,7 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
 
 
 @pytest.mark.parametrize(
-    "dockerfile, relative_path",
+    ("dockerfile", "relative_path"),
     docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
 )
 def test_dockerfile_example(dockerfile, relative_path, tmp_path):

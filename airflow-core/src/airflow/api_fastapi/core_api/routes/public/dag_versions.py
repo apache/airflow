@@ -108,7 +108,7 @@ def get_dag_versions(
 
     This endpoint allows specifying `~` as the dag_id to retrieve DAG Versions for all DAGs.
     """
-    query = select(DagVersion).options(joinedload(DagVersion.dag_model))
+    query = select(DagVersion).options(joinedload(DagVersion.dag_model), joinedload(DagVersion.bundle))
 
     if dag_id != "~":
         get_latest_version_of_dag(dag_bag, dag_id, session)

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +35,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
-  const { t: translate } = useTranslation(["dag", "hitl"]);
+  const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   // Get external views with task_instance destination
   const externalTabs = usePluginTabs("task_instance");
@@ -56,6 +57,7 @@ export const TaskInstance = () => {
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const {
     data: taskInstance,
@@ -65,11 +67,12 @@ export const TaskInstance = () => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: parsedMapIndex,
       taskId,
     },
     undefined,
     {
+      enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
@@ -108,11 +111,12 @@ export const TaskInstance = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {taskInstance === undefined ? undefined : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
+        {taskInstance === undefined ? (
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        ) : (
+          <Header taskInstance={taskInstance} />
         )}
       </DetailsLayout>
     </ReactFlowProvider>

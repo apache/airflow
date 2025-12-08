@@ -59,6 +59,7 @@ export const MaintenanceEnterButton = ({ onEnterMaintenance, workerName }: Maint
         aria-label="Enter Maintenance"
         title="Enter Maintenance"
         onClick={onOpen}
+        colorPalette="warning"
       >
         <HiOutlineWrenchScrewdriver />
       </IconButton>

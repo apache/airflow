@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OID
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from starlette.exceptions import HTTPException
 
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
@@ -54,7 +54,7 @@ class TestLogin:
         self.dummy_token = "DUMMY_TOKEN"
 
     @pytest.mark.parametrize(
-        "auth_type, method",
+        ("auth_type", "method"),
         [
             [AUTH_DB, "auth_user_db"],
             [AUTH_LDAP, "auth_user_ldap"],
@@ -79,11 +79,10 @@ class TestLogin:
         auth_manager.generate_jwt.assert_called_once_with(user=user, expiration_time_in_seconds=ANY)
 
     @pytest.mark.parametrize(
-        "auth_type, methods",
+        ("auth_type", "methods"),
         [
             [AUTH_DB, ["auth_user_db"]],
             [AUTH_LDAP, ["auth_user_ldap", "auth_user_db"]],
-            [AUTH_OID, ["auth_user_db"]],
         ],
     )
     def test_create_token_no_user(

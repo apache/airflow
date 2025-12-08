@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-snowflake"
-version = "6.5.3"
+version = "6.7.0"
 description = "Provider package apache-airflow-providers-snowflake for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -57,24 +58,29 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.6.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     "apache-airflow-providers-common-sql>=1.27.5",
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
     "pyarrow>=18.0.0; python_version >= '3.13'",
-    "snowflake-connector-python>=3.7.1",
-    "snowflake-sqlalchemy>=1.4.0",
-    "snowflake-snowpark-python>=1.17.0;python_version<'3.12'",
+    # TODO(potiuk): We should bump the snowflake-connector-python to >=4.0.0 when sqlalchemy>=2.0 is required
+    "snowflake-connector-python>=3.16.0",
+    "snowflake-sqlalchemy>=1.7.0",
     # The "<9999" is a hint to the pip resolver to resolve this requirement early,
     # can be removed when the pip resolver is improved
-    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.13'",
+    "snowflake-snowpark-python>=1.17.0,<9999;python_version<'3.12'",
+    "snowflake-snowpark-python>=1.27.0,<9999;python_version>='3.12' and python_version<'3.14'",
+    "setuptools>=80.0.0,<9999",
 ]
 
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure>=12.8.0"
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]
@@ -86,6 +92,7 @@ dev = [
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "responses>=0.25.0",
@@ -117,8 +124,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.5.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.7.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.7.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -41,8 +41,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset
 
-    from airflow.models import Operator
     from airflow.providers.common.compat.lineage.entities import Table
+    from airflow.providers.common.compat.sdk import BaseOperator
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -161,7 +161,7 @@ class ExtractorManager(LoggingMixin):
 
         return OperatorLineage()
 
-    def get_extractor_class(self, task: Operator) -> type[BaseExtractor] | None:
+    def get_extractor_class(self, task: BaseOperator) -> type[BaseExtractor] | None:
         if task.task_type in self.extractors:
             return self.extractors[task.task_type]
 
@@ -172,7 +172,7 @@ class ExtractorManager(LoggingMixin):
             return self.default_extractor
         return None
 
-    def _get_extractor(self, task: Operator) -> BaseExtractor | None:
+    def _get_extractor(self, task: BaseOperator) -> BaseExtractor | None:
         # TODO: Re-enable in Extractor PR
         # self.instantiate_abstract_extractors(task)
         extractor = self.get_extractor_class(task)

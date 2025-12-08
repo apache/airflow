@@ -27,10 +27,56 @@
 Changelog
 ---------
 
-4.2.0
+4.3.0
 .....
 
-Release Date: ``|PypiReleaseDate|``
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add wallet, SSL, and connection class support to OracleHook (#58225)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate Oracle providers to 'common.compat' compatibility layer (#57133)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Oracle provider URL in description (#57478)``
+* ``[Doc] Fixing 404 errors for OpenLineage & Oracle providers (#57469)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to oracle Provider test (#57941)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Enable PT011 rule to prvoider tests (#55980)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Move 'example_oracle_fetch.py' to its provider (#55676)``
+   * ``examples(oracle): add tutorial DAG using OracleHook to fetch/sample rows (#54617)``
+
+4.2.0
+.....
 
 Features
 ~~~~~~~~
@@ -50,8 +96,6 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 4.1.3

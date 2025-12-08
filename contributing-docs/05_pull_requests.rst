@@ -62,7 +62,7 @@ these guidelines:
     maintenance burden during rebase.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
-    have ``prek`` installed, prej will do it automatically for you. If you hesitate to install
+    have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
     prek for your local repository - for example because it takes a few seconds to commit your changes,
     this one thing might be a good reason to convince anyone to install prek.
 
@@ -213,7 +213,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -224,7 +224,7 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -274,6 +274,32 @@ The reason for doing it is that we are working on a cleaning up our code to have
 `prek hook <../scripts/ci/prek/validate_operators_init.py>`__
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
+
+Don't raise AirflowException directly
+..............................................
+
+Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <https://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
+
+1. In most cases, we should prioritize using Python's standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
+   instead of wrapping everything in ``AirflowException``.
+2. Within ``airflow-core``, we should define and utilize more specific exception classes under ``airflow-core/src/airflow/exceptions.py``.
+3. For provider-specific implementations, exceptions should be defined within ``providers/<provider>/src/airflow/providers/<provider>/exceptions.py``.
+
+The use of points 2 and 3 should only be considered when point 1 is inappropriate, which should be a rare occurrence.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise AirflowException(f"Required key {key} is missing")
+
+you should do:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise ValueError(f"Required key {key} is missing")
 
 -----------
 

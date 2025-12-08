@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.language_v1.types import Document, EncodingType
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 MetaData = Sequence[tuple[str, str]]

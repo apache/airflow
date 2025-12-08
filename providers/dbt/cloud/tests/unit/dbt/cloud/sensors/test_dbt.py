@@ -21,11 +21,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import (
-    AirflowException,
-    TaskDeferred,
-)
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
@@ -58,6 +55,7 @@ class TestDbtCloudJobRunSensor:
             account_id=ACCOUNT_ID,
             timeout=30,
             poke_interval=15,
+            hook_params={"retry_limit": 3, "retry_delay": 2.0},
         )
 
     def test_init(self):
@@ -65,6 +63,7 @@ class TestDbtCloudJobRunSensor:
         assert self.sensor.run_id == RUN_ID
         assert self.sensor.timeout == 30
         assert self.sensor.poke_interval == 15
+        assert self.sensor.hook_params == {"retry_limit": 3, "retry_delay": 2.0}
 
     @pytest.mark.parametrize(
         argnames=("job_run_status", "expected_poke_result"),
@@ -148,7 +147,7 @@ class TestDbtCloudJobRunSensor:
         mock_log_info.assert_called_with(msg)
 
     @pytest.mark.parametrize(
-        "mock_status, mock_message",
+        ("mock_status", "mock_message"),
         [
             ("cancelled", "Job run 1234 has been cancelled."),
             ("error", "Job run 1234 has failed."),

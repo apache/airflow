@@ -36,6 +36,11 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts. (default: 120)
     :param waiter_max_attempts: The maximum number of attempts to be made. (default: 75)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     def __init__(
@@ -45,6 +50,9 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 120,
         waiter_max_attempts: int = 75,
         aws_conn_id: str | None = None,
+        region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={"command_id": command_id},
@@ -58,16 +66,24 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
         self.command_id = command_id
 
     def hook(self) -> AwsGenericHook:
-        return SsmHook(aws_conn_id=self.aws_conn_id)
+        return SsmHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()
-        async with hook.async_conn as client:
-            response = client.list_command_invocations(CommandId=self.command_id)
+        async with await hook.get_async_conn() as client:
+            response = await client.list_command_invocations(CommandId=self.command_id)
             instance_ids = [invocation["InstanceId"] for invocation in response.get("CommandInvocations", [])]
             waiter = hook.get_waiter(self.waiter_name, deferrable=True, client=client)
 

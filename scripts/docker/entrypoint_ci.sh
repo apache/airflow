@@ -184,6 +184,27 @@ function environment_initialization() {
         ssh-keyscan -H localhost >> ~/.ssh/known_hosts 2>/dev/null
     fi
 
+    if [[ ${INTEGRATION_LOCALSTACK:-"false"} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Configuring LocalStack integration${COLOR_RESET}"
+        echo
+
+        # Define LocalStack AWS configuration
+        declare -A localstack_config=(
+            ["AWS_ENDPOINT_URL"]="http://localstack:4566"
+            ["AWS_ACCESS_KEY_ID"]="test"
+            ["AWS_SECRET_ACCESS_KEY"]="test"
+            ["AWS_DEFAULT_REGION"]="us-east-1"
+        )
+
+        # Export each configuration variable and log it
+        for key in "${!localstack_config[@]}"; do
+            export "$key"="${localstack_config[$key]}"
+            echo "  * ${COLOR_BLUE}${key}:${COLOR_RESET} ${localstack_config[$key]}"
+        done
+        echo
+    fi
+
     cd "${AIRFLOW_SOURCES}"
 
     # Temporarily add /opt/airflow/providers/standard/tests to PYTHONPATH in order to see example dags
@@ -193,10 +214,18 @@ function environment_initialization() {
     fi
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
+        if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
+            export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
+        fi
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
-        # shellcheck source=scripts/in_container/bin/run_tmux
-        exec run_tmux
+        if [[ ${USE_MPROCS:="false"} == "true" || ${USE_MPROCS} == "True" ]]; then
+            # shellcheck source=scripts/in_container/bin/run_mprocs
+            exec run_mprocs
+        else
+            # shellcheck source=scripts/in_container/bin/run_tmux
+            exec run_tmux
+        fi
     fi
 }
 
@@ -213,7 +242,7 @@ function handle_mount_sources() {
 # Determine which airflow version to use
 function determine_airflow_to_use() {
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST}" != "true" ]]; then
+    if [[ "${USE_AIRFLOW_VERSION}" == "" && "${USE_DISTRIBUTIONS_FROM_DIST=}" != "true" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
         echo
         echo "${COLOR_BLUE}Using airflow version from current sources${COLOR_RESET}"
@@ -274,15 +303,19 @@ function check_boto_upgrade() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+
+    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
+    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
 }
 
 # Upgrade sqlalchemy to the latest version to run tests with it
 function check_upgrade_sqlalchemy() {
     # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. Is should be removed once we
     # upgrade FAB to v5 (PR #50960).
-    if [[ "${UPGRADE_SQLALCHEMY}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
+    if [[ "${UPGRADE_SQLALCHEMY=}" != "true" || ${PYTHON_MAJOR_MINOR_VERSION} != "3.13" ]]; then
         return
     fi
     echo

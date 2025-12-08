@@ -57,7 +57,7 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_query = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index)).all()
+        xcom_results = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
 
         def _group_xcoms(g: Iterator[XComModel]) -> Any:
             entries = list(g)
@@ -67,7 +67,7 @@ class DagRunWaiter:
 
         return {
             task_id: _group_xcoms(g)
-            for task_id, g in itertools.groupby(xcom_query, key=operator.attrgetter("task_id"))
+            for task_id, g in itertools.groupby(xcom_results, key=operator.attrgetter("task_id"))
         }
 
     def _serialize_response(self, dag_run: DagRun) -> str:

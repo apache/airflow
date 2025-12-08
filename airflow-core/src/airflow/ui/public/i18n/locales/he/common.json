@@ -84,6 +84,11 @@
     "githubRepo": "מאגר GitHub",
     "restApiReference": "תיעוד REST API"
   },
+  "download": {
+    "download": "הורד",
+    "hotkey": "d",
+    "tooltip": "לחץ {{hotkey}} להורדת רישומים"
+  },
   "duration": "משך זמן",
   "endDate": "תאריך סיום",
   "error": {
@@ -107,6 +112,8 @@
   },
   "filter": "מסנן",
   "filters": {
+    "durationFrom": "משך זמן מ-",
+    "durationTo": "משך זמן עד",
     "logicalDateFrom": "תאריך לוגי מ-",
     "logicalDateTo": "תאריך לוגי עד",
     "runAfterFrom": "ריצה לאחר (מתאריך)",
@@ -144,13 +151,13 @@
     "taskInstance": "הערת משימה"
   },
   "pools": {
-    "deferred": "נדחה לתזמון עתידי",
+    "deferred": "בהשהייה",
     "open": "פתוח",
     "pools_one": "מאגר משאבים",
     "pools_other": "מאגרי משאבים",
     "pools_two": "מאגרי משאבים",
     "queued": "בתור",
-    "running": "בביצוע",
+    "running": "בריצה",
     "scheduled": "מתוזמן"
   },
   "reset": "אתחל",
@@ -168,7 +175,6 @@
     },
     "tooltip": "לחץ {{hotkey}} לגלילה ל{{direction}}"
   },
-  "seconds": "{{count}} שניות",
   "security": {
     "actions": "פעולות",
     "permissions": "הרשאות",
@@ -189,20 +195,20 @@
   "startDate": "תאריך התחלה",
   "state": "מצב",
   "states": {
-    "deferred": "נדחה",
-    "failed": "נכשל",
+    "deferred": "בהשהייה",
+    "failed": "נכשלו",
     "no_status": "ללא סטטוס",
     "none": "ללא סטטוס",
-    "planned": "מתוכנן",
+    "planned": "בתכנון",
     "queued": "בתור",
-    "removed": "הוסר",
-    "restarting": "מופעל מחדש",
-    "running": "בביצוע",
-    "scheduled": "מתוזמן",
-    "skipped": "דולג",
-    "success": "הצליח",
-    "up_for_reschedule": "ממתין לתזמון מחדש",
-    "up_for_retry": "ממתין לניסיון חוזר",
+    "removed": "הוסרו",
+    "restarting": "בהפעלה מחדש",
+    "running": "בריצה",
+    "scheduled": "בתזמון",
+    "skipped": "דולגו",
+    "success": "הצליחו",
+    "up_for_reschedule": "בהמתנה לתזמון מחדש",
+    "up_for_retry": "בהמתנה לניסיון חוזר",
     "upstream_failed": "משימות קודמות נכשלו"
   },
   "table": {

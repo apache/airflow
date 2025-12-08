@@ -91,6 +91,12 @@ def mock_plugin_manager(plugins=None, **kwargs):
                 "airflow.plugins_manager.load_plugins_from_plugin_directory", side_effect=mock_loaded_plugins
             )
         )
+        exit_stack.enter_context(
+            mock.patch("airflow.plugins_manager.load_providers_plugins", side_effect=mock_loaded_plugins)
+        )
+        exit_stack.enter_context(
+            mock.patch("airflow.plugins_manager.load_entrypoint_plugins", side_effect=mock_loaded_plugins)
+        )
 
         if airflow_version <= "3":
             ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V2_10

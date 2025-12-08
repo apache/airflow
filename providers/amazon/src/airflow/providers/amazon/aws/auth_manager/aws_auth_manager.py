@@ -338,12 +338,44 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=user)
 
+    def filter_authorized_connections(
+        self,
+        *,
+        conn_ids: set[str],
+        user: AwsAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
+        requests_list: list[IsAuthorizedRequest] = []
+        for conn_id in conn_ids:
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.CONNECTION,
+                "entity_id": conn_id,
+            }
+            requests[conn_id][method] = request
+            requests_list.append(request)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=requests_list, user=user
+        )
+
+        return {
+            conn_id
+            for conn_id in conn_ids
+            if self._is_authorized_from_batch_response(
+                batch_is_authorized_results, requests[conn_id][method], user
+            )
+        }
+
     def filter_authorized_dag_ids(
         self,
         *,
         dag_ids: set[str],
         user: AwsAuthManagerUser,
         method: ResourceMethod = "GET",
+        team_name: str | None = None,
     ):
         requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
@@ -360,13 +392,75 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             requests=requests_list, user=user
         )
 
-        def _has_access_to_dag(request: IsAuthorizedRequest):
-            result = self.avp_facade.get_batch_is_authorized_single_result(
-                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+        return {
+            dag_id
+            for dag_id in dag_ids
+            if self._is_authorized_from_batch_response(
+                batch_is_authorized_results, requests[dag_id][method], user
             )
-            return result["decision"] == "ALLOW"
+        }
 
-        return {dag_id for dag_id in dag_ids if _has_access_to_dag(requests[dag_id][method])}
+    def filter_authorized_pools(
+        self,
+        *,
+        pool_names: set[str],
+        user: AwsAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
+        requests_list: list[IsAuthorizedRequest] = []
+        for pool_name in pool_names:
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.POOL,
+                "entity_id": pool_name,
+            }
+            requests[pool_name][method] = request
+            requests_list.append(request)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=requests_list, user=user
+        )
+
+        return {
+            pool_name
+            for pool_name in pool_names
+            if self._is_authorized_from_batch_response(
+                batch_is_authorized_results, requests[pool_name][method], user
+            )
+        }
+
+    def filter_authorized_variables(
+        self,
+        *,
+        variable_keys: set[str],
+        user: AwsAuthManagerUser,
+        method: ResourceMethod = "GET",
+        team_name: str | None = None,
+    ) -> set[str]:
+        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
+        requests_list: list[IsAuthorizedRequest] = []
+        for variable_key in variable_keys:
+            request: IsAuthorizedRequest = {
+                "method": method,
+                "entity_type": AvpEntities.VARIABLE,
+                "entity_id": variable_key,
+            }
+            requests[variable_key][method] = request
+            requests_list.append(request)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=requests_list, user=user
+        )
+
+        return {
+            variable_key
+            for variable_key in variable_keys
+            if self._is_authorized_from_batch_response(
+                batch_is_authorized_results, requests[variable_key][method], user
+            )
+        }
 
     def get_url_login(self, **kwargs) -> str:
         return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
@@ -404,6 +498,14 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             "entity_type": AvpEntities.MENU,
             "entity_id": menu_item_text,
         }
+
+    def _is_authorized_from_batch_response(
+        self, batch_is_authorized_results: list[dict], request: IsAuthorizedRequest, user: AwsAuthManagerUser
+    ):
+        result = self.avp_facade.get_batch_is_authorized_single_result(
+            batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+        )
+        return result["decision"] == "ALLOW"
 
     def _check_avp_schema_version(self):
         if not self.avp_facade.is_policy_store_schema_up_to_date():

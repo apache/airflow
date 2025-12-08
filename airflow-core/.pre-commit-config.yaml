@@ -1,0 +1,418 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
+repos:
+  - repo: local
+    hooks:
+      - id: check-taskinstance-tis-attrs
+        name: Check that TI and TIS have the same attributes
+        entry: ../scripts/ci/prek/check_ti_vs_tis_attributes.py
+        language: python
+        files:
+          (?x)
+          ^src/airflow/models/taskinstance\.py$|
+          ^src/airflow/models/taskinstancehistory\.py$
+        pass_filenames: false
+        require_serial: true
+      - id: check-airflow-k8s-not-used
+        name: Check airflow.kubernetes imports are not used
+        language: python
+        files: ^src/airflow/.*\.py$
+        require_serial: true
+        exclude: ^src/airflow/kubernetes/
+        entry: ../scripts/ci/prek/check_airflow_imports.py
+          --pattern '^airflow\.kubernetes'
+          --message "You should only import kubernetes code from `airflow.providers.cncf.kubernetes`."
+      - id: check-common-compat-used-for-openlineage
+        name: Check common.compat is used for OL deprecated classes
+        language: python
+        files: ^src/airflow/.*\.py$
+        require_serial: true
+        exclude: ^src/airflow/openlineage/.*
+        entry: ../scripts/ci/prek/check_airflow_imports.py
+          --pattern '^openlineage\.client\.(facet|run)'
+          --message "You should import from `airflow.providers.common.compat.openlineage.facet` instead."
+      - id: check-cncf-k8s-only-for-executors
+        name: Check cncf.kubernetes imports used for executors only
+        language: python
+        files: ^src/airflow/.*\.py$
+        require_serial: true
+        exclude: >
+          (?x)
+          ^src/airflow/exceptions\.py$|
+          ^src/airflow/models/renderedtifields\.py$|
+          ^src/airflow/serialization/serialized_objects\.py$|
+          ^src/airflow/serialization/serializers/kubernetes\.py$|
+          ^src/airflow/utils/sqlalchemy\.py$
+        entry: ../scripts/ci/prek/check_airflow_imports.py
+          --pattern '^airflow\.providers\.cncf\.kubernetes'
+          --message
+          "Only few k8s executors exceptions are allowed to use `airflow.providers.cncf.kubernetes`."
+      - id: check-extra-packages-references
+        name: Checks setup extra packages
+        description: Checks if extras defined in hatch_build.py are listed in extra-packages-ref.rst file
+        language: python
+        files: ^docs/extra-packages-ref\.rst$|^hatch_build\.py$
+        pass_filenames: false
+        entry: ../scripts/ci/prek/check_extra_packages_ref.py
+      - id: check-no-providers-in-core-examples
+        language: pygrep
+        name: No providers imports in core example DAGs
+        description: The core example DAGs have no dependencies other than standard provider or core Airflow
+        entry: "^\\s*from airflow\\.providers.(?!standard.)"
+        pass_filenames: true
+        files: ^src/airflow/example_dags/.*\.py$
+      - id: check-only-new-session-with-provide-session
+        name: Check NEW_SESSION is only used with @provide_session
+        language: python
+        entry: ../scripts/ci/prek/new_session_in_provide_session.py
+        pass_filenames: true
+        files: ^src/airflow/.+\.py$
+        exclude: ^src/airflow/serialization/pydantic/.*
+      - id: check-base-operator-partial-arguments
+        name: Check BaseOperator and partial() arguments
+        language: python
+        entry: ../scripts/ci/prek/check_base_operator_partial_arguments.py
+        pass_filenames: false
+        files: ^src/airflow/models/(?:base|mapped)operator\.py$
+      - id: check-decorated-operator-implements-custom-name
+        name: Check @task decorator implements custom_operator_name
+        language: python
+        entry: ../scripts/ci/prek/decorator_operator_implements_custom_name.py
+        pass_filenames: true
+        files: ^src/airflow/.*\.py$
+      - id: compile-ui-assets
+        name: Compile ui assets (manual)
+        language: node
+        stages: ['manual']
+        types_or: [javascript, ts, tsx]
+        files:
+          (?x)
+          ^src/airflow/ui/|
+          ^src/airflow/api_fastapi/auth/managers/simple/ui/
+        entry: ../scripts/ci/prek/compile_ui_assets.py
+        pass_filenames: false
+        additional_dependencies: ['pnpm@9.7.1']
+      - id: compile-ui-assets-dev
+        name: Compile ui assets in dev mode (manual)
+        language: node
+        stages: ['manual']
+        types_or: [javascript, ts, tsx]
+        files:
+          (?x)
+          ^src/airflow/ui/|
+          ^src/airflow/api_fastapi/auth/managers/simple/ui/
+        entry: ../scripts/ci/prek/compile_ui_assets_dev.py
+        pass_filenames: false
+        additional_dependencies: ['pnpm@9.7.1']
+      - id: check-tests-in-the-right-folders
+        name: Check if tests are in the right folders
+        entry: ../scripts/ci/prek/check_tests_in_right_folders.py
+        language: python
+        files: ^tests/.*\.py$
+        pass_filenames: true
+        require_serial: true
+      - id: lint-json-schema
+        name: Lint config_templates/config.yml
+        entry: ../scripts/ci/prek/lint_json_schema.py
+        args:
+          - --spec-file
+          - src/airflow/config_templates/config.yml.schema.json
+        language: python
+        pass_filenames: true
+        files: ^src/airflow/config_templates/config\.yml$
+        require_serial: true
+      - id: check-code-deprecations
+        name: Check deprecations categories in decorators
+        entry: ../scripts/ci/prek/check_deprecations.py
+        language: python
+        pass_filenames: true
+        files: ^src/airflow/.*\.py$
+      - id: check-significant-newsfragments-are-valid
+        name: Check significant newsfragments are valid
+        # Significant newsfragments follows a special format so that we can group information easily.
+        language: python
+        files: ^newsfragments/.*\.rst$
+        entry: ../scripts/ci/prek/significant_newsfragments_checker.py
+        pass_filenames: false
+        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
+        # This is fast, so not too much downside
+        always_run: true
+      - id: create-missing-init-py-files-tests
+        name: Create missing init.py files in tests
+        entry: ../scripts/ci/prek/check_init_in_tests.py
+        language: python
+        pass_filenames: false
+        files: ^tests/.*\.py$
+      - id: check-tests-unittest-testcase
+        name: Unit tests do not inherit from unittest.TestCase
+        description: Check that unit tests do not inherit from unittest.TestCase
+        entry: ../scripts/ci/prek/unittest_testcase.py
+        language: python
+        pass_filenames: true
+        files: ^tests/.*\.py$
+      - id: check-no-fab-migrations
+        language: pygrep
+        name: Check no migration is done on FAB related table
+        description: >
+          FAB tables are no longer used in core Airflow but in FAB provider.
+          As such, it is forbidden to create migrations related to FAB tables in core Airflow.
+          Such migrations should be in FAB provider. To achieve this, a new capability must be implemented:
+          support migrations for providers. In other words, providers need to be able to specify migrations
+          so that, any FAB related migration (besides the legacy ones) is defined in FAB provider.
+          See https://github.com/apache/airflow/issues/32210
+        entry: >
+          (?ix)
+          \bab_permission\b|
+          \bab_view_menu\b|
+          \bab_role\b|
+          \bab_permission_view\b|
+          \bab_permission_view_role\b|
+          \bab_user\b|
+          \bab_user_role\b|
+          \bab_register_user\b
+        pass_filenames: true
+        files: ^src/airflow/migrations/versions/.*\.py$
+        exclude:
+          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
+      - id: ts-compile-lint-ui
+        name: Compile / format / lint UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^src/airflow/ui/.*\.(js|ts|tsx|yaml|css|json)$|
+          ^src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^src/airflow/api_fastapi/auth/managers/simple/openapi/v1.*\.yaml$
+        exclude: |
+          (?x)
+          ^src/airflow/ui/node-modules/.*|
+          ^src/airflow/ui/.pnpm-store
+        entry: ../scripts/ci/prek/ts_compile_lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
+      - id: ts-compile-lint-simple-auth-manager-ui
+        name: Compile / format / lint simple auth manager UI
+        description: TS types generation / ESLint / Prettier new UI files
+        language: node
+        files: |
+          (?x)
+          ^src/airflow/api_fastapi/auth/managers/simple/ui/.*\.(js|ts|tsx|yaml|css|json)$|
+          ^src/airflow/api_fastapi/core_api/openapi/.*\.yaml$|
+          ^src/airflow/api_fastapi/auth/managers/simple/openapi/.*\.yaml$
+        exclude: |
+          (?x)
+          ^src/airflow/api_fastapi/node-modules/.*|
+          ^src/airflow/api_fastapi/.pnpm-store
+        entry: ../scripts/ci/prek/ts_compile_lint_simple_auth_manager_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: true
+        require_serial: true
+        ## ADD MOST PREK HOOK ABOVE THAT LINE
+        # The below prek hooks are those requiring CI image to be built
+      - id: mypy-airflow-core
+        stages: ['pre-push']
+        name: Run mypy for airflow-core
+        language: python
+        entry: ../scripts/ci/prek/mypy.py
+        files: ^.*\.py$
+        require_serial: true
+      - id: mypy-airflow-core
+        stages: ['manual']
+        name: Run mypy for airflow-core (manual)
+        language: python
+        entry: ../scripts/ci/prek/mypy_folder.py airflow-core
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+      - id: generate-openapi-spec
+        name: Generate the FastAPI API spec
+        language: python
+        entry: ../scripts/ci/prek/generate_openapi_spec.py
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflow/api_fastapi/.*\.py$|
+          ^src/airflow/api_fastapi/auth/managers/simple/.*\.py$
+        exclude: ^src/airflow/api_fastapi/execution_api/.*
+      - id: check-i18n-json
+        name: Check i18n files validity
+        description: Check i18n files are valid json, have no TODOs, and auto-format them
+        language: python
+        files: ^src/airflow/ui/public/i18n/locales/.*\.json$
+        entry: ../scripts/ci/prek/check_i18n_json.py
+        pass_filenames: false
+      - id: update-migration-references
+        name: Update migration ref doc
+        language: python
+        entry: ../scripts/ci/prek/migration_reference.py
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflow/migrations/versions/.*\.py$|
+          ^docs/migrations-ref\.rst$
+      - id: update-er-diagram
+        name: Update ER diagram
+        language: python
+        entry: ../scripts/ci/prek/update_er_diagram.py
+        pass_filenames: false
+        files:
+          (?x)
+          ^src/airflow/migrations/versions/.*\.py$|
+          ^docs/migrations-ref\.rst$
+      - id: check-default-configuration
+        name: Check the default configuration
+        entry: ../scripts/ci/prek/check_default_configuration.py
+        language: python
+        require_serial: true
+        pass_filenames: false
+        files: ^src/airflow/config_templates/config\.yml$
+      - id: check-airflow-version-checks-in-core
+        language: pygrep
+        name: No AIRFLOW_V_* imports in airflow-core
+        entry: "import AIRFLOW_V_"
+        files: ^.*\.py$
+        pass_filenames: true
+        # TODO (@amoghrajesh): revisit last few in this list as they all rely on versioned
+        #                      secrets masker imports
+        exclude: >
+          (?x)
+          ^tests/integration/otel/dags/otel_test_dag_with_pause_between_tasks\.py$|
+          ^tests/integration/otel/dags/otel_test_dag_with_pause_in_task\.py$|
+          ^tests/integration/otel/test_otel\.py$|
+          ^tests/unit/core/test_configuration\.py$|
+          ^tests/unit/models/test_renderedtifields\.py$|
+          ^tests/unit/models/test_variable\.py$
+      - id: check-sdk-imports
+        name: Check for SDK imports in core files
+        entry: ../scripts/ci/prek/check_sdk_imports.py
+        language: python
+        types: [python]
+        files: ^src/airflow/
+        exclude: |
+          (?x)
+          # Allow SDK imports in these legitimate locations
+          ^src/airflow/example_dags/.*\.py$|
+
+          # TODO: These files need to be refactored to remove SDK coupling
+          ^src/airflow/__init__\.py$|
+          ^src/airflow/api/common/mark_tasks\.py$|
+          ^src/airflow/api_fastapi/core_api/datamodels/assets\.py$|
+          ^src/airflow/api_fastapi/core_api/datamodels/connections\.py$|
+          ^src/airflow/api_fastapi/core_api/datamodels/hitl\.py$|
+          ^src/airflow/api_fastapi/core_api/datamodels/variables\.py$|
+          ^src/airflow/api_fastapi/core_api/routes/ui/grid\.py$|
+          ^src/airflow/api_fastapi/core_api/routes/ui/structure\.py$|
+          ^src/airflow/api_fastapi/core_api/services/public/connections\.py$|
+          ^src/airflow/api_fastapi/core_api/services/ui/connections\.py$|
+          ^src/airflow/api_fastapi/core_api/services/ui/grid\.py$|
+          ^src/airflow/api_fastapi/core_api/services/ui/task_group.py$|
+          ^src/airflow/api_fastapi/execution_api/routes/hitl\.py$|
+          ^src/airflow/api_fastapi/execution_api/routes/task_instances\.py$|
+          ^src/airflow/api_fastapi/logging/decorators\.py$|
+          ^src/airflow/assets/evaluation\.py$|
+          ^src/airflow/assets/manager\.py$|
+          ^src/airflow/cli/commands/connection_command\.py$|
+          ^src/airflow/cli/commands/task_command\.py$|
+          ^src/airflow/cli/commands/triggerer_command.py$|
+          ^src/airflow/configuration\.py$|
+          ^src/airflow/dag_processing/collection\.py$|
+          ^src/airflow/dag_processing/manager\.py$|
+          ^src/airflow/dag_processing/processor\.py$|
+          ^src/airflow/dag_processing/dagbag\.py$|
+          ^src/airflow/datasets/metadata\.py$|
+          ^src/airflow/exceptions\.py$|
+          ^src/airflow/executors/local_executor\.py$|
+          ^src/airflow/jobs/triggerer_job_runner\.py$|
+          ^src/airflow/lineage/hook\.py$|
+          ^src/airflow/listeners/spec/asset\.py$|
+          ^src/airflow/listeners/spec/taskinstance\.py$|
+          ^src/airflow/logging/remote\.py$|
+          ^src/airflow/models/__init__\.py$|
+          ^src/airflow/models/asset\.py$|
+          ^src/airflow/models/baseoperator\.py$|
+          ^src/airflow/models/callback\.py$|
+          ^src/airflow/models/connection\.py$|
+          ^src/airflow/models/dag\.py$|
+          ^src/airflow/models/dagrun\.py$|
+          ^src/airflow/models/deadline\.py$|
+          ^src/airflow/models/expandinput\.py$|
+          ^src/airflow/models/mappedoperator\.py$|
+          ^src/airflow/models/operator\.py$|
+          ^src/airflow/models/param\.py$|
+          ^src/airflow/models/renderedtifields\.py$|
+          ^src/airflow/models/serialized_dag\.py$|
+          ^src/airflow/models/taskinstance\.py$|
+          ^src/airflow/models/taskinstancekey\.py$|
+          ^src/airflow/models/taskmap\.py$|
+          ^src/airflow/models/taskmixin\.py$|
+          ^src/airflow/models/taskreschedule\.py$|
+          ^src/airflow/models/variable\.py$|
+          ^src/airflow/models/xcom\.py$|
+          ^src/airflow/models/xcom_arg\.py$|
+          ^src/airflow/operators/subdag\.py$|
+          ^src/airflow/plugins_manager\.py$|
+          ^src/airflow/providers_manager\.py$|
+          ^src/airflow/secrets/__init__.py$|
+          ^src/airflow/serialization/decoders\.py$|
+          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
+          ^src/airflow/serialization/encoders\.py$|
+          ^src/airflow/serialization/enums\.py$|
+          ^src/airflow/serialization/helpers\.py$|
+          ^src/airflow/serialization/serialized_objects\.py$|
+          ^src/airflow/settings\.py$|
+          ^src/airflow/task/task_runner/bash_task_runner\.py$|
+          ^src/airflow/task/task_runner/standard_task_runner\.py$|
+          ^src/airflow/ti_deps/deps/mapped_task_upstream_dep\.py$|
+          ^src/airflow/ti_deps/deps/prev_dagrun_dep\.py$|
+          ^src/airflow/ti_deps/deps/trigger_rule_dep\.py$|
+          ^src/airflow/timetables/assets\.py$|
+          ^src/airflow/timetables/base\.py$|
+          ^src/airflow/timetables/simple\.py$|
+          ^src/airflow/utils/cli\.py$|
+          ^src/airflow/utils/context\.py$|
+          ^src/airflow/utils/dag_cycle_tester\.py$|
+          ^src/airflow/utils/dag_edges\.py$|
+          ^src/airflow/utils/dag_parsing_context\.py$|
+          ^src/airflow/utils/decorators\.py$|
+          ^src/airflow/utils/dot_renderer\.py$|
+          ^src/airflow/utils/edgemodifier\.py$|
+          ^src/airflow/utils/email\.py$|
+          ^src/airflow/utils/helpers\.py$|
+          ^src/airflow/utils/operator_helpers\.py$|
+          ^src/airflow/utils/session\.py$|
+          ^src/airflow/utils/task_group\.py$|
+          ^src/airflow/utils/trigger_rule\.py$|
+          ^src/airflow/utils/types\.py$
+        ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
+      - id: check-schema-defaults
+        name: Check schema defaults match server-side defaults
+        entry: ../scripts/ci/prek/check_schema_defaults.py
+        language: python
+        files:
+          (?x)
+          ^src/airflow/serialization/schema\.json$|
+          ^src/airflow/serialization/serialized_objects\.py$
+        pass_filenames: false
+        require_serial: true

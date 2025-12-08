@@ -28,9 +28,10 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
-from airflow.models import DAG, DagBag, DagRun
+from airflow.models import DAG, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -129,6 +130,7 @@ def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, sp
             .first()
         )
 
+        assert dag_run is not None
         assert dag_run.state == state, f"Dag Run state isn't {state}. State: {dag_run.state}"
         assert dag_run.span_status == span_status, (
             f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
@@ -146,6 +148,7 @@ def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_s
             .first()
         )
 
+        assert ti is not None
         assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
 
         if span_status is not None:
@@ -607,7 +610,7 @@ class TestOtelIntegration:
         "--daemon",
     ]
 
-    dags: dict[str, DAG] = {}
+    dags: dict[str, SerializedDAG] = {}
 
     @classmethod
     def setup_class(cls):
@@ -709,7 +712,9 @@ class TestOtelIntegration:
             module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             alias="CeleryExecutor",
         )
-        monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
+        monkeypatch.setattr(
+            executor_loader, "_alias_to_executors_per_team", {None: {"CeleryExecutor": executor_name}}
+        )
 
     @pytest.fixture(autouse=True)
     def cleanup_control_file_if_needed(self):

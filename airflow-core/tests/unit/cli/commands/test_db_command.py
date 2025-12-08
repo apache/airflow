@@ -47,6 +47,118 @@ class TestCliDb:
         db_command.resetdb(self.parser.parse_args(["db", "reset", "--yes", "--skip-init"]))
         mock_resetdb.assert_called_once_with(skip_init=True)
 
+    def test_run_db_migrate_command_success_and_messages(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_migrate_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing upgrade" in out
+        assert "Database migrating done!" in out
+        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
+
+    def test_run_db_migrate_command_offline_generation(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = True
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_migrate_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Generating sql for upgrade" in out
+        assert called == {"to_revision": None, "from_revision": None, "show_sql_only": True}
+
+    @pytest.mark.parametrize(
+        ("args", "match"),
+        [
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": "2.10.0",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": "2.10.0",
+                    "show_sql_only": True,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "only .* with `--show-sql-only`",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "abc",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Invalid version",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "2.1.25",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                },
+                "Unknown version",
+            ),
+        ],
+    )
+    def test_run_db_migrate_command_validation_errors(self, args, match):
+        class Args:
+            to_revision = args["to_revision"]
+            to_version = args["to_version"]
+            from_revision = args["from_revision"]
+            from_version = args["from_version"]
+            show_sql_only = args["show_sql_only"]
+
+        def fake_command(**kwargs):
+            pass
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match=match):
+            db_command.run_db_migrate_command(Args(), fake_command, heads)
+
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):
         db_command.check_migrations(self.parser.parse_args(["db", "check-migrations"]))
@@ -54,7 +166,7 @@ class TestCliDb:
         mock_wait_for_migrations.assert_called_once_with(timeout=60)
 
     @pytest.mark.parametrize(
-        "args, called_with",
+        ("args", "called_with"),
         [
             (
                 [],
@@ -141,7 +253,7 @@ class TestCliDb:
         mock_upgradedb.assert_called_once_with(**called_with)
 
     @pytest.mark.parametrize(
-        "args, pattern",
+        ("args", "pattern"),
         [
             pytest.param(
                 ["--to-revision", "abc", "--to-version", "2.10.0"],
@@ -317,8 +429,172 @@ class TestCliDb:
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
+    def test_run_db_downgrade_command_success_and_messages(self, capsys):
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = True
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing downgrade" in out
+        assert "Downgrade complete" in out
+        assert called == {"to_revision": "abc", "from_revision": None, "show_sql_only": False}
+
+    def test_run_db_downgrade_command_offline_generation(self, capsys):
+        class Args:
+            to_revision = None
+            to_version = "2.10.0"
+            from_revision = None
+            from_version = None
+            show_sql_only = True
+            yes = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Generating sql for downgrade" in out
+        assert called == {"to_revision": "22ed7efa9da2", "from_revision": None, "show_sql_only": True}
+
     @pytest.mark.parametrize(
-        "args, match",
+        ("args", "match"),
+        [
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": False,
+                },
+                "Must provide either",
+            ),
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": "2.10.0",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "Cannot supply both",
+            ),
+            (
+                {
+                    "to_revision": "abc",
+                    "to_version": None,
+                    "from_revision": "abc1",
+                    "from_version": "2.10.0",
+                    "show_sql_only": True,
+                    "yes": True,
+                },
+                "may not be combined",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": "2.1.25",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "not supported",
+            ),
+            (
+                {
+                    "to_revision": None,
+                    "to_version": None,
+                    "from_revision": "abc",
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "only .* with `--show-sql-only`",
+            ),
+        ],
+    )
+    def test_run_db_downgrade_command_validation_errors(self, args, match):
+        class Args:
+            to_revision = args["to_revision"]
+            to_version = args["to_version"]
+            from_revision = args["from_revision"]
+            from_version = args["from_version"]
+            show_sql_only = args["show_sql_only"]
+            yes = args["yes"]
+
+        def fake_command(**kwargs):
+            pass
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match=match):
+            db_command.run_db_downgrade_command(Args(), fake_command, heads)
+
+    @mock.patch("airflow.cli.commands.db_command.input")
+    def test_run_db_downgrade_command_confirmation_yes_calls_command(self, mock_input, capsys):
+        mock_input.return_value = "Y"
+
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = False
+
+        called = {}
+
+        def fake_command(**kwargs):
+            called.update(kwargs)
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        db_command.run_db_downgrade_command(Args(), fake_command, heads)
+        out = capsys.readouterr().out
+        assert "Performing downgrade" in out
+        assert called == {"to_revision": "abc", "from_revision": None, "show_sql_only": False}
+
+    @mock.patch("airflow.cli.commands.db_command.input")
+    def test_run_db_downgrade_command_confirmation_no_cancels(self, mock_input):
+        mock_input.return_value = "n"
+
+        class Args:
+            to_revision = "abc"
+            to_version = None
+            from_revision = None
+            from_version = None
+            show_sql_only = False
+            yes = False
+
+        def fake_command(**kwargs):
+            raise AssertionError("Command should not be called when cancelled")
+
+        heads = {"2.10.0": "22ed7efa9da2"}
+
+        with pytest.raises(SystemExit, match="Cancelled"):
+            db_command.run_db_downgrade_command(Args(), fake_command, heads)
+
+    @pytest.mark.parametrize(
+        ("args", "match"),
         [
             (["-y", "--to-revision", "abc", "--to-version", "2.2.0"], "Cannot supply both"),
             (["-y", "--to-revision", "abc1", "--from-revision", "abc2"], "only .* with `--show-sql-only`"),
@@ -339,7 +615,7 @@ class TestCliDb:
             db_command.downgrade(self.parser.parse_args(["db", "downgrade", *args]))
 
     @pytest.mark.parametrize(
-        "args, expected",
+        ("args", "expected"),
         [
             (["-y", "--to-revision", "abc1"], dict(to_revision="abc1")),
             (
@@ -364,7 +640,7 @@ class TestCliDb:
         mock_dg.assert_called_with(**{**defaults, **expected})
 
     @pytest.mark.parametrize(
-        "resp, raise_",
+        ("resp", "raise_"),
         [
             ("y", False),
             ("Y", False),
@@ -418,7 +694,7 @@ class TestCLIDBClean:
         coerced to tz-aware with default timezone
         """
         timestamp = "2021-01-01 00:00:00"
-        with patch("airflow.settings.TIMEZONE", pendulum.timezone(timezone)):
+        with patch("airflow._shared.timezones.timezone.TIMEZONE", pendulum.timezone(timezone)):
             args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
@@ -452,7 +728,7 @@ class TestCLIDBClean:
             batch_size=None,
         )
 
-    @pytest.mark.parametrize("confirm_arg, expected", [(["-y"], False), ([], True)])
+    @pytest.mark.parametrize(("confirm_arg", "expected"), [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
         """
@@ -479,7 +755,7 @@ class TestCLIDBClean:
             batch_size=None,
         )
 
-    @pytest.mark.parametrize("extra_arg, expected", [(["--skip-archive"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_arg", "expected"), [(["--skip-archive"], True), ([], False)])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
         """
@@ -506,7 +782,7 @@ class TestCLIDBClean:
             batch_size=None,
         )
 
-    @pytest.mark.parametrize("dry_run_arg, expected", [(["--dry-run"], True), ([], False)])
+    @pytest.mark.parametrize(("dry_run_arg", "expected"), [(["--dry-run"], True), ([], False)])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_dry_run(self, run_cleanup_mock, dry_run_arg, expected):
         """
@@ -534,7 +810,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_tables(self, run_cleanup_mock, extra_args, expected):
@@ -562,7 +838,7 @@ class TestCLIDBClean:
             batch_size=None,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--verbose"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["--verbose"], True), ([], False)])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_verbose(self, run_cleanup_mock, extra_args, expected):
         """
@@ -589,7 +865,7 @@ class TestCLIDBClean:
             batch_size=None,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--batch-size", "1234"], 1234), ([], None)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["--batch-size", "1234"], 1234), ([], None)])
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_batch_size(self, run_cleanup_mock, extra_args, expected):
         """
@@ -634,7 +910,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
@@ -659,7 +935,7 @@ class TestCLIDBClean:
             needs_confirm=True,
         )
 
-    @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["--drop-archives"], True), ([], False)])
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_drop_archives_in_export_archived_records_command(
@@ -684,7 +960,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
+        ("extra_args", "expected"), [(["--tables", "hello, goodbye"], ["hello", "goodbye"]), ([], None)]
     )
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
@@ -698,7 +974,7 @@ class TestCLIDBClean:
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
 
-    @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
+    @pytest.mark.parametrize(("extra_args", "expected"), [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
         args = self.parser.parse_args(
@@ -729,7 +1005,7 @@ def test_get_version_revision():
 
 
 @pytest.mark.parametrize(
-    "raw,expected",
+    ("raw", "expected"),
     [
         ("pa!sw0rd#", '"pa!sw0rd#"'),
         ('he"llo', '"he\\"llo"'),

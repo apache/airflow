@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 import airflow.example_dags as example_dags_module
-from airflow.models import DagBag
+from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.sdk import task as task_decorator

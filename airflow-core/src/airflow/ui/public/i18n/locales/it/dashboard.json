@@ -1,15 +1,15 @@
 {
   "favorite": {
-    "favoriteDags_many": "{{count}} DAGs preferiti",
-    "favoriteDags_one": "Primo {{count}} DAG preferito",
-    "favoriteDags_other": "Primi {{count}} DAGs preferiti",
-    "favoriteDags_zero": "Nessun DAG preferito",
+    "favoriteDags_many": "{{count}} Dags preferiti",
+    "favoriteDags_one": "Primo {{count}} Dag preferito",
+    "favoriteDags_other": "Primi {{count}} Dags preferiti",
+    "favoriteDags_zero": "Nessun Dag preferito",
     "noDagRuns": "Non ci sono ancora DagRun per questo dag.",
     "noFavoriteDags": "Nessun preferito ancora. Clicca sull'icona stella accanto a un Dag nella lista per aggiungerlo ai tuoi preferiti."
   },
   "group": "Gruppo",
   "health": {
-    "dagProcessor": "Processore DAG",
+    "dagProcessor": "Processore del Dag",
     "health": "Salute",
     "healthy": "Sano",
     "lastHeartbeat": "Ultimo Heartbeat",
@@ -21,11 +21,11 @@
   },
   "history": "Cronologia",
   "importErrors": {
-    "dagImportError_many": "Errori di Importazione DAG",
-    "dagImportError_one": "Errore di Importazione DAG",
-    "dagImportError_other": "Errori di Importazione DAG",
-    "dagImportError_zero": "Nessun errore di importazione DAG",
-    "searchByFile": "Cerca per file",
+    "dagImportError_many": "Errori di Importazione Dag",
+    "dagImportError_one": "Errore di Importazione Dag",
+    "dagImportError_other": "Errori di Importazione Dag",
+    "dagImportError_zero": "Nessun errore di importazione Dag",
+    "searchByFile": "Cercare per file",
     "timestamp": "Timestamp"
   },
   "managePools": "Gestisci Pools",
@@ -37,11 +37,11 @@
   },
   "source": "Fonte",
   "stats": {
-    "activeDags": "DAG Attivi",
-    "failedDags": "DAG Falliti",
-    "queuedDags": "DAG In Attesa",
+    "activeDags": "Dags Attivi",
+    "failedDags": "Dags Falliti",
+    "queuedDags": "Dags In Attesa",
     "requiredActions": "Azioni Richieste",
-    "runningDags": "DAG In Esecuzione",
+    "runningDags": "Dags In Esecuzione",
     "stats": "Statistiche"
   },
   "uri": "Uri",

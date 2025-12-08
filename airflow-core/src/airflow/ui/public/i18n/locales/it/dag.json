@@ -10,6 +10,7 @@
     "hourly": "Orario",
     "legend": {
       "less": "Meno",
+      "mixed": "Misto",
       "more": "Più"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Anno precedente"
     },
     "noData": "Nessun dato disponibile",
+    "noFailedRuns": "Nessuna esecuzione non riuscita",
     "noRuns": "Nessun run",
     "totalRuns": "Run Totali",
     "week": "Settimana {{weekNumber}}",
@@ -48,7 +50,7 @@
   "header": {
     "buttons": {
       "advanced": "Avanzato",
-      "dagDocs": "Documentazione DAG"
+      "dagDocs": "Documentazione sul Dag"
     }
   },
   "logs": {
@@ -107,12 +109,12 @@
       "showGridShortcut": "Mostra Griglia (Premi g)"
     },
     "dagRuns": {
-      "label": "Numero di Run del DAG"
+      "label": "Numero di Runs del Dag"
     },
     "dependencies": {
       "label": "Dipendenze",
       "options": {
-        "allDagDependencies": "Tutte le Dipendenze del DAG",
+        "allDagDependencies": "Tutte le Dipendenze del Dag",
         "externalConditions": "Condizioni Esterne",
         "onlyTasks": "Solo le Task"
       },
@@ -126,11 +128,11 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "La richiesta di parsing del DAG è fallita. Potrebbero esserci richieste di parsing in sospeso da processare.",
-        "title": "Parsing del DAG fallito"
+        "description": "La richiesta di parsing del Dag è fallita. Potrebbero esserci richieste di parsing in sospeso da processare.",
+        "title": "Parsing del Dag fallito"
       },
       "success": {
-        "description": "Il DAG dovrebbe essere riparsat presto.",
+        "description": "Il Dag dovrebbe essere riparsat presto.",
         "title": "Richiesta di riparsing inviata con successo"
       }
     }

@@ -52,7 +52,7 @@
       "learnMore": "Queste sono risolte in fase di runtime e non sono visibili nell'interfaccia utente.",
       "title": "Nessuna connessione trovata!"
     },
-    "searchPlaceholder": "Cerca Connessioni",
+    "searchPlaceholder": "Cercare Connessioni",
     "test": "Test Connessione",
     "testDisabled": "La funzione di test della connessione è disabilitata. Per favore contatta un amministratore per abilitarla.",
     "typeMeta": {
@@ -88,7 +88,7 @@
     "importError_one": "Errore di Importazione Plugin",
     "importError_other": "Errori di Importazione Plugin",
     "importError_zero": "Nessun errore di importazione plugin",
-    "searchPlaceholder": "Cerca per file"
+    "searchPlaceholder": "Cercare per file"
   },
   "pools": {
     "add": "Aggiungi Pool",
@@ -111,7 +111,7 @@
     "pool_one": "Pool",
     "pool_other": "Pools",
     "pool_zero": "Nessun pool",
-    "searchPlaceholder": "Cerca Pools",
+    "searchPlaceholder": "Cercare Pools",
     "sort": {
       "asc": "Nome (A-Z)",
       "desc": "Nome (Z-A)",
@@ -142,8 +142,6 @@
       "tooltip": "Elimina le variabili selezionate"
     },
     "edit": "Modifica Variabile",
-    "export": "Esporta",
-    "exportTooltip": "Esporta le variabili selezionate",
     "form": {
       "invalidJson": "JSON non valido",
       "keyMaxLength": "La chiave può contenere un massimo di 250 caratteri",
@@ -173,7 +171,7 @@
       "uploadPlaceholder": "Carica un file JSON contenente le variabili (es. {\"key\": \"value\", ...})"
     },
     "noRowsMessage": "Nessuna variabile trovata",
-    "searchPlaceholder": "Cerca Chiavi",
+    "searchPlaceholder": "Cercare Chiavi",
     "variable_many": "Variabili",
     "variable_one": "Variabile",
     "variable_other": "Variabili",

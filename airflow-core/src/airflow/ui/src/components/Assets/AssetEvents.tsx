@@ -69,8 +69,8 @@ export const AssetEvents = ({
   });
 
   return (
-    <Box borderBottomWidth={0} borderRadius={5} borderWidth={1} p={4} py={2} {...rest}>
-      <Flex alignItems="center" justify="space-between">
+    <Box borderBottomWidth={0} borderRadius={8} borderWidth={1} p={4} py={2} {...rest}>
+      <Flex alignItems="center" flexWrap="wrap" justify="space-between">
         <HStack>
           <StateBadge colorPalette="brand" fontSize="md" variant="solid">
             <FiDatabase />

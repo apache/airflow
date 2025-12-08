@@ -53,7 +53,7 @@ def timetable():
 
 
 @pytest.mark.parametrize(
-    "start, end",
+    ("start", "end"),
     list(zip(WEEK_1_WEEKDAYS[:-1], WEEK_1_WEEKDAYS[1:])),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
@@ -71,7 +71,7 @@ def test_first_schedule(timetable: Timetable, restriction: TimeRestriction):
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, expected_next_info",
+    ("last_automated_data_interval", "expected_next_info"),
     [
         pytest.param(
             DataInterval(day, day + datetime.timedelta(days=1)),

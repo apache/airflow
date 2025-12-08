@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useState } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -35,7 +37,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { getDuration, useAutoRefresh, isStatePending } from "src/utils";
+import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import DeleteTaskInstanceButton from "./DeleteTaskInstanceButton";
@@ -44,11 +46,22 @@ import { TaskInstancesFilter } from "./TaskInstancesFilter";
 type TaskInstanceRow = { row: { original: TaskInstanceResponse } };
 
 const {
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  LOGICAL_DATE_GTE: LOGICAL_DATE_GTE_PARAM,
+  LOGICAL_DATE_LTE: LOGICAL_DATE_LTE_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
-  POOL: POOL_PARAM,
+  OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
+  POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
+  QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
-  STATE: STATE_PARAM,
+  TASK_STATE: STATE_PARAM,
+  TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 const taskInstanceColumns = ({
@@ -67,6 +80,13 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "dag_display_name",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.dag_id}`}>
+                <TruncatedText text={original.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("dagId"),
         },
@@ -153,13 +173,28 @@ const taskInstanceColumns = ({
     header: translate("taskInstance.pool"),
   },
   {
+    accessorKey: "queue",
+    enableSorting: false,
+    header: translate("taskInstance.queue"),
+  },
+  {
+    accessorKey: "executor",
+    enableSorting: false,
+    header: translate("taskInstance.executor"),
+  },
+  {
+    accessorKey: "hostname",
+    enableSorting: false,
+    header: translate("taskInstance.hostname"),
+  },
+  {
     accessorKey: "operator_name",
     enableSorting: false,
     header: translate("task.operator"),
   },
   {
-    cell: ({ row: { original } }) =>
-      Boolean(original.start_date) ? getDuration(original.start_date, original.end_date) : "",
+    accessorKey: "duration",
+    cell: ({ row: { original } }) => renderDuration(original.duration),
     header: translate("duration"),
   },
   {
@@ -189,37 +224,65 @@ export const TaskInstances = () => {
   const { t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    columnVisibility: {
+      dag_version: false,
+      end_date: false,
+      executor: false,
+      hostname: false,
+      pool: false,
+      queue: false,
+    },
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
+  const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
+  const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
-  const pool = searchParams.getAll(POOL_PARAM);
+  const poolNamePattern = searchParams.get(POOL_NAME_PATTERN_PARAM);
+  const queueNamePattern = searchParams.get(QUEUE_NAME_PATTERN_PARAM);
+  const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
   const hasFilteredState = filteredState.length > 0;
-  const hasFilteredPool = pool.length > 0;
-
-  const [taskDisplayNamePattern, setTaskDisplayNamePattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const taskDisplayNamePattern = searchParams.get(NAME_PATTERN_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId: dagId ?? "~",
+      dagIdPattern: filteredDagIdPattern ?? undefined,
       dagRunId: runId ?? "~",
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pagination.pageSize,
+      logicalDateGte: logicalDateGte ?? undefined,
+      logicalDateLte: logicalDateLte ?? undefined,
+      mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
       offset: pagination.pageIndex * pagination.pageSize,
+      operatorNamePattern: operatorNamePattern ?? undefined,
       orderBy,
-      pool: hasFilteredPool ? pool : undefined,
+      poolNamePattern: poolNamePattern ?? undefined,
+      queueNamePattern: queueNamePattern ?? undefined,
+      runIdPattern: filteredRunId ?? undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
       taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
+      tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
+      versionNumber:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
     },
     undefined,
     {
@@ -228,19 +291,22 @@ export const TaskInstances = () => {
     },
   );
 
+  const columns = useMemo(
+    () =>
+      taskInstanceColumns({
+        dagId,
+        runId,
+        taskId: Boolean(groupId) ? undefined : taskId,
+        translate,
+      }),
+    [dagId, runId, groupId, taskId, translate],
+  );
+
   return (
     <>
-      <TaskInstancesFilter
-        setTaskDisplayNamePattern={setTaskDisplayNamePattern}
-        taskDisplayNamePattern={taskDisplayNamePattern}
-      />
+      <TaskInstancesFilter />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId: Boolean(groupId) ? undefined : taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

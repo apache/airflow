@@ -1,1 +1,0 @@
-Added validation in XCom.set() to disallow None or empty string keys; XCom.get() still allows None as key but disallows empty strings.

@@ -17,15 +17,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from airflow.providers.common.compat._compat_utils import create_module_getattr
 
-if TYPE_CHECKING:
-    from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-else:
-    try:
-        from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
-    except ModuleNotFoundError:
-        from airflow.triggers.temporal import TimeDeltaTrigger
+_IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
+    "TimeDeltaTrigger": ("airflow.providers.standard.triggers.temporal", "airflow.triggers.temporal"),
+}
 
+__getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
 
-__all__ = ["TimeDeltaTrigger"]
+__all__ = sorted(_IMPORT_MAP.keys())

@@ -21,9 +21,9 @@ from unittest import mock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -37,15 +37,17 @@ INSTANCE_ID_2 = "i-1234567890abcdef1"
 
 @pytest.fixture
 def mock_ssm_list_invocations():
-    def _setup(mock_async_conn):
+    def _setup(mock_get_async_conn):
         mock_client = mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock_client
-        mock_client.list_command_invocations.return_value = {
-            "CommandInvocations": [
-                {"CommandId": COMMAND_ID, "InstanceId": INSTANCE_ID_1},
-                {"CommandId": COMMAND_ID, "InstanceId": INSTANCE_ID_2},
-            ]
-        }
+        mock_get_async_conn.return_value.__aenter__.return_value = mock_client
+        mock_client.list_command_invocations = mock.AsyncMock(
+            return_value={
+                "CommandInvocations": [
+                    {"CommandId": COMMAND_ID, "InstanceId": INSTANCE_ID_1},
+                    {"CommandId": COMMAND_ID, "InstanceId": INSTANCE_ID_2},
+                ]
+            }
+        )
         return mock_client
 
     return _setup
@@ -59,11 +61,29 @@ class TestSsmRunCommandTrigger:
         assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
         assert kwargs.get("command_id") == COMMAND_ID
 
+    def test_serialization_with_region(self):
+        """Test that region_name and other AWS parameters are properly serialized."""
+        trigger = SsmRunCommandTrigger(
+            command_id=COMMAND_ID,
+            region_name="us-east-1",
+            aws_conn_id="test_conn",
+            verify=True,
+            botocore_config={"retries": {"max_attempts": 3}},
+        )
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
+        assert kwargs.get("command_id") == COMMAND_ID
+        assert kwargs.get("region_name") == "us-east-1"
+        assert kwargs.get("aws_conn_id") == "test_conn"
+        assert kwargs.get("verify") is True
+        assert kwargs.get("botocore_config") == {"retries": {"max_attempts": 3}}
+
     @pytest.mark.asyncio
-    @mock.patch.object(SsmHook, "async_conn")
+    @mock.patch.object(SsmHook, "get_async_conn")
     @mock.patch.object(SsmHook, "get_waiter")
-    async def test_run_success(self, mock_get_waiter, mock_async_conn, mock_ssm_list_invocations):
-        mock_client = mock_ssm_list_invocations(mock_async_conn)
+    async def test_run_success(self, mock_get_waiter, mock_get_async_conn, mock_ssm_list_invocations):
+        mock_client = mock_ssm_list_invocations(mock_get_async_conn)
         mock_get_waiter().wait = mock.AsyncMock(name="wait")
 
         trigger = SsmRunCommandTrigger(command_id=COMMAND_ID)
@@ -82,10 +102,10 @@ class TestSsmRunCommandTrigger:
         mock_client.list_command_invocations.assert_called_once_with(CommandId=COMMAND_ID)
 
     @pytest.mark.asyncio
-    @mock.patch.object(SsmHook, "async_conn")
+    @mock.patch.object(SsmHook, "get_async_conn")
     @mock.patch.object(SsmHook, "get_waiter")
-    async def test_run_fails(self, mock_get_waiter, mock_async_conn, mock_ssm_list_invocations):
-        mock_ssm_list_invocations(mock_async_conn)
+    async def test_run_fails(self, mock_get_waiter, mock_get_async_conn, mock_ssm_list_invocations):
+        mock_ssm_list_invocations(mock_get_async_conn)
         mock_get_waiter().wait.side_effect = WaiterError(
             "name", "terminal failure", {"CommandInvocations": [{"CommandId": COMMAND_ID}]}
         )

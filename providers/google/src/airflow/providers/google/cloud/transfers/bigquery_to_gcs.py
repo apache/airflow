@@ -26,7 +26,7 @@ from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
@@ -37,7 +37,7 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):
@@ -215,8 +215,9 @@ class BigQueryToGCSOperator(BaseOperator):
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            logical_date=context["logical_date"],
+            logical_date=None,
             configuration=configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
             force_rerun=self.force_rerun,
         )
 

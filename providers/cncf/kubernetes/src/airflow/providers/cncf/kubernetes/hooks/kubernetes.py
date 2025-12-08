@@ -23,11 +23,10 @@ import tempfile
 from collections.abc import Generator
 from functools import cached_property
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import aiofiles
 import requests
-import tenacity
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
@@ -35,21 +34,20 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
-from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodOperatorHookProtocol,
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
+from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.cncf.kubernetes.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import V1Job, V1Pod
+    from kubernetes.client.models import CoreV1EventList, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -67,6 +65,36 @@ def _load_body_to_dict(body: str) -> dict:
     except yaml.YAMLError as e:
         raise AirflowException(f"Exception when loading resource definition: {e}\n")
     return body_dict
+
+
+class PodOperatorHookProtocol(Protocol):
+    """
+    Protocol to define methods relied upon by KubernetesPodOperator.
+
+    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
+    hooks that don't extend KubernetesHook.  We use this protocol to document the
+    methods used by KPO and ensure that these methods exist on such other hooks.
+    """
+
+    @property
+    def core_v1_client(self) -> client.CoreV1Api:
+        """Get authenticated client object."""
+
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
+
+    def get_namespace(self) -> str | None:
+        """Return the namespace that defined in the connection."""
+
+    def get_xcom_sidecar_container_image(self) -> str | None:
+        """Return the xcom sidecar image that defined in the connection."""
+
+    def get_xcom_sidecar_container_resources(self) -> str | None:
+        """Return the xcom sidecar resources that defined in the connection."""
 
 
 class KubernetesHook(BaseHook, PodOperatorHookProtocol):
@@ -360,6 +388,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self.log.debug("Response: %s", response)
         return response
 
+    @generic_api_retry
     def get_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None
     ):
@@ -382,6 +411,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
         return response
 
+    @generic_api_retry
     def delete_custom_object(
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None, **kwargs
     ):
@@ -510,12 +540,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             name=name, namespace=namespace, pretty=True, **kwargs
         )
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_random_exponential(),
-        reraise=True,
-        retry=tenacity.retry_if_exception(should_retry_creation),
-    )
+    @generic_api_retry
     def create_job(
         self,
         job: V1Job,
@@ -542,6 +567,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             raise e
         return resp
 
+    @generic_api_retry
     def get_job(self, job_name: str, namespace: str) -> V1Job:
         """
         Get Job of specified name and namespace.
@@ -552,6 +578,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
+    @generic_api_retry
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
         """
         Get job with status of specified name and namespace.
@@ -581,6 +608,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", job_name, job_poll_interval)
             sleep(job_poll_interval)
 
+    @generic_api_retry
     def list_jobs_all_namespaces(self) -> V1JobList:
         """
         Get list of Jobs from all namespaces.
@@ -589,6 +617,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
 
+    @generic_api_retry
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
         """
         Get list of Jobs from dedicated namespace.
@@ -644,6 +673,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return bool(next((c for c in conditions if c.type == "Complete" and c.status), None))
         return False
 
+    @generic_api_retry
     def patch_namespaced_job(self, job_name: str, namespace: str, body: object) -> V1Job:
         """
         Update the specified Job.
@@ -692,8 +722,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             try:
                 deployment = self.get_deployment_status(name=name, namespace=namespace)
             except Exception as e:
-                self.log.exception("Exception occurred while checking for Deployment status.")
-                raise e
+                msg = "Exception occurred while checking for Deployment status."
+                self.log.exception(msg)
+                raise ValueError(msg) from e
 
             deployment_status = V1Deployment.to_dict(deployment)["status"]
             replicas = deployment_status["replicas"]
@@ -800,6 +831,13 @@ class AsyncKubernetesHook(KubernetesHook):
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
+                if isinstance(kubeconfig, dict):
+                    self.log.debug(
+                        LOADING_KUBE_CONFIG_FILE_RESOURCE.format(
+                            "connection kube_config dictionary (serializing)"
+                        )
+                    )
+                    kubeconfig = json.dumps(kubeconfig)
                 await temp_config.write(kubeconfig.encode())
                 await temp_config.flush()
                 self._is_in_cluster = False
@@ -841,6 +879,7 @@ class AsyncKubernetesHook(KubernetesHook):
             if kube_client is not None:
                 await kube_client.close()
 
+    @generic_api_retry
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
         """
         Get pod's object.
@@ -849,13 +888,19 @@ class AsyncKubernetesHook(KubernetesHook):
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
-            v1_api = async_client.CoreV1Api(connection)
-            pod: V1Pod = await v1_api.read_namespaced_pod(
-                name=name,
-                namespace=namespace,
-            )
-        return pod
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                pod: V1Pod = await v1_api.read_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                )
+                return pod
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
 
+    @generic_api_retry
     async def delete_pod(self, name: str, namespace: str):
         """
         Delete pod's object.
@@ -874,7 +919,10 @@ class AsyncKubernetesHook(KubernetesHook):
                 if str(e.status) != "404":
                     raise
 
-    async def read_logs(self, name: str, namespace: str):
+    @generic_api_retry
+    async def read_logs(
+        self, name: str, namespace: str, container_name: str | None = None, since_seconds: int | None = None
+    ) -> list[str]:
         """
         Read logs inside the pod while starting containers inside.
 
@@ -885,6 +933,8 @@ class AsyncKubernetesHook(KubernetesHook):
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
+        :param container_name: Name of the container inside the pod.
+        :param since_seconds: Only return logs newer than a relative duration in seconds.
         """
         async with self.get_conn() as connection:
             try:
@@ -892,17 +942,33 @@ class AsyncKubernetesHook(KubernetesHook):
                 logs = await v1_api.read_namespaced_pod_log(
                     name=name,
                     namespace=namespace,
+                    container=container_name,
                     follow=False,
                     timestamps=True,
+                    since_seconds=since_seconds,
                 )
                 logs = logs.splitlines()
-                for line in logs:
-                    self.log.info("Container logs from %s", line)
                 return logs
-            except HTTPError:
-                self.log.exception("There was an error reading the kubernetes API.")
-                raise
+            except HTTPError as e:
+                raise KubernetesApiError from e
 
+    @generic_api_retry
+    async def get_pod_events(self, name: str, namespace: str) -> CoreV1EventList:
+        """Get pod's events."""
+        async with self.get_conn() as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                events: CoreV1EventList = await v1_api.list_namespaced_event(
+                    field_selector=f"involvedObject.name={name}",
+                    namespace=namespace,
+                )
+                return events
+            except HTTPError as e:
+                if hasattr(e, "status") and e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise KubernetesApiError from e
+
+    @generic_api_retry
     async def get_job_status(self, name: str, namespace: str) -> V1Job:
         """
         Get job's status object.

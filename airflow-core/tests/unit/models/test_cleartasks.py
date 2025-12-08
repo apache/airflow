@@ -153,7 +153,7 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ("state", "last_scheduling"), [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """
@@ -243,7 +243,7 @@ class TestClearTasks:
         assert dr.last_scheduling_decision == DEFAULT_DATE
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"],
+        ("state", "last_scheduling"),
         [
             (DagRunState.SUCCESS, None),
             (DagRunState.SUCCESS, DEFAULT_DATE),
@@ -276,6 +276,7 @@ class TestClearTasks:
         ti1.state = TaskInstanceState.SUCCESS
         session = dag_maker.session
         session.flush()
+        original_queued_at = dr.queued_at
 
         # we use order_by(task_id) here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
@@ -290,6 +291,10 @@ class TestClearTasks:
         assert dr.state == DagRunState.QUEUED
         assert dr.start_date is None
         assert dr.last_scheduling_decision is None
+
+        # The initial finished run has queued_at=None, clearing should populate it.
+        assert original_queued_at is None
+        assert dr.queued_at is not None
 
     @pytest.mark.parametrize("delete_tasks", [True, False])
     def test_clear_task_instances_maybe_task_removed(self, delete_tasks, dag_maker, session):
@@ -491,7 +496,7 @@ class TestClearTasks:
             assert count_task_reschedule(ti1) == 1
 
     @pytest.mark.parametrize(
-        ["state", "state_recorded"],
+        ("state", "state_recorded"),
         [
             (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
             (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
@@ -633,11 +638,11 @@ class TestClearTasks:
             assert ti.max_tries == 1
 
         # test dry_run
-        for i in range(num_of_dags):
+        for i, dag in enumerate(dags):
             ti = _get_ti(tis[i])
             ti.try_number += 1
             session.commit()
-            ti.refresh_from_task(tis[i].task)
+            ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
             assert ti.state == State.SUCCESS
             assert ti.try_number == 2
@@ -659,8 +664,8 @@ class TestClearTasks:
 
         SerializedDAG.clear_dags(dags, only_failed=True)
 
-        for ti in tis:
-            ti = _get_ti(ti)
+        for ti_in in tis:
+            ti = _get_ti(ti_in)
             if ti.dag_id == ti_fail.dag_id:
                 assert ti.state == State.NONE
                 assert ti.try_number == 2

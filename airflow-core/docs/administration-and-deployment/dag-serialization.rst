@@ -153,7 +153,7 @@ Serialized Dags now include a ``client_defaults`` section that contains common d
 .. code-block:: json
 
     {
-      "__version": 2,
+      "__version": 3,
       "client_defaults": {
         "tasks": {
           "retry_delay": 300.0,

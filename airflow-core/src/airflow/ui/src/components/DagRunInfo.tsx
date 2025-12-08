@@ -42,7 +42,7 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
         <VStack align="left" gap={0}>
           {state === undefined ? undefined : (
             <Text>
-              {translate("state")}: {state}
+              {translate("state")}: {translate(`common:states.${state}`)}
             </Text>
           )}
           {Boolean(logicalDate) ? (
@@ -70,7 +70,9 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
     >
       <Box>
         <Time datetime={runAfter} mr={2} showTooltip={false} />
-        {state === undefined ? undefined : <StateBadge state={state} />}
+        {state === undefined ? undefined : (
+          <StateBadge aria-label={state} data-testid="state-badge" state={state} />
+        )}
       </Box>
     </Tooltip>
   );

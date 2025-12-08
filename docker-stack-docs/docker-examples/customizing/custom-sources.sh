@@ -33,7 +33,7 @@ docker build . -f Dockerfile \
     --pull \
     --platform 'linux/amd64' \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.12.11" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.12.12" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack,odbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS=" \

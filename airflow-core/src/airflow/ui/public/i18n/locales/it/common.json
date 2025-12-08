@@ -36,36 +36,36 @@
   "createdAssetEvent_one": "Evento Asset Creato",
   "createdAssetEvent_other": "Eventi Asset Creati",
   "createdAssetEvent_zero": "Nessun evento asset creato",
-  "dag_many": "DAGs",
-  "dag_one": "DAG",
-  "dag_other": "DAGs",
-  "dag_zero": "Nessun DAG",
+  "dag_many": "Dags",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dag_zero": "Nessun Dag",
   "dagDetails": {
     "catchup": "Catchup",
-    "dagRunTimeout": "Timeout del Run del DAG",
+    "dagRunTimeout": "Timeout del Run del Dag",
     "defaultArgs": "Argomenti di Default",
     "description": "Descrizione",
-    "documentation": "Documentazione del DAG",
+    "documentation": "Documentazione del Dag",
     "fileLocation": "Percorso del File",
     "hasTaskConcurrencyLimits": "Ha Limiti di Concorrenza dei Task",
     "lastExpired": "Ultimo Scaduto",
     "lastParseDuration": "Durata dell'ultimo parsing",
     "lastParsed": "Ultimo Parsed",
-    "latestDagVersion": "Ultima Versione del DAG",
-    "latestRun": "Ultimo Run del DAG",
+    "latestDagVersion": "Ultima Versione del Dag",
+    "latestRun": "Ultimo Run del Dag",
     "maxActiveRuns": "Numero massimo di Runs attive",
     "maxActiveTasks": "Numero massimo di Tasks attive",
-    "maxConsecutiveFailedDagRuns": "Numero massimo di Runs falliti consecutivi del DAG",
+    "maxConsecutiveFailedDagRuns": "Numero massimo di Runs falliti consecutivi del Dag",
     "nextRun": "Prossimo Run",
     "owner": "Proprietario",
     "params": "Parametri",
     "schedule": "Programmazione",
-    "tags": "Tag"
+    "tags": "Etichette"
   },
-  "dagId": "ID del DAG",
+  "dagId": "ID del Dag",
   "dagRun": {
     "conf": "Conf",
-    "dagVersions": "Versioni del DAG",
+    "dagVersions": "Versioni del Dag",
     "dataIntervalEnd": "Data Intervallo Fine",
     "dataIntervalStart": "Data Intervallo Inizio",
     "lastSchedulingDecision": "Ultima Decisione di Programmazione",
@@ -76,12 +76,12 @@
     "triggeredBy": "Triggered da",
     "triggeringUser": "Nome Utente che ha Attivato"
   },
-  "dagRun_many": "Run del DAG",
-  "dagRun_one": "Run del DAG",
-  "dagRun_other": "Run del DAG",
-  "dagRun_zero": "Nessun run del DAG",
-  "dagRunId": "ID del Run del DAG",
-  "dagWarnings": "Avvisi/Errori del DAG",
+  "dagRun_many": "Run del Dag",
+  "dagRun_one": "Run del Dag",
+  "dagRun_other": "Run del Dag",
+  "dagRun_zero": "Nessun run del Dag",
+  "dagRunId": "ID del Run del Dag",
+  "dagWarnings": "Avvisi/Errori del Dag",
   "defaultToGraphView": "Default to vista grafica",
   "defaultToGridView": "Default to vista griglia",
   "direction": "Direzione",
@@ -89,6 +89,11 @@
     "documentation": "Documentazione",
     "githubRepo": "Repository GitHub",
     "restApiReference": "Riferimento API REST"
+  },
+  "download": {
+    "download": "Scarica",
+    "hotkey": "d",
+    "tooltip": "Premi {{hotkey}} per scaricare i log"
   },
   "duration": "Durata",
   "endDate": "Data di Fine",
@@ -113,6 +118,8 @@
   },
   "filter": "Filtro",
   "filters": {
+    "durationFrom": "Durata da",
+    "durationTo": "Durata a",
     "logicalDateFrom": "Data Logica Da",
     "logicalDateTo": "Data Logica A",
     "runAfterFrom": "Esegui Dopo Da",
@@ -134,7 +141,7 @@
     "admin": "Amministrazione",
     "assets": "Asset",
     "browse": "Sfoglia",
-    "dags": "DAG",
+    "dags": "Dag",
     "docs": "Documentazione",
     "home": "Home",
     "legacyFabViews": "Legacy View",
@@ -144,7 +151,7 @@
   "noItemsFound": "Nessun {{modelName}} trovato",
   "note": {
     "add": "Aggiungi una nota",
-    "dagRun": "Nota del Run del DAG",
+    "dagRun": "Nota del Run del Dag",
     "label": "Note",
     "placeholder": "Aggiungi una nota...",
     "taskInstance": "Nota dell'Istanza di Task"
@@ -175,7 +182,6 @@
     },
     "tooltip": "Premi {{hotkey}} per scorrere a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Azioni",
     "permissions": "Permessi",
@@ -216,7 +222,7 @@
   "table": {
     "completedAt": "Completato il",
     "createdAt": "Creato il",
-    "filterByTag": "Filtra DAG per tag",
+    "filterByTag": "Filtra Dag per etichetta",
     "filterColumns": "Filtra le colonne della tabella",
     "filterReset_many": "Resetta filtri",
     "filterReset_one": "Resetta filtro",
@@ -224,12 +230,12 @@
     "filterReset_zero": "Nessun filtro da resettare",
     "from": "Da",
     "maxActiveRuns": "Numero massimo di Runs attive",
-    "noTagsFound": "Nessun tag trovato",
+    "noTagsFound": "Nessuna etichetta trovata",
     "tagMode": {
       "all": "Tutti",
       "any": "Qualunque"
     },
-    "tagPlaceholder": "Filtra per tag",
+    "tagPlaceholder": "Filtra per etichetta",
     "to": "A"
   },
   "task": {
@@ -245,7 +251,7 @@
   "taskGroup": "Gruppo di Task",
   "taskId": "ID del Task",
   "taskInstance": {
-    "dagVersion": "Versione del DAG",
+    "dagVersion": "Versione del Dag",
     "executor": "Executor",
     "executorConfig": "Configurazione dell'Executor",
     "hostname": "Nome delHost",

@@ -36,6 +36,7 @@ import { useNavigate } from "react-router-dom";
 
 import type { TaskInstanceResponse, GridRunsResponse } from "openapi/requests/types.gen";
 import { getComputedCSSVariableValue } from "src/theme";
+import { DEFAULT_DATETIME_FORMAT, renderDuration } from "src/utils/datetimeUtils";
 
 ChartJS.register(
   CategoryScale,
@@ -56,7 +57,16 @@ const average = (ctx: PartialEventContext, index: number) => {
 
 type RunResponse = GridRunsResponse | TaskInstanceResponse;
 
-const getDuration = (start: string, end: string | null) => dayjs.duration(dayjs(end).diff(start)).asSeconds();
+const getDuration = (start: string, end: string | null) => {
+  const startDate = dayjs(start);
+  const endDate = end === null ? dayjs() : dayjs(end);
+
+  if (!startDate.isValid() || !endDate.isValid()) {
+    return 0;
+  }
+
+  return dayjs.duration(endDate.diff(startDate)).asSeconds();
+};
 
 export const DurationChart = ({
   entries,
@@ -93,7 +103,7 @@ export const DurationChart = ({
     borderColor: "grey",
     borderWidth: 1,
     label: {
-      content: (ctx: PartialEventContext) => average(ctx, 1).toFixed(2),
+      content: (ctx: PartialEventContext) => renderDuration(average(ctx, 1), false) ?? "0",
       display: true,
       position: "end",
     },
@@ -105,7 +115,7 @@ export const DurationChart = ({
     borderColor: "grey",
     borderWidth: 1,
     label: {
-      content: (ctx: PartialEventContext) => average(ctx, 0).toFixed(2),
+      content: (ctx: PartialEventContext) => renderDuration(average(ctx, 0), false) ?? "0",
       display: true,
       position: "end",
     },
@@ -160,7 +170,7 @@ export const DurationChart = ({
               label: translate("durationChart.runDuration"),
             },
           ],
-          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format("YYYY-MM-DD, hh:mm:ss")),
+          labels: entries.map((entry: RunResponse) => dayjs(entry.run_after).format(DEFAULT_DATETIME_FORMAT)),
         }}
         datasetIdKey="id"
         options={{
@@ -199,6 +209,17 @@ export const DurationChart = ({
                 runAnnotation,
               },
             },
+            tooltip: {
+              callbacks: {
+                label: (context) => {
+                  const datasetLabel = context.dataset.label ?? "";
+
+                  const formatted = renderDuration(context.parsed.y, false) ?? "0";
+
+                  return datasetLabel ? `${datasetLabel}: ${formatted}` : formatted;
+                },
+              },
+            },
           },
           responsive: true,
           scales: {
@@ -210,6 +231,13 @@ export const DurationChart = ({
               title: { align: "end", display: true, text: translate("common:dagRun.runAfter") },
             },
             y: {
+              ticks: {
+                callback: (value) => {
+                  const num = typeof value === "number" ? value : Number(value);
+
+                  return renderDuration(num, false) ?? "0";
+                },
+              },
               title: { align: "end", display: true, text: translate("common:duration") },
             },
           },

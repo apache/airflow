@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "tabulate>=0.9.0",
 # ]
@@ -26,10 +26,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from tabulate import tabulate
-
-AIRFLOW_SOURCES = Path(__file__).resolve().parents[3]
-
 
 HEADERS = (
     "Version",
@@ -41,7 +39,7 @@ HEADERS = (
 )
 
 SUPPORTED_VERSIONS = (
-    ("3", "3.0.6", "Supported", "Apr 22, 2025", "TBD", "TBD"),
+    ("3", "3.1.3", "Supported", "Apr 22, 2025", "TBD", "TBD"),
     ("2", "2.11.0", "Supported", "Dec 17, 2020", "Oct 22, 2025", "Apr 22, 2026"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),
@@ -59,7 +57,7 @@ def replace_text_between(file: Path, start: str, end: str, replacement_text: str
 
 if __name__ == "__main__":
     replace_text_between(
-        file=AIRFLOW_SOURCES / "README.md",
+        file=AIRFLOW_ROOT_PATH / "README.md",
         start="<!-- Beginning of auto-generated table -->\n",
         end="<!-- End of auto-generated table -->\n",
         replacement_text="\n"
@@ -69,7 +67,7 @@ if __name__ == "__main__":
         + "\n\n",
     )
     replace_text_between(
-        file=AIRFLOW_SOURCES / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
+        file=AIRFLOW_ROOT_PATH / "airflow-core" / "docs" / "installation" / "supported-versions.rst",
         start=" .. Beginning of auto-generated table\n",
         end=" .. End of auto-generated table\n",
         replacement_text="\n"
