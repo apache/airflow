@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-07T17:12:16.718462
+# This constraints file was automatically generated on 2025-12-08T10:05:32.612622
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -192,7 +192,7 @@ apache-airflow-providers-ydb==2.3.0
 apache-airflow-providers-zendesk==4.11.0
 apache-beam==2.69.0
 apispec==6.9.0
-apprise==1.9.5
+apprise==1.9.6
 argcomplete==3.6.3
 asana==5.2.2
 asgiref==3.11.0
@@ -239,7 +239,7 @@ beartype==0.21.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.0
-black==25.11.0
+black==25.12.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.41.5

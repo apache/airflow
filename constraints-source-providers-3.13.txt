@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-07T17:08:46.055991
+# This constraints file was automatically generated on 2025-12-08T10:01:41.262729
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -69,7 +69,7 @@ amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.12.0
-apprise==1.9.5
+apprise==1.9.6
 argcomplete==3.6.3
 arro3-core==0.6.5
 asana==5.2.2
@@ -118,7 +118,7 @@ bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
 bitarray==3.8.0
-black==25.11.0
+black==25.12.0
 bleach==6.3.0
 blinker==1.9.0
 boto3==1.41.5
@@ -446,7 +446,7 @@ polars==1.35.2
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.0
-prek==0.2.19
+prek==0.2.20
 presto-python-client==0.8.4
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
