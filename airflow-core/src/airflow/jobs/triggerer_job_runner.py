@@ -650,7 +650,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         render_log_fname = log_filename_template_renderer()
 
         known_trigger_ids = (
-            self.running_triggers.union({x[0] for x in self.events})
+            self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
             .union(trigger[0] for trigger in self.failed_triggers)
             .union(trigger.id for trigger in self.creating_triggers)
