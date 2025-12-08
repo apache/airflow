@@ -20,8 +20,12 @@ from __future__ import annotations
 import json
 from typing import Annotated
 
+from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
@@ -30,16 +34,6 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerRegistrationReturn,
     WorkerSetStateReturn,
     WorkerStateBody,
-)
-from airflow.providers.edge3.worker_api.routes._v2_compat import (
-    AirflowRouter,
-    Body,
-    Depends,
-    HTTPException,
-    Path,
-    SessionDep,
-    create_openapi_http_exception_doc,
-    status,
 )
 
 worker_router = AirflowRouter(

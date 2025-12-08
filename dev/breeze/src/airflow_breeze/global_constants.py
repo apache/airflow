@@ -736,7 +736,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging fab git keycloak",
+        "remove-providers": "common.messaging edge3 fab git keycloak",
         "run-unit-tests": "true",
     },
     {
