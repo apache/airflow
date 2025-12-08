@@ -66,7 +66,7 @@ def dry_run_preview(preview_func: Callable[..., None]) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs) -> Any:
             # Extract dry_run from kwargs (default to False if not provided)
-            dry_run = kwargs.pop("dry_run", False)
+            dry_run = kwargs.pop("_dry_run", False)
 
             if dry_run:
                 # Pass args and remaining kwargs to preview function

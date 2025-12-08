@@ -52,7 +52,7 @@ def create_scopes_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_scopes(client, client_uuid, dry_run=args.dry_run)
+    _create_scopes(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
@@ -63,7 +63,7 @@ def create_resources_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_resources(client, client_uuid, dry_run=args.dry_run)
+    _create_resources(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
@@ -74,7 +74,7 @@ def create_permissions_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_permissions(client, client_uuid, dry_run=args.dry_run)
+    _create_permissions(client, client_uuid, _dry_run=args.dry_run)
 
 
 @cli_utils.action_cli
@@ -85,9 +85,9 @@ def create_all_command(args):
     client = _get_client(args)
     client_uuid = _get_client_uuid(args)
 
-    _create_scopes(client, client_uuid, dry_run=args.dry_run)
-    _create_resources(client, client_uuid, dry_run=args.dry_run)
-    _create_permissions(client, client_uuid, dry_run=args.dry_run)
+    _create_scopes(client, client_uuid, _dry_run=args.dry_run)
+    _create_resources(client, client_uuid, _dry_run=args.dry_run)
+    _create_permissions(client, client_uuid, _dry_run=args.dry_run)
 
 
 def _get_client(args):
@@ -124,7 +124,7 @@ def _get_scopes_to_create() -> list[dict]:
     return scopes
 
 
-def _preview_scopes(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _preview_scopes(*args, **kwargs):
     """Preview scopes that would be created."""
     scopes = _get_scopes_to_create()
     print("Scopes to be created:")
@@ -134,7 +134,7 @@ def _preview_scopes(client: KeycloakAdmin, client_uuid: str, **kwargs):
 
 
 @dry_run_preview(_preview_scopes)
-def _create_scopes(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _create_scopes(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False):
     """Create Keycloak scopes."""
     scopes = _get_scopes_to_create()
 
@@ -171,7 +171,7 @@ def _get_resources_to_create(
     return standard_resources, menu_resources
 
 
-def _preview_resources(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _preview_resources(client: KeycloakAdmin, client_uuid: str):
     """Preview resources that would be created."""
     standard_resources, menu_resources = _get_resources_to_create(client, client_uuid)
 
@@ -188,7 +188,7 @@ def _preview_resources(client: KeycloakAdmin, client_uuid: str, **kwargs):
 
 
 @dry_run_preview(_preview_resources)
-def _create_resources(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _create_resources(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False):
     """Create Keycloak resources."""
     standard_resources, menu_resources = _get_resources_to_create(client, client_uuid)
 
@@ -274,7 +274,7 @@ def _get_permissions_to_create(client: KeycloakAdmin, client_uuid: str) -> list[
     return result
 
 
-def _preview_permissions(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _preview_permissions(client: KeycloakAdmin, client_uuid: str):
     """Preview permissions that would be created."""
     permissions = _get_permissions_to_create(client, client_uuid)
 
@@ -290,7 +290,7 @@ def _preview_permissions(client: KeycloakAdmin, client_uuid: str, **kwargs):
 
 
 @dry_run_preview(_preview_permissions)
-def _create_permissions(client: KeycloakAdmin, client_uuid: str, **kwargs):
+def _create_permissions(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False):
     """Create Keycloak permissions."""
     permissions = _get_permissions_to_create(client, client_uuid)
 
