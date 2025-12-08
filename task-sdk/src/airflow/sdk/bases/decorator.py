@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, T
 import attr
 import typing_extensions
 
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_2_PLUS
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.bases.operator import (
     BaseOperator,
@@ -243,6 +242,9 @@ class DecoratedOperator(BaseOperator):
         self.op_args = op_args
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
+
+    def is_async(self):
+        return is_async_callable(self.python_callable)
 
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
@@ -682,33 +684,15 @@ def task_decorator_factory(
     Other kwargs are directly forwarded to the underlying operator class when
     it's instantiated.
     """
-
-    def decorator_factory(_python_callable):
-        if AIRFLOW_V_3_2_PLUS:
-            from airflow.sdk.bases.operator import BaseAsyncOperator
-
-            if is_async_callable(_python_callable) and not issubclass(
-                decorated_operator_class, BaseAsyncOperator
-            ):
-                from airflow.providers.standard.decorators.python import _PythonDecoratedAsyncOperator
-
-                return _TaskDecorator(
-                    function=_python_callable,
-                    multiple_outputs=multiple_outputs,
-                    operator_class=_PythonDecoratedAsyncOperator,
-                    kwargs=kwargs,
-                )
-        return _TaskDecorator(
-            function=_python_callable,
+    if multiple_outputs is None:
+        multiple_outputs = cast("bool", attr.NOTHING)
+    if python_callable:
+        decorator = _TaskDecorator(
+            function=python_callable,
             multiple_outputs=multiple_outputs,
             operator_class=decorated_operator_class,
             kwargs=kwargs,
         )
-
-    if multiple_outputs is None:
-        multiple_outputs = cast("bool", attr.NOTHING)
-    if python_callable:
-        decorator = decorator_factory(python_callable)
         return cast("TaskDecorator", decorator)
     if python_callable is not None:
         raise TypeError("No args allowed while using @task, use kwargs instead")

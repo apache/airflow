@@ -73,8 +73,6 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from typing import Literal
 
-    from pendulum.datetime import DateTime
-
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
@@ -116,7 +114,7 @@ class _PythonVersionInfo(NamedTuple):
         return cls(*_parse_version_info(result.strip()))
 
 
-class PythonOperator(BaseOperator):
+class BasePythonOperator(BaseOperator):
     """
     Executes a Python callable.
 
@@ -236,6 +234,77 @@ class PythonOperator(BaseOperator):
         create_execution_runner, asset_events = execution_preparation
         runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
+
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk.bases.decorator import is_async_callable
+    from airflow.sdk.bases.operator import BaseAsyncOperator
+
+    if TYPE_CHECKING:
+        from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
+
+    class PythonOperator(BaseAsyncOperator, BasePythonOperator):
+        @property
+        def is_async(self) -> bool:
+            return is_async_callable(self.python_callable)
+
+        def execute(self, context):
+            if self.is_async:
+                return BaseAsyncOperator.execute(self, context)
+            return BasePythonOperator.execute(self, context)
+
+        async def aexecute(self, context):
+            """Async version of execute(). Subclasses should implement this."""
+            context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+            self.op_kwargs = self.determine_kwargs(context)
+
+            # This needs to be lazy because subclasses may implement execute_callable
+            # by running a separate process that can't use the eager result.
+            def __prepare_execution() -> (
+                tuple[AsyncExecutionCallableRunner, OutletEventAccessorsProtocol] | None
+            ):
+                if AIRFLOW_V_3_0_PLUS:
+                    from airflow.sdk.execution_time.callback_runner import (
+                        create_async_executable_runner,
+                    )
+                    from airflow.sdk.execution_time.context import (
+                        context_get_outlet_events,
+                    )
+
+                    return create_async_executable_runner, context_get_outlet_events(
+                        context
+                    )
+                from airflow.utils.context import context_get_outlet_events  # type: ignore
+                from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
+
+                return AsyncExecutionCallableRunner, context_get_outlet_events(context)
+
+            self.__prepare_execution = __prepare_execution
+
+            return_value = await self.aexecute_callable()
+            if self.show_return_value_in_logs:
+                self.log.info("Done. Returned value was: %s", return_value)
+            else:
+                self.log.info("Done. Returned value not shown")
+
+            return return_value
+
+        async def aexecute_callable(self) -> Any:
+            """
+            Call the python callable with the given arguments.
+
+            :return: the return value of the call.
+            """
+            if (execution_preparation := self.__prepare_execution()) is None:
+                return await self.python_callable(*self.op_args, **self.op_kwargs)
+            create_execution_runner, asset_events = execution_preparation
+            runner = create_execution_runner(
+                self.python_callable, asset_events, logger=self.log
+            )
+            return await runner.run(*self.op_args, **self.op_kwargs)
+else:
+    class PythonOperator(BasePythonOperator):
+        pass
 
 
 class BranchPythonOperator(BaseBranchOperator, PythonOperator):

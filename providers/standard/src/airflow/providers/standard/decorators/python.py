@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.sdk import DecoratedOperator, task_decorator_factory
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import TaskDecorator
@@ -58,46 +57,6 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
             op_kwargs=op_kwargs,
             **kwargs,
         )
-
-
-if AIRFLOW_V_3_2_PLUS:
-    from airflow.providers.standard.operators.python import PythonAsyncOperator
-
-    class _PythonDecoratedAsyncOperator(DecoratedOperator, PythonAsyncOperator):
-        """
-        Wraps a Python callable and captures args/kwargs when called for execution.
-
-        :param python_callable: A reference to an object that is callable
-        :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-            in your function (templated)
-        :param op_args: a list of positional arguments that will get unpacked when
-            calling your callable (templated)
-        :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
-            multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-        """
-
-        template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
-        template_fields_renderers = {
-            "templates_dict": "json",
-            "op_args": "py",
-            "op_kwargs": "py",
-        }
-
-        custom_operator_name: str = "@task"
-
-        def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
-            kwargs_to_upstream = {
-                "python_callable": python_callable,
-                "op_args": op_args,
-                "op_kwargs": op_kwargs,
-            }
-            super().__init__(
-                kwargs_to_upstream=kwargs_to_upstream,
-                python_callable=python_callable,
-                op_args=op_args,
-                op_kwargs=op_kwargs,
-                **kwargs,
-            )
 
 
 def python_task(
