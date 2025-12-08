@@ -264,6 +264,7 @@ class KubernetesPodOperator(BaseOperator):
     KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
+    BASE_CONTAINER_NAME_ANNOTATION_KEY = "airflow.apache.org/base-container-name"
 
     template_fields: Sequence[str] = (
         "image",
@@ -1393,6 +1394,10 @@ class KubernetesPodOperator(BaseOperator):
                 "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
             }
         )
+        # Add base container name annotation
+        if pod.metadata.annotations is None:
+            pod.metadata.annotations = {}
+        pod.metadata.annotations[self.BASE_CONTAINER_NAME_ANNOTATION_KEY] = self.base_container_name
         pod_mutation_hook(pod)
         return pod
 
