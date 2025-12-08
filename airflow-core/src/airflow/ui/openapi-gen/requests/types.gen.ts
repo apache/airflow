@@ -269,7 +269,7 @@ export type BulkDeleteAction_ConnectionBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | ConnectionBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -281,7 +281,7 @@ export type BulkDeleteAction_PoolBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | PoolBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -293,7 +293,7 @@ export type BulkDeleteAction_VariableBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | VariableBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
