@@ -898,8 +898,7 @@ components:
         command:
           $ref: '#/components/schemas/ExecuteTask'
           title: Command
-          description: Command line to use to execute the job in Airflow 2. Task definition
-            in Airflow 3
+          description: Command line to use to execute the job in Airflow
         concurrency_slots:
           type: integer
           title: Concurrency Slots

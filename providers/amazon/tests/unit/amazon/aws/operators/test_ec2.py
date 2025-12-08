@@ -20,7 +20,6 @@ from __future__ import annotations
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
@@ -30,6 +29,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2StopInstanceOperator,
     EC2TerminateInstanceOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
