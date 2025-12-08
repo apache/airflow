@@ -49,6 +49,7 @@ __all__ = [
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
+    "Trace",
     "TriggerRule",
     "Variable",
     "WeightRule",
@@ -56,6 +57,7 @@ __all__ = [
     "asset",
     "chain",
     "chain_linear",
+    "conf",
     "cross_downstream",
     "dag",
     "get_current_context",
@@ -69,6 +71,8 @@ __all__ = [
 
 __version__ = "1.2.0"
 
+from airflow.sdk.observability.trace import Trace
+
 if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
@@ -76,6 +80,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
+    from airflow.sdk.configuration import AirflowSDKConfigParser
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher
     from airflow.sdk.definitions.asset.decorators import asset
     from airflow.sdk.definitions.asset.metadata import Metadata
@@ -102,6 +107,8 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.io.path import ObjectStoragePath
+
+    conf: AirflowSDKConfigParser
 
 __lazy_imports: dict[str, str] = {
     "Asset": ".definitions.asset",
@@ -134,6 +141,7 @@ __lazy_imports: dict[str, str] = {
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",
     "TaskInstanceState": ".api.datamodels._generated",
+    "Trace": ".observability.trace",
     "TriggerRule": ".api.datamodels._generated",
     "Variable": ".definitions.variable",
     "WeightRule": ".api.datamodels._generated",
@@ -141,6 +149,7 @@ __lazy_imports: dict[str, str] = {
     "asset": ".definitions.asset.decorators",
     "chain": ".bases.operator",
     "chain_linear": ".bases.operator",
+    "conf": ".configuration",
     "cross_downstream": ".bases.operator",
     "dag": ".definitions.dag",
     "get_current_context": ".definitions.context",
