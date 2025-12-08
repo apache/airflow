@@ -217,8 +217,9 @@ class TestAssetManager:
         assert len(asms) == 1
         assert asset_listener.created[0].uri == asset.uri == asms[0].uri
 
+    @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
-    def test_get_or_create_apdr_creates_two_independent_rows(self, session):
+    def test_get_or_create_apdr_race_condition_non_sqlite(self, session):
         dag1 = DagModel(dag_id="dag100", is_stale=False, bundle_name="testing")
         session.add(dag1)
         session.flush()
@@ -252,3 +253,38 @@ class TestAssetManager:
         assert apdr_1.created_dag_run_id is None
         assert apdr_2.created_dag_run_id is None
         assert session.query(AssetPartitionDagRun).count() == 1
+
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
+    def test_get_or_create_apdr_race_condition_sqlite(self, session):
+        dag_id = "test_dag"
+        target_key = "test_partition_key"
+        dag = DagModel(dag_id=dag_id, is_stale=False, bundle_name="testing")
+        session.add(dag)
+        session.flush()
+
+        original_apdr = AssetManager._get_or_create_apdr(
+            target_key=target_key,
+            target_dag=dag,
+            session=session,
+        )
+
+        with mock.patch.object(
+            AssetManager,
+            "_get_or_create_apdr_with_lock",
+            side_effect=[
+                OperationalError("", "", "database is locked"),
+                AssetManager._get_or_create_apdr_with_lock(
+                    target_key=target_key,
+                    target_dag=dag,
+                    session=session,
+                ),
+            ],
+        ):
+            apdr = AssetManager._get_or_create_apdr(
+                target_key=target_key,
+                target_dag=dag,
+                session=session,
+            )
+            session.commit()
+        assert original_apdr == apdr

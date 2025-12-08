@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
@@ -359,6 +360,28 @@ class AssetManager(LoggingMixin):
         target_dag: SerializedDagModel,
         session: Session,
     ) -> AssetPartitionDagRun:
+        """
+        Get or create an APDR.
+
+        If 2 processes call this method at the same time with the same (target_key, target_dag) pair,
+        both will check the database and find that there is no existing APDR.
+        Thus, they may each create an APDR, resulting in two being created instead of just one.
+        The second process should use the existing APDR instead.
+
+        For postgres and MySQL, we can use a mutex lock. For sqlite, we use retry when db lock is encountered.
+        """
+        if get_dialect_name(session) == "sqlite":
+            return cls._get_or_create_apdr_with_sqlite_retry(target_key, target_dag, session)
+        return cls._get_or_create_apdr_with_lock(target_key, target_dag, session)
+
+    @classmethod
+    def _get_or_create_apdr_with_lock(
+        cls,
+        target_key: str,
+        target_dag: SerializedDagModel,
+        session: Session,
+    ) -> AssetPartitionDagRun:
+        """Get or create an APDR with a mutex lock. (MySQL/PostgreSQL)."""
         latest_apdr: AssetPartitionDagRun | None = session.scalar(
             with_row_locks(
                 query=(
@@ -373,6 +396,7 @@ class AssetManager(LoggingMixin):
                 session=session,
             )
         )
+
         if latest_apdr and latest_apdr.created_dag_run_id is None:
             return latest_apdr
 
@@ -384,6 +408,36 @@ class AssetManager(LoggingMixin):
         session.add(apdr)
         session.flush()
         return apdr
+
+    @classmethod
+    def _get_or_create_apdr_with_sqlite_retry(
+        cls,
+        target_key: str,
+        target_dag: SerializedDagModel,
+        session: Session,
+        max_retries: int = 3,
+        retry_delay: float = 0.05,
+    ) -> AssetPartitionDagRun:
+        for _ in range(max_retries):
+            try:
+                return cls._get_or_create_apdr_with_lock(target_key, target_dag, session)
+            except exc.OperationalError as e:
+                if "database is locked" in str(e):
+                    cls.logger().error(
+                        "Another process is creating APDR for target_key=%s after %d retries. Sleep for %s second",
+                        target_key,
+                        max_retries,
+                        retry_delay,
+                        exc_info=True,
+                    )
+                    session.rollback()
+                    time.sleep(retry_delay)
+                else:
+                    raise
+
+        raise RuntimeError(
+            f"Could not get or create APDR for target_key={target_key} after {max_retries} retries"
+        )
 
     @classmethod
     def _queue_dagruns_nonpartitioned_slow_path(
