@@ -350,6 +350,14 @@ class DagBundlesManager(LoggingMixin):
                 # Skip this bundle and continue with others
                 continue
 
+    def get_all_bundle_names(self) -> Iterable[str]:
+        """
+        Get all bundle names.
+
+        :return: sorted list of bundle names.
+        """
+        return sorted(self._bundle_config.keys())
+
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(
             "The 'view_url' method is deprecated and will be removed when providers "

@@ -440,3 +440,6 @@ def test_multiple_bundles_one_fails(clear_db, session):
         manager.sync_bundles_to_db()
         bundle_names = {b.name for b in session.query(DagBundleModel).all()}
         assert bundle_names == {"my-test-bundle"}
+
+def test_get_all_bundle_names():
+    assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]

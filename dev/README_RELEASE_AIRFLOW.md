@@ -756,6 +756,7 @@ As a PMC member, you should be able to clone the SVN repository
 or update it if you already checked it out:
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow

@@ -52,7 +52,15 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.models.backfill import Backfill, _create_backfill
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
@@ -75,6 +83,7 @@ from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
 from airflow.timetables.base import DataInterval
+from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -96,7 +105,6 @@ from tests_common.test_utils.db import (
     clear_db_jobs,
     clear_db_pools,
     clear_db_runs,
-    clear_db_serialized_dags,
     clear_db_teams,
     clear_db_triggers,
     set_default_pool_slots,
@@ -181,33 +189,33 @@ def create_dagrun(session):
     return _create_dagrun
 
 
+def _clean_db():
+    clear_db_dags()
+    clear_db_runs()
+    clear_db_backfills()
+    clear_db_pools()
+    clear_db_import_errors()
+    clear_db_jobs()
+    clear_db_assets()
+    clear_db_deadline()
+    clear_db_callbacks()
+    clear_db_triggers()
+
+
 @patch.dict(
     ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
 )
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
 class TestSchedulerJob:
-    @staticmethod
-    def clean_db():
-        clear_db_dags()
-        clear_db_runs()
-        clear_db_backfills()
-        clear_db_pools()
-        clear_db_import_errors()
-        clear_db_jobs()
-        clear_db_assets()
-        clear_db_deadline()
-        clear_db_callbacks()
-        clear_db_triggers()
-
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
-        self.clean_db()
+        _clean_db()
         self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
-        self.clean_db()
+        _clean_db()
 
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self) -> Generator:
@@ -5024,7 +5032,7 @@ class TestSchedulerJob:
                 ti.state = State.SUCCESS
                 session.flush()
 
-        self.clean_db()
+        _clean_db()
 
         # Explicitly set catchup=True as test specifically expects runs to be created in date order
         with dag_maker(max_active_runs=3, session=session, catchup=True) as dag:
@@ -6371,7 +6379,7 @@ class TestSchedulerJob:
                 assert ti1.next_method == "__fail__"
                 assert ti2.state == State.DEFERRED
             finally:
-                self.clean_db()
+                _clean_db()
 
         # Positive case, will retry until success before reach max retry times
         check_if_trigger_timeout(retry_times)
@@ -7563,6 +7571,38 @@ class TestSchedulerJob:
         assert result == mock_executors[1]
 
     @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_no_explicit_executor_with_team_no_team_default(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when no explicit executor but team exists and team has no executors (should
+        fallback to the global executor)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task")  # No explicit executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the team-specific default executor set above
+        assert result == mock_executors[0]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_try_to_load_executor_explicit_executor_matches_team(
         self, dag_maker, mock_executors, session
     ):
@@ -7944,24 +7984,13 @@ class TestSchedulerJobQueriesCount:
 
     scheduler_job: Job | None
 
-    @staticmethod
-    def clean_db():
-        clear_db_runs()
-        clear_db_pools()
-        clear_db_backfills()
-        clear_db_dags()
-        clear_db_dag_bundles()
-        clear_db_import_errors()
-        clear_db_jobs()
-        clear_db_serialized_dags()
-
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
-        self.clean_db()
+        _clean_db()
 
         yield
 
-        self.clean_db()
+        _clean_db()
 
     @pytest.mark.parametrize(
         ("expected_query_count", "dag_count", "task_count"),
@@ -8140,3 +8169,61 @@ def test_mark_backfills_completed(dag_maker, session):
     runner._mark_backfills_complete()
     b = session.get(Backfill, b.id)
     assert b.completed_at.timestamp() > 0
+
+
+def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dag1_id = dag.dag_id
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="asset_event_listener",
+        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[asset.asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    event = session.scalar(
+        select(AssetEvent).where(
+            AssetEvent.source_dag_id == dag1_id,
+            AssetEvent.source_run_id == dr.run_id,
+        )
+    )
+    assert event.partition_key == "abc123"
+    pakl = session.scalar(
+        select(PartitionedAssetKeyLog).where(
+            PartitionedAssetKeyLog.asset_event_id == event.id,
+        )
+    )
+    apdr = session.scalar(
+        select(AssetPartitionDagRun).where(AssetPartitionDagRun.id == pakl.asset_partition_dag_run_id)
+    )
+    assert apdr is not None
+    assert apdr.created_dag_run_id is None
+    # ok, now we have established that the needed rows are there.
+    # let's see what the scheduler does
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type, executor=MockExecutor(do_update=False))
+    )
+    partition_dags = runner._create_dagruns_for_partitioned_asset_dags(session=session)
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is not None
+    assert len(partition_dags) == 1
+    assert partition_dags == {"asset_event_listener"}
