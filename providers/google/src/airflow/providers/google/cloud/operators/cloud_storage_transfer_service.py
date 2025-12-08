@@ -25,8 +25,8 @@ from datetime import date, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,

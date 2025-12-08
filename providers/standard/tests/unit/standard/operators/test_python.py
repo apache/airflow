@@ -41,13 +41,10 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    DeserializingResultError,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -112,7 +109,7 @@ CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 if AIRFLOW_V_3_0_1:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
 
 class BasePythonTest:
@@ -494,7 +491,7 @@ class TestBranchOperator(BasePythonTest):
 
         dr = dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)
@@ -572,7 +569,7 @@ class TestBranchOperator(BasePythonTest):
 
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 self.dag_maker.run_ti(self.task_id, dr)
@@ -617,7 +614,7 @@ class TestBranchOperator(BasePythonTest):
             task_instance = tis[task_id]
             task_instance.refresh_from_task(self.dag_maker.dag.get_task(task_id))
             if AIRFLOW_V_3_0_1:
-                from airflow.exceptions import DownstreamTasksSkipped
+                from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
                 try:
                     task_instance.run()
@@ -779,7 +776,7 @@ class TestShortCircuitOperator(BasePythonTest):
 
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             if expected_skipped_tasks:
                 with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -811,7 +808,7 @@ class TestShortCircuitOperator(BasePythonTest):
         dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 sc_ti = dr.get_task_instance(task_id=self.task_id, session=session)
@@ -881,7 +878,7 @@ class TestShortCircuitOperator(BasePythonTest):
             short_op_push_xcom >> empty_task
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped):
                 short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
@@ -2058,7 +2055,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)

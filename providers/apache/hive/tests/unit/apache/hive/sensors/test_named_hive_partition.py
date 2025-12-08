@@ -23,9 +23,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.utils.timezone import datetime
 
 from unit.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment

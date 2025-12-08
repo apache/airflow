@@ -20,8 +20,8 @@ from __future__ import annotations
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestEC2Hook:

@@ -31,13 +31,9 @@ from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig, KafkaTransport
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,

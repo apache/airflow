@@ -52,15 +52,11 @@ from dateutil.tz import tzlocal
 from slugify import slugify
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowNotFoundException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin

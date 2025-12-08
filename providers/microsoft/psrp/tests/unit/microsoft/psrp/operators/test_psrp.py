@@ -24,8 +24,7 @@ import pytest
 from jinja2.nativetypes import NativeEnvironment
 from pypsrp.powershell import Command, PowerShell
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.psrp.operators.psrp import PsrpOperator
 from airflow.settings import json
 

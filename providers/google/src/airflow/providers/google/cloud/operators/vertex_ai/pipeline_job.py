@@ -28,7 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import types
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIPipelineJobLink,
