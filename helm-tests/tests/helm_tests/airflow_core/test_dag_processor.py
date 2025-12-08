@@ -678,7 +678,7 @@ class TestDagProcessor:
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
-    def test_dags_gitsync_with_persistence_no_sidecar_or_init_container(self):
+    def test_dags_gitsync_with_persistence(self):
         docs = render_chart(
             values={
                 "dagProcessor": {"enabled": True},
@@ -687,8 +687,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        # No gitsync sidecar or init container
-        assert "git-sync" not in [
+        # The git-sync container should be present when persistence is enabled
+        # (it's the part that runs the sync for everything else), but the
+        # git-sync-init container should not be present
+        assert "git-sync" in [
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
         assert "git-sync-init" not in [
