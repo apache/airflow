@@ -33,6 +33,7 @@ from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -935,6 +936,212 @@ class TestKubernetesJobOperator:
             assert mocked_fetch_logs.call_count == parallelism
         else:
             mocked_fetch_logs.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "on_finish_action,job_failed,should_delete_job,should_cleanup_pods",
+        [
+            (OnFinishAction.DELETE_POD, False, True, False),
+            (OnFinishAction.DELETE_SUCCEEDED_POD, False, True, False),
+            (OnFinishAction.KEEP_POD, False, False, True),
+        ],
+    )
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.cleanup"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
+    @patch(f"{HOOK_CLASS}.is_job_failed")
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_finish_action_behavior_successful_jobs(
+        self,
+        mock_job_client,
+        mock_is_job_failed,
+        mock_wait_until_job_complete,
+        mock_read_pod,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
+        mock_cleanup,
+        on_finish_action,
+        job_failed,
+        should_delete_job,
+        should_cleanup_pods,
+    ):
+        """Test that on_finish_action parameter is respected for successful jobs."""
+        # Setup mocks
+        mock_ti = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = POD_NAME
+
+        mock_create_job.return_value = mock_job
+        mock_get_or_create_pod.return_value = mock_pod
+        mock_wait_until_job_complete.return_value = mock_job
+        mock_is_job_failed.return_value = job_failed  # Job is successful
+        mock_read_pod.return_value = mock_pod
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            on_finish_action=on_finish_action,
+        )
+
+        context = {"ti": mock_ti}
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op.execute(context=context)
+
+        # Verify job deletion behavior
+        if should_delete_job:
+            mock_job_client.delete_namespaced_job.assert_called_once_with(
+                name=JOB_NAME,
+                namespace=JOB_NAMESPACE,
+                propagation_policy="Foreground",
+            )
+        else:
+            mock_job_client.delete_namespaced_job.assert_not_called()
+
+        # Verify pod cleanup behavior
+        if should_cleanup_pods:
+            mock_cleanup.assert_called_once()
+        else:
+            mock_cleanup.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "on_finish_action,should_cleanup_pods",
+        [
+            (OnFinishAction.DELETE_POD, False),
+            (OnFinishAction.DELETE_SUCCEEDED_POD, True),
+            (OnFinishAction.KEEP_POD, True),
+        ],
+    )
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.cleanup"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
+    @patch(f"{HOOK_CLASS}.is_job_failed")
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_finish_action_behavior_failed_jobs(
+        self,
+        mock_job_client,
+        mock_is_job_failed,
+        mock_wait_until_job_complete,
+        mock_read_pod,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
+        mock_cleanup,
+        on_finish_action,
+        should_cleanup_pods,
+    ):
+        """Test that on_finish_action parameter is respected for failed jobs."""
+        # Setup mocks
+        mock_ti = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = POD_NAME
+
+        mock_create_job.return_value = mock_job
+        mock_get_or_create_pod.return_value = mock_pod
+        mock_wait_until_job_complete.return_value = mock_job
+        mock_is_job_failed.return_value = "Job failed"  # Job failed with error message
+        mock_read_pod.return_value = mock_pod
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            on_finish_action=on_finish_action,
+        )
+
+        context = {"ti": mock_ti}
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            with pytest.raises(AirflowException, match="Kubernetes job 'test-job' is failed"):
+                op.execute(context=context)
+
+        # For failed jobs, job deletion should only happen for DELETE_POD
+        if on_finish_action == OnFinishAction.DELETE_POD:
+            mock_job_client.delete_namespaced_job.assert_called_once_with(
+                name=JOB_NAME,
+                namespace=JOB_NAMESPACE,
+                propagation_policy="Foreground",
+            )
+        else:
+            mock_job_client.delete_namespaced_job.assert_not_called()
+
+        # Verify pod cleanup behavior for failed jobs
+        if should_cleanup_pods:
+            mock_cleanup.assert_called_once()
+        else:
+            mock_cleanup.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "on_finish_action,should_delete_job",
+        [
+            (OnFinishAction.DELETE_POD, True),
+            (OnFinishAction.DELETE_SUCCEEDED_POD, True),
+            (OnFinishAction.KEEP_POD, False),
+        ],
+    )
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.cleanup"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
+    @patch(f"{HOOK_CLASS}.is_job_failed")
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
+    def test_on_finish_action_successful_job(
+        self,
+        mock_job_client,
+        mock_is_job_failed,
+        mock_wait_until_job_complete,
+        mock_read_pod,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_or_create_pod,
+        mock_cleanup,
+        on_finish_action,
+        should_delete_job,
+    ):
+        """Test on_finish_action behavior with successful jobs."""
+        # Setup mocks
+        mock_ti = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_pod = mock.MagicMock()
+
+        mock_create_job.return_value = mock_job
+        mock_get_or_create_pod.return_value = mock_pod
+        mock_wait_until_job_complete.return_value = mock_job
+        mock_is_job_failed.return_value = False  # Job succeeded
+        mock_read_pod.return_value = mock_pod
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            on_finish_action=on_finish_action,
+        )
+
+        context = {"ti": mock_ti}
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op.execute(context=context)
+
+        # Verify job deletion behavior for successful jobs
+        if should_delete_job:
+            mock_job_client.delete_namespaced_job.assert_called_once_with(
+                name=JOB_NAME,
+                namespace=JOB_NAMESPACE,
+                propagation_policy="Foreground",
+            )
+        else:
+            mock_job_client.delete_namespaced_job.assert_not_called()
 
 
 @pytest.mark.db_test

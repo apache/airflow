@@ -42,7 +42,11 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
+    OnFinishAction,
+    PodNotFoundException,
+)
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -243,6 +247,45 @@ class KubernetesJobOperator(KubernetesPodOperator):
                         containers=self.container_logs,
                         follow_logs=True,
                     )
+
+            # Handle Job cleanup based on on_finish_action
+            if self.wait_until_job_complete and self.job:
+                should_delete_job = self.on_finish_action == OnFinishAction.DELETE_POD or (
+                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                    and not self.hook.is_job_failed(job=self.job)
+                )
+
+                if should_delete_job:
+                    self.log.info("Deleting job: %s", self.job.metadata.name)
+                    self.job_client.delete_namespaced_job(
+                        name=self.job.metadata.name,
+                        namespace=self.job.metadata.namespace,
+                        propagation_policy="Foreground",  # Ensure pods are deleted with the job
+                    )
+                else:
+                    # Only run pod cleanup if we're not deleting the job
+                    if self.pods:
+                        for pod in self.pods:
+                            # Get the latest pod status
+                            try:
+                                remote_pod = self.pod_manager.read_pod(pod)
+                                if remote_pod:
+                                    original_pod = pod
+                                    pod = remote_pod
+                            except Exception as e:
+                                self.log.warning("Failed to refresh pod status: %s", e)
+                                original_pod = pod
+                                remote_pod = pod
+
+                            # Execute cleanup logic including processing on_finish_action
+                            self.cleanup(
+                                pod=original_pod,
+                                remote_pod=remote_pod,
+                                xcom_result=xcom_result[self.pods.index(original_pod)]
+                                if self.do_xcom_push
+                                else None,
+                                context=context,
+                            )
 
         ti.xcom_push(key="job", value=self.job.to_dict())
         if self.wait_until_job_complete:
