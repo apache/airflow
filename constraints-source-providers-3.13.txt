@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-08T17:30:37.596310
+# This constraints file was automatically generated on 2025-12-08T21:27:09.384377
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -89,7 +89,7 @@ aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.36.0
-azure-cosmos==4.14.2
+azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -257,7 +257,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.53.0
+google-genai==1.54.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -375,7 +375,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.7.0
 mypy-boto3-appflow==1.42.3
-mypy-boto3-rds==1.42.3
+mypy-boto3-rds==1.42.5
 mypy-boto3-redshift-data==1.42.3
 mypy-boto3-s3==1.42.3
 mypy==1.19.0
