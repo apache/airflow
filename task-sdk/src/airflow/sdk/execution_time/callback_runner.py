@@ -168,6 +168,6 @@ def create_async_executable_runner(
 
                 results.append(result)
 
-            return cast(R, results)
+            return cast("R", results)
 
     return cast("_AsyncExecutionCallableRunner[P, R]", _AsyncExecutionCallableRunnerImpl)
