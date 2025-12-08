@@ -230,6 +230,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
