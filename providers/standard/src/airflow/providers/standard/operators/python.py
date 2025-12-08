@@ -295,9 +295,7 @@ if AIRFLOW_V_3_2_PLUS:
             if (execution_preparation := self.__prepare_execution()) is None:
                 return await self.python_callable(*self.op_args, **self.op_kwargs)
             create_execution_runner, asset_events = execution_preparation
-            runner = create_execution_runner(
-                self.python_callable, asset_events, logger=self.log
-            )
+            runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
             return await runner.run(*self.op_args, **self.op_kwargs)
 else:
 
