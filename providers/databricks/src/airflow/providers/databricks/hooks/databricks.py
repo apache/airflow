@@ -20,9 +20,9 @@ Databricks hook.
 
 This hook enable the submitting and running of jobs to the Databricks platform. Internally the
 operators talk to the
-``api/2.1/jobs/run-now``
+``api/2.2/jobs/run-now``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>_`
-or the ``api/2.1/jobs/runs/submit``
+or the ``api/2.2/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
 
@@ -42,17 +42,17 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "2.0/clusters/delete")
 
-CREATE_ENDPOINT = ("POST", "2.1/jobs/create")
-RESET_ENDPOINT = ("POST", "2.1/jobs/reset")
-UPDATE_ENDPOINT = ("POST", "2.1/jobs/update")
-RUN_NOW_ENDPOINT = ("POST", "2.1/jobs/run-now")
-SUBMIT_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/submit")
-GET_RUN_ENDPOINT = ("GET", "2.1/jobs/runs/get")
-CANCEL_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/cancel")
-DELETE_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/delete")
-REPAIR_RUN_ENDPOINT = ("POST", "2.1/jobs/runs/repair")
-OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.1/jobs/runs/get-output")
-CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.1/jobs/runs/cancel-all")
+CREATE_ENDPOINT = ("POST", "2.2/jobs/create")
+RESET_ENDPOINT = ("POST", "2.2/jobs/reset")
+UPDATE_ENDPOINT = ("POST", "2.2/jobs/update")
+RUN_NOW_ENDPOINT = ("POST", "2.2/jobs/run-now")
+SUBMIT_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/submit")
+GET_RUN_ENDPOINT = ("GET", "2.2/jobs/runs/get")
+CANCEL_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/cancel")
+DELETE_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/delete")
+REPAIR_RUN_ENDPOINT = ("POST", "2.2/jobs/runs/repair")
+OUTPUT_RUNS_JOB_ENDPOINT = ("GET", "2.2/jobs/runs/get-output")
+CANCEL_ALL_RUNS_ENDPOINT = ("POST", "2.2/jobs/runs/cancel-all")
 
 INSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "2.0/libraries/uninstall")
@@ -60,7 +60,7 @@ UPDATE_REPO_ENDPOINT = ("PATCH", "2.0/repos/")
 DELETE_REPO_ENDPOINT = ("DELETE", "2.0/repos/")
 CREATE_REPO_ENDPOINT = ("POST", "2.0/repos")
 
-LIST_JOBS_ENDPOINT = ("GET", "2.1/jobs/list")
+LIST_JOBS_ENDPOINT = ("GET", "2.2/jobs/list")
 LIST_PIPELINES_ENDPOINT = ("GET", "2.0/pipelines")
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "2.0/sql/endpoints")
 
