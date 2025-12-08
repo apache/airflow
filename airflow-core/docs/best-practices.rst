@@ -685,7 +685,8 @@ This small operator is used only for demonstrating how to test operators.
 
 
 Example 1: Testing using ``TaskInstance.run()``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 This pattern constructs a DAG, creates a ``TaskInstance`` manually,
 and runs it directly.
