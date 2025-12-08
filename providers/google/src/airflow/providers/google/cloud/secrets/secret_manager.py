@@ -23,7 +23,7 @@ from collections.abc import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,

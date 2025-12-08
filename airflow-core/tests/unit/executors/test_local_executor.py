@@ -221,8 +221,11 @@ class TestLocalExecutor:
     @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
     def test_execution_api_server_url_config(self, mock_supervise, conf_values, expected_server):
         """Test that execution_api_server_url is correctly configured with fallback"""
+        from airflow.executors.base_executor import ExecutorConf
+
         with conf_vars(conf_values):
-            _execute_work(log=mock.ANY, workload=mock.MagicMock())
+            team_conf = ExecutorConf(team_name=None)
+            _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
 
             mock_supervise.assert_called_with(
                 ti=mock.ANY,
@@ -232,3 +235,89 @@ class TestLocalExecutor:
                 server=expected_server,
                 log_path=mock.ANY,
             )
+
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
+    def test_team_and_global_config_isolation(self, mock_supervise):
+        """Test that team-specific and global executors use correct configurations side-by-side"""
+        from airflow.executors.base_executor import ExecutorConf
+
+        team_name = "ml_team"
+        team_server = "http://team-ml-server:8080/execution/"
+        default_server = "http://default-server/execution/"
+
+        # Set up global configuration
+        config_overrides = {
+            ("api", "base_url"): "http://default-server",
+            ("core", "execution_api_server_url"): default_server,
+        }
+
+        # Use environment variables for team-specific config
+        import os
+
+        team_env_key = f"AIRFLOW__{team_name.upper()}___CORE__EXECUTION_API_SERVER_URL"
+
+        with mock.patch.dict(os.environ, {team_env_key: team_server}):
+            with conf_vars(config_overrides):
+                # Test team-specific config
+                team_conf = ExecutorConf(team_name=team_name)
+                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=team_conf)
+
+                # Verify team-specific server URL was used
+                assert mock_supervise.call_count == 1
+                call_kwargs = mock_supervise.call_args[1]
+                assert call_kwargs["server"] == team_server
+
+                mock_supervise.reset_mock()
+
+                # Test global config (no team)
+                global_conf = ExecutorConf(team_name=None)
+                _execute_work(log=mock.ANY, workload=mock.MagicMock(), team_conf=global_conf)
+
+                # Verify default server URL was used
+                assert mock_supervise.call_count == 1
+                call_kwargs = mock_supervise.call_args[1]
+                assert call_kwargs["server"] == default_server
+
+    def test_multiple_team_executors_isolation(self):
+        """Test that multiple team executors can coexist with isolated resources"""
+        team_a_executor = LocalExecutor(parallelism=2, team_name="team_a")
+        team_b_executor = LocalExecutor(parallelism=3, team_name="team_b")
+
+        team_a_executor.start()
+        team_b_executor.start()
+
+        try:
+            # Verify each executor has its own queues
+            assert team_a_executor.activity_queue is not team_b_executor.activity_queue
+            assert team_a_executor.result_queue is not team_b_executor.result_queue
+
+            # Verify each executor has its own workers dict
+            assert team_a_executor.workers is not team_b_executor.workers
+            assert len(team_a_executor.workers) == 2
+            assert len(team_b_executor.workers) == 3
+
+            # Verify each executor has its own unread_messages counter
+            assert team_a_executor._unread_messages is not team_b_executor._unread_messages
+
+            # Verify each has correct team config
+            assert team_a_executor.conf.team_name == "team_a"
+            assert team_b_executor.conf.team_name == "team_b"
+
+        finally:
+            team_a_executor.end()
+            team_b_executor.end()
+
+    def test_global_executor_without_team_name(self):
+        """Test that global executor (no team) works correctly"""
+        executor = LocalExecutor(parallelism=2)
+
+        # Verify executor has conf but no team name
+        assert hasattr(executor, "conf")
+        assert executor.conf.team_name is None
+
+        executor.start()
+
+        # Verify workers were created
+        assert len(executor.workers) == 2
+
+        executor.end()

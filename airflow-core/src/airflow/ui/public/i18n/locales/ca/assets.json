@@ -1,5 +1,9 @@
 {
+  "additional_data": "Dades addicionals",
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "consumingDags": "Dags consumidors",
+  "consumingTasks": "Tasques consumidores",
   "createEvent": {
     "button": "Crear esdeveniment",
     "manual": {

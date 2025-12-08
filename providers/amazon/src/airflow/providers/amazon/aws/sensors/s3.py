@@ -31,12 +31,11 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import poke_mode_only
+from airflow.providers.common.compat.sdk import AirflowException, poke_mode_only
 
 
 class S3KeySensor(AwsBaseSensor[S3Hook]):

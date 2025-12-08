@@ -62,7 +62,12 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     }
   };
 
-  const onError = (_error: unknown) => {
+  const onError = (_error: Error) => {
+    toaster.create({
+      description: _error.message,
+      title: translate("triggerDag.toaster.error.title"),
+      type: "error",
+    });
     setError(_error);
   };
 
@@ -94,5 +99,9 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     });
   };
 
-  return { error, isPending, triggerDagRun };
+  return {
+    error,
+    isPending,
+    triggerDagRun,
+  };
 };

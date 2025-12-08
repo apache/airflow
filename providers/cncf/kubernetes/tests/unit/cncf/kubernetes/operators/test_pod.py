@@ -28,11 +28,6 @@ import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    TaskDeferred,
-)
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
@@ -44,6 +39,12 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+from airflow.providers.common.compat.sdk import (
+    XCOM_RETURN_KEY,
+    AirflowException,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -1734,7 +1735,7 @@ class TestKubernetesPodOperator:
         with pytest.raises(AirflowException):
             k.execute(context=context)
 
-        context["ti"].xcom_push.assert_called_with("return_value", {"Test key": "Test value"})
+        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, {"Test key": "Test value"})
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -2797,7 +2798,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    result = k.trigger_reentry({}, success_event)
+    context = create_context(k)
+    context["ti"].xcom_push = MagicMock()
+
+    result = k.trigger_reentry(context, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
@@ -2805,7 +2809,7 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:
         mock_extract_xcom.assert_called_once()
-        assert result == mock_extract_xcom.return_value
+        context["ti"].xcom_push.assert_called_with(XCOM_RETURN_KEY, mock_extract_xcom.return_value)
     else:
         mock_extract_xcom.assert_not_called()
         assert result is None

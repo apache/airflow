@@ -26,10 +26,9 @@ from typing import TYPE_CHECKING, Any
 from airbyte_api.models import JobStatusEnum
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

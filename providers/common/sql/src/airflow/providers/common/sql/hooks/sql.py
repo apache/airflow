@@ -34,12 +34,8 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
 from airflow.utils.module_loading import import_string

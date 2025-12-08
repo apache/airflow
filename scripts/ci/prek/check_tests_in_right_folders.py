@@ -63,6 +63,7 @@ POSSIBLE_TEST_FOLDERS = [
     "macros",
     "models",
     "notifications",
+    "observability",
     "operators",
     "otel",
     "plugins",

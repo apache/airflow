@@ -314,7 +314,7 @@ www-hash.txt
 *generated.*
 /src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
 /src/airflow/providers/edge3/plugins/www/*
-/src/airflow/providers/edge3/openapi/v2-edge-generated.yaml
+/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
 /src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v2-fab-auth-manager-generated.yaml
 /src/airflow/providers/fab/www/static/dist/*
 /any/dag_id=dag_for_testing_redis_task_handler/run_id=test/task_id=task_for_testing_redis_log_handler/attempt=1.log
