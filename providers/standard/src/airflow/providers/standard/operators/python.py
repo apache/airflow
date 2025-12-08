@@ -116,7 +116,7 @@ class _PythonVersionInfo(NamedTuple):
 
 class BasePythonOperator(BaseOperator):
     """
-    Executes a Python callable.
+    Base class for all Python operators.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -244,6 +244,8 @@ if AIRFLOW_V_3_2_PLUS:
         from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
 
     class PythonOperator(BaseAsyncOperator, BasePythonOperator):
+        """Executes a Python callable."""
+
         @property
         def is_async(self) -> bool:
             return is_async_callable(self.python_callable)
@@ -296,7 +298,10 @@ if AIRFLOW_V_3_2_PLUS:
             )
             return await runner.run(*self.op_args, **self.op_kwargs)
 else:
+
     class PythonOperator(BasePythonOperator):
+        """Executes a Python callable."""
+
         pass
 
 
