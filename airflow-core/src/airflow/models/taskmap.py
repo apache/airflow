@@ -36,9 +36,9 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 
