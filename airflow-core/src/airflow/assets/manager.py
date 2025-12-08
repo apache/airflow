@@ -40,7 +40,7 @@ from airflow.models.asset import (
 )
 from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -173,7 +173,7 @@ class AssetManager(LoggingMixin):
 
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
-        session.flush()  # Ensure the event is written earlier than DDRQ entries below.
+        session.flush()  # Ensure the event is written earlier than ADRQ entries below.
 
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
@@ -360,24 +360,29 @@ class AssetManager(LoggingMixin):
         session: Session,
     ) -> AssetPartitionDagRun:
         latest_apdr: AssetPartitionDagRun | None = session.scalar(
-            select(AssetPartitionDagRun)
-            .where(
-                AssetPartitionDagRun.partition_key == target_key,
-                AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+            with_row_locks(
+                query=(
+                    select(AssetPartitionDagRun)
+                    .where(
+                        AssetPartitionDagRun.partition_key == target_key,
+                        AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                    )
+                    .order_by(AssetPartitionDagRun.id.desc())
+                    .limit(1)
+                ),
+                session=session,
             )
-            .order_by(AssetPartitionDagRun.id.desc())
-            .limit(1)
         )
         if latest_apdr and latest_apdr.created_dag_run_id is None:
-            apdr = latest_apdr
-        else:
-            apdr = AssetPartitionDagRun(
-                target_dag_id=target_dag.dag_id,
-                created_dag_run_id=None,
-                partition_key=target_key,
-            )
-            session.add(apdr)
-            session.flush()
+            return latest_apdr
+
+        apdr = AssetPartitionDagRun(
+            target_dag_id=target_dag.dag_id,
+            created_dag_run_id=None,
+            partition_key=target_key,
+        )
+        session.add(apdr)
+        session.flush()
         return apdr
 
     @classmethod

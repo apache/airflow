@@ -24,6 +24,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from airflow import settings
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -31,6 +32,7 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
@@ -87,7 +89,8 @@ class TestAssetManager:
         mock_session.merge.assert_not_called()
         mock_task_instance.log.warning.assert_called()
 
-    def test_register_asset_change(self, session, dag_maker, mock_task_instance, testing_dag_bundle):
+    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
+    def test_register_asset_change(self, session, mock_task_instance):
         asset_manager = AssetManager()
 
         asset = Asset(uri="test://asset1", name="test_asset_uri", group="asset")
@@ -213,3 +216,39 @@ class TestAssetManager:
         assert len(asset_listener.created) == 1
         assert len(asms) == 1
         assert asset_listener.created[0].uri == asset.uri == asms[0].uri
+
+    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
+    def test_get_or_create_apdr_creates_two_independent_rows(self, session):
+        dag1 = DagModel(dag_id="dag100", is_stale=False, bundle_name="testing")
+        session.add(dag1)
+        session.flush()
+        assert session.query(AssetPartitionDagRun).count() == 0
+
+        assert settings.Session is not None
+        assert settings.Session.session_factory is not None
+
+        session_1 = settings.Session.session_factory()
+        session_2 = settings.Session.session_factory()
+        assert session_1 != session_2
+
+        session_1.begin()
+        session_2.begin()
+        apdr_1 = AssetManager._get_or_create_apdr(
+            target_key="test_partition_key",
+            target_dag=dag1,
+            session=session_1,
+        )
+        session_1.commit()
+
+        apdr_2 = AssetManager._get_or_create_apdr(
+            target_key="test_partition_key",
+            target_dag=dag1,
+            session=session_2,
+        )
+
+        session_2.commit()
+
+        assert apdr_1.id == apdr_2.id
+        assert apdr_1.created_dag_run_id is None
+        assert apdr_2.created_dag_run_id is None
+        assert session.query(AssetPartitionDagRun).count() == 1
