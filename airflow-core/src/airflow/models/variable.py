@@ -179,7 +179,7 @@ class Variable(Base, LoggingMixin):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
-            raise KeyError(f"Variable {key} does not exist")
+            raise KeyError(f"Variable {key} does not exist. Try using a full path to your secret if you have one.")
         if deserialize_json:
             obj = json.loads(var_val)
             mask_secret(obj, key)
@@ -523,6 +523,7 @@ class Variable(Base, LoggingMixin):
                 )
 
         SecretCache.save_variable(key, var_val)  # we save None as well
+        # should I change this return file to include error message?
         return var_val
 
     @staticmethod
