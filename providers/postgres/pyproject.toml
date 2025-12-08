@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     "apache-airflow-providers-common-sql>=1.23.0",
     "psycopg2-binary>=2.9.9; python_version < '3.13'",
     "psycopg2-binary>=2.9.10; python_version >= '3.13'",

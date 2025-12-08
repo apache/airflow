@@ -22,13 +22,13 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

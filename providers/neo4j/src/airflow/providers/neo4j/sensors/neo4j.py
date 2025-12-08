@@ -20,8 +20,7 @@ from collections.abc import Callable, Sequence
 from operator import itemgetter
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 if TYPE_CHECKING:

@@ -268,7 +268,8 @@ repos:
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
           ^.*reproducible_build\.yaml$|
-          ^.*pnpm-lock\.yaml$
+          ^.*pnpm-lock\.yaml$|
+          ^.*-generated\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:

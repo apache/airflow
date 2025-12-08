@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow-providers-common-compat>=1.8.0", # use next version,
     # 5.0.2 excluded due to breaking changes which fixed in https://github.com/redis/redis-py/pull/3176
     "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]

@@ -19,8 +19,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
+from fastapi import Body, Depends, status
 from sqlalchemy import select, update
 
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.executors.workloads import ExecuteTask
 from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
@@ -29,18 +34,13 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerApiDocs,
     WorkerQueuesBody,
 )
-from airflow.providers.edge3.worker_api.routes._v2_compat import (
-    AirflowRouter,
-    Body,
-    Depends,
-    SessionDep,
-    create_openapi_http_exception_doc,
-    parse_command,
-    status,
-)
 from airflow.utils.state import TaskInstanceState
 
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
+
+
+def parse_command(command: str) -> ExecuteTask:
+    return ExecuteTask.model_validate_json(command)
 
 
 @jobs_router.post(
