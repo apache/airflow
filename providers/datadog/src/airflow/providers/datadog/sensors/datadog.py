@@ -22,8 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from datadog import api
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 
 if TYPE_CHECKING:

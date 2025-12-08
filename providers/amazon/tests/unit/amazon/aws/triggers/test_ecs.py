@@ -23,12 +23,12 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
     TaskDoneTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.triggers.base import TriggerEvent

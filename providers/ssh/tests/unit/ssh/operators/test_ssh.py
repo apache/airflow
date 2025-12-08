@@ -25,9 +25,13 @@ from unittest import mock
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    timezone,
+)
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 

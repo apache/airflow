@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 import google.api_core.exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import (
     BigtableClusterLink,
