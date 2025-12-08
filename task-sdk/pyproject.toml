@@ -116,8 +116,9 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
-"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/sdk/_shared/module_loading"
+"../shared/definitions/src/airflow_shared/definitions" = "src/airflow/sdk/_shared/definitions"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
+"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/sdk/_shared/module_loading"
 "../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
@@ -264,6 +265,7 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-definitions",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",
