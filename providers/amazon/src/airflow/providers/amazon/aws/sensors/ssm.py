@@ -124,8 +124,7 @@ class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):
                     raise RuntimeError(self.FAILURE_MESSAGE)  # Traditional behavior
 
                 # Only fail on AWS-level issues, tolerate command failures
-                if state in ("Cancelled", "TimedOut"):
-                    self.log.error("Command failed with AWS-level error: %s", state)
+                if self.hook.is_aws_level_failure(state):
                     raise RuntimeError(f"SSM command {self.command_id} {state}")
 
                 # Command failed but we're tolerating it

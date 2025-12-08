@@ -113,13 +113,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         status = invocation.get("Status", "")
 
                         # AWS-level failures should always raise
-                        if status in ("Cancelled", "TimedOut"):
-                            self.log.error(
-                                "Command %s failed with AWS-level error: %s for instance %s",
-                                self.command_id,
-                                status,
-                                instance_id,
-                            )
+                        if self.hook().is_aws_level_failure(status):
                             raise
 
                         # Command-level failure - tolerate it in enhanced mode

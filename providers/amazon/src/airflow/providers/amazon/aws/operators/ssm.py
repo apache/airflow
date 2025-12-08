@@ -159,8 +159,7 @@ class SsmRunCommandOperator(AwsBaseOperator[SsmHook]):
                         status = invocation.get("Status", "")
 
                         # AWS-level failures should always raise
-                        if status in ("Cancelled", "TimedOut"):
-                            self.log.error("Command failed with AWS-level error: %s", status)
+                        if self.hook.is_aws_level_failure(status):
                             raise
 
                         # Command-level failure - tolerate it in enhanced mode
