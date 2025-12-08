@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.operators.beam import (
     BeamBasePipelineOperator,
     BeamRunGoPipelineOperator,
@@ -31,6 +31,7 @@ from airflow.providers.apache.beam.operators.beam import (
     BeamRunPythonPipelineOperator,
 )
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.version import version
 

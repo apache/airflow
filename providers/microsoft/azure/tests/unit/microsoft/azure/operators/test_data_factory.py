@@ -24,10 +24,10 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,

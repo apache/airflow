@@ -20,7 +20,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.sensors.batch import (
     BatchComputeEnvironmentSensor,
@@ -28,6 +27,7 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"

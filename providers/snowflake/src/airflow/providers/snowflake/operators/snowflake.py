@@ -24,7 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs, cast
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,

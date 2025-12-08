@@ -25,8 +25,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from sqlalchemy.engine import Engine
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 DEFAULT_CONN_ID = "vertica_default"

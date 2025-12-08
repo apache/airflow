@@ -25,10 +25,7 @@ import pytest
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster, NodePool
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
@@ -43,6 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEClusterAuthDetails,
     GKECreateClusterOperator,

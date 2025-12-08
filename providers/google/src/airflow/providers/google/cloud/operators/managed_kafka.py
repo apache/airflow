@@ -27,7 +27,7 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.managedkafka_v1 import types
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaClusterLink,
