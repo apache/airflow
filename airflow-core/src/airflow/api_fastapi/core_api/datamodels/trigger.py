@@ -31,6 +31,7 @@ class TriggerResponse(BaseModel):
 
     id: int
     classpath: str
+    trigger_queue: str
     kwargs: Annotated[str, BeforeValidator(str)]
     created_date: datetime
     triggerer_id: int | None
