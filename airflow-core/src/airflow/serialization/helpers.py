@@ -55,6 +55,16 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
         return obj
 
+    def sort_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries to ensure consistent ordering."""
+        if isinstance(obj, dict):
+            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, list):
+            return [sort_dict_recursively(item) for item in obj]
+        if isinstance(obj, tuple):
+            return tuple(sort_dict_recursively(item) for item in obj)
+        return obj
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
@@ -74,6 +84,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # and need to be converted to lists
         return template_field
     template_field = translate_tuples_to_lists(template_field)
+    # Sort dictionaries recursively to ensure consistent string representation
+    # This prevents hash inconsistencies when dict ordering varies
+    if isinstance(template_field, dict):
+        template_field = sort_dict_recursively(template_field)
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)

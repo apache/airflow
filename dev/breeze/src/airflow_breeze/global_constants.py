@@ -216,7 +216,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.15"
+UV_VERSION = "0.9.16"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -736,7 +736,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging fab git keycloak",
+        "remove-providers": "common.messaging edge3 fab git keycloak",
         "run-unit-tests": "true",
     },
     {
@@ -757,7 +757,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.19",
     "3.11": "3.11.14",
     "3.12": "3.12.12",
-    "3.13": "3.13.10",
+    "3.13": "3.13.11",
 }
 
 # Number of slices for low dep tests

@@ -37,7 +37,7 @@ repos:
         files: |
           (?x)
           ^src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
-          ^src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
+          ^src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml$
         exclude: |
           (?x)
           ^src/airflow/providers/edge3/plugins/www/node-modules/.*|
