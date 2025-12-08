@@ -1431,6 +1431,17 @@ export const useLoginServiceLoginSuspense = <TData = Common.LoginServiceLoginDef
 */
 export const useLoginServiceLogoutSuspense = <TData = Common.LoginServiceLogoutDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceLogoutKeyFn(queryKey), queryFn: () => LoginService.logout() as TData, ...options });
 /**
+* Refresh
+* Refresh the authentication token.
+* @param data The data for the request.
+* @param data.next
+* @returns unknown Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceRefreshSuspense = <TData = Common.LoginServiceRefreshDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ next }: {
+  next?: string;
+} = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseLoginServiceRefreshKeyFn({ next }, queryKey), queryFn: () => LoginService.refresh({ next }) as TData, ...options });
+/**
 * Get Auth Menus
 * @returns MenuItemCollectionResponse Successful Response
 * @throws ApiError

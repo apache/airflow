@@ -67,7 +67,6 @@ def auth_manager():
 def user():
     user = Mock()
     user.access_token = "access_token"
-    user.refresh_token = "refresh_token"
     return user
 
 
@@ -102,32 +101,6 @@ class TestKeycloakAuthManager:
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
-
-    @patch.object(KeycloakAuthManager, "_token_expired")
-    def test_refresh_user_not_expired(self, mock_token_expired, auth_manager):
-        mock_token_expired.return_value = False
-
-        result = auth_manager.refresh_user(user=Mock())
-
-        assert result is None
-
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    @patch.object(KeycloakAuthManager, "_token_expired")
-    def test_refresh_user_expired(self, mock_token_expired, mock_get_keycloak_client, auth_manager, user):
-        mock_token_expired.return_value = True
-        keycloak_client = Mock()
-        keycloak_client.refresh_token.return_value = {
-            "access_token": "new_access_token",
-            "refresh_token": "new_refresh_token",
-        }
-
-        mock_get_keycloak_client.return_value = keycloak_client
-
-        result = auth_manager.refresh_user(user=user)
-
-        keycloak_client.refresh_token.assert_called_with("refresh_token")
-        assert result.access_token == "new_access_token"
-        assert result.refresh_token == "new_refresh_token"
 
     @pytest.mark.parametrize(
         "function, method, details, permission, attributes",
@@ -453,15 +426,3 @@ class TestKeycloakAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
-
-    @pytest.mark.parametrize(
-        "expiration, expected",
-        [
-            (-30, True),
-            (30, False),
-        ],
-    )
-    def test_token_expired(self, auth_manager, expiration, expected):
-        token = auth_manager._get_token_signer(expiration_time_in_seconds=expiration).generate({})
-
-        assert KeycloakAuthManager._token_expired(token) is expected

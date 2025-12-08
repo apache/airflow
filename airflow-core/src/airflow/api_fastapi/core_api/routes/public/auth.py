@@ -65,3 +65,23 @@ def logout(request: Request) -> RedirectResponse:
     )
 
     return response
+
+
+@auth_router.get(
+    "/refresh",
+    responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
+)
+def refresh(request: Request, next: None | str = None) -> RedirectResponse:
+    """Refresh the authentication token."""
+    refresh_url = request.app.state.auth_manager.get_url_refresh()
+
+    if not refresh_url:
+        return RedirectResponse(f"{conf.get('api', 'base_url', fallback='/')}auth/logout")
+
+    if next and not is_safe_url(next, request=request):
+        raise HTTPException(status_code=400, detail="Invalid or unsafe next URL")
+
+    if next:
+        refresh_url += f"?next={next}"
+
+    return RedirectResponse(refresh_url)

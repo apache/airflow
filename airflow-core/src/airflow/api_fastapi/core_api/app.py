@@ -181,12 +181,6 @@ def init_error_handlers(app: FastAPI) -> None:
         app.add_exception_handler(handler.exception_cls, handler.exception_handler)
 
 
-def init_middlewares(app: FastAPI) -> None:
-    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
-
-    app.add_middleware(JWTRefreshMiddleware)
-
-
 def init_ui_plugins(app: FastAPI) -> None:
     """Initialize UI plugins."""
     from airflow import plugins_manager

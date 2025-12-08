@@ -753,6 +753,12 @@ export type LoginServiceLogoutDefaultResponse = Awaited<ReturnType<typeof LoginS
 export type LoginServiceLogoutQueryResult<TData = LoginServiceLogoutDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useLoginServiceLogoutKey = "LoginServiceLogout";
 export const UseLoginServiceLogoutKeyFn = (queryKey?: Array<unknown>) => [useLoginServiceLogoutKey, ...(queryKey ?? [])];
+export type LoginServiceRefreshDefaultResponse = Awaited<ReturnType<typeof LoginService.refresh>>;
+export type LoginServiceRefreshQueryResult<TData = LoginServiceRefreshDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useLoginServiceRefreshKey = "LoginServiceRefresh";
+export const UseLoginServiceRefreshKeyFn = ({ next }: {
+  next?: string;
+} = {}, queryKey?: Array<unknown>) => [useLoginServiceRefreshKey, ...(queryKey ?? [{ next }])];
 export type AuthLinksServiceGetAuthMenusDefaultResponse = Awaited<ReturnType<typeof AuthLinksService.getAuthMenus>>;
 export type AuthLinksServiceGetAuthMenusQueryResult<TData = AuthLinksServiceGetAuthMenusDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAuthLinksServiceGetAuthMenusKey = "AuthLinksServiceGetAuthMenus";
