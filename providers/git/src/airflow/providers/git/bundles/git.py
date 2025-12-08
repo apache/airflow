@@ -90,7 +90,7 @@ class GitDagBundle(BaseDagBundle):
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
-        except Exception as e:
+        except Exception:
             # re raise so exception propagates immediately with clear error message
             raise
 
