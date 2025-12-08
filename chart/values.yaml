@@ -3053,7 +3053,7 @@ config:
     run_duration: 41460
   elasticsearch:
     json_format: 'True'
-    log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"
+    log_id_template: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
   elasticsearch_configs:
     max_retries: 3
     timeout: 30

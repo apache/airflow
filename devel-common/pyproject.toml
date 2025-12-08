@@ -139,6 +139,7 @@ dependencies = [
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",
     "pytest>=9.0.0",
+    "testcontainers>=4.12.0",
 ]
 "sentry" = [
     "blinker>=1.7.0",
