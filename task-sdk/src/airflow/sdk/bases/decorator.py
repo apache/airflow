@@ -243,7 +243,8 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
-    def is_async(self):
+    @property
+    def is_async(self) -> bool:
         return is_async_callable(self.python_callable)
 
     def execute(self, context: Context):
