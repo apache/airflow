@@ -68,7 +68,7 @@ ENVIRONMENT_ID_ASYNC = f"test-deferrable-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 ENVIRONMENT = {
     "config": {
-        "software_config": {"image_version": "composer-2-airflow-2"},
+        "software_config": {"image_version": "composer-3-airflow-2"},
         "node_config": {
             "service_account": f"{PROJECT_NUMBER}-compute@developer.gserviceaccount.com",
         },
