@@ -1,5 +1,6 @@
 {
   "consumingDags": "Dags consumidors",
+  "consumingTasks": "Tasques consumidores",
   "createEvent": {
     "button": "Crear esdeveniment",
     "manual": {
@@ -21,6 +22,7 @@
     },
     "title": "Crear esdeveniment d'Asset per {{name}}"
   },
+  "extra": "Extra",
   "group": "Grup",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
