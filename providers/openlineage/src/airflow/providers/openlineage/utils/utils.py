@@ -178,8 +178,35 @@ def get_task_parent_run_facet(
     root_parent_run_id: str | None = None,
     root_parent_job_name: str | None = None,
     root_parent_job_namespace: str | None = None,
+    dr_conf: dict | None = None,
 ) -> dict[str, Any]:
     """Retrieve the parent run facet."""
+    all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
+    # If not all root identifiers are provided explicitly, try to get them from dagrun conf.
+    if not all(all_root_info):
+        # If some but not all root identifiers are provided warn and do not use any of them, we need all.
+        if any(all_root_info):
+            log.warning(
+                "Incomplete root OpenLineage information provided. "
+                "No root information will be used. Found values: "
+                "root_parent_run_id='%s', root_parent_job_namespace='%s', root_parent_job_name='%s'.",
+                root_parent_run_id,
+                root_parent_job_namespace,
+                root_parent_job_name,
+            )
+            root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+        elif dr_conf:
+            # Check for root identifiers in dagrun conf
+            if root_info := get_root_information_from_dagrun_conf(dr_conf):
+                root_parent_run_id = root_info["root_parent_run_id"]
+                root_parent_job_namespace = root_info["root_parent_job_namespace"]
+                root_parent_job_name = root_info["root_parent_job_name"]
+            # If not present, check for parent identifiers in dagrun conf and use them as root
+            elif parent_info := get_parent_information_from_dagrun_conf(dr_conf):
+                root_parent_run_id = parent_info["parent_run_id"]
+                root_parent_job_namespace = parent_info["parent_job_namespace"]
+                root_parent_job_name = parent_info["parent_job_name"]
+
     return _get_parent_run_facet(
         parent_run_id=parent_run_id,
         parent_job_namespace=parent_job_namespace,
@@ -205,50 +232,50 @@ def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str
         log.debug("No 'openlineage' data found in DAG run config.")
         return {}
 
-    root_run_id = ol_data.get("rootParentRunId", "")
-    root_namespace = ol_data.get("rootParentJobNamespace", "")
-    root_name = ol_data.get("rootParentJobName", "")
+    root_parent_run_id = ol_data.get("rootParentRunId", "")
+    root_parent_job_namespace = ol_data.get("rootParentJobNamespace", "")
+    root_parent_job_name = ol_data.get("rootParentJobName", "")
 
-    all_root_info = (root_run_id, root_namespace, root_name)
+    all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
     if not all(all_root_info):
         if any(all_root_info):
             log.warning(
                 "Incomplete root OpenLineage information in DAG run config. "
                 "No root information will be used. Found values: "
                 "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
-                root_run_id,
-                root_namespace,
-                root_name,
+                root_parent_run_id,
+                root_parent_job_namespace,
+                root_parent_job_name,
             )
         else:
             log.debug("No 'openlineage' root information found in DAG run config.")
         return {}
 
     try:  # Validate that runId is correct UUID
-        parent_run.RootRun(runId=root_run_id)
+        parent_run.RootRun(runId=root_parent_run_id)
     except ValueError:
         log.warning(
             "Invalid OpenLineage rootParentRunId '%s' in DAG run config - expected a valid UUID.",
-            root_run_id,
+            root_parent_run_id,
         )
         return {}
 
     log.debug(
         "Extracted valid root OpenLineage identifiers from DAG run config: "
         "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
-        root_run_id,
-        root_namespace,
-        root_name,
+        root_parent_run_id,
+        root_parent_job_namespace,
+        root_parent_job_name,
     )
     return {
-        "root_parent_run_id": root_run_id,
-        "root_parent_job_namespace": root_namespace,
-        "root_parent_job_name": root_name,
+        "root_parent_run_id": root_parent_run_id,
+        "root_parent_job_namespace": root_parent_job_namespace,
+        "root_parent_job_name": root_parent_job_name,
     }
 
 
-def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
-    """Build the OpenLineage parent run facet from a DAG run config."""
+def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+    """Extract parent run and job information from a DAG run config."""
     ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
     if not ol_data:
         log.debug("No 'openlineage' data found in DAG run config.")
@@ -290,8 +317,46 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
         parent_job_name,
     )
 
-    root_info = get_root_information_from_dagrun_conf(dr_conf)
-    if root_info and all(root_info.values()):
+    return {
+        "parent_run_id": parent_run_id,
+        "parent_job_namespace": parent_job_namespace,
+        "parent_job_name": parent_job_name,
+    }
+
+
+def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
+    """
+    Build the OpenLineage parent run facet from a DAG run configuration.
+
+    This function extracts parent run identifiers - run ID, job namespace, and job name -
+    from the DAG run configuration to construct an OpenLineage `ParentRunFacet`. It requires
+    a complete set of parent identifiers to proceed; if some but not all are present, or if
+    the run ID is invalid, the function returns an empty dictionary.
+
+    When valid parent identifiers are found, it also attempts to retrieve corresponding
+    root identifiers using `get_root_information_from_dagrun_conf`, which may fall back
+    to the parent identifiers if no explicit root data is available. The resulting facet
+    links both the immediate parent and root lineage information for the run.
+
+    Args:
+        dr_conf: The DAG run configuration dictionary.
+
+    Returns:
+        A dictionary containing a single entry mapping the facet name to the constructed
+        `ParentRunFacet`. Returns an empty dictionary if the configuration does not contain
+        a complete or valid set of parent identifiers.
+    """
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    parent_info = get_parent_information_from_dagrun_conf(dr_conf)
+    if not parent_info:  # Validation and logging is done in the above function
+        return {}
+
+    root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+    if root_info := get_root_information_from_dagrun_conf(dr_conf):
         root_parent_run_id = root_info["root_parent_run_id"]
         root_parent_job_namespace = root_info["root_parent_job_namespace"]
         root_parent_job_name = root_info["root_parent_job_name"]
@@ -300,16 +365,12 @@ def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.Paren
             "Missing OpenLineage root identifiers in DAG run config, "
             "parent identifiers will be used as root instead."
         )
-        root_parent_run_id, root_parent_job_namespace, root_parent_job_name = (
-            parent_run_id,
-            parent_job_namespace,
-            parent_job_name,
-        )
 
+    # Function already uses parent as root if root is missing, no need to explicitly pass it
     return _get_parent_run_facet(
-        parent_run_id=parent_run_id,
-        parent_job_namespace=parent_job_namespace,
-        parent_job_name=parent_job_name,
+        parent_run_id=parent_info["parent_run_id"],
+        parent_job_namespace=parent_info["parent_job_namespace"],
+        parent_job_name=parent_info["parent_job_name"],
         root_parent_run_id=root_parent_run_id,
         root_parent_job_namespace=root_parent_job_namespace,
         root_parent_job_name=root_parent_job_name,
@@ -601,18 +662,29 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: DAG) -> str | None:
+    def timetable_summary(cls, dag: DAG | SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
-        if getattr(dag, "timetable_summary", None):
-            return dag.timetable_summary
-        if getattr(dag, "timetable", None):
-            return dag.timetable.summary
+        if summary := getattr(dag, "timetable_summary", None):
+            return summary
+        if (timetable := getattr(dag, "timetable", None)) is None:
+            return None
+        if summary := getattr(timetable, "summary", None):
+            return summary
+        with suppress(ImportError):
+            from airflow.serialization.encoders import coerce_to_core_timetable
+
+            return coerce_to_core_timetable(timetable).summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: DAG | SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
-        serialized = dag.timetable.serialize() or {}
+        try:
+            serialized = dag.timetable.serialize() or {}  # type: ignore[union-attr]
+        except AttributeError:
+            from airflow.serialization.encoders import encode_timetable
+
+            serialized = encode_timetable(dag.timetable)["__var"]
 
         # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
         # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
@@ -651,6 +723,7 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "execution_date",  # Airflow 2
         "logical_date",  # Airflow 3
         "run_after",  # Airflow 3
         "run_id",
@@ -741,13 +814,37 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
-        "trigger_dag_id",
-        "external_dag_id",
-        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
+        # Operator-specific useful attributes
+        "trigger_dag_id",  # TriggerDagRunOperator
+        "trigger_run_id",  # TriggerDagRunOperator
+        "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_ids",  # ExternalTaskSensor
+        "external_task_group_id",  # ExternalTaskSensor
+        "external_dates_filter",  # ExternalTaskSensor
+        "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "database",  # BaseSQlOperator
+        "parameters",  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+        "column_mapping",  # SQLColumnCheckOperator
+        "pass_value",  # SQLValueCheckOperator
+        "tol",  # SQLValueCheckOperator
+        "metrics_thresholds",  # SQLIntervalCheckOperator
+        "ratio_formula",  # SQLIntervalCheckOperator
+        "ignore_zero",  # SQLIntervalCheckOperator
+        "min_threshold",  # SQLThresholdCheckOperator
+        "max_threshold",  # SQLThresholdCheckOperator
+        "follow_task_ids_if_true",  # BranchSQLOperator
+        "follow_task_ids_if_false",  # BranchSQLOperator
+        "follow_branch",  # BranchSQLOperator
+        "preoperator",  # SQLInsertRowsOperator
+        "postoperator",  # SQLInsertRowsOperator
+        "table_name_with_schema",  # SQLInsertRowsOperator
+        "column_names",  # SQLInsertRowsOperator
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -845,7 +942,7 @@ def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
 
 def get_airflow_run_facet(
     dag_run: DagRun,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,

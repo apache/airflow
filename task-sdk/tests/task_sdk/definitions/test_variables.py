@@ -23,8 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
+from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 

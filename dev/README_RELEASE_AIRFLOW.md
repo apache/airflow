@@ -314,7 +314,7 @@ export GPG_TTY=$(tty)
 # Set Version
 export VERSION=3.1.3
 export VERSION_SUFFIX=rc1
-export VERSION_RC=${VERSION}${VERSION_RC}
+export VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export VERSION_BRANCH=3-1
 export TASK_SDK_VERSION=1.1.3
 export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
@@ -648,6 +648,10 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
+Note: PMCs can either choose to verify the release themselves or delegate the verification to breeze through
+the new command `breeze release-management validate-rc-by-pmc`. It has been explained in detail in:
+See [Breeze Command to validate RC](breeze/doc/09_release_management_tasks.rst).
+
 PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
@@ -752,30 +756,29 @@ As a PMC member, you should be able to clone the SVN repository
 or update it if you already checked it out:
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 cd ..
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 svn update --set-depth=infinity asf-dist/dev/airflow
 ```
 
-Set an environment variable: PATH_TO_SVN to the root of folder where you clone the SVN repository:
+Set an environment variable: PATH_TO_AIRFLOW_SVN to the root of folder where you clone the SVN repository:
 
 ```shell scrupt
 cd asf-dist/dev/airflow
-export PATH_TO_SVN=$(pwd -P)
+export PATH_TO_AIRFLOW_SVN=$(pwd -P)
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the `breeze release-management check-release-files` command to verify that all expected files are
+present in SVN. This command may also help with verifying installation of the packages.
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py airflow -v ${VERSION_RC} -p ${PATH_TO_SVN}
+breeze release-management check-release-files airflow --version ${VERSION_RC}
 ```
 
 
 ```shell script
-cd $AIRFLOW_REPO_ROOT/dev
-uv run check_files.py task-sdk -v ${TASK_SDK_VERSION_RC} -p ${PATH_TO_SVN}/task-sdk
+breeze release-management check-release-files task-sdk --version ${TASK_SDK_VERSION_RC}
 ```
 
 ## Licence check
@@ -793,7 +796,7 @@ wget -qO- https://dlcdn.apache.org//creadur/apache-rat-0.17/apache-rat-0.17-bin.
 Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
 
 ```shell script
-rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
+rm -rf /tmp/apache-airflow-src && mkdir -p /tmp/apache-airflow-src && tar -xzf ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}/apache_airflow*-source.tar.gz --strip-components 1 -C /tmp/apache-airflow-src
 ```
 
 Run the check:
@@ -869,7 +872,7 @@ Once you have the keys, the signatures can be verified after switching to the di
 release packages:
 
 ```shell script
-cd ${PATH_TO_SVN}/${VERSION_RC}
+cd ${PATH_TO_AIRFLOW_SVN}/${VERSION_RC}
 ```
 
 And running this:

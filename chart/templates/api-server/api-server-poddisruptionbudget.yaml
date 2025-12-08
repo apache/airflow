@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server PodDisruptionBudget
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- if .Values.apiServer.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget

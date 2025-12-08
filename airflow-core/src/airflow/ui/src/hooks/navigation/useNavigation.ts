@@ -21,7 +21,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { getTaskInstanceAdditionalPath } from "src/utils/links";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
 import type {
   NavigationDirection,
@@ -72,7 +72,6 @@ const buildPath = (params: {
 }): string => {
   const { dagId, mapIndex = "-1", mode, pathname, run, task } = params;
   const groupPath = task.isGroup ? "group/" : "";
-  const additionalPath = getTaskInstanceAdditionalPath(pathname);
 
   switch (mode) {
     case "run":
@@ -80,16 +79,15 @@ const buildPath = (params: {
     case "task":
       return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
     case "TI":
-      if (task.is_mapped ?? false) {
-        if (mapIndex !== "-1") {
-          // For mapped tasks with specific map index, we need to construct the path manually
-          return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped/${mapIndex}${additionalPath}`;
-        }
-
-        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped${additionalPath}`;
-      }
-
-      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}${additionalPath}`;
+      return buildTaskInstanceUrl({
+        currentPathname: pathname,
+        dagId,
+        isGroup: task.isGroup,
+        isMapped: task.is_mapped ?? false,
+        mapIndex,
+        runId: run.run_id,
+        taskId: task.id,
+      });
     default:
       return `/dags/${dagId}`;
   }

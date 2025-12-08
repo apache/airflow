@@ -35,12 +35,12 @@ from airflow.providers.amazon.aws.sensors.ecs import (
     EcsTaskStates,
     EcsTaskStateSensor,
 )
+from airflow.providers.amazon.version_compat import NOTSET
 
 try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-from airflow.utils.types import NOTSET
 
 _Operator = TypeVar("_Operator")
 TEST_CLUSTER_NAME = "fake-cluster"

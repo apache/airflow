@@ -381,7 +381,7 @@ def with_row_locks(
 
 
 @contextlib.contextmanager
-def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+def lock_rows(query: Select, session: Session) -> Generator[None, None, None]:
     """
     Lock database rows during the context manager block.
 

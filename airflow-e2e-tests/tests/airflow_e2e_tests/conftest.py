@@ -37,6 +37,8 @@ from airflow_e2e_tests.constants import (
     TEST_REPORT_FILE,
 )
 
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
 console = Console(width=400, color_system="standard")
 compose_instance = None
 airflow_logs_path = None
@@ -94,6 +96,12 @@ def spin_up_airflow_environment(tmp_path_factory):
         compose_file_names.append("localstack.yml")
         _setup_s3_integration(dot_env_file, tmp_dir)
 
+    #
+    # Please Do not use this Fernet key in any deployments! Please generate your own key.
+    # This is specifically generated for integration tests and not as default.
+    #
+    os.environ["FERNET_KEY"] = generate_fernet_key_string()
+
     # If we are using the image from ghcr.io/apache/airflow/main we do not pull
     # as it is already available and loaded using prepare_breeze_and_image step in workflow
     pull = False if DOCKER_IMAGE.startswith("ghcr.io/apache/airflow/main/") else True
@@ -104,7 +112,7 @@ def spin_up_airflow_environment(tmp_path_factory):
 
         compose_instance.start()
 
-        compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/version")
+        compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
         compose_instance.exec_in_container(
             command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
         )

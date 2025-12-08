@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Nachricht",
-    "createdAtFrom": "Erstellt von ",
-    "createdAtTo": "Erstellt bis ",
+    "createdAt": "Erstellt um",
     "response": {
       "all": "Alle",
       "pending": "Ausstehend",

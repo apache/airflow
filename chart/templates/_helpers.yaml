@@ -760,6 +760,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
 {{- end }}
 
+{{/* Create the name of the database cleanup service account to use */}}
+{{- define "databaseCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
+{{- end }}
+
 {{- define "wait-for-migrations-command" -}}
   {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
   - airflow
@@ -1141,4 +1146,19 @@ capabilities:
           matchLabels:
             app: keda-operator
   {{- end }}
+{{- end }}
+
+{{/*
+Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
+*/}}
+{{- define "cpu_count" -}}
+  {{- $v := toString . -}}
+    {{- if hasSuffix "m" $v -}}
+      {{- /* millicores path: e.g. 500m, 1500m */ -}}
+      {{- $m := float64 (trimSuffix "m" $v) -}}
+      {{- int (ceil (divf $m 1000)) -}}
+    {{- else -}}
+      {{- /* plain cores: e.g. 0.5, 1, 1.5 */ -}}
+      {{- int (ceil (float64 $v)) -}}
+    {{- end -}}
 {{- end }}

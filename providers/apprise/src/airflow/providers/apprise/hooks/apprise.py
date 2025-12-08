@@ -24,10 +24,13 @@ from typing import TYPE_CHECKING, Any
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 
+from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from apprise import AppriseAttachment
+
+    from airflow.providers.common.compat.sdk import Connection
 
 
 class AppriseHook(BaseHook):
@@ -50,14 +53,13 @@ class AppriseHook(BaseHook):
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
 
-    def get_config_from_conn(self):
-        conn = self.get_connection(self.apprise_conn_id)
+    def get_config_from_conn(self, conn: Connection):
         config = conn.extra_dejson["config"]
         return json.loads(config) if isinstance(config, str) else config
 
-    def set_config_from_conn(self, apprise_obj: apprise.Apprise):
+    def set_config_from_conn(self, conn: Connection, apprise_obj: apprise.Apprise):
         """Set config from connection to apprise object."""
-        config_object = self.get_config_from_conn()
+        config_object = self.get_config_from_conn(conn=conn)
         if isinstance(config_object, list):
             for config in config_object:
                 apprise_obj.add(config["path"], tag=config.get("tag", None))
@@ -101,8 +103,53 @@ class AppriseHook(BaseHook):
         if config:
             apprise_obj.add(config)
         else:
-            self.set_config_from_conn(apprise_obj)
+            conn = self.get_connection(self.apprise_conn_id)
+            self.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
         apprise_obj.notify(
+            body=body,
+            title=title,
+            notify_type=notify_type,
+            body_format=body_format,
+            tag=tag,
+            attach=attach,
+            interpret_escapes=interpret_escapes,
+        )
+
+    async def async_notify(
+        self,
+        body: str,
+        title: str | None = None,
+        notify_type: NotifyType = NotifyType.INFO,
+        body_format: NotifyFormat = NotifyFormat.TEXT,
+        tag: str | Iterable[str] = "all",
+        attach: AppriseAttachment | None = None,
+        interpret_escapes: bool | None = None,
+        config: AppriseConfig | None = None,
+    ):
+        r"""
+        Send message to plugged-in services asynchronously.
+
+        :param body: Specify the message body
+        :param title: Specify the message title. (optional)
+        :param notify_type: Specify the message type (default=info). Possible values are "info",
+            "success", "failure", and "warning"
+        :param body_format: Specify the input message format (default=text). Possible values are "text",
+            "html", and "markdown".
+        :param tag: Specify one or more tags to filter which services to notify
+        :param attach: Specify one or more file attachment locations
+        :param interpret_escapes: Enable interpretation of backslash escapes. For example, this would convert
+            sequences such as \n and \r to their respective ascii new-line and carriage return characters
+        :param config: Specify one or more configuration
+        """
+        title = title or ""
+
+        apprise_obj = apprise.Apprise()
+        if config:
+            apprise_obj.add(config)
+        else:
+            conn = await get_async_connection(self.apprise_conn_id)
+            self.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
+        await apprise_obj.async_notify(
             body=body,
             title=title,
             notify_type=notify_type,
