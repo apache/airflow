@@ -271,9 +271,7 @@ if AIRFLOW_V_3_2_PLUS:
                         context_get_outlet_events,
                     )
 
-                    return create_async_executable_runner, context_get_outlet_events(
-                        context
-                    )
+                    return create_async_executable_runner, context_get_outlet_events(context)
                 from airflow.utils.context import context_get_outlet_events  # type: ignore
                 from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
 
