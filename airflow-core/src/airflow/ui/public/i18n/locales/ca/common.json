@@ -25,6 +25,7 @@
     "requiredActions": "Accions requerides",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Col·lapsar tots els camps extra json",
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
   "createdAssetEvent_other": "Esdeveniments d'Asset creats",
@@ -89,6 +90,7 @@
     "back": "Tornar",
     "defaultMessage": "S'ha produït un error inesperat",
     "home": "Inici",
+    "invalidUrl": "Pàgina no trobada. Si us plau, comprova la URL i torna-ho a provar.",
     "notFound": "Pàgina no trobada",
     "title": "Error"
   },
@@ -98,6 +100,7 @@
     "hotkey": "e",
     "tooltip": "Prem {{hotkey}} per alternar l'expansió"
   },
+  "expandAllExtra": "Expandir tots els camps extra json",
   "expression": {
     "all": "Tots",
     "and": "I",
