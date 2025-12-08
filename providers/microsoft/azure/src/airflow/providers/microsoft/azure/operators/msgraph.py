@@ -25,8 +25,8 @@ from typing import (
     Any,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, BaseOperator, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowException, BaseOperator, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,
