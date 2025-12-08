@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import inspect
 import logging
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast, Union, AsyncIterator
 
 from typing_extensions import ParamSpec
 
@@ -127,7 +127,7 @@ def create_executable_runner(
 
 
 def create_async_executable_runner(
-    func: Callable[P, R],
+    func: Callable[P, Union[Awaitable[R], AsyncIterator]],
     outlet_events: OutletEventAccessorsProtocol,
     *,
     logger: logging.Logger | logging.Logger,
