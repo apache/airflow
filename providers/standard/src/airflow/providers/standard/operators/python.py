@@ -263,19 +263,14 @@ if AIRFLOW_V_3_2_PLUS:
             def __prepare_execution() -> (
                 tuple[AsyncExecutionCallableRunner, OutletEventAccessorsProtocol] | None
             ):
-                if AIRFLOW_V_3_0_PLUS:
-                    from airflow.sdk.execution_time.callback_runner import (
-                        create_async_executable_runner,
-                    )
-                    from airflow.sdk.execution_time.context import (
-                        context_get_outlet_events,
-                    )
+                from airflow.sdk.execution_time.callback_runner import (
+                    create_async_executable_runner,
+                )
+                from airflow.sdk.execution_time.context import (
+                    context_get_outlet_events,
+                )
 
-                    return create_async_executable_runner, context_get_outlet_events(context)
-                from airflow.utils.context import context_get_outlet_events  # type: ignore
-                from airflow.utils.operator_helpers import ExecutionCallableRunner  # type: ignore
-
-                return AsyncExecutionCallableRunner, context_get_outlet_events(context)
+                return create_async_executable_runner, context_get_outlet_events(context)
 
             self.__prepare_execution = __prepare_execution
 
