@@ -20,10 +20,11 @@ from __future__ import annotations
 from datetime import timedelta
 from os.path import isabs
 
-from flask import Flask
+from flask import Flask, current_app, redirect, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
+from werkzeug.exceptions import InternalServerError
 
 from airflow import settings
 from airflow.api_fastapi.app import get_auth_manager
@@ -49,6 +50,15 @@ app: Flask | None = None
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
+
+
+def cleanup_session_on_internal_error(e):
+    """Error handler to clean up session on InternalServerError (500)."""
+    current_app.logger.error("Internal Server Error: %s", e)
+    if request.accept_mimetypes.accept_html:
+        session.clear()
+        return redirect(url_for("airflow.index"))
+    return e
 
 
 def create_app(enable_plugins: bool):
@@ -116,6 +126,7 @@ def create_app(enable_plugins: bool):
             init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
+        flask_app.register_error_handler(InternalServerError, cleanup_session_on_internal_error)
     return flask_app
 
 
