@@ -79,7 +79,6 @@ from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.observability.stats import Stats
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
-from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -101,6 +100,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetUniqueKey,
 )
+from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.encoders import (
@@ -139,25 +139,21 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from kubernetes.client import models as k8s  # noqa: TC004
     from pydantic import NonNegativeInt
     from sqlalchemy.orm import Session
 
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.serialization.json_schema import Validator
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.simple import PartitionMapper
-
-    try:
-        from kubernetes.client import models as k8s  # noqa: TC004
-
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
-    except ImportError:
-        pass
 
     SerializedOperator: TypeAlias = "SerializedMappedOperator | SerializedBaseOperator"
     SdkOperator: TypeAlias = BaseOperator | MappedOperator
@@ -1057,7 +1053,6 @@ class DependencyDetector:
         yield from tt.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
-# TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class SerializedBaseOperator(DAGNode, BaseSerialization):
     """
     A JSON serializable representation of operator.
@@ -1194,8 +1189,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def node_id(self) -> str:
         return self.task_id
 
-    # TODO (GH-52141): Replace DAGNode with a scheduler type.
-    def get_dag(self) -> SerializedDAG | None:  # type: ignore[override]
+    def get_dag(self) -> SerializedDAG | None:
         return self.dag
 
     @property
@@ -1715,7 +1709,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return False
 
     @classmethod
-    def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
+    def _is_excluded(cls, var: Any, attrname: str, op: SDKDAGNode) -> bool:
         """
         Determine if a variable is excluded from the serialized object.
 
