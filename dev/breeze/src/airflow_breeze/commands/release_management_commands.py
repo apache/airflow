@@ -1370,7 +1370,9 @@ def tag_providers(
 @click.option(
     "--target-branch",
     default="main",
-    help="Target branch to replace to use latest CI image built in job.",
+    help="Target branch to replace to use latest CI image built in job (e.g., 'main' or 'vX-Y-test').",
+    required=False,
+    show_default=True,
 )
 @option_verbose
 @option_dry_run
