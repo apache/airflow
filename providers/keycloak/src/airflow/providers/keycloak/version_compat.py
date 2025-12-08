@@ -35,19 +35,4 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_1_1_PLUS = get_base_airflow_version_tuple() >= (3, 1, 1)
 
 
-try:
-    from airflow.cli.cli_config import Password  # type: ignore[attr-defined]
-except ImportError:
-    import argparse
-    import getpass
-
-    class Password(argparse.Action):  # type: ignore[no-redef]
-        """Custom action to prompt for password input - fallback for older Airflow versions."""
-
-        def __call__(self, parser, namespace, values, option_string=None):
-            if values is None:
-                values = getpass.getpass(prompt="Password: ")
-            setattr(namespace, self.dest, values)
-
-
-__all__ = ["AIRFLOW_V_3_1_1_PLUS", "Password"]
+__all__ = ["AIRFLOW_V_3_1_1_PLUS"]

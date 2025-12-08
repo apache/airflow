@@ -568,29 +568,3 @@ class TestCliSubprocess:
 
             # Verify get_executor_names was called with validate_teams=False
             mock_get_executor_names.assert_called_with(validate_teams=False)
-
-
-class TestPasswordAction:
-    """Tests for the Password argparse action."""
-
-    def test_password_with_explicit_value(self):
-        """Test passing password explicitly via --password value."""
-        from airflow.cli.cli_config import Password
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--password", action=Password, nargs="?", dest="password")
-
-        args = parser.parse_args(["--password", "my_password"])
-        assert args.password == "my_password"
-
-    @patch("airflow.cli.cli_config.getpass.getpass", return_value="stdin_password")
-    def test_password_from_stdin(self, mock_getpass):
-        """Test password prompted from stdin when --password has no value."""
-        from airflow.cli.cli_config import Password
-
-        parser = argparse.ArgumentParser()
-        parser.add_argument("--password", action=Password, nargs="?", dest="password")
-
-        args = parser.parse_args(["--password"])
-        mock_getpass.assert_called_once_with(prompt="Password: ")
-        assert args.password == "stdin_password"

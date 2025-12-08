@@ -17,12 +17,24 @@
 
 from __future__ import annotations
 
+import argparse
+import getpass
+
 from airflow.cli.cli_config import (
     ActionCommand,
     Arg,
     lazy_load_command,
 )
-from airflow.providers.keycloak.version_compat import Password
+
+
+class Password(argparse.Action):
+    """Custom action to prompt for password input."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            values = getpass.getpass(prompt="Password: ")
+        setattr(namespace, self.dest, values)
+
 
 ############
 # # ARGS # #
