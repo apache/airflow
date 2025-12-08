@@ -811,7 +811,8 @@ class SFTPHookAsync(BaseHook):
             for file in files:
                 if file.filename not in {".", ".."}:
                     if file.attrs.permissions and stat.S_ISDIR(file.attrs.permissions):
-                        file_path = posixpath.join(dir_path, file.filename)
+                        filename = file.filename.decode() if isinstance(file.filename, bytes) else file.filename
+                        file_path = posixpath.join(dir_path, filename)
                         results.extend(await walk(file_path))
                     else:
                         results.append(file)
