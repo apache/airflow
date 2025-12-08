@@ -160,7 +160,7 @@ class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[tuple[K, V]]]):
     def __bool__(self) -> bool:
         return self._total_size > 0
 
-    async def put(self, item: tuple[K, V]) -> None:
+    async def put(self, item: V) -> None:
         key = item[0]
         queue = self[key]
         async with self._async_locks[key]:
