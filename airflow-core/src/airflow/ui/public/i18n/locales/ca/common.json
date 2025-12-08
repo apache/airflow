@@ -59,6 +59,7 @@
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
     "lastSchedulingDecision": "Última decisió de programació",
+    "partitionKey": "Clau de partició",
     "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
     "runType": "Tipus d'execució",
@@ -89,6 +90,7 @@
     "back": "Tornar",
     "defaultMessage": "S'ha produït un error inesperat",
     "home": "Inici",
+    "invalidUrl": "Pàgina no trobada. Si us plau, comprova la URL i torna-ho a provar.",
     "notFound": "Pàgina no trobada",
     "title": "Error"
   },
@@ -108,10 +110,13 @@
   "filters": {
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
+    "endTime": "Hora de finalització",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
     "runAfterFrom": "Executar Després de",
-    "runAfterTo": "Executar Després de"
+    "runAfterTo": "Executar Després de",
+    "selectDateRange": "Seleccionar interval de dates",
+    "startTime": "Hora d'inici"
   },
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",

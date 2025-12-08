@@ -25,7 +25,7 @@ from collections.abc import Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator

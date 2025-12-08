@@ -26,7 +26,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.retry import Retry
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineDeleteInstanceGroupManagerOperator,

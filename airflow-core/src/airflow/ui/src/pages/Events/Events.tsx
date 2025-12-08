@@ -159,7 +159,7 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const Events = () => {
-  const { t: translate } = useTranslation("browse");
+  const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -221,8 +221,8 @@ export const Events = () => {
       <Flex alignItems="center" justifyContent="space-between">
         <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
         <ExpandCollapseButtons
-          collapseLabel={translate("auditLog.actions.collapseAllExtra")}
-          expandLabel={translate("auditLog.actions.expandAllExtra")}
+          collapseLabel={translate("collapseAllExtra")}
+          expandLabel={translate("expandAllExtra")}
           onCollapse={onClose}
           onExpand={onOpen}
         />

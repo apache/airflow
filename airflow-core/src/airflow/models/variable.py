@@ -27,13 +27,11 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
-from sqlalchemy_utils import UUIDType
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -60,14 +58,18 @@ class Variable(Base, LoggingMixin):
     _val: Mapped[str] = mapped_column("val", Text().with_variant(MEDIUMTEXT, "mysql"))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    team_name: Mapped[str | None] = mapped_column(
+        String(50),
+        ForeignKey("team.name", ondelete="SET NULL"),
+        nullable=True,
+    )
 
-    def __init__(self, key=None, val=None, description=None, team_id=None):
+    def __init__(self, key=None, val=None, description=None, team_name=None):
         super().__init__()
         self.key = key
         self.val = val
         self.description = description
-        self.team_id = team_id
+        self.team_name = team_name
 
     @reconstructor
     def on_db_load(self):
@@ -185,7 +187,7 @@ class Variable(Base, LoggingMixin):
         value: Any,
         description: str | None = None,
         serialize_json: bool = False,
-        team_id: str | None = None,
+        team_name: str | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -197,7 +199,7 @@ class Variable(Base, LoggingMixin):
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param team_id: ID of the team associated to the variable (if any)
+        :param team_name: Team name associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -223,7 +225,7 @@ class Variable(Base, LoggingMixin):
             )
             return
 
-        if team_id and not conf.getboolean("core", "multi_team"):
+        if team_name and not conf.getboolean("core", "multi_team"):
             raise ValueError(
                 "Multi-team mode is not configured in the Airflow environment. To assign a team to a variable, multi-mode must be enabled."
             )
@@ -242,7 +244,7 @@ class Variable(Base, LoggingMixin):
             ctx = create_session()
 
         with ctx as session:
-            new_variable = Variable(key=key, val=stored_value, description=description, team_id=team_id)
+            new_variable = Variable(key=key, val=stored_value, description=description, team_name=team_name)
 
             val = new_variable._val
             is_encrypted = new_variable.is_encrypted
@@ -259,7 +261,7 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
-                    team_id=team_id,
+                    team_name=team_name,
                 )
                 stmt = pg_stmt.on_conflict_do_update(
                     index_elements=["key"],
@@ -267,7 +269,7 @@ class Variable(Base, LoggingMixin):
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
-                        team_id=team_id,
+                        team_name=team_name,
                     ),
                 )
             elif dialect_name == "mysql":
@@ -278,13 +280,13 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
-                    team_id=team_id,
+                    team_name=team_name,
                 )
                 stmt = mysql_stmt.on_duplicate_key_update(
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
-                    team_id=team_id,
+                    team_name=team_name,
                 )
             else:
                 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -294,7 +296,7 @@ class Variable(Base, LoggingMixin):
                     val=val,
                     description=description,
                     is_encrypted=is_encrypted,
-                    team_id=team_id,
+                    team_name=team_name,
                 )
                 stmt = sqlite_stmt.on_conflict_do_update(
                     index_elements=["key"],
@@ -302,7 +304,7 @@ class Variable(Base, LoggingMixin):
                         val=val,
                         description=description,
                         is_encrypted=is_encrypted,
-                        team_id=team_id,
+                        team_name=team_name,
                     ),
                 )
 
@@ -490,17 +492,11 @@ class Variable(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def get_team_name(variable_key: str, session=NEW_SESSION) -> str | None:
-        stmt = (
-            select(Team.name).join(Variable, Team.id == Variable.team_id).where(Variable.key == variable_key)
-        )
+        stmt = select(Variable.team_name).where(Variable.key == variable_key)
         return session.scalar(stmt)
 
     @staticmethod
     @provide_session
     def get_key_to_team_name_mapping(variable_keys: list[str], session=NEW_SESSION) -> dict[str, str | None]:
-        stmt = (
-            select(Variable.key, Team.name)
-            .join(Team, Variable.team_id == Team.id)
-            .where(Variable.key.in_(variable_keys))
-        )
+        stmt = select(Variable.key, Variable.team_name).where(Variable.key.in_(variable_keys))
         return {key: team_name for key, team_name in session.execute(stmt)}
