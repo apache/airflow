@@ -863,7 +863,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/ConnectionBody'
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
                     }
                 ]
             },
@@ -897,7 +897,7 @@ export const $BulkDeleteAction_PoolBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/PoolBody'
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
                     }
                 ]
             },
@@ -931,7 +931,7 @@ export const $BulkDeleteAction_VariableBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/VariableBody'
+                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
                     }
                 ]
             },

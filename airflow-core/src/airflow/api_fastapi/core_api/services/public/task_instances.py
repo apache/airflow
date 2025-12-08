@@ -293,7 +293,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     user=self.user,
                 )
 
-        results.success.append(f"{task_id}[{map_index}]")
+        results.success.append(f"{dag_id}.{dag_run_id}.{task_id}[{map_index}]")
 
     def handle_bulk_create(
         self, action: BulkCreateAction[BulkTaskInstanceBody], results: BulkActionResponse
@@ -449,7 +449,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                     if ti:
                         self.session.delete(ti)
-                        results.success.append(f"{task_id}[{map_index}]")
+                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{map_index}]")
 
             # Handle deletion of all map indexes for certain (dag_id, dag_run_id, task_id) tuples
             if delete_all_map_index_task_keys:
@@ -485,9 +485,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
                     for ti in all_task_instances:
                         self.session.delete(ti)
-
-                    if all_task_instances:
-                        results.success.append(task_id)
+                        results.success.append(f"{dag_id}.{run_id}.{task_id}[{ti.map_index}]")
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

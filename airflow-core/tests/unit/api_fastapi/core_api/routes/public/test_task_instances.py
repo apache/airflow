@@ -5191,7 +5191,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
@@ -5216,7 +5216,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [f"{TASK_ID}[-1]"],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
@@ -5348,7 +5348,11 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[0]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[2]",
+                        ],
                         "errors": [],
                     }
                 },
@@ -5371,7 +5375,10 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": ["another_task[-1]", TASK_ID],
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.another_task[-1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                        ],
                         "errors": [],
                     }
                 },
@@ -5401,7 +5408,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
@@ -5463,7 +5470,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[100]"],
                         "errors": [],
                     }
                 },
@@ -5612,7 +5619,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [
                             {
                                 "error": f"The Task Instance with dag_id: `{DAG_ID}`, run_id: `{RUN_ID}`, task_id: `non_existent_task` and map_index: `None` was not found",
@@ -5621,7 +5628,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         ],
                     },
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [
                             {
                                 "error": f"No task instances found for dag_id: {DAG_ID}, run_id: {RUN_ID}, task_id: non_existent_task",
@@ -5677,7 +5684,10 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID, BASH_TASK_ID],
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                            f"{BASH_DAG_ID}.{RUN_ID}.{BASH_TASK_ID}[-1]",
+                        ],
                         "errors": [],
                     }
                 },
@@ -5713,7 +5723,10 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [BASH_TASK_ID, TASK_ID],
+                        "success": [
+                            f"{BASH_DAG_ID}.{RUN_ID}.{BASH_TASK_ID}[-1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                        ],
                         "errors": [],
                     }
                 },
