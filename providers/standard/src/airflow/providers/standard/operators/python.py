@@ -73,6 +73,8 @@ log = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from typing import Literal
 
+    from pendulum.datetime import DateTime
+
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
