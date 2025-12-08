@@ -305,6 +305,7 @@ def clear_task_instances(
                     dr.last_scheduling_decision = None
                     dr.start_date = None
                     dr.clear_number += 1
+                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 

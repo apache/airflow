@@ -1420,9 +1420,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
     @mock.patch(
         "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
-        wraps=_execute_in_subprocess,
     )
-    def test_with_index_urls(self, wrapped_execute_in_subprocess):
+    def test_with_index_urls(self, mock_execute_in_subprocess):
+        def safe_execute_in_subprocess(cmd, **kwargs):
+            """Wrapper that removes unreachable URLs from env before executing."""
+            env = kwargs.get("env", {}).copy()
+            # Remove fake URLs to allow venv creation to succeed
+            env.pop("UV_DEFAULT_INDEX", None)
+            env.pop("UV_INDEX", None)
+            return _execute_in_subprocess(cmd, **{**kwargs, "env": env if env else None})
+
+        mock_execute_in_subprocess.side_effect = safe_execute_in_subprocess
+
         def f(a):
             import sys
             from pathlib import Path
@@ -1443,15 +1452,30 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             op_args=[4],
         )
 
-        # first call creates venv, second call installs packages
-        package_install_call_args = wrapped_execute_in_subprocess.call_args[1]
-        assert package_install_call_args["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
+        # Verify that env was passed with the correct index URLs to pip install
+        # The first call is venv creation (with cleaned env), second call is pip install (with full env)
+        assert len(mock_execute_in_subprocess.call_args_list) >= 2
+        package_install_call_args = mock_execute_in_subprocess.call_args_list[1]
+        assert package_install_call_args[1]["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
         assert (
-            package_install_call_args["env"]["UV_INDEX"]
+            package_install_call_args[1]["env"]["UV_INDEX"]
             == "http://second.package.index http://third.package.index"
         )
 
-    def test_with_index_url_from_connection(self, monkeypatch):
+    @mock.patch(
+        "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
+    )
+    def test_with_index_url_from_connection(self, mock_execute_in_subprocess, monkeypatch):
+        def safe_execute_in_subprocess(cmd, **kwargs):
+            """Wrapper that removes unreachable URLs from env before executing."""
+            env = kwargs.get("env", {}).copy()
+            # Remove fake URLs to allow venv creation to succeed
+            env.pop("UV_DEFAULT_INDEX", None)
+            env.pop("UV_INDEX", None)
+            return _execute_in_subprocess(cmd, **{**kwargs, "env": env if env else None})
+
+        mock_execute_in_subprocess.side_effect = safe_execute_in_subprocess
+
         class MockConnection(Connection):
             """Mock for the Connection class."""
 
