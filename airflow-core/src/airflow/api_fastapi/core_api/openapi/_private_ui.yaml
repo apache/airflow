@@ -2700,6 +2700,9 @@ components:
         classpath:
           type: string
           title: Classpath
+        trigger_queue:
+          type: string
+          title: Trigger Queue
         kwargs:
           type: string
           title: Kwargs
@@ -2716,6 +2719,7 @@ components:
       required:
       - id
       - classpath
+      - trigger_queue
       - kwargs
       - created_date
       - triggerer_id

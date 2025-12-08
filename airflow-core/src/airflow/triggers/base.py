@@ -32,6 +32,7 @@ from pydantic import (
     model_serializer,
 )
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -63,11 +64,17 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, trigger_queue: str | None = None, **kwargs):
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
         self.trigger_id = None
+        if not trigger_queue:
+            self.trigger_queue = conf.get("triggerer", "default_trigger_queue")
+        elif isinstance(trigger_queue, str) and "," not in trigger_queue:
+            self.trigger_queue = trigger_queue
+        else:
+            raise ValueError(f"Invalid trigger_queue value: '{trigger_queue}'")
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
