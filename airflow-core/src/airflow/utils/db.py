@@ -718,24 +718,30 @@ def _setup_debug_logging_if_needed():
     if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
         return
 
+    import atexit
     import faulthandler
-    import threading
+    from contextlib import suppress
 
     # Enable SQLA debug logging
     logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
 
-    # Enable Fault Handler
+    # Enable faulthandler for debugging long-running threads and deadlocks,
+    # but disable it before interpreter shutdown to avoid segfaults during
+    # cleanup (especially with SQLAlchemy 2.0 + pytest teardown)
     faulthandler.enable(file=sys.stderr, all_threads=True)
 
-    # Print Active Threads and Stack Traces Periodically
-    def dump_stacks():
-        while True:
-            for thread_id, frame in sys._current_frames().items():
-                log.info("\nThread %s stack:", thread_id)
-                traceback.print_stack(frame)
-            time.sleep(300)
+    # Cancel any pending traceback dumps and disable faulthandler before exit
+    # to prevent it from interfering with C extension cleanup
+    def cleanup_faulthandler():
+        with suppress(Exception):
+            faulthandler.cancel_dump_traceback_later()
+        with suppress(Exception):
+            faulthandler.disable()
 
-    threading.Thread(target=dump_stacks, daemon=True).start()
+    atexit.register(cleanup_faulthandler)
+
+    # Set up periodic traceback dumps for debugging hanging tests/threads
+    faulthandler.dump_traceback_later(timeout=300, repeat=True, file=sys.stderr)
 
 
 @provide_session
