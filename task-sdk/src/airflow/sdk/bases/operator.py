@@ -1714,7 +1714,7 @@ class BaseAsyncOperator(BaseOperator):
         raise NotImplementedError()
 
     def execute(self, context):
-        """Run aexecute() inside an event loop."""
+        """Run 'aexecute()' inside an event loop."""
         with event_loop() as loop:
             if self.execution_timeout:
                 return loop.run_until_complete(
