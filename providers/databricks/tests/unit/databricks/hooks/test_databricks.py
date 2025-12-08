@@ -139,77 +139,77 @@ def create_endpoint(host):
     """
     Utility function to generate the create endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/create"
+    return f"https://{host}/api/2.2/jobs/create"
 
 
 def reset_endpoint(host):
     """
     Utility function to generate the reset endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/reset"
+    return f"https://{host}/api/2.2/jobs/reset"
 
 
 def update_endpoint(host):
     """
     Utility function to generate the update endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/update"
+    return f"https://{host}/api/2.2/jobs/update"
 
 
 def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/run-now"
+    return f"https://{host}/api/2.2/jobs/run-now"
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/submit"
+    return f"https://{host}/api/2.2/jobs/runs/submit"
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get"
+    return f"https://{host}/api/2.2/jobs/runs/get"
 
 
 def get_run_output_endpoint(host):
     """
     Utility function to generate the get run output endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get-output"
+    return f"https://{host}/api/2.2/jobs/runs/get-output"
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the cancel run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel"
+    return f"https://{host}/api/2.2/jobs/runs/cancel"
 
 
 def cancel_all_runs_endpoint(host):
     """
     Utility function to generate the cancel all runs endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel-all"
+    return f"https://{host}/api/2.2/jobs/runs/cancel-all"
 
 
 def delete_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/delete"
+    return f"https://{host}/api/2.2/jobs/runs/delete"
 
 
 def repair_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/repair"
+    return f"https://{host}/api/2.2/jobs/runs/repair"
 
 
 def get_cluster_endpoint(host):
@@ -258,7 +258,7 @@ def list_jobs_endpoint(host):
     """
     Utility function to generate the list jobs endpoint given the host
     """
-    return f"https://{host}/api/2.1/jobs/list"
+    return f"https://{host}/api/2.2/jobs/list"
 
 
 def list_pipelines_endpoint(host):
@@ -446,7 +446,7 @@ class TestDatabricksHook:
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {"cluster_name": "new_name"}
         data = {"cluster_name": "new_name"}
-        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_requests.patch.assert_called_once_with(
@@ -1840,7 +1840,7 @@ class TestDatabricksHookAsyncMethods:
         )
         data = {"cluster_name": "new_name"}
         async with self.hook:
-            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_patch.assert_called_once_with(
