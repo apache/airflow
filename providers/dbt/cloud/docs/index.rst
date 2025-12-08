@@ -60,7 +60,7 @@ an Integrated Developer Environment (IDE).
     :maxdepth: 1
     :caption: Resources
 
-    Example Dags <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/providers/dbt/tests/system/dbt/cloud/example_dbt_cloud.py>
+    Example Dags <https://github.com/apache/airflow/tree/providers-dbt-cloud/|version|/providers/dbt/cloud/tests/system/dbt/cloud/example_dbt_cloud.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dbt-cloud/>
     Installing from sources <installing-providers-from-sources>
 

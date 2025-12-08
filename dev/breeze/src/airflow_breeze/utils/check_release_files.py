@@ -33,16 +33,16 @@ RUN cd airflow-core; uv sync --no-sources
 AIRFLOW_DOCKER = """\
 FROM python:3.10
 
-# Upgrade
-RUN pip install "apache-airflow=={}"
+RUN pip install "apache-airflow=={}" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-{}/constraints-3.10.txt"
 
 """
 
 TASK_SDK_DOCKER = """\
 FROM python:3.10
 
-# Upgrade
-RUN pip install "apache-airflow-task-sdk=={}"
+RUN pip install "apache-airflow-task-sdk=={}" "apache-airflow-core=={}" "apache-airflow=={}"\
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-{}/constraints-3.10.txt"
 
 """
 

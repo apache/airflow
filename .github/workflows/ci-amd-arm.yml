@@ -231,6 +231,23 @@ jobs:
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
 
+  verify-release-calendar:
+    name: "Verify release calendar"
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    needs: [build-info]
+    # Only run on canary builds (push to main, scheduled runs, or manual dispatch)
+    if: needs.build-info.outputs.canary-run == 'true'
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: "Verify release calendar"
+        run: uv run dev/verify_release_calendar.py
+
   build-ci-images:
     name: Build CI images
     needs: [build-info]

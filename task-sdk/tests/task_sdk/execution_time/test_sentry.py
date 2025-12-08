@@ -26,13 +26,12 @@ from unittest import mock
 import pytest
 import uuid6
 
-from airflow._shared.timezones import timezone
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType
+from airflow.sdk._shared.timezones import timezone
+from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType, TaskInstanceState
 from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbsResult
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 from airflow.sdk.module_loading import import_string
-from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
 
@@ -44,7 +43,7 @@ TASK_ID = "test_task"
 RUN_ID = "test_run"
 OPERATOR = "PythonOperator"
 TRY_NUMBER = 0
-STATE = State.SUCCESS
+STATE = TaskInstanceState.SUCCESS
 TASK_DATA = {
     "task_id": TASK_ID,
     "state": STATE,

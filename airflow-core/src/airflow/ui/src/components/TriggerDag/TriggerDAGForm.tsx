@@ -155,8 +155,6 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
                 <Input {...field} size="sm" />
-                {/* TODO: AIP-76 */}
-                {/* <Field.HelperText>{translate("components:triggerDag.runIdHelp")}</Field.HelperText> */}
               </Stack>
             </Field.Root>
           )}
@@ -188,7 +186,9 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
+            disabled={
+              Boolean(errors.conf) || Boolean(errors.date) || formError || isPending || Boolean(errorTrigger)
+            }
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> {translate("components:triggerDag.button")}

@@ -20,7 +20,7 @@
 ################################
 ## Airflow Create User Job
 #################################
-{{- if .Values.webserver.defaultUser.enabled }}
+{{- if and .Values.webserver.defaultUser.enabled .Values.createUserJob.enabled }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}

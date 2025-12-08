@@ -59,6 +59,7 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
@@ -77,12 +78,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.notset import NOTSET
-from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -1673,19 +1673,58 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return num_queued_tis
 
+    def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+        partition_dag_ids: set[str] = set()
+        apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
+            select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
+        )
+        for apdr in apdrs:
+            partition_dag_ids.add(apdr.target_dag_id)
+            dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
+            if not dag:
+                self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
+                continue
+
+            run_after = timezone.utcnow()
+            dag_run = dag.create_dagrun(
+                run_id=DagRun.generate_run_id(
+                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                ),
+                logical_date=None,
+                data_interval=None,
+                partition_key=apdr.partition_key,
+                run_after=run_after,
+                run_type=DagRunType.ASSET_TRIGGERED,
+                triggered_by=DagRunTriggeredByType.ASSET,
+                state=DagRunState.QUEUED,
+                creating_job_id=self.job.id,
+                session=session,
+            )
+            session.flush()
+            apdr.created_dag_run_id = dag_run.id
+            session.flush()
+
+        return partition_dag_ids
+
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
+        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
+
         query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
         all_dags_needing_dag_runs = set(query.all())
-        asset_triggered_dags = [
-            dag for dag in all_dags_needing_dag_runs if dag.dag_id in triggered_date_by_dag
-        ]
-        non_asset_dags = all_dags_needing_dag_runs.difference(asset_triggered_dags)
+        asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
+        non_asset_dags = {
+            d
+            # filter asset-triggered Dags
+            for d in all_dags_needing_dag_runs.difference(asset_triggered_dags)
+            # filter asset partition triggered Dags
+            if d.dag_id not in partition_dag_ids
+        }
         self._create_dag_runs(non_asset_dags, session)
         if asset_triggered_dags:
             self._create_dag_runs_asset_triggered(
-                dag_models=asset_triggered_dags,
+                dag_models=[d for d in asset_triggered_dags if d.dag_id not in partition_dag_ids],
                 triggered_date_by_dag=triggered_date_by_dag,
                 session=session,
             )
@@ -1722,7 +1761,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
-        # duplicate dag runs
+        # duplicate DagRuns
         existing_dagruns = (
             session.execute(
                 select(DagRun.dag_id, DagRun.logical_date).where(
@@ -1747,25 +1786,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
-            dag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
-            if not dag:
+            serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
+            if not serdag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            data_interval = get_next_data_interval(dag.timetable, dag_model)
+            data_interval = get_next_data_interval(serdag.timetable, dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
             # We opted to check DagRun existence instead
             # of catching an Integrity error and rolling back the session i.e
-            # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
-            # create a new one. This is so that in the next Scheduling loop we try to create new runs
-            # instead of falling in a loop of Integrity Error.
-            if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
+            # we need to set DagModel.next_dagrun_info if the DagRun already exists or if we
+            # create a new one. This is so that in the next scheduling loop we try to create new runs
+            # instead of falling in a loop of IntegrityError.
+            if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
                     if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
-                        dag.create_dagrun(
-                            run_id=dag.timetable.generate_run_id(
+                        serdag.create_dagrun(
+                            run_id=serdag.timetable.generate_run_id(
                                 run_type=DagRunType.SCHEDULED,
                                 run_after=timezone.coerce_datetime(dag_model.next_dagrun),
                                 data_interval=data_interval,
@@ -1779,28 +1818,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             creating_job_id=self.job.id,
                             session=session,
                         )
-                        active_runs_of_dags[dag.dag_id] += 1
+                        active_runs_of_dags[serdag.dag_id] += 1
                     else:
                         if dag_model.next_dagrun is None:
                             raise ValueError("dag_model.next_dagrun is None; expected datetime")
                         raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next dag.
+                # and continue to the next serdag.
                 except Exception:
-                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
                     continue
             if self._should_update_dag_next_dagruns(
-                dag,
+                serdag,
                 dag_model,
                 last_dag_run=None,
-                active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
+                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
                 session=session,
             ):
-                dag_model.calculate_dagrun_date_fields(dag, data_interval)
+                dag_model.calculate_dagrun_date_fields(serdag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        # memory for larger dags? or expunge_all()
+        #  memory for larger dags? or expunge_all()
 
     def _create_dag_runs_asset_triggered(
         self,
@@ -2085,12 +2124,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run, as_int=True))
-        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
-        links = [{"trace_id": trace_id, "span_id": span_id}]
-
-        with DebugTrace.start_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
+        with DebugTrace.start_root_span(
+            span_name="_schedule_dag_run", component="SchedulerJobRunner"
         ) as span:
             span.set_attributes(
                 {
@@ -2900,6 +2935,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
                         executor = _executor
+                        break
+                else:
+                    # No executor found for that team, fall back to global default
+                    executor = self.job.executor
         else:
             # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
             for _executor in self.job.executors:

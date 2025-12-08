@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+.. warning::
+    This release of the Edge3 provider drops support for Airflow versions below 3.0.0.
+
+    The support for Airflow 2.10-2.11 was experimental and GA for the provider is only for Airflow 3.0+.
+    Productive operation was not intended in Airflow 2.x, therefore the support for Airflow 2.x is now dropped
+    earlier than the usual release support policy would indicate.
+
+
 1.6.0
 .....
 

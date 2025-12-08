@@ -82,8 +82,8 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
+from airflow.observability.stats import Stats
 from airflow.settings import task_instance_mutation_hook
-from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.utils.helpers import prune_dict
@@ -304,6 +304,7 @@ def clear_task_instances(
                     dr.last_scheduling_decision = None
                     dr.start_date = None
                     dr.clear_number += 1
+                    dr.queued_at = timezone.utcnow()
     session.flush()
 
 
@@ -1317,6 +1318,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # TODO: AIP-76 should we provide an interface to override this, so that the task can
         #  tell the truth if for some reason it touches a different partition?
+        #  https://github.com/apache/airflow/issues/58474
         partition_key = ti.dag_run.partition_key
         asset_keys = {
             AssetUniqueKey(o.name, o.uri)

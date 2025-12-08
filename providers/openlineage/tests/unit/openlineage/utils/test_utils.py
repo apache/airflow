@@ -2428,16 +2428,35 @@ def test_task_info_af3():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
             # Mock some specific attributes from different operators
-            self.deferrable = True
-            self.trigger_dag_id = "trigger_dag_id"
-            self.trigger_run_id = "trigger_run_id"
-            self.external_dag_id = "external_dag_id"
-            self.external_task_id = "external_task_id"
-            self.external_task_ids = "external_task_ids"
-            self.external_task_group_id = "external_task_group_id"
-            self.external_dates_filter = "external_dates_filter"
-            self.logical_date = "logical_date"
-            self.execution_date = "execution_date"
+            self.deferrable = True  # Deferrable operators
+            self.column_mapping = "column_mapping"  # SQLColumnCheckOperator
+            self.column_names = "column_names"  # SQLInsertRowsOperator
+            self.database = "database"  # BaseSQlOperator
+            self.execution_date = "execution_date"  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_dag_id = (
+                "external_dag_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            )
+            self.external_dates_filter = "external_dates_filter"  # ExternalTaskSensor
+            self.external_task_group_id = "external_task_group_id"  # ExternalTaskSensor
+            self.external_task_id = "external_task_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_task_ids = "external_task_ids"  # ExternalTaskSensor
+            self.follow_branch = "follow_branch"  # BranchSQLOperator
+            self.follow_task_ids_if_false = "follow_task_ids_if_false"  # BranchSQLOperator
+            self.follow_task_ids_if_true = "follow_task_ids_if_true"  # BranchSQLOperator
+            self.ignore_zero = "ignore_zero"  # SQLIntervalCheckOperator
+            self.logical_date = "logical_date"  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.max_threshold = "max_threshold"  # SQLThresholdCheckOperator
+            self.metrics_thresholds = "metrics_thresholds"  # SQLIntervalCheckOperator
+            self.min_threshold = "min_threshold"  # SQLThresholdCheckOperator
+            self.parameters = "parameters"  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+            self.pass_value = "pass_value"  # SQLValueCheckOperator
+            self.postoperator = "postoperator"  # SQLInsertRowsOperator
+            self.preoperator = "preoperator"  # SQLInsertRowsOperator
+            self.ratio_formula = "ratio_formula"  # SQLIntervalCheckOperator
+            self.table_name_with_schema = "table_name_with_schema"  # SQLInsertRowsOperator
+            self.tol = "tol"  # SQLValueCheckOperator
+            self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
+            self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2474,17 +2493,10 @@ def test_task_info_af3():
         "deferrable": True,
         "depends_on_past": False,
         "downstream_task_ids": "['task_1']",
-        "execution_date": "execution_date",
         "execution_timeout": None,
         "executor_config": {},
-        "external_dag_id": "external_dag_id",
-        "external_dates_filter": "external_dates_filter",
-        "external_task_id": "external_task_id",
-        "external_task_ids": "external_task_ids",
-        "external_task_group_id": "external_task_group_id",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
-        "logical_date": "logical_date",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -2502,12 +2514,37 @@ def test_task_info_af3():
         "run_as_user": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
-        "trigger_dag_id": "trigger_dag_id",
-        "trigger_run_id": "trigger_run_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        # Operator-specific useful attributes
+        "column_mapping": "column_mapping",
+        "column_names": "column_names",
+        "database": "database",
+        "execution_date": "execution_date",
+        "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
+        "external_task_group_id": "external_task_group_id",
+        "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "follow_branch": "follow_branch",
+        "follow_task_ids_if_false": "follow_task_ids_if_false",
+        "follow_task_ids_if_true": "follow_task_ids_if_true",
+        "ignore_zero": "ignore_zero",
+        "logical_date": "logical_date",
+        "max_threshold": "max_threshold",
+        "metrics_thresholds": "metrics_thresholds",
+        "min_threshold": "min_threshold",
+        "parameters": "parameters",
+        "pass_value": "pass_value",
+        "postoperator": "postoperator",
+        "preoperator": "preoperator",
+        "ratio_formula": "ratio_formula",
+        "table_name_with_schema": "table_name_with_schema",
+        "tol": "tol",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
     }
 
 
@@ -2516,16 +2553,35 @@ def test_task_info_af2():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
             # Mock some specific attributes from different operators
-            self.deferrable = True
-            self.trigger_dag_id = "trigger_dag_id"
-            self.trigger_run_id = "trigger_run_id"
-            self.external_dag_id = "external_dag_id"
-            self.external_task_id = "external_task_id"
-            self.external_task_ids = "external_task_ids"
-            self.external_task_group_id = "external_task_group_id"
-            self.external_dates_filter = "external_dates_filter"
-            self.logical_date = "logical_date"
-            self.execution_date = "execution_date"
+            self.deferrable = True  # Deferrable operators
+            self.column_mapping = "column_mapping"  # SQLColumnCheckOperator
+            self.column_names = "column_names"  # SQLInsertRowsOperator
+            self.database = "database"  # BaseSQlOperator
+            self.execution_date = "execution_date"  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_dag_id = (
+                "external_dag_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            )
+            self.external_dates_filter = "external_dates_filter"  # ExternalTaskSensor
+            self.external_task_group_id = "external_task_group_id"  # ExternalTaskSensor
+            self.external_task_id = "external_task_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_task_ids = "external_task_ids"  # ExternalTaskSensor
+            self.follow_branch = "follow_branch"  # BranchSQLOperator
+            self.follow_task_ids_if_false = "follow_task_ids_if_false"  # BranchSQLOperator
+            self.follow_task_ids_if_true = "follow_task_ids_if_true"  # BranchSQLOperator
+            self.ignore_zero = "ignore_zero"  # SQLIntervalCheckOperator
+            self.logical_date = "logical_date"  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.max_threshold = "max_threshold"  # SQLThresholdCheckOperator
+            self.metrics_thresholds = "metrics_thresholds"  # SQLIntervalCheckOperator
+            self.min_threshold = "min_threshold"  # SQLThresholdCheckOperator
+            self.parameters = "parameters"  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+            self.pass_value = "pass_value"  # SQLValueCheckOperator
+            self.postoperator = "postoperator"  # SQLInsertRowsOperator
+            self.preoperator = "preoperator"  # SQLInsertRowsOperator
+            self.ratio_formula = "ratio_formula"  # SQLIntervalCheckOperator
+            self.table_name_with_schema = "table_name_with_schema"  # SQLInsertRowsOperator
+            self.tol = "tol"  # SQLValueCheckOperator
+            self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
+            self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -2562,20 +2618,13 @@ def test_task_info_af2():
         "deferrable": True,
         "depends_on_past": False,
         "downstream_task_ids": "['task_1']",
-        "execution_date": "execution_date",
         "execution_timeout": None,
         "executor_config": {},
-        "external_dag_id": "external_dag_id",
-        "external_dates_filter": "external_dates_filter",
-        "external_task_id": "external_task_id",
-        "external_task_ids": "external_task_ids",
-        "external_task_group_id": "external_task_group_id",
         "ignore_first_depends_on_past": True,
         "is_setup": False,
         "is_teardown": False,
         "sla": None,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
-        "logical_date": "logical_date",
         "mapped": False,
         "max_active_tis_per_dag": None,
         "max_active_tis_per_dagrun": None,
@@ -2593,12 +2642,37 @@ def test_task_info_af2():
         "run_as_user": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
-        "trigger_dag_id": "trigger_dag_id",
-        "trigger_run_id": "trigger_run_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        # Operator-specific useful attributes
+        "column_mapping": "column_mapping",
+        "column_names": "column_names",
+        "database": "database",
+        "execution_date": "execution_date",
+        "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
+        "external_task_group_id": "external_task_group_id",
+        "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "follow_branch": "follow_branch",
+        "follow_task_ids_if_false": "follow_task_ids_if_false",
+        "follow_task_ids_if_true": "follow_task_ids_if_true",
+        "ignore_zero": "ignore_zero",
+        "logical_date": "logical_date",
+        "max_threshold": "max_threshold",
+        "metrics_thresholds": "metrics_thresholds",
+        "min_threshold": "min_threshold",
+        "parameters": "parameters",
+        "pass_value": "pass_value",
+        "postoperator": "postoperator",
+        "preoperator": "preoperator",
+        "ratio_formula": "ratio_formula",
+        "table_name_with_schema": "table_name_with_schema",
+        "tol": "tol",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
     }
 
 

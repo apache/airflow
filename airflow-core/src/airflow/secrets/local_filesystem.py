@@ -278,6 +278,26 @@ def load_connections_dict(file_path: str) -> dict[str, Any]:
     return connection_by_conn_id
 
 
+def load_configs_dict(file_path: str) -> dict[str, str]:
+    """
+    Load configs from a text file.
+
+    ``JSON``, `YAML` and ``.env`` files are supported.
+
+    :param file_path: The location of the file that will be processed.
+    :return: A dictionary where the key contains a config name and the value contains the config value.
+    """
+    log.debug("Loading configs from text file %s", file_path)
+
+    secrets = _parse_secret_file(file_path)
+    invalid_keys = [key for key, values in secrets.items() if isinstance(values, list) and len(values) != 1]
+    if invalid_keys:
+        raise VariableNotUnique(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
+    configs = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
+    log.debug("Loaded %d configs: ", len(configs))
+    return configs
+
+
 class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     """
     Retrieves Connection objects and Variables from local files.
@@ -288,10 +308,16 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     :param connections_file_path: File location with connection data.
     """
 
-    def __init__(self, variables_file_path: str | None = None, connections_file_path: str | None = None):
+    def __init__(
+        self,
+        variables_file_path: str | None = None,
+        connections_file_path: str | None = None,
+        configs_file_path: str | None = None,
+    ):
         super().__init__()
         self.variables_file = variables_file_path
         self.connections_file = connections_file_path
+        self.configs_file = configs_file_path
 
     @property
     def _local_variables(self) -> dict[str, str]:
@@ -310,6 +336,14 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return {}
         return load_connections_dict(self.connections_file)
 
+    @property
+    def _local_configs(self) -> dict[str, str]:
+        if not self.configs_file:
+            self.log.debug("The file for configs is not specified. Skipping")
+            # The user may not specify any file.
+            return {}
+        return load_configs_dict(self.configs_file)
+
     def get_connection(self, conn_id: str) -> Connection | None:
         if conn_id in self._local_connections:
             return self._local_connections[conn_id]
@@ -317,3 +351,6 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> str | None:
         return self._local_variables.get(key)
+
+    def get_config(self, key: str) -> str | None:
+        return self._local_configs.get(key)

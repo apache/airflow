@@ -27,7 +27,7 @@ COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
-UV_VERSION="0.9.14"
+UV_VERSION="0.9.16"
 
 function manual_instructions() {
     echo

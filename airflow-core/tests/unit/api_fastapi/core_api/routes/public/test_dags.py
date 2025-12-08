@@ -383,36 +383,6 @@ class TestGetDags(TestDagEndpoint):
                 2,
                 [DAG1_ID, DAG2_ID],
             ),
-            (
-                {"order_by": "next_dagrun", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "last_run_state", "exclude_stale": False},
-                3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "-last_run_state", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "last_run_start_date", "exclude_stale": False},
-                3,
-                [DAG1_ID, DAG3_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": "-last_run_start_date", "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG1_ID, DAG2_ID],
-            ),
-            (
-                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
-                3,
-                [DAG3_ID, DAG2_ID, DAG1_ID],
-            ),
             # Search
             ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
             ({"dag_display_name_pattern": "test_dag2"}, 1, [DAG2_ID]),
@@ -441,6 +411,56 @@ class TestGetDags(TestDagEndpoint):
         if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
             self._create_asset_test_data(session)
 
+        with assert_queries_count(4):
+            response = test_client.get("/dags", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+
+        assert body["total_entries"] == expected_total_entries
+        actual_ids = [dag["dag_id"] for dag in body["dags"]]
+
+        assert actual_ids == expected_ids
+
+    # Ordering of nulls values is DB specific.
+    @pytest.mark.backend("sqlite")
+    @pytest.mark.parametrize(
+        ("query_params", "expected_total_entries", "expected_ids"),
+        [
+            (
+                {"order_by": "next_dagrun", "exclude_stale": False},
+                3,
+                [DAG1_ID, DAG2_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "last_run_state", "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "-last_run_state", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": "last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+            (
+                {"order_by": "-last_run_start_date", "exclude_stale": False},
+                3,
+                [DAG3_ID, DAG1_ID, DAG2_ID],
+            ),
+            (
+                {"order_by": ["next_dagrun", "-dag_display_name"], "exclude_stale": False},
+                3,
+                [DAG2_ID, DAG1_ID, DAG3_ID],
+            ),
+        ],
+    )
+    def test_get_dags_with_nullable_fields(
+        self, test_client, query_params, expected_total_entries, expected_ids, session
+    ):
         with assert_queries_count(4):
             response = test_client.get("/dags", params=query_params)
         assert response.status_code == 200

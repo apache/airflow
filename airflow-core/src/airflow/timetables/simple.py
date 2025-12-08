@@ -260,7 +260,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
+    def __init__(self, *, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
         self.asset_condition = assets
         self.partition_mapper = partition_mapper

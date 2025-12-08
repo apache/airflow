@@ -87,7 +87,7 @@
   },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",
-  "limitedList.clickToInteract": "点击标签以筛选 DAGs",
+  "limitedList.clickToInteract": "点击标签以筛选 Dags",
   "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
   "logs": {

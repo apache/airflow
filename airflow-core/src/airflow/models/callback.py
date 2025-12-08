@@ -29,7 +29,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:

@@ -1,0 +1,193 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+from __future__ import annotations
+
+import datetime
+import logging
+from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+from .protocols import Timer
+from .validators import (
+    PatternAllowListValidator,
+    PatternBlockListValidator,
+    get_validator,
+    validate_stat,
+)
+
+if TYPE_CHECKING:
+    from datadog import DogStatsd
+
+    from .protocols import DeltaType
+    from .validators import ListValidator
+
+log = logging.getLogger(__name__)
+
+
+class SafeDogStatsdLogger:
+    """DogStatsd Logger."""
+
+    def __init__(
+        self,
+        dogstatsd_client: DogStatsd,
+        metrics_validator: ListValidator = PatternAllowListValidator(),
+        metrics_tags: bool = False,
+        metric_tags_validator: ListValidator = PatternAllowListValidator(),
+        stat_name_handler: Callable[[str], str] | None = None,
+        statsd_influxdb_enabled: bool = False,
+    ) -> None:
+        self.dogstatsd = dogstatsd_client
+        self.metrics_validator = metrics_validator
+        self.metrics_tags = metrics_tags
+        self.metric_tags_validator = metric_tags_validator
+        self.stat_name_handler = stat_name_handler
+        self.statsd_influxdb_enabled = statsd_influxdb_enabled
+
+    @validate_stat
+    def incr(
+        self,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
+        """Increment stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+            ]
+        else:
+            tags_list = []
+        if self.metrics_validator.test(stat):
+            return self.dogstatsd.increment(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+        return None
+
+    @validate_stat
+    def decr(
+        self,
+        stat: str,
+        count: int = 1,
+        rate: float = 1,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
+        """Decrement stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+            ]
+        else:
+            tags_list = []
+        if self.metrics_validator.test(stat):
+            return self.dogstatsd.decrement(metric=stat, value=count, tags=tags_list, sample_rate=rate)
+        return None
+
+    @validate_stat
+    def gauge(
+        self,
+        stat: str,
+        value: int | float,
+        rate: float = 1,
+        delta: bool = False,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
+        """Gauge stat."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+            ]
+        else:
+            tags_list = []
+        if self.metrics_validator.test(stat):
+            return self.dogstatsd.gauge(metric=stat, value=value, tags=tags_list, sample_rate=rate)
+        return None
+
+    @validate_stat
+    def timing(
+        self,
+        stat: str,
+        dt: DeltaType,
+        *,
+        tags: dict[str, str] | None = None,
+    ) -> None:
+        """Stats timing."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+            ]
+        else:
+            tags_list = []
+        if self.metrics_validator.test(stat):
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds() * 1000.0
+            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags_list)
+        return None
+
+    @validate_stat
+    def timer(
+        self,
+        stat: str | None = None,
+        tags: dict[str, str] | None = None,
+        **kwargs,
+    ) -> Timer:
+        """Timer metric that can be cancelled."""
+        if self.metrics_tags and isinstance(tags, dict):
+            tags_list = [
+                f"{key}:{value}" for key, value in tags.items() if self.metric_tags_validator.test(key)
+            ]
+        else:
+            tags_list = []
+        if stat and self.metrics_validator.test(stat):
+            return Timer(self.dogstatsd.timed(stat, tags=tags_list, **kwargs))
+        return Timer()
+
+
+def get_dogstatsd_logger(
+    cls,
+    *,
+    host: str | None = None,
+    port: int | None = None,
+    namespace: str | None = None,
+    datadog_metrics_tags: bool = True,
+    statsd_disabled_tags: str | None = None,
+    metrics_allow_list: str | None = None,
+    metrics_block_list: str | None = None,
+    stat_name_handler: Callable[[str], str] | None = None,
+    statsd_influxdb_enabled: bool = False,
+) -> SafeDogStatsdLogger:
+    """Get DataDog StatsD logger."""
+    from datadog import DogStatsd
+
+    dogstatsd = DogStatsd(
+        host,
+        port,
+        namespace,
+        constant_tags=cls.get_constant_tags(),
+    )
+    metric_tags_validator = PatternBlockListValidator(statsd_disabled_tags)
+    validator = get_validator(metrics_allow_list, metrics_block_list)
+    return SafeDogStatsdLogger(
+        dogstatsd,
+        validator,
+        datadog_metrics_tags,
+        metric_tags_validator,
+        stat_name_handler,
+        statsd_influxdb_enabled,
+    )

@@ -43,7 +43,7 @@ export const Health = () => {
         </Heading>
       </Flex>
       <ErrorAlert error={error} />
-      <HStack alignItems="center" gap={2}>
+      <HStack alignItems="center" flexWrap={{ base: "wrap", md: "nowrap" }} gap={2}>
         <HealthBadge
           isLoading={isLoading}
           status={data?.metadatabase.status}

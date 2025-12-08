@@ -610,7 +610,7 @@ class TestOtelIntegration:
         "--daemon",
     ]
 
-    dags: dict[str, DAG] = {}
+    dags: dict[str, SerializedDAG] = {}
 
     @classmethod
     def setup_class(cls):

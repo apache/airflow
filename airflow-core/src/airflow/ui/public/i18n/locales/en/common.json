@@ -182,6 +182,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",

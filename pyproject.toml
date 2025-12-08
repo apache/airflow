@@ -93,9 +93,6 @@ packages = []
 "all-task-sdk" = [
     "apache-airflow-task-sdk[all]"
 ]
-"sentry" = [
-    "apache-airflow-task-sdk[sentry]"
-]
 "airbyte" = [
     "apache-airflow-providers-airbyte>=5.0.0"
 ]
@@ -528,15 +525,17 @@ packages = []
 "rabbitmq" = [
     "amqp>=5.2.0",
 ]
+"sentry" = [
+    "sentry-sdk>=2.30.0",
+]
 "s3fs" = [
     # This is required for support of S3 file system which uses aiobotocore
     # which can have a conflict with boto3 as mentioned in aiobotocore extra
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.14",
+    "uv>=0.9.16",
 ]
-
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -1296,6 +1295,7 @@ dev = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]
 
 # To build docs:
@@ -1349,6 +1349,7 @@ apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
+apache-airflow-shared-observability = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1471,6 +1472,7 @@ members = [
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
+    "shared/observability",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
