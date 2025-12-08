@@ -106,12 +106,10 @@ def log_pod_event(
     :param seen_events: Set of event UIDs already logged to avoid duplicates
     """
     event_uid = event.metadata.uid
-    if event_uid in seen_events:
-        return None  # Skip duplicate events
-
-    seen_events.add(event_uid)
-    involved_object: V1ObjectReference = event.involved_object
-    pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
+    if event_uid not in seen_events:
+        seen_events.add(event_uid)
+        involved_object: V1ObjectReference = event.involved_object
+        pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
 
 
 async def await_pod_start(
