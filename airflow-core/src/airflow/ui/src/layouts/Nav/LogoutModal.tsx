@@ -37,7 +37,6 @@ const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => {
       onConfirm={() => {
         const logoutPath = getRedirectPath("api/v2/auth/logout");
 
-        document.cookie = "_token=; Path=/; Max-Age=-99999999;";
         globalThis.location.replace(logoutPath);
       }}
       onOpenChange={onClose}

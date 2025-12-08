@@ -1277,7 +1277,7 @@ def _generate_build_files_for_provider(
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(
         BREEZE_SOURCES_PATH / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
-        provider_details.base_provider_package_path / "LICENSE",
+        provider_details.root_provider_path / "LICENSE",
     )
 
 

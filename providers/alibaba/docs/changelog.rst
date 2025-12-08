@@ -26,6 +26,37 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+3.2.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add stream method to RemoteIO (#54813)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+
 3.2.4
 .....
 
@@ -218,8 +249,6 @@ Misc
    * ``Update DAG example links in multiple providers documents (#44034)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 2.9.1

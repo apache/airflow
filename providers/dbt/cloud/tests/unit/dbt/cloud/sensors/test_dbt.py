@@ -150,7 +150,7 @@ class TestDbtCloudJobRunSensor:
         mock_log_info.assert_called_with(msg)
 
     @pytest.mark.parametrize(
-        "mock_status, mock_message",
+        ("mock_status", "mock_message"),
         [
             ("cancelled", "Job run 1234 has been cancelled."),
             ("error", "Job run 1234 has failed."),

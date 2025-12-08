@@ -279,7 +279,7 @@ class TestGCSTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "delete_local_copy, expected_existence_of_local_copy",
+        ("delete_local_copy", "expected_existence_of_local_copy"),
         [(True, False), (False, True)],
     )
     @mock.patch(

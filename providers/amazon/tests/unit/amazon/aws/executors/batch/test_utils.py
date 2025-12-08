@@ -85,7 +85,7 @@ class TestBatchJob:
     """Tests for the BatchJob class."""
 
     @pytest.mark.parametrize(
-        "batch_status, expected_airflow_state",
+        ("batch_status", "expected_airflow_state"),
         [
             ("SUBMITTED", State.QUEUED),
             ("PENDING", State.QUEUED),

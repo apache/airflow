@@ -96,3 +96,63 @@ class FABAuthManagerRoles:
             roles=[RoleResponse.model_validate(r) for r in roles],
             total_entries=total_entries,
         )
+
+    @classmethod
+    def delete_role(cls, name: str) -> None:
+        security_manager = get_fab_auth_manager().security_manager
+
+        existing = security_manager.find_role(name=name)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role with name {name!r} does not exist.",
+            )
+        security_manager.delete_role(existing)
+
+    @classmethod
+    def get_role(cls, name: str) -> RoleResponse:
+        security_manager = get_fab_auth_manager().security_manager
+
+        existing = security_manager.find_role(name=name)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role with name {name!r} does not exist.",
+            )
+        return RoleResponse.model_validate(existing)
+
+    @classmethod
+    def patch_role(cls, body: RoleBody, name: str, update_mask: str | None = None) -> RoleResponse:
+        security_manager = get_fab_auth_manager().security_manager
+
+        existing = security_manager.find_role(name=name)
+        if not existing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role with name {name!r} does not exist.",
+            )
+
+        if update_mask:
+            update_data = RoleResponse.model_validate(existing)
+
+            for field in update_mask:
+                if field == "actions":
+                    update_data.permissions = body.permissions
+                elif hasattr(body, field):
+                    setattr(update_data, field, getattr(body, field))
+                else:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"'{field}' in update_mask is unknown",
+                    )
+        else:
+            update_data = RoleResponse(name=body.name, permissions=body.permissions or [])
+
+        perms: list[tuple[str, str]] = [(ar.action.name, ar.resource.name) for ar in (body.permissions or [])]
+        cls._check_action_and_resource(security_manager, perms)
+        security_manager.bulk_sync_roles([{"role": name, "perms": perms}])
+
+        new_name = update_data.name
+        if new_name and new_name != existing.name:
+            security_manager.update_role(role_id=existing.id, name=new_name)
+        return RoleResponse.model_validate(update_data)

@@ -409,7 +409,8 @@ class MockLazySelectSequence(LazySelectSequence):
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
@@ -714,8 +715,8 @@ class TestSerializedBaseOperator:
         assert caplog.messages == ["test"]
 
     def test_resume_execution(self):
-        from airflow.exceptions import TaskDeferralTimeout
         from airflow.models.trigger import TriggerFailureReason
+        from airflow.sdk.exceptions import TaskDeferralTimeout
 
         op = BaseOperator(task_id="hi")
         with pytest.raises(TaskDeferralTimeout):
@@ -737,6 +738,7 @@ class TestKubernetesImportAvoidance:
             pytest.skip("Kubernetes already imported, cannot test import avoidance")
 
         # Call _has_kubernetes() - should check sys.modules and return False without importing
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is False
@@ -747,6 +749,7 @@ class TestKubernetesImportAvoidance:
         pytest.importorskip("kubernetes")
 
         # Now k8s is imported, should return True
+        _has_kubernetes.cache_clear()
         result = _has_kubernetes()
 
         assert result is True

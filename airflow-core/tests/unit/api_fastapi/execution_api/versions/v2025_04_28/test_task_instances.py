@@ -51,7 +51,7 @@ class TestTIUpdateState:
         clear_db_runs()
 
     @pytest.mark.parametrize(
-        "mock_indexes, expected_response_indexes",
+        ("mock_indexes", "expected_response_indexes"),
         [
             pytest.param(
                 [("task_a", 5), ("task_b", 10)],

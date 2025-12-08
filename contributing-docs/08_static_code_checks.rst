@@ -31,7 +31,7 @@ You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environ
 Prek hooks
 ----------
 
-Pre-commit hooks help speed up your local development cycle and place less burden on the CI infrastructure.
+Prek hooks help speed up your local development cycle and place less burden on the CI infrastructure.
 Consider installing the prek hooks as a necessary prerequisite.
 
 The hooks by default only check the files you are currently working on (and are staged) which makes the

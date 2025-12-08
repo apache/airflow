@@ -20,11 +20,13 @@ name = "apache-airflow-ctl"
 dynamic = ["version"]
 description = "Apache Airflow command line tool for communicating with an Apache Airflow, using the API."
 readme = { file = "README.md", content-type = "text/markdown" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We do not want to upper-bind Python version, as we do not know if we will support Python 3.14+
 # out-of-the box. Airflow-ctl is a small tool that does not have many dependencies and does not use
 # sophisticated features of Python, so it should work with Python 3.14+ once all it's dependencies are
 # updated to support it.
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.14"
 dependencies = [
     # TODO there could be still missing deps such as airflow-core
     "argcomplete>=1.10",
@@ -43,6 +45,20 @@ dependencies = [
 classifiers = [
   "Framework :: Apache Airflow",
 ]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow/issues"
+Documentation = "https://airflow.apache.org/docs/apache-airflow-ctl/stable/index.html"
+Downloads = "https://archive.apache.org/dist/airflow/airflow-ctl/"
+Homepage = "https://airflow.apache.org/"
+"Release Notes" = "https://airflow.apache.org/docs/apache-airflow-ctl/stable/changelog.html"
+"Slack Chat" = "https://s.apache.org/airflow-slack"
+"Source Code" = "https://github.com/apache/airflow"
+LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
+Mastodon = "https://fosstodon.org/@airflow"
+Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
+
 
 [project.optional-dependencies]
 "dev" = [
@@ -147,7 +163,7 @@ input = "../airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-ge
 output = "src/airflowctl/api/datamodels/generated.py"
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -180,7 +196,7 @@ testpaths = [
 ]
 asyncio_default_fixture_loop_scope = "function"
 
-pythonpath = "tests"
+pythonpath = ["tests"]
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"

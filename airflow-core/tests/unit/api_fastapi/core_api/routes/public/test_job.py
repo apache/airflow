@@ -128,7 +128,7 @@ class TestJobEndpoint:
 
 class TestGetJobs(TestJobEndpoint):
     @pytest.mark.parametrize(
-        "testcase, query_params, expected_status_code, expected_total_entries",
+        ("testcase", "query_params", "expected_status_code", "expected_total_entries"),
         [
             # original testcases refactor from tests/cli/commands/test_jobs_command.py
             (TESTCASE_ONE_SCHEDULER, {}, 200, 1),

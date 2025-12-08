@@ -31,10 +31,9 @@ from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureE
 from airflow.models import Connection
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -127,7 +126,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_host",
+        ("host", "conn_cluster_identifier", "expected_host"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -297,7 +296,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_cluster_identifier",
+        ("host", "conn_cluster_identifier", "expected_cluster_identifier"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -373,7 +372,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_workgroup_name,expected_workgroup_name",
+        ("host", "conn_workgroup_name", "expected_workgroup_name"),
         [
             (
                 "serverless-workgroup.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -690,7 +689,7 @@ class TestPostgresHook:
         assert sorted(input_data) == sorted(results)
 
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),

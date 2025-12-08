@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
@@ -70,7 +70,6 @@ from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
-    from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -480,7 +479,7 @@ class PermittedTeamFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted teams for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Team.name.in_(self.value))
+        return select.where(Team.name.in_(self.value or set()))
 
 
 def permitted_team_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedTeamFilter]:

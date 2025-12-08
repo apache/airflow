@@ -469,6 +469,56 @@ class TestCreateUserJob:
         )
         assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
 
+    def test_should_not_create_job_when_createuserjob_disabled(self):
+        """Test that job is not created when createUserJob.enabled is false."""
+        docs = render_chart(
+            values={"createUserJob": {"enabled": False}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_not_create_job_when_webserver_defaultuser_disabled(self):
+        """Test that job is not created when webserver.defaultUser.enabled is false."""
+        docs = render_chart(
+            values={"webserver": {"defaultUser": {"enabled": False}}},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_not_create_job_when_both_disabled(self):
+        """Test that job is not created when both flags are disabled."""
+        docs = render_chart(
+            values={
+                "createUserJob": {"enabled": False},
+                "webserver": {"defaultUser": {"enabled": False}},
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_not_create_job_when_createuserjob_disabled_but_defaultuser_enabled(self):
+        """Test that job is not created when createUserJob.enabled is false even if defaultUser.enabled is true."""
+        docs = render_chart(
+            values={
+                "createUserJob": {"enabled": False},
+                "webserver": {"defaultUser": {"enabled": True}},
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 0
+
+    def test_should_create_job_when_both_enabled(self):
+        """Test that job is created when both createUserJob.enabled and defaultUser.enabled are true."""
+        docs = render_chart(
+            values={
+                "createUserJob": {"enabled": True},
+                "webserver": {"defaultUser": {"enabled": True}},
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+        assert len(docs) == 1
+        assert docs[0]["kind"] == "Job"
+
 
 class TestCreateUserJobServiceAccount:
     """Tests create user job service account."""

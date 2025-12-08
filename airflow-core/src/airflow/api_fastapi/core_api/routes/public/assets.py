@@ -361,6 +361,7 @@ def create_asset_event(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
+        partition_key=body.partition_key,
         session=session,
     )
 

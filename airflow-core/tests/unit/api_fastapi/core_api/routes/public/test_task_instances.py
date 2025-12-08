@@ -251,7 +251,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "run_id, expected_version_number",
+        ("run_id", "expected_version_number"),
         [
             ("run1", 1),
             ("run2", 2),
@@ -784,7 +784,7 @@ class TestGetMappedTaskInstances:
         assert list(range(4, 14)) == [ti["map_index"] for ti in body["task_instances"]]
 
     @pytest.mark.parametrize(
-        "params , expected_map_indexes",
+        ("params", "expected_map_indexes"),
         [
             ({"order_by": "map_index", "limit": 100}, list(range(100))),
             ({"order_by": "-map_index", "limit": 100}, list(range(109, 9, -1))),
@@ -817,10 +817,12 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == params["limit"]
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
+    # Ordering of nulls values is DB specific.
+    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
-        "params, expected_map_indexes",
+        ("params", "expected_map_indexes"),
         [
-            ({"order_by": "rendered_map_index", "limit": 108}, [0] + list(range(1, 108))),  # Asc
+            ({"order_by": "rendered_map_index", "limit": 108}, list(range(1, 109))),  # Asc
             ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
         ],
     )
@@ -887,7 +889,7 @@ class TestGetMappedTaskInstances:
         assert body["task_instances"] == []
 
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_task_instance_count",
+        ("query_params", "expected_total_entries", "expected_task_instance_count"),
         [
             ({"state": "success"}, 3, 3),
             ({"state": "running"}, 0, 0),
@@ -939,7 +941,7 @@ class TestGetMappedTaskInstances:
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, url, params, expected_ti, expected_queries_number",
+        ("task_instances", "update_extras", "url", "params", "expected_ti", "expected_queries_number"),
         [
             pytest.param(
                 [
@@ -1326,6 +1328,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 id="test map_index filter",
             ),
             pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_pattern": "TEST_DAG_"},
+                1,  # apart from the TIs in the fixture, we also get one from
+                # the create_task_instances method
+                3,
+                id="test run_id_pattern filter",
+            ),
+            pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
@@ -1462,7 +1476,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == len(response.json()["task_instances"])
 
     @pytest.mark.parametrize(
-        "order_by_field, base_date",
+        ("order_by_field", "base_date"),
         [
             ("start_date", DEFAULT_DATETIME_1 + timedelta(days=20)),
             ("logical_date", DEFAULT_DATETIME_2),
@@ -1573,7 +1587,7 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         assert response.json() == {"dependencies": []}
 
     @pytest.mark.parametrize(
-        "state, dependencies",
+        ("state", "dependencies"),
         [
             (
                 State.SCHEDULED,
@@ -1659,7 +1673,7 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "task_instances, update_extras, payload, expected_ti_count",
+        ("task_instances", "update_extras", "payload", "expected_ti_count"),
         [
             pytest.param(
                 [
@@ -1798,7 +1812,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert start_dates_asc == list(reversed(start_dates_desc))
 
     @pytest.mark.parametrize(
-        "task_instances, payload, expected_ti_count",
+        ("task_instances", "payload", "expected_ti_count"),
         [
             pytest.param(
                 [
@@ -1836,7 +1850,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert expected_ti_count == len(body["task_instances"])
 
     @pytest.mark.parametrize(
-        "payload, expected_ti, total_ti",
+        ("payload", "expected_ti", "total_ti"),
         [
             pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
@@ -1899,7 +1913,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert "Input should be '~'" in str(response.json()["detail"])
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             ({"end_date_lte": "2020-11-10T12:42:39.442973"}, "Input should have timezone info"),
             ({"end_date_gte": "2020-11-10T12:42:39.442973"}, "Input should have timezone info"),
@@ -2275,7 +2289,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "defaults": ["Approve"],
                 "multiple": False,
                 "options": ["Approve", "Reject"],
-                "params": {"input_1": 1},
+                "params": {"input_1": {"value": 1, "description": None, "schema": {}}},
                 "params_input": {},
                 "responded_at": None,
                 "responded_by_user": None,
@@ -2308,7 +2322,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "run_id, expected_version_number",
+        ("run_id", "expected_version_number"),
         [
             ("run1", 1),
             ("run2", 2),
@@ -2365,7 +2379,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "run_id, expected_version_number",
+        ("run_id", "expected_version_number"),
         [
             ("run1", 1),
             ("run2", 2),
@@ -2444,7 +2458,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
-        "main_dag, task_instances, request_dag, payload, expected_ti",
+        ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
                 "example_python_operator",
@@ -2705,6 +2719,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 4,
                 id="clear mapped tasks with and without map index",
             ),
+            pytest.param(
+                "example_task_group_mapping",
+                [
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_group_mapping",
+                {
+                    "task_ids": [["op.mul_2", 0]],
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_upstream": True,
+                },
+                2,
+                id="clear tasks in mapped task group",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -2758,7 +2793,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "flag, expected",
+        ("flag", "expected"),
         [
             ("include_past", 2),  # T0 ~ T1
             ("include_future", 2),  # T1 ~ T2
@@ -2838,7 +2873,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "main_dag, task_instances, request_dag, payload, expected_ti",
+        ("main_dag", "task_instances", "request_dag", "payload", "expected_ti"),
         [
             pytest.param(
                 "example_python_operator",
@@ -2903,7 +2938,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
-        mock_clearti.assert_called_once_with([], mock.ANY, DagRunState.QUEUED, run_on_latest_version=False)
+        mock_clearti.assert_called_once_with(
+            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+        )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -3009,7 +3046,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert failed_dag_runs == 0
 
     @pytest.mark.parametrize(
-        "target_logical_date, response_logical_date",
+        ("target_logical_date", "response_logical_date"),
         [
             pytest.param(DEFAULT_DATETIME_1, "2020-01-01T00:00:00Z", id="date"),
             pytest.param(None, None, id="null"),
@@ -3292,7 +3329,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert f"Dag Run id TEST_DAG_RUN_ID_100 not found in dag {dag_id}" in response.text
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {"end_date": "2020-11-10T12:42:39.442973"},
@@ -3385,7 +3422,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert "The Dag with ID: `non-existent-dag` was not found" in response.text
 
     @pytest.mark.parametrize(
-        "dry_run, audit_log_count",
+        ("dry_run", "audit_log_count"),
         [
             (True, 0),
             (False, 1),
@@ -3554,7 +3591,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "defaults": ["Approve"],
                         "multiple": False,
                         "options": ["Approve", "Reject"],
-                        "params": {"input_1": 1},
+                        "params": {"input_1": {"value": 1, "description": None, "schema": {}}},
                         "params_input": {},
                         "responded_at": None,
                         "responded_by_user": None,
@@ -3743,7 +3780,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "run_id, expected_version_number",
+        ("run_id", "expected_version_number"),
         [
             ("run1", 1),
             ("run2", 2),
@@ -3801,7 +3838,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "run_id, expected_version_number",
+        ("run_id", "expected_version_number"),
         [
             ("run1", 1),
             ("run2", 2),
@@ -3872,7 +3909,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         get_listener_manager().clear()
 
     @pytest.mark.parametrize(
-        "state, listener_state",
+        ("state", "listener_state"),
         [
             ("success", [TaskInstanceState.SUCCESS]),
             ("failed", [TaskInstanceState.FAILED]),
@@ -4070,7 +4107,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "error, code, payload",
+        ("error", "code", "payload"),
         [
             [
                 [
@@ -4142,7 +4179,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {
@@ -4178,7 +4215,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "new_state,expected_status_code,expected_json,set_ti_state_call_count",
+        ("new_state", "expected_status_code", "expected_json", "set_ti_state_call_count"),
         [
             (
                 "failed",
@@ -4278,7 +4315,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @pytest.mark.parametrize(
-        "new_note_value,ti_note_data",
+        ("new_note_value", "ti_note_data"),
         [
             (
                 "My super cool TaskInstance note.",
@@ -4766,7 +4803,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             _check_task_instance_note(session, task_after["id"], None)
 
     @pytest.mark.parametrize(
-        "error, code, payload",
+        ("error", "code", "payload"),
         [
             [
                 [
@@ -4838,7 +4875,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @pytest.mark.parametrize(
-        "payload, expected",
+        ("payload", "expected"),
         [
             (
                 {
@@ -4874,7 +4911,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "new_state,expected_status_code,expected_json,set_ti_state_call_count",
+        ("new_state", "expected_status_code", "expected_json", "set_ti_state_call_count"),
         [
             (
                 "failed",
@@ -5006,7 +5043,7 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "test_url, setup_needed, expected_error",
+        ("test_url", "setup_needed", "expected_error"),
         [
             (
                 f"/dags/non_existent_dag/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}",
@@ -5035,7 +5072,7 @@ class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
         assert response.json()["detail"] == expected_error
 
     @pytest.mark.parametrize(
-        "task_instances, map_index, expected_status_code, expected_remaining",
+        ("task_instances", "map_index", "expected_status_code", "expected_remaining"),
         [
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.SUCCESS}],
@@ -5135,7 +5172,7 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances"
 
     @pytest.mark.parametrize(
-        "default_ti, actions, expected_results",
+        ("default_ti", "actions", "expected_results"),
         [
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.SUCCESS}],

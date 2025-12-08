@@ -713,7 +713,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("execution_timeout", timedelta(minutes=5), timedelta(minutes=10)),
         ("max_retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
         ("retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
-        ("retry_exponential_backoff", True, False),
+        ("retry_exponential_backoff", 2.0, 5.0),
         ("priority_weight", 1, 10),
         ("max_active_tis_per_dag", 1, 10),
         ("on_execute_callback", [], [id]),

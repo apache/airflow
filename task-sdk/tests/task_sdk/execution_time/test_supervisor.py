@@ -231,6 +231,26 @@ class TestWatchedSubprocess:
     def disable_log_upload(self, spy_agency):
         spy_agency.spy_on(ActivitySubprocess._upload_logs, call_original=False)
 
+    @pytest.fixture(autouse=True)
+    def use_real_secrets_backends(self, monkeypatch):
+        """
+        Ensure that real secrets backend instances are used instead of mocks.
+
+        This prevents Python 3.13 RuntimeWarning when hasattr checks async methods
+        on mocked backends. The warning occurs because hasattr on AsyncMock creates
+        unawaited coroutines.
+
+        This fixture ensures test isolation when running in parallel with pytest-xdist,
+        regardless of what other tests patch.
+        """
+        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+        )
+
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
         def subprocess_main():
             # This is run in the subprocess!
@@ -2049,6 +2069,7 @@ REQUEST_TEST_CASES = [
                 "dag_id": "test_dag",
                 "run_id": "prev_run",
                 "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "partition_key": None,
                 "run_type": "scheduled",
                 "start_date": timezone.parse("2024-01-15T12:00:00Z"),
                 "run_after": timezone.parse("2024-01-15T12:00:00Z"),
@@ -2629,6 +2650,14 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             },
         )
 
+    # Patch configurations in both airflow-core and task-sdk due to shared library refactoring.
+    #
+    # conf_vars() patches airflow.configuration.conf (airflow-core):
+    #   - remote_logging: needed by airflow_local_settings.py to decide whether to set up REMOTE_TASK_LOG
+    #   - remote_base_log_folder: needed by airflow_local_settings.py to create the CloudWatch handler
+    #
+    # task_sdk_conf_vars() patches airflow.sdk.configuration.conf (task-sdk):
+    #   - remote_log_conn_id: needed by load_remote_conn_id() to return the correct connection id
     with conf_vars(
         {
             ("logging", "remote_logging"): str(remote_logging),
@@ -2636,45 +2665,50 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             ("logging", "remote_log_conn_id"): remote_conn,
         }
     ):
-        env = os.environ.copy()
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        with conf_vars(
+            {
+                ("logging", "remote_log_conn_id"): remote_conn,
+            }
+        ):
+            env = os.environ.copy()
+            client = make_client(transport=httpx.MockTransport(handle_request))
 
-        with _remote_logging_conn(client):
-            new_keys = os.environ.keys() - env.keys()
-            if remote_logging:
-                assert new_keys == {expected_env}
-            else:
-                assert not new_keys
+            with _remote_logging_conn(client):
+                new_keys = os.environ.keys() - env.keys()
+                if remote_logging:
+                    assert new_keys == {expected_env}
+                else:
+                    assert not new_keys
 
-        if remote_logging and expected_env:
-            connection_available = {"available": False, "conn_uri": None}
+            if remote_logging and expected_env:
+                connection_available = {"available": False, "conn_uri": None}
 
-            def mock_upload_to_remote(process_log, ti):
-                connection_available["available"] = expected_env in os.environ
-                connection_available["conn_uri"] = os.environ.get(expected_env)
+                def mock_upload_to_remote(process_log, ti):
+                    connection_available["available"] = expected_env in os.environ
+                    connection_available["conn_uri"] = os.environ.get(expected_env)
 
-            mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
+                mocker.patch("airflow.sdk.log.upload_to_remote", side_effect=mock_upload_to_remote)
 
-            activity_subprocess = ActivitySubprocess(
-                process_log=mocker.MagicMock(),
-                id=TI_ID,
-                pid=12345,
-                stdin=mocker.MagicMock(),
-                client=client,
-                process=mocker.MagicMock(),
-            )
-            activity_subprocess.ti = mocker.MagicMock()
+                activity_subprocess = ActivitySubprocess(
+                    process_log=mocker.MagicMock(),
+                    id=TI_ID,
+                    pid=12345,
+                    stdin=mocker.MagicMock(),
+                    client=client,
+                    process=mocker.MagicMock(),
+                )
+                activity_subprocess.ti = mocker.MagicMock()
 
-            activity_subprocess._upload_logs()
+                activity_subprocess._upload_logs()
 
-            assert connection_available["available"], (
-                f"Connection {expected_env} was not available during upload_to_remote call"
-            )
-            assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
+                assert connection_available["available"], (
+                    f"Connection {expected_env} was not available during upload_to_remote call"
+                )
+                assert connection_available["conn_uri"] is not None, "Connection URI was None during upload"
 
 
 class TestSignalRetryLogic:
-    """Test signal based retry logic in ActivitySubprocess."""
+    """Test retry logic for exit codes (signals and non-signal failures) in ActivitySubprocess."""
 
     @pytest.mark.parametrize(
         "signal",
@@ -2727,8 +2761,8 @@ class TestSignalRetryLogic:
         result = mock_watched_subprocess.final_state
         assert result == TaskInstanceState.FAILED
 
-    def test_non_signal_exit_code_goes_to_failed(self, mocker):
-        """Test that non signal exit codes go to failed regardless of task retries."""
+    def test_non_signal_exit_code_with_retry_goes_to_up_for_retry(self, mocker):
+        """Test that non-signal exit codes with retries enabled go to UP_FOR_RETRY."""
         mock_watched_subprocess = ActivitySubprocess(
             process_log=mocker.MagicMock(),
             id=TI_ID,
@@ -2739,6 +2773,21 @@ class TestSignalRetryLogic:
         )
         mock_watched_subprocess._exit_code = 1
         mock_watched_subprocess._should_retry = True
+
+        assert mock_watched_subprocess.final_state == TaskInstanceState.UP_FOR_RETRY
+
+    def test_non_signal_exit_code_without_retry_goes_to_failed(self, mocker):
+        """Test that non-signal exit codes without retries enabled go to FAILED."""
+        mock_watched_subprocess = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+        mock_watched_subprocess._exit_code = 1
+        mock_watched_subprocess._should_retry = False
 
         assert mock_watched_subprocess.final_state == TaskInstanceState.FAILED
 

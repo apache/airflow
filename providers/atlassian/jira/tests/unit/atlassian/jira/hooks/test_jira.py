@@ -100,7 +100,7 @@ class TestJiraAsyncHook:
         )
 
     @pytest.mark.parametrize(
-        "api_version, api_result",
+        ("api_version", "api_result"),
         [
             pytest.param(
                 "2",
@@ -122,7 +122,7 @@ class TestJiraAsyncHook:
         assert hook.api_version == api_result
 
     @pytest.mark.parametrize(
-        "hook_kwargs, resource, api_root, api_version, resource_url_result",
+        ("hook_kwargs", "resource", "api_root", "api_version", "resource_url_result"),
         [
             pytest.param({"jira_conn_id": "jira_default"}, "issue", "abc/api", 1, "abc/api/1/issue"),
             pytest.param(

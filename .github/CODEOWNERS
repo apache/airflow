@@ -13,10 +13,10 @@
 /providers/cncf/kubernetes/ @dstandish @jedcunningham
 
 # Helm Chart
-/chart/ @dstandish @jedcunningham @hussein-awala @jscheffl
+/chart/ @jedcunningham @hussein-awala @jscheffl
 
 # Docs
-/docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+/docs/*.py @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # API
 /airflow-core/src/airflow/api/ @ephraimbuddy @pierrejeambrun @rawwar @jason810496
@@ -25,6 +25,9 @@
 
 # Airflow CTL
 /airflow-ctl/ @bugraoz93 @potiuk
+
+# Airflow CLI
+/airflow-core/src/airflow/cli/ @bugraoz93 @potiuk
 
 # Auth manager
 /airflow-core/src/airflow/api_fastapi/auth/ @vincbeck
@@ -41,11 +44,11 @@ airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1rac
 airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol @xBis7
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
 airflow-core/src/airflow/ui/public/i18n/locales/fr/ @pierrejeambrun @vincbeck
-airflow-core/src/airflow/ui/public/i18n/locales/he/ @eladkal @shahar1 @romsharon98 # +@Dev-iL
+airflow-core/src/airflow/ui/public/i18n/locales/he/ @shahar1 @romsharon98 # +@Dev-iL
 airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
 airflow-core/src/airflow/ui/public/i18n/locales/it/ @bbovenzi # + @aoelvp94
-airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @onestn
+airflow-core/src/airflow/ui/public/i18n/locales/ko/ @jscheffl @potiuk # + @choo121600 @kgw7401 @onestn @noeunkim
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
 airflow-core/src/airflow/ui/public/i18n/locales/pt/ @potiuk  # + @aoelvp94 @victoru2
@@ -79,44 +82,42 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /airflow-core/src/airflow/secrets @dstandish @ashb
 
 # Providers
-/providers/amazon/ @eladkal @o-nikolas
+/providers/amazon/ @o-nikolas
 /providers/celery/ @hussein-awala
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
 /providers/common/messaging/ @vincbeck
-/providers/common/sql/ @eladkal
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/keycloak/ @vincbeck @bugraoz93
 /providers/openlineage/ @mobuchowski
-/providers/slack/ @eladkal
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
 /providers/apache/iceberg/ @Fokko
 
 # Dev tools
-/.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
-/dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496 @jedcunningham @ephraimbuddy
+/.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/dev/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496 @jedcunningham @ephraimbuddy
 /dev/react-plugin-tools/ @pierrejeambrun @bbovenzi
 /docker-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /kubernetes-tests/ @potiuk @ashb @gopidesupavan @jason810496
 /helm-tests/ @dstandish @jedcunningham
-/scripts/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
-Dockerfile @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
-Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+/scripts/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+Dockerfile @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # E2E integration tests
-/airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+/airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # Task SDK integration tests
-/task-sdk-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+/task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # airflowctl integration tests
-/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @eladkal @jason810496
+/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # Issue triage process
-ISSUE_TRIAGE_PROCESS.rst @eladkal
+# ISSUE_TRIAGE_PROCESS.rst
 
 # AIP-52 - Setup and Teardown
 /airflow-core/src/airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
@@ -139,3 +140,6 @@ ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # Golang SDK
 /go-sdk/ @ashb @kaxil @amoghrajesh
+
+# Shared Libraries
+/shared/ @ashb @amoghrajesh @potiuk

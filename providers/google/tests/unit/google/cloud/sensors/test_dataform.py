@@ -38,7 +38,7 @@ TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class TestDataformWorkflowInvocationActionStateSensor:
     @pytest.mark.parametrize(
-        "expected_status, current_status, sensor_return",
+        ("expected_status", "current_status", "sensor_return"),
         [
             (WorkflowInvocationAction.State.SUCCEEDED, WorkflowInvocationAction.State.SUCCEEDED, True),
             (WorkflowInvocationAction.State.SUCCEEDED, WorkflowInvocationAction.State.RUNNING, False),

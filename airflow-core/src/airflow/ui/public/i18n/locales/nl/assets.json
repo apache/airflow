@@ -1,4 +1,8 @@
 {
+  "additional_data": "Extra data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Asset",
   "consumingDags": "Consumerende Dags",
   "createEvent": {
     "button": "Event aanmaken",

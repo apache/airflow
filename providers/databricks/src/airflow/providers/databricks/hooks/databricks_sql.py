@@ -278,7 +278,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
-            with closing(conn.cursor()) as cur:
+            with closing(conn.cursor()):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:

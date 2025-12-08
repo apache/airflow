@@ -24,7 +24,7 @@ description = "Kubernetes tests for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -41,10 +41,20 @@ dependencies = [
     "apache-airflow-task-sdk",
     # Requests 3 if it will be released, will be heavily breaking.
     "requests>=2.32.0,<3",
+    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
+    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Tracked in https://github.com/kubernetes-client/python/issues/2477
+    "urllib3>=2.1.0,<2.6.0",
 ]
 
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+[tool.pytest]
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
 norecursedirs = [
     ".eggs",
 ]

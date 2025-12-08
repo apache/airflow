@@ -39,7 +39,7 @@ class BasePool(BaseModel):
 
     pool: str = Field(serialization_alias="name")
     slots: int
-    description: str | None
+    description: str | None = Field(default=None)
     include_deferred: bool
 
 

@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -31,7 +31,7 @@ repos:
         name: Check if all hooks apply to the repository
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: f5cfd5fdaf0211dfd1027d9d8442b764a232c7ad
     hooks:
       - id: insert-license
         name: Add license for all Go files
@@ -78,7 +78,7 @@ repos:
         language: docker_image
         types: [file, proto]
         entry: >-
-          rvolosatovs/protoc
+          rvolosatovs/protoc:v7.0.0
           --go_out=.
           --go_opt=paths=source_relative
           --go-grpc_out=.

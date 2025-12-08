@@ -178,9 +178,9 @@ class BulkPoolService(BulkService[PoolBody]):
                 if pool.pool not in update_pool_names:
                     continue
 
-                pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
+                updated_pool = update_orm_from_pydantic(pool.pool, pool, action.update_mask, self.session)
 
-                results.success.append(str(pool.pool))  # use request field, always consistent
+                results.success.append(str(updated_pool.pool))  # use request field, always consistent
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

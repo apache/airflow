@@ -58,12 +58,24 @@ def stringify(line: str | bytes):
 
 
 def fetch_logs(log_stream, log: Logger):
-    log_lines = []
-    for log_chunk in log_stream:
-        log_chunk = stringify(log_chunk).rstrip()
-        log_lines.append(log_chunk)
-        for log_chunk_line in log_chunk.split("\n"):
-            log.info("%s", log_chunk_line)
+    log_lines: list[str] = []
+    buffer = ""
+
+    for log_chunk_raw in log_stream:
+        buffer += stringify(log_chunk_raw)
+        lines = buffer.split("\n")
+        buffer = lines.pop()  # Keep incomplete line for next iteration
+
+        for line in lines:
+            stripped_line = line.rstrip()
+            log.info("%s", stripped_line)
+            log_lines.append(stripped_line)
+
+    if buffer:
+        buffer = buffer.rstrip()
+        log.info("%s", buffer)
+        log_lines.append(buffer)
+
     return log_lines
 
 

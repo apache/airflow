@@ -25,6 +25,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+
 if TYPE_CHECKING:
     import airflow.sdk.io as io  # noqa: F401
     import airflow.sdk.timezone as timezone  # noqa: F401
@@ -77,12 +79,28 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
+    from airflow.sdk.exceptions import (
+        AirflowFailException as AirflowFailException,
+        AirflowSkipException as AirflowSkipException,
+        AirflowTaskTimeout as AirflowTaskTimeout,
+        ParamValidationError as ParamValidationError,
+        TaskDeferred as TaskDeferred,
+    )
+    from airflow.sdk.observability.stats import Stats  # noqa: F401
+
+    # Airflow 3-only exceptions (conditionally imported)
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk.exceptions import (
+            DagRunTriggerException as DagRunTriggerException,
+            DownstreamTasksSkipped as DownstreamTasksSkipped,
+        )
     from airflow.sdk.execution_time.context import (
         AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         context_to_airflow_vars as context_to_airflow_vars,
     )
     from airflow.sdk.execution_time.timeout import timeout as timeout
     from airflow.sdk.execution_time.xcom import XCom as XCom
+
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 
@@ -199,7 +217,30 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # XCom & Task Communication
     # ============================================================================
     "XCOM_RETURN_KEY": "airflow.models.xcom",
+    # ============================================================================
+    # Exceptions (deprecated in airflow.exceptions, prefer SDK)
+    # ============================================================================
+    # Exceptions available in both Airflow 2 and 3
+    "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    # ============================================================================
+    # Observability
+    # ============================================================================
+    "Stats": ("airflow.sdk.observability.stats", "airflow.stats"),
 }
+
+# Airflow 3-only exceptions (not available in Airflow 2)
+_AIRFLOW_3_ONLY_EXCEPTIONS: dict[str, tuple[str, ...]] = {
+    "DownstreamTasksSkipped": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "DagRunTriggerException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+}
+
+# Add Airflow 3-only exceptions to _IMPORT_MAP if running Airflow 3+
+if AIRFLOW_V_3_0_PLUS:
+    _IMPORT_MAP.update(_AIRFLOW_3_ONLY_EXCEPTIONS)
 
 # Module map: module_name -> module_path(s)
 # For entire modules that have been moved (e.g., timezone)

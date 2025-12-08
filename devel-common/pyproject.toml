@@ -35,10 +35,11 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.14.3",
+    "ruff==0.14.8",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
-    "time-machine>=2.15.0",
+    # limited due to changes needed https://github.com/apache/airflow/issues/58470
+    "time-machine>=2.19.0, <3.0.0",
     "wheel>=0.42.0",
     "yamllint>=1.33.0",
     "python-on-whales>=0.70.0",
@@ -102,7 +103,7 @@ dependencies = [
 "mypy" = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    "mypy==1.18.2",
+    "mypy==1.19.0",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -137,7 +138,7 @@ dependencies = [
     "pytest-timeouts>=1.2.1",
     "pytest-unordered>=0.6.1",
     "pytest-xdist>=3.5.0",
-    "pytest>=8.3.3",
+    "pytest>=9.0.0",
 ]
 "sentry" = [
     "blinker>=1.7.0",

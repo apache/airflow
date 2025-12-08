@@ -67,6 +67,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_1._dag_display_property_value = DAG1_DISPLAY_NAME
         dag_1_run_1 = DagRun(
             dag_id=DAG1_ID,
             run_id="test_dag_run_id_1",
@@ -93,6 +94,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_2._dag_display_property_value = DAG2_DISPLAY_NAME
         dag_2_run_1 = DagRun(
             dag_id=dag_2.dag_id,
             run_id="test_dag_2_run_id_1",
@@ -111,6 +113,7 @@ class TestDagStatsEndpoint:
             owners="test_owner,another_test_owner",
             next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
         )
+        dag_3._dag_display_property_value = DAG3_DISPLAY_NAME
         dag_3_run_1 = DagRun(
             dag_id=dag_3.dag_id,
             run_id="test_dag_3_run_id_1",
@@ -291,7 +294,7 @@ class TestGetDagStats(TestDagStatsEndpoint):
         assert res_json == exp_payload
 
     @pytest.mark.parametrize(
-        "url, params, exp_payload",
+        ("url", "params", "exp_payload"),
         [
             (
                 API_PREFIX,

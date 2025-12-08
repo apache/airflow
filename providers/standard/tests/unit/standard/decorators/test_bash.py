@@ -41,7 +41,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     # bad hack but does the job
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
+    from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
+        NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
+    )
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
@@ -104,7 +106,7 @@ class TestBashDecorator:
             assert bash_task.operator._init_bash_command_not_set is True
 
     @pytest.mark.parametrize(
-        argnames=["command", "expected_command", "expected_return_val"],
+        argnames=("command", "expected_command", "expected_return_val"),
         argvalues=[
             pytest.param("echo hello world", "echo hello world", "hello world", id="not_templated"),
             pytest.param(
@@ -175,7 +177,7 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, excepted_command)
 
     @pytest.mark.parametrize(
-        argnames=["append_env", "user_defined_env", "expected_airflow_home"],
+        argnames=("append_env", "user_defined_env", "expected_airflow_home"),
         argvalues=[
             pytest.param(False, {"var": "value"}, "", id="no_append_env"),
             pytest.param(True, {"var": "value"}, "path/to/airflow/home", id="append_env"),
@@ -203,7 +205,7 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, "echo var=$var; echo AIRFLOW_HOME=$AIRFLOW_HOME;")
 
     @pytest.mark.parametrize(
-        argnames=["exit_code", "expected"],
+        argnames=("exit_code", "expected"),
         argvalues=[
             pytest.param(99, pytest.raises(AirflowSkipException), id="skip"),
             pytest.param(1, pytest.raises(AirflowException), id="non-zero"),
@@ -228,7 +230,7 @@ class TestBashDecorator:
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
     @pytest.mark.parametrize(
-        argnames=["skip_on_exit_code", "exit_code", "expected"],
+        argnames=("skip_on_exit_code", "exit_code", "expected"),
         argvalues=[
             pytest.param(None, 99, pytest.raises(AirflowSkipException), id="default_skip_exit_99"),
             pytest.param(None, 1, pytest.raises(AirflowException), id="default_skip_exit_1"),
@@ -272,12 +274,12 @@ class TestBashDecorator:
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
     @pytest.mark.parametrize(
-        argnames=[
+        argnames=(
             "user_defined_env",
             "append_env",
             "expected_razz",
             "expected_airflow_home",
-        ],
+        ),
         argvalues=[
             pytest.param(
                 {"razz": "matazz"}, True, "matazz", "path/to/airflow/home", id="user_defined_env_and_append"
@@ -448,7 +450,7 @@ class TestBashDecorator:
         self.validate_bash_command_rtif(ti, "echo")
 
     @pytest.mark.parametrize(
-        argnames=["return_val", "expected"],
+        argnames=("return_val", "expected"),
         argvalues=[
             pytest.param(None, pytest.raises(TypeError), id="return_none_typeerror"),
             pytest.param(1, pytest.raises(TypeError), id="return_int_typeerror"),

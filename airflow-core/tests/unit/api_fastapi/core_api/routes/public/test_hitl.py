@@ -216,7 +216,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "defaults": ["Approve"],
         "multiple": False,
         "options": ["Approve", "Reject"],
-        "params": {"input_1": 1},
+        "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
         "assigned_users": [],
         "created_at": mock.ANY,
         "params_input": {},
@@ -539,7 +539,7 @@ class TestGetHITLDetailsEndpoint:
 
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize(
-        "params, expected_ti_count",
+        ("params", "expected_ti_count"),
         [
             # ti related filter
             ({"dag_id_pattern": "hitl_dag"}, 5),
@@ -621,7 +621,7 @@ class TestGetHITLDetailsEndpoint:
                     "body": "this is body 0",
                     "defaults": ["Approve"],
                     "multiple": False,
-                    "params": {"input_1": 1},
+                    "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
                     "assigned_users": [],
                     "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
                     "responded_by_user": None,
@@ -637,7 +637,7 @@ class TestGetHITLDetailsEndpoint:
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize("asc_desc_mark", ["", "-"], ids=["asc", "desc"])
     @pytest.mark.parametrize(
-        "key, get_key_lambda",
+        ("key", "get_key_lambda"),
         [
             # ti key
             ("ti_id", lambda x: x["task_instance"]["id"]),
@@ -696,6 +696,10 @@ class TestGetHITLDetailsEndpoint:
             ),
             reverse=reverse,
         )
+
+        # Remove entries with None, because None orders depends on the DB implementation
+        hitl_details = [d for d in hitl_details if get_key_lambda(d) is not None]
+        sorted_hitl_details = [d for d in sorted_hitl_details if get_key_lambda(d) is not None]
 
         assert hitl_details == sorted_hitl_details
 

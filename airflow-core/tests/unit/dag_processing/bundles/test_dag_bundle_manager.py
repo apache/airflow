@@ -35,7 +35,7 @@ from tests_common.test_utils.db import clear_db_dag_bundles
 
 
 @pytest.mark.parametrize(
-    "value, expected",
+    ("value", "expected"),
     [
         pytest.param(None, {"dags-folder"}, id="default"),
         pytest.param("{}", set(), id="empty dict"),
@@ -393,3 +393,7 @@ def test_example_dags_name_is_reserved():
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(reserved_name_config)}):
         with pytest.raises(AirflowConfigException, match="Bundle name 'example_dags' is a reserved name."):
             DagBundlesManager().parse_config()
+
+
+def test_get_all_bundle_names():
+    assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]

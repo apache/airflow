@@ -131,6 +131,7 @@ Currently, **officially** using Airflow:
 1. [Cinimex DataLab](http://cinimex.ru) [[@kdubovikov](https://github.com/kdubovikov)]
 1. [City of Ann Arbor](https://www.a2gov.org) [[@a2gov](https://github.com/a2gov), [@sfirke](https://github.com/sfirke)]
 1. [City of Detroit](https://detroitmi.gov) [[@CityOfDetroit](https://github.com/CityOfDetroit), [@jmcbroom](https://github.com/jmcbroom)]
+1. [City of Reykjavík](https://reykjavik.is) [[@pallih]](https://github.com/pallih)
 1. [City of San Diego](http://sandiego.gov) [[@MrMaksimize](https://github.com/mrmaksimize), [@andrell81](https://github.com/andrell81) & [@arnaudvedy](https://github.com/arnaudvedy)]
 1. [City of Toronto](https://www.toronto.ca/) [[@CityofToronto](https://github.com/CityofToronto), [@radumas](https://github.com/radumas)]
 1. [ciValue](https://civalue.com/) [[@chencivalue](https://github.com/chencivalue), [@YoavGaudin](https://github.com/YoavGaudin), [@saleem-boshnak](https://github.com/saleem-boshnak)]
@@ -378,6 +379,7 @@ Currently, **officially** using Airflow:
 1. [Nine](https://nine.com.au) [[@TheZepto](https://github.com/TheZepto)]
 1. [Notino](https://www.notino.com/) [[@marekhanus](https://github.com/marekhanus)]
 1. [Novelis](https://www.novelis.com/)[[@Rushabh-Garambha](https://github.com/Rushabh-Garambha)]
+1. [Numberly](https://www.numberly.com/)
 1. [Nutanix](https://www.nutanix.com/)
 1. [OdysseyPrime](https://www.goprime.io/) [[@davideberdin](https://github.com/davideberdin)]
 1. [OfferUp](https://offerupnow.com)

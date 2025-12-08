@@ -60,7 +60,6 @@ from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
-from airflow.utils.task_instance_session import get_current_task_instance_session
 
 USE_PSYCOPG3: bool
 try:
@@ -112,7 +111,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
-    "3.2.0": "e812941398f4",
+    "3.2.0": "665854ef0536",
 }
 
 
@@ -1067,7 +1066,6 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
-    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1547,7 +1545,7 @@ class LazySelectSequence(Sequence[T]):
 
     _select_asc: Select
     _select_desc: Select
-    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _session: Session
     _len: int | None = attrs.field(init=False, default=None)
 
     @classmethod
@@ -1556,7 +1554,7 @@ class LazySelectSequence(Sequence[T]):
         select: Select,
         *,
         order_by: Sequence[ColumnElement],
-        session: Session | None = None,
+        session: Session,
     ) -> Self:
         s1 = select
         for col in order_by:
@@ -1564,7 +1562,7 @@ class LazySelectSequence(Sequence[T]):
         s2 = select
         for col in order_by:
             s2 = s2.order_by(col.desc())
-        return cls(s1, s2, session=session or get_current_task_instance_session())
+        return cls(s1, s2, session=session)
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
@@ -1604,7 +1602,6 @@ class LazySelectSequence(Sequence[T]):
         s1, s2, self._len = state
         self._select_asc = self._rebuild_select(text(s1))
         self._select_desc = self._rebuild_select(text(s2))
-        self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)

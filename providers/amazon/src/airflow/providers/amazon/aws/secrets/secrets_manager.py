@@ -187,10 +187,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         }
 
         for conn_field, extra_words in self.extra_conn_words.items():
-            if conn_field == "user":
-                # Support `user` for backwards compatibility.
-                conn_field = "login"
-            possible_words_for_conn_fields[conn_field].extend(extra_words)
+            # Support `user` for backwards compatibility.
+            conn_field_backcompat = "login" if conn_field == "user" else conn_field
+            possible_words_for_conn_fields[conn_field_backcompat].extend(extra_words)
 
         conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():

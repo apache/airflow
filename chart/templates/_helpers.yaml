@@ -460,8 +460,20 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-pgbouncer-stats" (include "airflow.fullname" .)) .Values.pgbouncer.metricsExporterSidecar.statsSecretName }}
 {{- end }}
 
-{{- define "registry_secret" -}}
-  {{- default (printf "%s-registry" (include "airflow.fullname" .)) .Values.registry.secretName }}
+{{- define "image_pull_secrets" -}}
+  {{- $secrets := (default (list .Values.registry.secretName) .Values.imagePullSecrets) -}}
+  {{- $secrets = ($secrets | compact | uniq) -}}
+  {{- if and (not $secrets) (or .Values.registry.connection) -}}
+    {{- $secrets = append $secrets (printf "%s-registry" (include "airflow.fullname" .)) -}}
+  {{- end -}}
+  {{- $out := list -}}
+  {{- range $n := $secrets }}
+    {{- if kindIs "string" $n }}
+      {{- $n = dict "name" $n -}}
+    {{- end -}}
+    {{- $out = append $out (dict "name" $n.name) -}}
+  {{- end -}}
+  {{- toYaml $out -}}
 {{- end }}
 
 {{- define "elasticsearch_secret" -}}
@@ -746,6 +758,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the cleanup service account to use */}}
 {{- define "cleanup.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
+{{- end }}
+
+{{/* Create the name of the database cleanup service account to use */}}
+{{- define "databaseCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
 {{- end }}
 
 {{- define "wait-for-migrations-command" -}}
@@ -1129,4 +1146,19 @@ capabilities:
           matchLabels:
             app: keda-operator
   {{- end }}
+{{- end }}
+
+{{/*
+Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
+*/}}
+{{- define "cpu_count" -}}
+  {{- $v := toString . -}}
+    {{- if hasSuffix "m" $v -}}
+      {{- /* millicores path: e.g. 500m, 1500m */ -}}
+      {{- $m := float64 (trimSuffix "m" $v) -}}
+      {{- int (ceil (divf $m 1000)) -}}
+    {{- else -}}
+      {{- /* plain cores: e.g. 0.5, 1, 1.5 */ -}}
+      {{- int (ceil (float64 $v)) -}}
+    {{- end -}}
 {{- end }}

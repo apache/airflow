@@ -52,6 +52,15 @@ def dag_processor(args):
     """Start Airflow Dag Processor Job."""
     job_runner = _create_dag_processor_job_runner(args)
 
+    if cli_utils.should_enable_hot_reload(args):
+        from airflow.cli.hot_reload import run_with_reloader
+
+        run_with_reloader(
+            lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+            process_name="dag-processor",
+        )
+        return
+
     run_command_with_daemon_option(
         args=args,
         process_name="dag-processor",

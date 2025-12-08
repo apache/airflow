@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DagModel
     from airflow.models.trigger import Trigger
     from airflow.sdk.definitions.asset import Asset, AssetAlias
 
@@ -714,8 +715,8 @@ class AssetDagRunQueue(Base):
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     target_dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    asset = relationship("AssetModel", viewonly=True)
-    dag_model = relationship("DagModel", viewonly=True)
+    asset: Mapped[AssetModel] = relationship("AssetModel", viewonly=True)
+    dag_model: Mapped[DagModel] = relationship("DagModel", viewonly=True)
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
@@ -771,6 +772,7 @@ class AssetEvent(Base):
     :param source_run_id: the run_id of the TI which updated the asset
     :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
+    :param partition_key: the key for the partition associated with event, if applicable
 
     We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
@@ -784,6 +786,7 @@ class AssetEvent(Base):
     source_run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default=text("-1"))
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     __tablename__ = "asset_event"
     __table_args__ = (
@@ -858,4 +861,65 @@ class AssetEvent(Base):
             "source_aliases",
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class AssetPartitionDagRun(Base):
+    """
+    Keep track of new runs of a dag run per partition key.
+
+    Think of AssetPartitionDagRun as a provisional dag run. This record is created
+    when there's an asset event that contributes to the creation of a dag run for
+    this dag_id / partition_key combo. It may need to wait for other events before
+    it's ready to be created though, and the scheduler will make this determination.
+
+    We can look up the AssetEvents that contribute to AssetPartitionDagRun entities
+    with the PartitionedAssetKeyLog mapping table.
+
+    Where dag_run_id is null, the dag run has not yet been created.
+    We should not allow more than one like this. But to guard against
+    an accident, we should always work on the latest one.
+    """
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    created_dag_run_id: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
+    )
+
+    __tablename__ = "asset_partition_dag_run"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            columns=(created_dag_run_id,),
+            refcolumns=["dag_run.id"],
+            name="apdr_created_dag_run_id_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+
+
+class PartitionedAssetKeyLog(Base):
+    """
+    Mapping table between AssetPartitionDagRun and AssetEvent.
+
+    PartitionedAssetKeyLog tells us which events contributed to a particular
+    AssetPartitionDagRun record.
+    """
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    asset_event_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    asset_partition_dag_run_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    source_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    target_partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "partitioned_asset_key_log"
+
+    def __repr__(self):
+        args = (f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key)
         return f"{self.__class__.__name__}({', '.join(args)})"

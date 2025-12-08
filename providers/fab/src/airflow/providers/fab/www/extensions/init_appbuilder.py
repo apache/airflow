@@ -42,7 +42,7 @@ from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
-from airflow.providers.fab.www.views import FabIndexView
+from airflow.providers.fab.www.views import FabIndexView, redirect
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -216,6 +216,7 @@ class AirflowAppBuilder:
         from airflow.providers.fab.www.views import get_safe_url
 
         fab_sec_views.get_safe_redirect = get_safe_url
+        fab_sec_views.redirect = redirect
 
     def _init_extension(self, app):
         app.appbuilder = self
@@ -473,7 +474,7 @@ class AirflowAppBuilder:
             baseview=baseview,
             cond=cond,
         )
-        if self.app:
+        if current_app:
             self._add_permissions_menu(name)
             if category:
                 self._add_permissions_menu(category)

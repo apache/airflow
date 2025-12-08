@@ -38,7 +38,7 @@ FAILURE_STATUSES = {"FAILED"}
 
 class TestCloudDataFusionPipelineStateSensor:
     @pytest.mark.parametrize(
-        "expected_status, current_status, sensor_return",
+        ("expected_status", "current_status", "sensor_return"),
         [
             (PipelineStates.COMPLETED, PipelineStates.COMPLETED, True),
             (PipelineStates.COMPLETED, PipelineStates.RUNNING, False),

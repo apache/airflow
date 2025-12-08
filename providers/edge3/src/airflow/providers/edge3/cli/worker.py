@@ -25,7 +25,6 @@ from functools import cache
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
-from subprocess import Popen
 from time import sleep
 from typing import TYPE_CHECKING
 
@@ -39,7 +38,6 @@ from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
     jobs_set_state,
-    logs_logfile_path,
     logs_push,
     worker_register,
     worker_set_state,
@@ -51,8 +49,11 @@ from airflow.providers.edge3.cli.signalling import (
     status_file_path,
     write_pid_to_pidfile,
 )
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerState,
+    EdgeWorkerVersionException,
+)
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
@@ -214,7 +215,7 @@ class EdgeWorker:
             return 1
 
     @staticmethod
-    def _launch_job_af3(edge_job: EdgeJobFetched) -> tuple[Process, Path]:
+    def _launch_job(edge_job: EdgeJobFetched):
         if TYPE_CHECKING:
             from airflow.executors.workloads import ExecuteTask
 
@@ -228,29 +229,6 @@ class EdgeWorker:
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
         logfile = Path(base_log_folder, workload.log_path)
-        return process, logfile
-
-    @staticmethod
-    def _launch_job_af2_10(edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
-        """Compatibility for Airflow 2.10 Launch."""
-        env = os.environ.copy()
-        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
-        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-        command: list[str] = edge_job.command  # type: ignore[assignment]
-        process = Popen(command, close_fds=True, env=env, start_new_session=True)
-        logfile = logs_logfile_path(edge_job.key)
-        return process, logfile
-
-    @staticmethod
-    def _launch_job(edge_job: EdgeJobFetched):
-        """Get the received job executed."""
-        process: Popen | Process
-        if AIRFLOW_V_3_0_PLUS:
-            process, logfile = EdgeWorker._launch_job_af3(edge_job)
-        else:
-            # Airflow 2.10
-            process, logfile = EdgeWorker._launch_job_af2_10(edge_job)
         EdgeWorker.jobs.append(Job(edge_job, process, logfile, 0))
 
     def start(self):
@@ -261,6 +239,9 @@ class EdgeWorker:
             ).last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e))
+        except EdgeWorkerDuplicateException as e:
+            logger.error(str(e))
             raise SystemExit(str(e))
         except HTTPError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
@@ -348,7 +329,11 @@ class EdgeWorker:
             else:
                 used_concurrency += job.edge_job.concurrency_slots
 
-            if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+            if (
+                conf.getboolean("edge", "push_logs")
+                and job.logfile.exists()
+                and job.logfile.stat().st_size > job.logsize
+            ):
                 with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)

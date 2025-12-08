@@ -29,7 +29,7 @@ from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
 from airflow.models import Base
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
@@ -49,6 +49,9 @@ class CallbackState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 ACTIVE_STATES = frozenset((CallbackState.QUEUED, CallbackState.RUNNING))
@@ -153,7 +156,7 @@ class Callback(Base):
     def queue(self):
         self.state = CallbackState.QUEUED
 
-    def get_metric_info(self, status: str, result: Any) -> dict:
+    def get_metric_info(self, status: CallbackState, result: Any) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
 

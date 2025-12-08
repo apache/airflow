@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-sendgrid"
-version = "4.1.4"
+version = "4.2.0"
 description = "Provider package apache-airflow-providers-sendgrid for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -57,7 +58,7 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.8.0",
     # workaround conflicts with fab for Python 3.12 https://github.com/apache/airflow/pull/50221#issuecomment-2926765112
     # can be set to sendgrid>=6.12.3 when we upgrade to fab 5 and remove Werkzeug dependency
@@ -101,8 +102,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.1.4"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.1.4/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-sendgrid/4.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -140,6 +140,7 @@ class AssetEventResponse(BaseModel):
     source_map_index: int
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
+    partition_key: str | None = None
 
     @field_validator("extra", mode="after")
     @classmethod
@@ -174,6 +175,7 @@ class CreateAssetEventsBody(StrictBaseModel):
     """Create asset events request."""
 
     asset_id: int
+    partition_key: str | None = None
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")

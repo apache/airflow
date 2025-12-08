@@ -341,7 +341,7 @@ class TestTableauHook:
         mock_pager.assert_called_once_with(mock_server.return_value.jobs.get)
 
     @pytest.mark.parametrize(
-        "finish_code, expected_status",
+        ("finish_code", "expected_status"),
         [
             pytest.param(0, TableauJobFinishCode.SUCCESS, id="SUCCESS"),
             pytest.param(1, TableauJobFinishCode.ERROR, id="ERROR"),

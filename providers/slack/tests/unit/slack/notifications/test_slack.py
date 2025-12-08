@@ -29,7 +29,7 @@ DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "r
 class TestSlackNotifier:
     @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
     @pytest.mark.parametrize(
-        "extra_kwargs, hook_extra_kwargs",
+        ("extra_kwargs", "hook_extra_kwargs"),
         [
             pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
             pytest.param(

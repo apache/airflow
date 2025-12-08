@@ -22,11 +22,13 @@ import dayjsDuration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import { useStructureServiceStructureData } from "openapi/queries";
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -54,6 +56,11 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
@@ -77,6 +84,48 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     triggeringUser,
   });
 
+  const selectedVersion = useSelectedVersion();
+
+  const hasActiveFilter = includeUpstream || includeDownstream;
+
+  // fetch filtered structure when filter is active
+  const { data: taskStructure } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: false,
+      includeDownstream,
+      includeUpstream,
+      root: hasActiveFilter && filterRoot !== undefined ? filterRoot : undefined,
+      versionNumber: selectedVersion,
+    },
+    undefined,
+    {
+      enabled: selectedVersion !== undefined && hasActiveFilter && filterRoot !== undefined,
+    },
+  );
+
+  // extract allowed task IDs from task structure when filter is active
+  const allowedTaskIds = useMemo(() => {
+    if (!hasActiveFilter || filterRoot === undefined || taskStructure === undefined) {
+      return undefined;
+    }
+
+    const taskIds = new Set<string>();
+
+    const addNodeAndChildren = <T extends { children?: Array<T> | null; id: string }>(currentNode: T) => {
+      taskIds.add(currentNode.id);
+      if (currentNode.children) {
+        currentNode.children.forEach((child) => addNodeAndChildren(child));
+      }
+    };
+
+    taskStructure.nodes.forEach((node) => {
+      addNodeAndChildren(node);
+    });
+
+    return taskIds;
+  }, [hasActiveFilter, filterRoot, taskStructure]);
+
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
@@ -87,7 +136,19 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = useMemo(() => {
+    const nodes = flattenNodes(dagStructure, openGroupIds);
+
+    // filter nodes based on task stream filter if active
+    if (allowedTaskIds !== undefined) {
+      return {
+        ...nodes,
+        flatNodes: nodes.flatNodes.filter((node) => allowedTaskIds.has(node.id)),
+      };
+    }
+
+    return nodes;
+  }, [dagStructure, openGroupIds, allowedTaskIds]);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,

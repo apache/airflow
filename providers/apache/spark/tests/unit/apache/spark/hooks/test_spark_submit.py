@@ -1016,7 +1016,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.parametrize(
-        "command, expected",
+        ("command", "expected"),
         [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),

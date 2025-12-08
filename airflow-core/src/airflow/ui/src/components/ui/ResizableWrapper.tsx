@@ -48,6 +48,8 @@ type ResizableWrapperProps = {
 const DEFAULT_SIZE = { height: 400, width: 500 };
 const MAX_SIZE: [number, number] = [1200, 800];
 
+export const MARKDOWN_DIALOG_STORAGE_KEY = "airflow-markdown-dialog-size";
+
 export const ResizableWrapper = ({
   children,
   defaultSize = DEFAULT_SIZE,

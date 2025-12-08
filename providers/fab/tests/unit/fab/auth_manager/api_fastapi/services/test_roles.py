@@ -35,7 +35,7 @@ def fab_auth_manager():
 @pytest.fixture
 def security_manager():
     sm = MagicMock()
-    sm.get_action.side_effect = lambda n: object() if n in {"can_read"} else None
+    sm.get_action.side_effect = lambda n: object() if n in {"can_read", "can_edit"} else None
     sm.get_resource.side_effect = lambda n: object() if n in {"DAG"} else None
     return sm
 
@@ -48,7 +48,7 @@ def _make_role_obj(name: str, perms: list[tuple[str, str]]):
         )
         for (a, r) in perms
     ]
-    return types.SimpleNamespace(name=name, permissions=perm_objs)
+    return types.SimpleNamespace(id=1, name=name, permissions=perm_objs)
 
 
 class _FakeScalarCount:
@@ -209,3 +209,155 @@ class TestRolesService:
         with pytest.raises(HTTPException) as ex:
             FABAuthManagerRoles.get_roles(order_by="nope", limit=10, offset=0)
         assert ex.value.status_code == 400
+
+    # DELETE /roles/{name}
+
+    def test_delete_role_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = _make_role_obj("roleA", [])
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        FABAuthManagerRoles.delete_role(name="roleA")
+
+        security_manager.delete_role.assert_called_once()
+
+    def test_delete_role_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = None
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.delete_role(name="roleA")
+        assert ex.value.status_code == 404
+
+    # GET /roles/{name}
+
+    def test_get_role_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = _make_role_obj("roleA", [("can_read", "DAG")])
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        out = FABAuthManagerRoles.get_role(name="roleA")
+
+        assert out.name == "roleA"
+        assert out.permissions
+        assert out.permissions[0].action.name == "can_read"
+        assert out.permissions[0].resource.name == "DAG"
+
+    def test_get_role_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = None
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.get_role(name="roleA")
+        assert ex.value.status_code == 404
+
+    # PATCH /roles/{name}
+
+    def test_patch_role_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        role = _make_role_obj("viewer", [("can_read", "DAG")])
+        security_manager.find_role.return_value = role
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = types.SimpleNamespace(
+            name="viewer",
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_edit"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+        )
+        out = FABAuthManagerRoles.patch_role(body=body, name="viewer")
+        assert out.name == "viewer"
+        assert out.permissions
+        assert out.permissions[0].action.name == "can_edit"
+        assert out.permissions[0].resource.name == "DAG"
+
+    def test_patch_role_rename_success(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        role = _make_role_obj("viewer", [("can_edit", "DAG")])
+        security_manager.find_role.return_value = role
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = types.SimpleNamespace(
+            name="editor",
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_edit"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+        )
+        out = FABAuthManagerRoles.patch_role(body=body, name="viewer")
+        assert out.name == "editor"
+        assert out.permissions
+        assert out.permissions[0].action.name == "can_edit"
+        assert out.permissions[0].resource.name == "DAG"
+
+    def test_patch_role_with_update_mask(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        role = _make_role_obj("viewer", [("can_read", "DAG")])
+        security_manager.find_role.return_value = role
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = types.SimpleNamespace(
+            name="viewer1",
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_edit"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+        )
+        out = FABAuthManagerRoles.patch_role(
+            body=body,
+            name="viewer",
+            update_mask=["actions"],
+        )
+        assert out.name == "viewer"
+        assert out.permissions
+        assert out.permissions[0].action.name == "can_edit"
+        assert out.permissions[0].resource.name == "DAG"
+
+    def test_patch_role_rename_with_update_mask(
+        self, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        role = _make_role_obj("viewer", [("can_read", "DAG")])
+        security_manager.find_role.return_value = role
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = types.SimpleNamespace(
+            name="viewer1",
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_edit"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+        )
+        out = FABAuthManagerRoles.patch_role(
+            body=body,
+            name="viewer",
+            update_mask=["name"],
+        )
+        assert out.name == "viewer1"
+        assert out.permissions
+        assert out.permissions[0].action.name == "can_read"
+        assert out.permissions[0].resource.name == "DAG"
+
+    def test_patch_role_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
+        security_manager.find_role.return_value = None
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+        body = types.SimpleNamespace(
+            name="viewer",
+            permissions=[
+                types.SimpleNamespace(
+                    action=types.SimpleNamespace(name="can_edit"),
+                    resource=types.SimpleNamespace(name="DAG"),
+                )
+            ],
+        )
+        with pytest.raises(HTTPException) as ex:
+            FABAuthManagerRoles.patch_role(body=body, name="viewer")
+        assert ex.value.status_code == 404

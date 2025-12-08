@@ -787,7 +787,7 @@ class TestBatchExecutorConfig:
         assert submit_kwargs["tags"] == templated_tags
 
     @pytest.mark.parametrize(
-        "submit_job_kwargs, exec_config, expected_result",
+        ("submit_job_kwargs", "exec_config", "expected_result"),
         [
             # No input submit_job_kwargs or executor overrides
             (

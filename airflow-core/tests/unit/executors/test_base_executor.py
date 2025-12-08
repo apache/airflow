@@ -33,15 +33,15 @@ from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.executors.local_executor import LocalExecutor
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.sdk import BaseOperator
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 
-def test_supports_sentry():
-    assert not BaseExecutor.supports_sentry
+def test_sentry_integration():
+    assert not BaseExecutor.sentry_integration
 
 
 def test_is_local_default_value():

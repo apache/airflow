@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-11-05"
+API_VERSION: Final[str] = "2025-11-07"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -184,7 +184,7 @@ class TIDeferredStatePayload(BaseModel):
     trigger_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Trigger Kwargs")] = None
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
-    next_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Next Kwargs")] = None
+    next_kwargs: Annotated[dict[str, Any] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
@@ -561,6 +561,7 @@ class AssetEventResponse(BaseModel):
     source_dag_id: Annotated[str | None, Field(title="Source Dag Id")] = None
     source_run_id: Annotated[str | None, Field(title="Source Run Id")] = None
     source_map_index: Annotated[int | None, Field(title="Source Map Index")] = None
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class AssetEventsResponse(BaseModel):
@@ -593,6 +594,7 @@ class DagRun(BaseModel):
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     triggering_user_name: Annotated[str | None, Field(title="Triggering User Name")] = None
     consumed_asset_events: Annotated[list[AssetEventDagRunReference], Field(title="Consumed Asset Events")]
+    partition_key: Annotated[str | None, Field(title="Partition Key")] = None
 
 
 class TIRunContext(BaseModel):

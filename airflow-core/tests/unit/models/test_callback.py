@@ -26,7 +26,7 @@ from airflow.models.callback import (
     ExecutorCallback,
     TriggererCallback,
 )
-from airflow.sdk.definitions.deadline import AsyncCallback, SyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.session import create_session
@@ -67,7 +67,7 @@ def clean_db(request):
 
 class TestCallback:
     @pytest.mark.parametrize(
-        "callback_def, expected_cb_instance",
+        ("callback_def", "expected_cb_instance"),
         [
             pytest.param(
                 TEST_ASYNC_CALLBACK, TriggererCallback(callback_def=TEST_ASYNC_CALLBACK), id="triggerer"
@@ -100,7 +100,7 @@ class TestCallback:
     def test_get_metric_info(self):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK, prefix="deadline_alerts", dag_id=TEST_DAG_ID)
         callback.data["kwargs"] = {"context": {"dag_id": TEST_DAG_ID}, "email": "test@example.com"}
-        metric_info = callback.get_metric_info(CallbackState.SUCCESS.value, "0")
+        metric_info = callback.get_metric_info(CallbackState.SUCCESS, "0")
 
         assert metric_info["stat"] == "deadline_alerts.callback_success"
         assert metric_info["tags"] == {
@@ -122,7 +122,7 @@ class TestTriggererCallback:
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.state == CallbackState.PENDING.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
@@ -140,7 +140,7 @@ class TestTriggererCallback:
         assert callback.state == CallbackState.QUEUED
 
     @pytest.mark.parametrize(
-        "event, terminal_state",
+        ("event", "terminal_state"),
         [
             pytest.param(
                 TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "test_result"}),
@@ -192,7 +192,7 @@ class TestExecutorCallback:
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()
-        assert retrieved.state == CallbackState.PENDING
+        assert retrieved.state == CallbackState.PENDING.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
         assert retrieved.created_at is not None
