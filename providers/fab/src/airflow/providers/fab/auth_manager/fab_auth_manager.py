@@ -56,8 +56,9 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     PERMISSIONS_CLEANUP_COMMAND,

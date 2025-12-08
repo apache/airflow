@@ -243,7 +243,11 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
-            new_template, new_params = _extract_and_sign_template(name)
+            try:
+                new_template, new_params = _extract_and_sign_template(name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                continue
 
             if bundle := stored.pop(name, None):
                 bundle.active = True
@@ -339,7 +343,12 @@ class DagBundlesManager(LoggingMixin):
         :return: list of DAG bundles.
         """
         for name, cfg in self._bundle_config.items():
-            yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+            try:
+                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                # Skip this bundle and continue with others
+                continue
 
     def get_all_bundle_names(self) -> Iterable[str]:
         """
