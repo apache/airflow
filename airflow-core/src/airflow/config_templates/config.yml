@@ -2395,6 +2395,13 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    default_trigger_queue:
+      description: |
+        Default queue to assign the triggerer to, and which the triggerer will consume from.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "default"
 kerberos:
   description: ~
   options:

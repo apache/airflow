@@ -1564,6 +1564,7 @@ export type TriggerDAGRunPostBody = {
 export type TriggerResponse = {
     id: number;
     classpath: string;
+    trigger_queue: string;
     kwargs: string;
     created_date: string;
     triggerer_id: number | null;
