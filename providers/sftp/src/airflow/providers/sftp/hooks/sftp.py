@@ -811,7 +811,9 @@ class SFTPHookAsync(BaseHook):
             for file in files:
                 if file.filename not in {".", ".."}:
                     if file.attrs.permissions and stat.S_ISDIR(file.attrs.permissions):
-                        filename = file.filename.decode() if isinstance(file.filename, bytes) else file.filename
+                        filename = (
+                            file.filename.decode() if isinstance(file.filename, bytes) else file.filename
+                        )
                         file_path = posixpath.join(dir_path, filename)
                         results.extend(await walk(file_path))
                     else:
@@ -950,6 +952,8 @@ class SFTPClientPool(LoggingMixin):
                 self.sftp_conn_id,
                 self._semaphore._value,
             )
+            ssh_conn: asyncssh.SSHClient | None
+            sftp: asyncssh.SFTPClient | None
             ssh_conn, sftp = await self.acquire()
 
             try:
