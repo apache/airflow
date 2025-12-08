@@ -108,7 +108,10 @@ def get_xcom_entry(
         # format for UI display or for API users.
         import json
 
-        from airflow.serialization.stringify import stringify as stringify_xcom
+        from airflow.serialization.stringify import (
+            StringifyNotSupportedError,
+            stringify as stringify_xcom,
+        )
 
         try:
             parsed_value = json.loads(result.value)
@@ -118,7 +121,7 @@ def get_xcom_entry(
 
         try:
             item.value = stringify_xcom(parsed_value)
-        except ValueError:
+        except StringifyNotSupportedError:
             item.value = XComModel.deserialize_value(result)
     else:
         # For native format, return the raw serialized value from the database

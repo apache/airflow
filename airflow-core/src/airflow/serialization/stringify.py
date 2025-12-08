@@ -21,6 +21,16 @@ from typing import Any, TypeVar
 
 T = TypeVar("T", bool, float, int, dict, list, str, tuple, set)
 
+
+class StringifyNotSupportedError(ValueError):
+    """
+    Raised when stringify() cannot handle a serialized object and full deserialization is required.
+
+    This typically occurs when trying to stringify Airflow classes that need to be fully deserialized
+    using XComModel.deserialize_value() instead.
+    """
+
+
 CLASSNAME = "__classname__"
 VERSION = "__version__"
 DATA = "__data__"
@@ -108,7 +118,7 @@ def stringify(o: T | None) -> object:
 
     # Early detection for `airflow.` classes. These classes will need full deserialization, not just stringification
     if isinstance(classname, str) and classname.startswith("airflow."):
-        raise ValueError(
+        raise StringifyNotSupportedError(
             f"Cannot stringify Airflow class '{classname}'. "
             f"Use XComModel.deserialize_value() to deserialize Airflow classes."
         )
