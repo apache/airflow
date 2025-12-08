@@ -28,7 +28,7 @@ import * as ReactRouterDOM from "react-router-dom";
 import * as ReactJSXRuntime from "react/jsx-runtime";
 
 import type { HTTPExceptionResponse } from "openapi/requests/types.gen";
-import { ChakraCustomProvider } from "src/context/chakraCustom";
+import { ChakraCustomProvider } from "src/context/ChakraCustomProvider";
 import { ColorModeProvider } from "src/context/colorMode";
 import { TimezoneProvider } from "src/context/timezone";
 import { router } from "src/router";
