@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-08T10:02:15.271755
+# This constraints file was automatically generated on 2025-12-08T17:30:18.842864
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -165,7 +165,7 @@ colorlog==6.10.1
 comm==0.2.3
 confluent-kafka==2.12.2
 connexion==2.14.2
-coverage==7.12.0
+coverage==7.13.0
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -687,7 +687,7 @@ tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.5.0
+urllib3==2.6.1
 userpath==1.9.2
 uuid6==2025.0.1
 uv==0.9.16
@@ -713,7 +713,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.15
-ydb==3.22.1
+ydb==3.22.2
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
