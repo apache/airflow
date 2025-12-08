@@ -57,7 +57,7 @@ def test_airflow_sdk_no_unexpected_exports():
         "configuration",
         "module_loading",
         "yaml",
-        "serialization",
+        "serde",
         "observability",
     }
     unexpected = actual - public - ignore
