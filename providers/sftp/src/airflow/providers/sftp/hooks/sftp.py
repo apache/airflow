@@ -75,21 +75,6 @@ def handle_connection_management(func: Callable) -> Callable:
     return handle_connection_management_wrapper
 
 
-async def walk(sftp_client: asyncssh.SFTPClient, dir_path: str) -> list[asyncssh.sftp.SFTPName]:
-    results = []
-    files = await sftp_client.readdir(dir_path)
-
-    for file in files:
-        if file.filename not in {".", ".."}:
-            if stat.S_ISDIR(file.attrs.permissions):
-                file_path = posixpath.join(dir_path, file.filename)
-                results.extend(await walk(sftp_client, file_path))
-            else:
-                results.append(file)
-
-    return results
-
-
 class SFTPHook(SSHHook):
     """
     Interact with SFTP.
@@ -819,11 +804,25 @@ class SFTPHookAsync(BaseHook):
         return [str(file.filename) for file in files] if files else []
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
+        async def walk(dir_path: str) -> list[asyncssh.sftp.SFTPName]:
+            results = []
+            files = await sftp_client.readdir(dir_path)
+
+            for file in files:
+                if file.filename not in {".", ".."}:
+                    if stat.S_ISDIR(file.attrs.permissions):
+                        file_path = posixpath.join(dir_path, file.filename)
+                        results.extend(await walk(file_path))
+                    else:
+                        results.append(file)
+
+            return results
+
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
         async with await self._get_conn() as ssh_conn:
             async with ssh_conn.start_sftp_client() as sftp_client:
                 with suppress(asyncssh.SFTPNoSuchFile):
-                    return await walk(sftp_client, path)
+                    return await walk(path)
         return None
 
     async def retrieve_file(
