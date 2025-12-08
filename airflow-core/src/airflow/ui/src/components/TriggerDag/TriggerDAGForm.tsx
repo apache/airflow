@@ -22,12 +22,14 @@ import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
+import { useSearchParams } from "react-router-dom";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
+import { getTriggerConf } from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -60,29 +62,34 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
   const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
+  const [searchParams] = useSearchParams();
+  const reservedKeys = ["run_id", "logical_date", "note"];
+  const urlConf = getTriggerConf(searchParams, reservedKeys);
+  const urlRunId = searchParams.get("run_id") ?? "";
+  const urlDate = searchParams.get("logical_date");
+  const urlNote = searchParams.get("note") ?? "";
 
   const { mutate: togglePause } = useTogglePause({ dagId });
 
   const { control, handleSubmit, reset } = useForm<DagRunTriggerParams>({
     defaultValues: {
-      conf,
-      dagRunId: "",
-      // Default logical date to now, show it in the selected timezone
-      logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
-      note: "",
+      conf: urlConf === "{}" ? conf || "{}" : urlConf,
+      dagRunId: urlRunId,
+      logicalDate: urlDate ?? dayjs().format(DEFAULT_DATETIME_FORMAT),
+      note: urlNote,
       partitionKey: undefined,
     },
   });
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    if (conf) {
+    if (conf && urlConf === "{}") {
       reset((prevValues) => ({
         ...prevValues,
         conf,
       }));
     }
-  }, [conf, reset]);
+  }, [conf, reset, urlConf]);
 
   const resetDateError = () => {
     setErrors((prev) => ({ ...prev, date: undefined }));
@@ -106,6 +113,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
         control={control}
         errors={errors}
         initialParamsDict={initialParamsDict}
+        openAdvanced={urlConf !== "{}" || Boolean(urlRunId) || Boolean(urlDate) || Boolean(urlNote)}
         setErrors={setErrors}
         setFormError={setFormError}
       >
