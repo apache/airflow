@@ -60,7 +60,14 @@ class TestCategorizeTaskInstances(TestTaskInstanceEndpoint):
             return "test_user"
 
     @pytest.mark.parametrize(
-        "dags_to_create, dag_id, dag_run_id, task_keys, expected_matched_keys, expected_not_found_keys",
+        (
+            "dags_to_create",
+            "dag_id",
+            "dag_run_id",
+            "task_keys",
+            "expected_matched_keys",
+            "expected_not_found_keys",
+        ),
         [
             pytest.param(
                 [(DAG_ID_1, DAG_RUN_ID_1, [TASK_ID_1, TASK_ID_2])],
@@ -184,7 +191,7 @@ class TestExtractTaskIdentifiers(TestTaskInstanceEndpoint):
             return "test_user"
 
     @pytest.mark.parametrize(
-        "entity, expected_dag_id, expected_dag_run_id, expected_task_id, expected_map_index",
+        ("entity", "expected_dag_id", "expected_dag_run_id", "expected_task_id", "expected_map_index"),
         [
             pytest.param(
                 BulkTaskInstanceBody(task_id="task_1", dag_id=None, dag_run_id=None, map_index=None),
@@ -260,7 +267,14 @@ class TestCategorizeEntities(TestTaskInstanceEndpoint):
             return "test_user"
 
     @pytest.mark.parametrize(
-        "entities, service_dag_id, service_dag_run_id, expected_specific_keys, expected_all_keys, expected_error_count",
+        (
+            "entities",
+            "service_dag_id",
+            "service_dag_run_id",
+            "expected_specific_keys",
+            "expected_all_keys",
+            "expected_error_count",
+        ),
         [
             pytest.param(
                 [
