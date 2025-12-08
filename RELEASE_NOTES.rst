@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.1.4 (2025-12-09)
+Airflow 3.1.4 (2025-12-10)
 --------------------------
 
 Significant Changes
@@ -35,7 +35,8 @@ No significant changes.
 Bug Fixes
 ^^^^^^^^^
 
-Fix task clearing to only find relevant upstream/downstream task instances (#58987)
+Handle invalid token in JWTRefreshMiddleware (#56904)
+Fix inconsistent Dag hashes when template fields contain unordered dicts (#59091) (#59175)
 Fix assets used only as inlets being incorrectly orphaned (#58986)
 Fix exception when logging stdout with a custom %-format string (#58963)
 Fix backfill max_active_runs race condition with concurrent schedulers (#58935)
