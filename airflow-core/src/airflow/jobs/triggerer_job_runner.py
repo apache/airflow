@@ -789,7 +789,7 @@ class TriggerDetails(TypedDict):
     task: asyncio.Task
     name: str
     events: int
-    trigger: BaseTrigger | None
+    trigger: tuple[str, dict[str, Any]] | None
 
 
 @attrs.define(kw_only=True)
