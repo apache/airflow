@@ -479,7 +479,7 @@ class TestSerDe:
             (
                 Z(10),
                 {
-                    "__classname__": "tests.task_sdk.serialization.test_serde.Z",
+                    "__classname__": "tests.task_sdk.serde.test_serde.Z",
                     "__version__": 1,
                     "__data__": {"x": 10},
                 },
@@ -487,7 +487,7 @@ class TestSerDe:
             (
                 W(2),
                 {
-                    "__classname__": "tests.task_sdk.serialization.test_serde.W",
+                    "__classname__": "tests.task_sdk.serde.test_serde.W",
                     "__version__": 2,
                     "__data__": {"x": 2},
                 },
@@ -512,6 +512,6 @@ class TestSerDe:
         i = C()
         with pytest.raises(
             TypeError,
-            match="cannot serialize object of type <class 'tests.task_sdk.serialization.test_serde.C'>",
+            match="cannot serialize object of type <class 'tests.task_sdk.serde.test_serde.C'>",
         ):
             serialize(i)
