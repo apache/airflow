@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.metrics.dual_stats_manager import DualStatsManager
 from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
@@ -175,7 +174,7 @@ def set_metrics(
     )
 
     try:
-        from airflow.metrics.dual_stats_manager import DualStatsManager
+        from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 
         DualStatsManager.gauge(
             "edge_worker.connected",
