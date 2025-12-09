@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-<<<<<<< HEAD
-import { Box, Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
-=======
-import { Box, Link, VStack } from "@chakra-ui/react";
->>>>>>> da1f3c7c66 (remove unused translate)
+import { Box, Flex, Link, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
@@ -162,10 +158,6 @@ export const AssetsList = () => {
         />
 
         <Flex alignItems="center" justifyContent="space-between">
-          <Heading py={3} size="md">
-            {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
-          </Heading>
-
           <ExpandCollapseButtons
             collapseLabel={translate("common:collapseAllExtra")}
             expandLabel={translate("common:expandAllExtra")}

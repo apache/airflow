@@ -206,4 +206,38 @@ describe("DataTable", () => {
 
     expect(screen.getByText(/noitemsFound/iu)).toBeInTheDocument();
   });
+
+  it("renders display toggle when showDisplayToggle and onDisplayToggleChange are provided", () => {
+    const handleToggle = vi.fn();
+
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        displayMode="table"
+        initialState={{ pagination, sorting: [] }}
+        onDisplayToggleChange={handleToggle}
+        showDisplayToggle
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.getByLabelText(/toggleTableView/iu)).toBeInTheDocument();
+  });
+
+  it("does not render display toggle without showDisplayToggle", () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        displayMode="table"
+        initialState={{ pagination, sorting: [] }}
+        total={2}
+      />,
+      { wrapper: ChakraWrapper },
+    );
+
+    expect(screen.queryByLabelText(/toggleTableView/iu)).toBeNull();
+  });
 });

@@ -34,6 +34,7 @@ import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
 import { TableList } from "src/components/DataTable/TableList";
+import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import { createSkeletonMock } from "src/components/DataTable/skeleton";
 import type { CardDef, MetaColumn, TableState } from "src/components/DataTable/types";
 import { ProgressBar, Pagination, Toaster } from "src/components/ui";
@@ -51,8 +52,10 @@ type DataTableProps<TData> = {
   readonly isLoading?: boolean;
   readonly modelName?: string;
   readonly noRowsMessage?: ReactNode;
+  readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
   readonly renderSubComponent?: (props: { row: Row<TData> }) => React.ReactElement;
+  readonly showDisplayToggle?: boolean;
   readonly showRowCountHeading?: boolean;
   readonly skeletonCount?: number;
   readonly total?: number;
@@ -73,7 +76,9 @@ export const DataTable = <TData,>({
   isLoading,
   modelName,
   noRowsMessage,
+  onDisplayToggleChange,
   onStateChange,
+  showDisplayToggle,
   showRowCountHeading,
   skeletonCount = 10,
   total = 0,
@@ -165,6 +170,9 @@ export const DataTable = <TData,>({
         <Heading py={3} size="md">
           {`${total} ${translateModelName(total)}`}
         </Heading>
+      ) : undefined}
+      {showDisplayToggle && onDisplayToggleChange ? (
+        <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
       ) : undefined}
       {hasRows && display === "table" ? (
         <TableList allowFiltering={showColumnsFilter} table={table} />
