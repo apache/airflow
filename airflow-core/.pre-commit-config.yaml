@@ -194,7 +194,9 @@ repos:
         pass_filenames: true
         files: ^src/airflow/migrations/versions/.*\.py$
         exclude:
-          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
+          (?x)
+          ^src/airflow/migrations/versions/0000_2_6_2_squashed_migrations\.py$|
+          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key\.py$
       - id: ts-compile-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files

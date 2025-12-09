@@ -101,6 +101,7 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP: dict[str, str] = {
+    "2.6.2": "4bc4d934e2bc",
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
@@ -110,7 +111,7 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "cc92b33c6709",
+    "3.1.0": "b12d4f98a91e",
     "3.2.0": "665854ef0536",
 }
 
@@ -167,7 +168,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
-    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+    if not session.scalar(select(Pool.id).where(Pool.pool == Pool.DEFAULT_POOL_NAME)):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
@@ -1118,7 +1119,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session):
+    if not _get_current_revision(session=session) and not to_revision:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session)
