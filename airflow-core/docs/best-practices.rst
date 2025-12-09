@@ -15,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+
 .. _best_practice:
 
 Best Practices
@@ -651,13 +652,8 @@ want to optimize your Dags there are the following actions you can take:
 Testing a Dag
 ^^^^^^^^^^^^^
 
-
 Testing Operators with pytest
 -----------------------------
-
-The ``dag.test()`` example shown in older documentation works only when executed
-inside a DAG file, but often does *not* work inside pytest because DAG
-serialization is inactive in standalone test files.
 
 Below are two recommended, runnable patterns for unit-testing custom operators
 with pytest. Both examples work with Airflow 3.x.
@@ -665,29 +661,15 @@ with pytest. Both examples work with Airflow 3.x.
 1. Using ``TaskInstance.run()``
 2. Using ``dag.create_dagrun()``
 
+Example: Using ``EmptyOperator``
 
-Example: DummySuccessOperator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    from airflow.operators.empty import EmptyOperator
 
-This small operator is used only for demonstrating how to test operators.
-
-.. code-block:: python
-
-    from __future__ import annotations
-
-    from airflow.models.baseoperator import BaseOperator
-
-
-    class DummySuccessOperator(BaseOperator):
-        """Very small operator used only for unit test examples."""
-
-        def execute(self, context):
-            return {"ok": True}
+    task = EmptyOperator(task_id="empty_task")
 
 
 Example 1: Testing using ``TaskInstance.run()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 
 This pattern constructs a DAG, creates a ``TaskInstance`` manually,
 and runs it directly.
@@ -699,21 +681,21 @@ and runs it directly.
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.state import TaskInstanceState
+    from airflow.operators.empty import EmptyOperator
 
 
-    def test_dummy_operator_with_ti_run():
+    def test_empty_operator_with_ti_run():
         with DAG(
-            dag_id="test_dummy_operator_ti_run",
+            dag_id="test_empty_operator_ti_run",
             start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
             schedule=None,
         ) as dag:
-            task = DummySuccessOperator(task_id="dummy_task")
+            task = EmptyOperator(task_id="empty_task")
 
         ti = TaskInstance(task=task, run_id="test_run")
         ti.run(ignore_ti_state=True)
 
-        assert ti.state == TaskInstanceState.SUCCESS  # noqa: S101
-        assert ti.xcom_pull(task_ids="dummy_task") == {"ok": True}  # noqa: S101
+        assert ti.state == TaskInstanceState.SUCCESS 
 
 
 Example 2: Testing using ``dag.create_dagrun()``
@@ -728,15 +710,16 @@ associated with that DAG run.
 
     from airflow.models.dag import DAG
     from airflow.utils.state import TaskInstanceState
+    from airflow.operators.empty import EmptyOperator
 
 
-    def test_dummy_operator_with_dagrun():
+    def test_empty_operator_with_dagrun():
         with DAG(
-            dag_id="test_dummy_operator_dagrun",
+            dag_id="test_empty_operator_dagrun",
             start_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
             schedule=None,
         ) as dag:
-            task = DummySuccessOperator(task_id="dummy_task")
+            task = EmptyOperator(task_id="empty_task")
 
         dagrun = dag.create_dagrun(
             run_id="test_run",
@@ -750,11 +733,10 @@ associated with that DAG run.
             logical_date=pendulum.datetime(2024, 1, 1, tz="UTC"),
         )
 
-        ti = dagrun.get_task_instance("dummy_task")
+        ti = dagrun.get_task_instance("empty_task")
         ti.run(ignore_ti_state=True)
 
-        assert ti.state == TaskInstanceState.SUCCESS  # noqa: S101
-        assert ti.xcom_pull(task_ids="dummy_task") == {"ok": True}  # noqa: S101
+        assert ti.state == TaskInstanceState.SUCCESS 
 
 
 Notes
@@ -765,11 +747,6 @@ Notes
 * Both examples above run completely inside pytest without requiring
   any DAG serialization or scheduler.
 * Use mocking for external services when needed.
-
-
-
-
-
 
 
 Airflow users should treat Dags as production level code, and Dags should have various associated tests to
