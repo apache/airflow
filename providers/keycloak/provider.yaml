@@ -77,7 +77,7 @@ config:
           This setting improves performance when multiple requests are made to Keycloak server.
         type: integer
         version_added: 0.4.0
-        example: 10
+        example: "10"
         default: "10"
       requests_retries:
         description: |
@@ -85,5 +85,5 @@ config:
           This setting helps to handle transient network issues.
         type: integer
         version_added: 0.4.0
-        example: 3
+        example: "3"
         default: "3"
