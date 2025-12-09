@@ -17,11 +17,24 @@
 
 from __future__ import annotations
 
+import argparse
+import getpass
+
 from airflow.cli.cli_config import (
     ActionCommand,
     Arg,
     lazy_load_command,
 )
+
+
+class Password(argparse.Action):
+    """Custom action to prompt for password input."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            values = getpass.getpass(prompt="Password: ")
+        setattr(namespace, self.dest, values)
+
 
 ############
 # # ARGS # #
@@ -33,7 +46,11 @@ ARG_USERNAME = Arg(
 )
 ARG_PASSWORD = Arg(
     ("--password",),
-    help="Password associated to the user used to create resources",
+    help="Password associated to the user used to create resources. If not provided, you will be prompted to enter it.",
+    action=Password,
+    nargs="?",
+    dest="password",
+    type=str,
 )
 ARG_USER_REALM = Arg(
     ("--user-realm",), help="Realm name where the user used to create resources is", default="master"
