@@ -106,6 +106,7 @@ if TYPE_CHECKING:
     TaskPostExecuteHook = Callable[[Context, Any], None]
 
 __all__ = [
+    "BaseAsyncOperator",
     "BaseOperator",
     "chain",
     "chain_linear",
