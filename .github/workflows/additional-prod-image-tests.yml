@@ -222,15 +222,40 @@ jobs:
       use-uv: ${{ inputs.use-uv }}
       e2e_test_mode: "remote_log"
 
-  test-ui-e2e-tests:
-    name: "UI e2e tests with PROD image"
+  test-ui-e2e-chromium:
+    name: "Chromium UI e2e tests with PROD image"
     uses: ./.github/workflows/ui-e2e-tests.yml
     with:
-      workflow-name: "UI e2e tests"
+      workflow-name: "Chromium UI e2e tests"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
+      browser: "chromium"
+    if: inputs.run-ui-e2e-tests == 'true'
+
+  test-ui-e2e-firefox:
+    name: "Firefox UI e2e tests with PROD image"
+    uses: ./.github/workflows/ui-e2e-tests.yml
+    with:
+      workflow-name: "Firefox UI e2e tests"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      browser: "firefox"
+    if: inputs.run-ui-e2e-tests == 'true'
+
+  test-ui-e2e-webkit:
+    name: "WebKit UI e2e tests with PROD image"
+    uses: ./.github/workflows/ui-e2e-tests.yml
+    with:
+      workflow-name: "WebKit UI e2e tests"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      browser: "webkit"
     if: inputs.run-ui-e2e-tests == 'true'
 
   airflow-ctl-integration-tests:
