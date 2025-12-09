@@ -205,7 +205,11 @@ class DagBundlesManager(LoggingMixin):
         for name in self._bundle_config.keys():
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                new_template, new_params = _extract_and_sign_template(name)
+                try:
+                    new_template, new_params = _extract_and_sign_template(name)
+                except Exception as e:
+                    self.log.exception("Error creating bundle '%s': %s", name, e)
+                    continue
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
@@ -213,7 +217,11 @@ class DagBundlesManager(LoggingMixin):
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
-                new_template, new_params = _extract_and_sign_template(name)
+                try:
+                    new_template, new_params = _extract_and_sign_template(name)
+                except Exception as e:
+                    self.log.exception("Error creating bundle '%s': %s", name, e)
+                    continue
                 new_bundle = DagBundleModel(name=name)
                 new_bundle.signed_url_template = new_template
                 new_bundle.template_params = new_params
@@ -280,7 +288,12 @@ class DagBundlesManager(LoggingMixin):
         :return: list of DAG bundles.
         """
         for name, (class_, kwargs) in self._bundle_config.items():
-            yield class_(name=name, version=None, **kwargs)
+            try:
+                yield class_(name=name, version=None, **kwargs)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                # Skip this bundle and continue with others
+                continue
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(
