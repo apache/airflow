@@ -125,7 +125,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.capacity = capacity
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
-        self.trigger_queues = trigger_queues or set(conf.get("triggerer", "consume_trigger_queues"))
+        self.trigger_queues = trigger_queues or set(
+            conf.get("triggerer", "consume_trigger_queues").split(",")
+        )
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -330,7 +332,7 @@ def in_process_api_server() -> InProcessExecutionAPI:
 
 def _trigger_queues_factory() -> set[str]:
     """Return the value of the `TriggerRunnerSupervisor`'s `consume_trigger_queues`."""
-    return {conf.get("triggerer", "consume_trigger_queues")}
+    return set(conf.get("triggerer", "consume_trigger_queues").split(","))
 
 
 @attrs.define(kw_only=True)
