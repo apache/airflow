@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import math
 import logging
 import os
 from collections import Counter, deque
@@ -36,6 +37,8 @@ import time_machine
 from pytest import param
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import joinedload
+from sqlalchemy.sql.dml import Delete
+from sqlalchemy.sql.selectable import Select
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -50,6 +53,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.executor_utils import ExecutorName
+from airflow.jobs import scheduler_job_runner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import (
@@ -7087,6 +7091,89 @@ class TestSchedulerJob:
         )
         for i in range(100):
             assert f"it's duplicate {i}" in dag_warning.message
+
+    def test_orphan_unreferenced_assets_batches_deletes(self, session, monkeypatch):
+        asset_count = 5
+        assets = [
+            Asset(
+                name=f"asset_batch_orphan_{i}",
+                uri=f"s3://bucket/key/orphan/{i}",
+                extra={"foo": "bar"},
+            )
+            for i in range(asset_count)
+        ]
+        dag = DAG(dag_id="test_asset_batch_orphan", start_date=DEFAULT_DATE, schedule=assets)
+        sync_dag_to_db(dag, session=session)
+
+        asset_models = session.scalars(
+            select(AssetModel).where(AssetModel.name.like("asset_batch_orphan_%"))
+        ).all()
+
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
+        statements: list[object] = []
+        original_execute = session.execute
+
+        def tracking_execute(statement, *args, **kwargs):
+            statements.append(statement)
+            return original_execute(statement, *args, **kwargs)
+
+        batch_size = 2
+        monkeypatch.setattr(scheduler_job_runner, "ASSET_ACTIVE_BATCH_SIZE", batch_size)
+        monkeypatch.setattr(session, "execute", tracking_execute)
+
+        SchedulerJobRunner._orphan_unreferenced_assets(asset_models, session=session)
+        session.flush()
+
+        monkeypatch.setattr(session, "execute", original_execute)
+        captured_statements = list(statements)
+
+        delete_statements = [stmt for stmt in captured_statements if isinstance(stmt, Delete)]
+        assert len(delete_statements) == math.ceil(len(asset_models) / batch_size)
+        assert session.scalars(select(AssetActive)).all() == []
+
+    def test_activate_referenced_assets_batches_active_lookup(self, session, monkeypatch):
+        asset_count = 5
+        assets = [
+            Asset(
+                name=f"asset_batch_activate_{i}",
+                uri=f"s3://bucket/key/activate/{i}",
+                extra={"foo": "bar"},
+            )
+            for i in range(asset_count)
+        ]
+        dag = DAG(dag_id="test_asset_batch_activate", start_date=DEFAULT_DATE, schedule=assets)
+        sync_dag_to_db(dag, session=session)
+
+        asset_models = session.scalars(
+            select(AssetModel).where(AssetModel.name.like("asset_batch_activate_%"))
+        ).all()
+
+        statements: list[object] = []
+        original_execute = session.execute
+
+        def tracking_execute(statement, *args, **kwargs):
+            statements.append(statement)
+            return original_execute(statement, *args, **kwargs)
+
+        batch_size = 2
+        monkeypatch.setattr(scheduler_job_runner, "ASSET_ACTIVE_BATCH_SIZE", batch_size)
+        monkeypatch.setattr(session, "execute", tracking_execute)
+
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
+        monkeypatch.setattr(session, "execute", original_execute)
+        captured_statements = list(statements)
+
+        asset_active_selects = [
+            stmt
+            for stmt in captured_statements
+            if isinstance(stmt, Select) and AssetActive.__table__ in stmt.get_final_froms()
+        ]
+        assert len(asset_active_selects) == math.ceil(len(asset_models) / batch_size)
+        assert len(session.scalars(select(AssetActive)).all()) == len(asset_models)
 
     def test_scheduler_passes_context_from_server_on_heartbeat_timeout(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling heartbeat timeouts."""

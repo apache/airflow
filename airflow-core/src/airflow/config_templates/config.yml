@@ -2074,6 +2074,13 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    asset_active_batch_size:
+      description: |
+        Batch size used when activating or orphaning assets to avoid oversized SQL ``IN`` clauses.
+      version_added: 3.3.0
+      type: integer
+      example: ~
+      default: "500"
     pool_metrics_interval:
       description: |
         How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)

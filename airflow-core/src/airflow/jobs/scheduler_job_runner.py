@@ -30,7 +30,7 @@ from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from sqlalchemy import and_, delete, desc, exists, func, inspect, or_, select, text, tuple_, update
 from sqlalchemy.exc import OperationalError
@@ -119,6 +119,11 @@ DM = DagModel
 
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
+
+ASSET_ACTIVE_BATCH_SIZE = conf.getint("scheduler", "asset_active_batch_size", fallback=500)
+""":meta private:"""
+
+T = TypeVar("T")
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -2802,27 +2807,49 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._activate_referenced_assets(asset_orphanation.get(False, ()), session=session)
 
     @staticmethod
-    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if assets:
+    def _batched(iterable: Iterable[T], size: int) -> Iterator[list[T]]:
+        iterator = iter(iterable)
+        while batch := list(itertools.islice(iterator, size)):
+            yield batch
+
+    @staticmethod
+    def _delete_assets_in_batches(assets: list[AssetModel], *, session: Session) -> None:
+        for batch in SchedulerJobRunner._batched(assets, ASSET_ACTIVE_BATCH_SIZE):
             session.execute(
                 delete(AssetActive).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
+                    tuple_(AssetActive.name, AssetActive.uri).in_([(a.name, a.uri) for a in batch])
                 )
             )
-        Stats.gauge("asset.orphaned", len(assets))
+
+    @staticmethod
+    def _select_active_assets_in_batches(
+        assets: list[AssetModel], *, session: Session
+    ) -> set[tuple[str, str]]:
+        active_assets: set[tuple[str, str]] = set()
+        for batch in SchedulerJobRunner._batched(assets, ASSET_ACTIVE_BATCH_SIZE):
+            active_assets.update(
+                session.execute(
+                    select(AssetActive.name, AssetActive.uri).where(
+                        tuple_(AssetActive.name, AssetActive.uri).in_([(a.name, a.uri) for a in batch])
+                    )
+                )
+            )
+        return active_assets
+
+    @staticmethod
+    def _orphan_unreferenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
+        assets_list = list(assets)
+        if assets_list:
+            SchedulerJobRunner._delete_assets_in_batches(assets_list, session=session)
+        Stats.gauge("asset.orphaned", len(assets_list))
 
     @staticmethod
     def _activate_referenced_assets(assets: Collection[AssetModel], *, session: Session) -> None:
-        if not assets:
+        assets_list = list(assets)
+        if not assets_list:
             return
 
-        active_assets = set(
-            session.execute(
-                select(AssetActive.name, AssetActive.uri).where(
-                    tuple_(AssetActive.name, AssetActive.uri).in_((a.name, a.uri) for a in assets)
-                )
-            )
-        )
+        active_assets = SchedulerJobRunner._select_active_assets_in_batches(assets_list, session=session)
 
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
@@ -2848,7 +2875,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
-            for asset in assets:
+            for asset in assets_list:
                 if (asset.name, asset.uri) in active_assets:
                     continue
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
