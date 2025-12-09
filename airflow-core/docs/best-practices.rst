@@ -179,6 +179,7 @@ In the first example, ``expensive_api_call`` is executed each time the Dag file 
 
 Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that can also impact the performance of the scheduler. The following example illustrates how to handle expensive imports.
 
+
 .. code-block:: python
 
   # It's ok to import modules that are not expensive to load at top-level of a Dag file
