@@ -74,12 +74,9 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
-  "diff": {
-    "enter": "Diff",
-    "exit": "Exit",
-    "hotkey": "d",
-    "tooltip": "Press {{hotkey}} to toggle diff mode"
-  },
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",

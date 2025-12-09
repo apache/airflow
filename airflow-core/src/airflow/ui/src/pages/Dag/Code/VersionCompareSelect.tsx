@@ -31,7 +31,6 @@ type VersionSelected = {
 };
 
 type VersionCompareSelectProps = {
-  readonly excludeVersionNumber?: number;
   readonly label: string;
   readonly onVersionChange: (versionNumber: number) => void;
   readonly placeholder?: string;
@@ -39,7 +38,6 @@ type VersionCompareSelectProps = {
 };
 
 export const VersionCompareSelect = ({
-  excludeVersionNumber,
   label,
   onVersionChange,
   placeholder = "Select version",
@@ -51,15 +49,13 @@ export const VersionCompareSelect = ({
 
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
 
-  const versionOptions = useMemo(() => {
-    const filteredVersions = (data?.dag_versions ?? []).filter(
-      (dv) => excludeVersionNumber === undefined || dv.version_number !== excludeVersionNumber,
-    );
-
-    return createListCollection({
-      items: filteredVersions.map((dv) => ({ value: dv.version_number, version: dv })),
-    });
-  }, [data, excludeVersionNumber]);
+  const versionOptions = useMemo(
+    () =>
+      createListCollection({
+        items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
+      }),
+    [data],
+  );
 
   const handleStateChange = useCallback(
     ({ items }: SelectValueChangeDetails<VersionSelected>) => {
@@ -84,7 +80,7 @@ export const VersionCompareSelect = ({
         <Select.Trigger>
           <Select.ValueText placeholder={placeholder}>
             {selectedVersion === undefined ? undefined : (
-              <Flex justifyContent="space-between">
+              <Flex gap={2} justifyContent="space-between">
                 <Text>
                   {translate("versionSelect.versionCode", { versionCode: selectedVersion.version_number })}
                 </Text>
@@ -101,10 +97,12 @@ export const VersionCompareSelect = ({
         <Select.Content>
           {versionOptions.items.map((option) => (
             <Select.Item item={option} key={option.version.version_number}>
-              <Text>
-                {translate("versionSelect.versionCode", { versionCode: option.version.version_number })}
-              </Text>
-              <Time datetime={option.version.created_at} />
+              <Flex gap={2} justifyContent="space-between" w="full">
+                <Text>
+                  {translate("versionSelect.versionCode", { versionCode: option.version.version_number })}
+                </Text>
+                <Time datetime={option.version.created_at} />
+              </Flex>
             </Select.Item>
           ))}
         </Select.Content>

@@ -22,7 +22,6 @@ import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
-import { createElement } from "react-syntax-highlighter";
 
 import {
   useDagServiceGetDagDetails,
@@ -41,7 +40,6 @@ import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
 import { useConfig } from "src/queries/useConfig";
 import { renderDuration } from "src/utils";
-import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { VersionCompareSelect } from "./VersionCompareSelect";
@@ -76,8 +74,10 @@ export const Code = () => {
   const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
-  const [isDiffMode, setIsDiffMode] = useState(false);
   const [compareVersionNumber, setCompareVersionNumber] = useState<number | undefined>(undefined);
+  const [isCompareDropdownOpen, setIsCompareDropdownOpen] = useState(false);
+
+  const isDiffMode = compareVersionNumber !== undefined;
 
   const {
     data: code,
@@ -98,21 +98,23 @@ export const Code = () => {
       versionNumber: compareVersionNumber,
     },
     undefined,
-    { enabled: isDiffMode && compareVersionNumber !== undefined },
+    { enabled: isDiffMode },
   );
 
   const toggleWrap = () => setWrap(!wrap);
-  const toggleDiffMode = () => {
-    setIsDiffMode(!isDiffMode);
-    if (isDiffMode) {
-      setCompareVersionNumber(undefined);
-    }
+  const toggleCompareDropdown = () => setIsCompareDropdownOpen(!isCompareDropdownOpen);
+  const exitDiffMode = () => {
+    setCompareVersionNumber(undefined);
+    setIsCompareDropdownOpen(false);
+  };
+  const handleVersionChange = (versionNumber: number) => {
+    setCompareVersionNumber(versionNumber);
+    setIsCompareDropdownOpen(false);
   };
 
   const { colorMode } = useColorMode();
 
   useHotkeys("w", toggleWrap);
-  useHotkeys("d", toggleDiffMode);
 
   const editorOptions: EditorProps["options"] = {
     automaticLayout: true,
@@ -194,22 +196,21 @@ export const Code = () => {
               </Button>
             </Tooltip>
             {hasMultipleVersions ? (
-              <Tooltip
-                closeDelay={100}
-                content={translate("common:diff.tooltip", { hotkey: "d" })}
-                openDelay={100}
+              <Button
+                aria-label={translate("common:diff")}
+                onClick={toggleCompareDropdown}
+                variant={isCompareDropdownOpen ? "solid" : "outline"}
               >
-                <Button
-                  aria-label={translate(`common:diff.${isDiffMode ? "exit" : "enter"}`)}
-                  onClick={toggleDiffMode}
-                  variant={isDiffMode ? "solid" : "outline"}
-                >
-                  {translate(`common:diff.${isDiffMode ? "exit" : "enter"}`)}
-                </Button>
-              </Tooltip>
+                {translate("common:diff")}
+              </Button>
+            ) : undefined}
+            {isDiffMode ? (
+              <Button aria-label={translate("common:diffExit")} onClick={exitDiffMode} variant="solid">
+                {translate("common:diffExit")}
+              </Button>
             ) : undefined}
           </HStack>
-          {isDiffMode ? (
+          {isCompareDropdownOpen ? (
             <Box
               bg="bg.panel"
               borderRadius="md"
@@ -222,9 +223,8 @@ export const Code = () => {
               zIndex={10}
             >
               <VersionCompareSelect
-                excludeVersionNumber={selectedVersion}
-                label="Compare with"
-                onVersionChange={setCompareVersionNumber}
+                label={translate("common:diffCompareWith")}
+                onVersionChange={handleVersionChange}
                 placeholder="Select version to compare"
                 selectedVersionNumber={compareVersionNumber}
               />
@@ -245,7 +245,7 @@ export const Code = () => {
         visibility={isLoading || isCodeLoading || isCompareCodeLoading ? "visible" : "hidden"}
       />
 
-      {isDiffMode && compareVersionNumber !== undefined ? (
+      {isDiffMode ? (
         <Box dir="ltr" height="full">
           <CodeDiffViewer
             modifiedCode={
