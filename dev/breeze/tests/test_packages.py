@@ -370,7 +370,9 @@ def _check_dependencies_modified_properly(
         ("standard", ".post1", ".post1"),
     ],
 )
-def test_apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix, floored_version_suffix):
+def test_apply_version_suffix_to_provider_pyproject_toml(
+    provider_id, version_suffix, floored_version_suffix, tmp_path
+):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of provider.
     """
@@ -378,10 +380,30 @@ def test_apply_version_suffix_to_provider_pyproject_toml(provider_id, version_su
         import tomllib
     except ImportError:
         import tomli as tomllib
-    provider_details = get_provider_details(provider_id)
-    original_content = (provider_details.root_provider_path / "pyproject.toml").read_text()
-    with apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix) as pyproject_toml_path:
-        modified_content = pyproject_toml_path.read_text()
+    from unittest.mock import patch
+
+    # Get the original provider details
+    original_provider_details = get_provider_details(provider_id)
+    original_pyproject_path = original_provider_details.root_provider_path / "pyproject.toml"
+    original_content = original_pyproject_path.read_text()
+
+    # Create a temporary copy of the provider directory structure
+    temp_provider_path = tmp_path / "providers" / provider_id.replace(".", "/")
+    temp_provider_path.mkdir(parents=True, exist_ok=True)
+    temp_pyproject_path = temp_provider_path / "pyproject.toml"
+    temp_pyproject_path.write_text(original_content)
+
+    # Mock get_provider_details to return a modified version with temporary path
+    def mock_get_provider_details(provider_id: str):
+        # Use NamedTuple's _replace() method to create a copy with modified root_provider_path
+        return original_provider_details._replace(root_provider_path=temp_provider_path)
+
+    with patch("airflow_breeze.utils.packages.get_provider_details", side_effect=mock_get_provider_details):
+        with apply_version_suffix_to_provider_pyproject_toml(
+            provider_id, version_suffix
+        ) as pyproject_toml_path:
+            modified_content = pyproject_toml_path.read_text()
+
     original_toml = tomllib.loads(original_content)
     modified_toml = tomllib.loads(modified_content)
     assert original_toml["project"]["version"] != modified_toml["project"]["version"]
@@ -439,6 +461,7 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     init_file_path: Path,
     version_suffix: str,
     floored_version_suffix: str,
+    tmp_path: Path,
 ):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
@@ -450,15 +473,24 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
     original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
     original_contents = [path.read_text() for path in original_pyproject_toml_paths]
+    modified_pyproject_toml_paths = [
+        tmp_path / path.parent.name / path.name for path in original_pyproject_toml_paths
+    ]
+    for i, modified_pyproject_toml_path in enumerate(modified_pyproject_toml_paths):
+        modified_pyproject_toml_path.parent.mkdir(parents=True, exist_ok=True)
+        modified_pyproject_toml_path.write_text(original_pyproject_toml_paths[i].read_text())
     original_init_py = init_file_path.read_text()
+    modified_init_file_path = tmp_path / init_file_path.name
+    modified_init_file_path.write_text(original_init_py)
+
     with apply_version_suffix_to_non_provider_pyproject_tomls(
-        version_suffix, init_file_path, original_pyproject_toml_paths
+        version_suffix, modified_init_file_path, modified_pyproject_toml_paths
     ) as modified_pyproject_toml_paths:
         modified_contents = [path.read_text() for path in modified_pyproject_toml_paths]
 
         original_tomls = [tomllib.loads(content) for content in original_contents]
         modified_tomls = [tomllib.loads(content) for content in modified_contents]
-        modified_init_py = init_file_path.read_text()
+        modified_init_py = modified_init_file_path.read_text()
 
     assert original_init_py != modified_init_py
     assert version_suffix in modified_init_py
