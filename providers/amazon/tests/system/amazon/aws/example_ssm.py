@@ -149,7 +149,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime.datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     # Create EC2 instance with SSM agent
