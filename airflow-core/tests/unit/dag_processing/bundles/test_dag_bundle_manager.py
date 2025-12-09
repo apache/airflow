@@ -395,5 +395,52 @@ def test_example_dags_name_is_reserved():
             DagBundlesManager().parse_config()
 
 
+class FailingBundle(BaseDagBundle):
+    """Test bundle that raises an exception during initialization."""
+
+    def __init__(self, *, should_fail: bool = True, **kwargs):
+        super().__init__(**kwargs)
+        if should_fail:
+            raise ValueError("Bundle creation failed for testing")
+
+    def refresh(self):
+        pass
+
+    def get_current_version(self):
+        return None
+
+    @property
+    def path(self):
+        return "/tmp/failing"
+
+
+FAILING_BUNDLE_CONFIG = [
+    {
+        "name": "failing-bundle",
+        "classpath": "unit.dag_processing.bundles.test_dag_bundle_manager.FailingBundle",
+        "kwargs": {"should_fail": True, "refresh_interval": 1},
+    }
+]
+
+
+@conf_vars({("core", "LOAD_EXAMPLES"): "False"})
+@pytest.mark.db_test
+def test_multiple_bundles_one_fails(clear_db, session):
+    """Test that when one bundle fails to create, other bundles still load successfully."""
+    mix_config = BASIC_BUNDLE_CONFIG + FAILING_BUNDLE_CONFIG
+
+    with patch.dict(os.environ, {"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST": json.dumps(mix_config)}):
+        manager = DagBundlesManager()
+
+        bundles = list(manager.get_all_dag_bundles())
+        assert len(bundles) == 1
+        assert bundles[0].name == "my-test-bundle"
+        assert isinstance(bundles[0], BasicBundle)
+
+        manager.sync_bundles_to_db()
+        bundle_names = {b.name for b in session.query(DagBundleModel).all()}
+        assert bundle_names == {"my-test-bundle"}
+
+
 def test_get_all_bundle_names():
     assert DagBundlesManager().get_all_bundle_names() == ["dags-folder", "example_dags"]

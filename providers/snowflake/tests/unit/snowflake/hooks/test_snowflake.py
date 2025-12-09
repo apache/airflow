@@ -1046,7 +1046,7 @@ class TestPytestSnowflakeHook:
         hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
         expected_err = (
-            "OpenLineage provider version `1.99.0` is lower than required `2.3.0`, "
+            "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
             "skipping function `emit_openlineage_events_for_snowflake_queries` execution"
         )
         with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):

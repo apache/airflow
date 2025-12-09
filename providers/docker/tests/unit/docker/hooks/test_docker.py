@@ -28,7 +28,7 @@ from docker import TLSConfig
 from docker.errors import APIError
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
 
 DOCKER_PY_7_PLUS = Version(Version(version("docker")).base_version) >= Version("7")

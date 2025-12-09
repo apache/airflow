@@ -1075,12 +1075,12 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id`'
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
-          - id
+          - name
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id`'
+          with `-` for descending order. Supported attributes: `name`'
       responses:
         '200':
           description: Successful Response
@@ -2642,16 +2642,11 @@ components:
       description: Team collection serializer for responses.
     TeamResponse:
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
           title: Name
       type: object
       required:
-      - id
       - name
       title: TeamResponse
       description: Base serializer for Team.

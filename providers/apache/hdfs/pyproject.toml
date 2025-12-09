@@ -59,17 +59,11 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
     'hdfs[avro,dataframe,kerberos]>=2.5.4;python_version<"3.12"',
     'hdfs[avro,dataframe,kerberos]>=2.7.3;python_version>="3.12"',
     'pandas>=2.1.2; python_version <"3.13"',
     'pandas>=2.2.3; python_version >="3.13"',
-]
-
-# The optional dependencies should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
-[project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
 ]
 
 [dependency-groups]

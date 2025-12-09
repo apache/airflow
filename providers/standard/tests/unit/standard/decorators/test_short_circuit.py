@@ -30,7 +30,7 @@ from airflow.utils.state import State
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.sdk import task
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
