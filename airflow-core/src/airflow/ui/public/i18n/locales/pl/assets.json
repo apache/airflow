@@ -1,5 +1,6 @@
 {
   "consumingDags": "Przetwarzanie Dagów",
+  "consumingTasks": "Przetwarzanie zadań",
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {
@@ -21,6 +22,7 @@
     },
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
   },
+  "extra": "Dodatkowe",
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",
   "name": "Nazwa",
