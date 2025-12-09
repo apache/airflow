@@ -427,9 +427,11 @@ There are two trigger form URLs available, each supporting a different set of qu
   - ``to_date`` - end of the backfill window in ``YYYY-MM-DDTHH:mm:ss`` format.
   - ``max_active_runs`` - maximum concurrent runs. Defaults to ``1``.
   - ``reprocess_behavior`` - determines how existing runs are reprocessed. Supported values are:
+
     * ``failed`` - Missing and Errored Runs
     * ``completed`` - All Runs
     * ``none`` - Missing Runs
+
   - ``run_backwards`` - if set to true, the backfill is scheduled in reverse order. Defaults to ``false``.
 
 The trigger form now supports two different ways of providing ``conf`` values. The available input methods are summarized in the table below:
