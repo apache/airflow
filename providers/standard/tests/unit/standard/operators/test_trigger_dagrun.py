@@ -200,15 +200,16 @@ class TestDagRunOperator:
         """
         Ensure that for Airflow 3.x the operator logs the note (since it is not passed into DagRunTriggerException for backward compatibility).
         """
-        mock_trigger = mocker.patch(
+        mock_log = mocker.patch(
             "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator.log"
         )
         operator = TriggerDagRunOperator(
             task_id="test_trigger", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note"
         )
-        operator.execute(context={})
-
-        mock_log.info.assert_any_call("Triggered DAG with note: %s", "Test note")
+        with pytest.raises(DagRunTriggerException):
+            operator.execute(context={"ti": mocker.Mock()})
+        
+        mock_log.info.assert_called_once_with("Triggered DAG with note: %s", "Test note")
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""

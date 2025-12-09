@@ -171,6 +171,7 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         fail_when_dag_is_paused: bool = False,
+        openlineage_inject_parent_info: bool = True,  
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         note: str | None = None,
         **kwargs,
@@ -285,6 +286,10 @@ class TriggerDagRunOperator(BaseOperator):
         )
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+        
+        if self.note:
+            self.log.info("Triggered DAG with note: %s", self.note)
+
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
@@ -292,7 +297,7 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_logical_date,
                 replace_microseconds=False,
-                note=self.note,
+                note=self.note, 
             )
 
         except DagRunAlreadyExists as e:
