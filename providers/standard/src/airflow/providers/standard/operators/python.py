@@ -297,7 +297,7 @@ if AIRFLOW_V_3_2_PLUS:
             runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
             return await runner.run(*self.op_args, **self.op_kwargs)
 else:
-    PythonOperator = BasePythonOperator
+    PythonOperator = cast(type[BasePythonOperator], BasePythonOperator)
 
 
 class BranchPythonOperator(BaseBranchOperator, PythonOperator):
