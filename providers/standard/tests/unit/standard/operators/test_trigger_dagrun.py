@@ -208,7 +208,7 @@ class TestDagRunOperator:
         )
         with pytest.raises(DagRunTriggerException):
             operator.execute(context={"ti": mocker.Mock()})
-        
+
         mock_log.info.assert_called_once_with("Triggered DAG with note: %s", "Test note")
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
