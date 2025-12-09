@@ -26,8 +26,7 @@ from sqlalchemy import select
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.metrics.dual_stats_manager import DualStatsManager
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -214,7 +213,7 @@ def set_state(
     worker.last_update = timezone.utcnow()
     session.commit()
     try:
-        from airflow.metrics.dual_stats_manager import DualStatsManager
+        from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 
         DualStatsManager.incr(
             "edge_worker.heartbeat_count",
@@ -224,7 +223,7 @@ def set_state(
             extra_tags={"worker_name": worker_name},
         )
     except ImportError:
-        from airflow.stats import Stats
+        from airflow.providers.common.compat.sdk import Stats
 
         Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
         Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})

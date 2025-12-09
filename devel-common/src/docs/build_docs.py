@@ -227,7 +227,7 @@ def build_docs_for_packages(
 
             if package_name == "apache-airflow":
                 # Read the registry yaml and create a rst file with the metric tables.
-                from airflow.metrics import metrics_registry
+                from airflow._shared.observability.metrics import metrics_registry
 
                 metrics_registry.generate_metrics_rst_from_registry()
     if jobs > 1 and len(packages_to_build) > 1:
