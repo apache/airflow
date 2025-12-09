@@ -23,6 +23,7 @@
 # ///
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -122,6 +123,18 @@ def setup_vscode():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Set up VSCode debug configurations for Airflow components. Also comes with optional VSCode configurations such as chakra MCP sercer"
+        "such as Chakra UI MCP support.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--with-chakra-mcp",
+        action="store_true",
+        help="Also create a VSCode MCP configuration for enhanced Chakra UI development support",
+    )
+    args = parser.parse_args()
+
     print("\n[yellow]VSCode Airflow Debug Configuration Setup[/]\n")
     print("This script will create VSCode debug configurations for Airflow components:\n")
 
@@ -129,26 +142,39 @@ def main():
         print(f"* {COMPONENT_NAMES[component]}: port {port}")
 
     print(f"\nConfiguration will be written to: {LAUNCH_JSON_FILE}")
-    print(f"MCP configuration will be written to: {MCP_JSON_FILE}")
+    if args.with_chakra_mcp:
+        print(f"MCP configuration will be written to: {MCP_JSON_FILE}")
 
+    # Check if files exist and prompt for overwrite
+    files_exist = []
     if LAUNCH_JSON_FILE.exists():
-        print(f"\n[yellow]Warning:[/] {LAUNCH_JSON_FILE} already exists!")
-        should_overwrite = Confirm.ask("Overwrite the existing file?")
+        files_exist.append(str(LAUNCH_JSON_FILE))
+    if args.with_chakra_mcp and MCP_JSON_FILE.exists():
+        files_exist.append(str(MCP_JSON_FILE))
+
+    if files_exist:
+        print("\n[yellow]Warning:[/] The following files already exist:")
+        for file_path in files_exist:
+            print(f"  - {file_path}")
+        should_overwrite = Confirm.ask("Overwrite the existing files?")
         if not should_overwrite:
             print("[yellow]Skipped[/] - No changes made")
             return
     else:
-        should_continue = Confirm.ask("Create the debug configurations?")
+        should_continue = Confirm.ask("Create the configurations?")
         if not should_continue:
             print("[yellow]Skipped[/] - No changes made")
             return
 
     setup_vscode()
-    setup_mcp()
+
+    if args.with_chakra_mcp:
+        setup_mcp()
 
     print("\n[green]Setup complete![/]")
     print("\nFor more information, see: contributing-docs/20_debugging_airflow_components.rst")
-    print("MCP server for Chakra UI has been configured for enhanced development experience.")
+    if args.with_chakra_mcp:
+        print("MCP server for Chakra UI has been configured for enhanced development experience.")
 
 
 if __name__ == "__main__":
