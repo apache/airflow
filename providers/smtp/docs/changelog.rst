@@ -28,6 +28,17 @@ Changelog
 ---------
 
 
+2.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.4.0
 .....
 
