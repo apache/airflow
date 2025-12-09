@@ -127,7 +127,7 @@ def create_executable_runner(
 
 
 def create_async_executable_runner(
-    func:  Callable[P, Awaitable[R] | AsyncIterator],
+    func: Callable[P, Awaitable[R] | AsyncIterator],
     outlet_events: OutletEventAccessorsProtocol,
     *,
     logger: logging.Logger | logging.Logger,
