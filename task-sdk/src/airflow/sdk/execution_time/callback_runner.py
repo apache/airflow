@@ -156,7 +156,7 @@ def create_async_executable_runner(
             from airflow.sdk.definitions.asset.metadata import Metadata
 
             if not inspect.isasyncgenfunction(func):
-                result = cast(Awaitable[R], func(*args, **kwargs))
+                result = cast("Awaitable[R]", func(*args, **kwargs))
                 return await result
 
             results: list[Any] = []
