@@ -39,6 +39,11 @@ ARG_USER_REALM = Arg(
     ("--user-realm",), help="Realm name where the user used to create resources is", default="master"
 )
 ARG_CLIENT_ID = Arg(("--client-id",), help="ID of the client used to create resources", default="admin-cli")
+ARG_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run without creating any resources",
+    action="store_true",
+)
 
 
 ################
@@ -50,7 +55,7 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         name="create-scopes",
         help="Create scopes in Keycloak",
         func=lazy_load_command("airflow.providers.keycloak.auth_manager.cli.commands.create_scopes_command"),
-        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
     ActionCommand(
         name="create-resources",
@@ -58,7 +63,7 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         func=lazy_load_command(
             "airflow.providers.keycloak.auth_manager.cli.commands.create_resources_command"
         ),
-        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
     ActionCommand(
         name="create-permissions",
@@ -66,12 +71,12 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         func=lazy_load_command(
             "airflow.providers.keycloak.auth_manager.cli.commands.create_permissions_command"
         ),
-        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
     ActionCommand(
         name="create-all",
         help="Create all entities (scopes, resources and permissions) in Keycloak",
         func=lazy_load_command("airflow.providers.keycloak.auth_manager.cli.commands.create_all_command"),
-        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
 )

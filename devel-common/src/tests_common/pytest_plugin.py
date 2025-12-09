@@ -25,7 +25,6 @@ import platform
 import re
 import subprocess
 import sys
-import uuid
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
@@ -2397,6 +2396,13 @@ def create_runtime_ti(mocked_parse):
     from airflow.sdk.execution_time.comms import BundleInfo, StartupDetails
     from airflow.timetables.base import TimeRestriction
 
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.serialization.encoders import coerce_to_core_timetable
+    else:
+        coerce_to_core_timetable = lambda t: t
+
     timezone = _import_timezone()
 
     def _create_task_instance(
@@ -2445,20 +2451,20 @@ def create_runtime_ti(mocked_parse):
         data_interval_start = None
         data_interval_end = None
 
-        if task.dag.timetable:
-            if run_type == DagRunType.MANUAL:
-                if logical_date is not None:
-                    data_interval_start, data_interval_end = task.dag.timetable.infer_manual_data_interval(
-                        run_after=logical_date,
-                    )
-            else:
-                drinfo = task.dag.timetable.next_dagrun_info(
-                    last_automated_data_interval=None,
-                    restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+        timetable = coerce_to_core_timetable(task.dag.timetable)
+        if run_type == DagRunType.MANUAL:
+            if logical_date is not None:
+                data_interval_start, data_interval_end = timetable.infer_manual_data_interval(
+                    run_after=logical_date,
                 )
-                if drinfo:
-                    data_interval = drinfo.data_interval
-                    data_interval_start, data_interval_end = data_interval.start, data_interval.end
+        else:
+            drinfo = timetable.next_dagrun_info(
+                last_automated_data_interval=None,
+                restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+            )
+            if drinfo:
+                data_interval = drinfo.data_interval
+                data_interval_start, data_interval_end = data_interval.start, data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0
@@ -2767,7 +2773,7 @@ def testing_team():
         with create_session() as session:
             team = session.query(Team).filter_by(name="testing").one_or_none()
             if not team:
-                team = Team(id=uuid.uuid4(), name="testing")
+                team = Team(name="testing")
                 session.add(team)
                 session.flush()
             yield team

@@ -35,7 +35,7 @@ from google.cloud.run_v2 import (
 )
 from google.longrunning import operations_pb2
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import (
     CloudRunAsyncHook,
     CloudRunHook,

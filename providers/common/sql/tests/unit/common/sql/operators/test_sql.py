@@ -34,8 +34,9 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -1272,7 +1273,7 @@ class TestSqlBranch:
         mock_get_records.return_value = 1
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1321,7 +1322,7 @@ class TestSqlBranch:
         mock_get_records.return_value = true_value
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1369,7 +1370,7 @@ class TestSqlBranch:
         mock_get_records.return_value = false_value
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1428,7 +1429,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [["1"]]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1546,7 +1547,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [false_value]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

@@ -23,8 +23,8 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 

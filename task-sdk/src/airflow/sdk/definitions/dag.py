@@ -30,7 +30,7 @@ from collections import abc, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, MutableSet
 from datetime import datetime, timedelta
 from inspect import signature
-from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, TypeGuard, Union, cast, overload
 from urllib.parse import urlsplit
 from uuid import UUID
 
@@ -41,12 +41,15 @@ from dateutil.relativedelta import relativedelta
 from airflow import settings
 from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions._internal.node import validate_key
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.context import Context
 from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.sdk.definitions.param import DagParam, ParamsDict
+from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.sdk.exceptions import (
     AirflowDagCycleException,
     DuplicateTaskIdFound,
@@ -55,20 +58,13 @@ from airflow.sdk.exceptions import (
     RemovedInAirflow4Warning,
     TaskNotFound,
 )
-from airflow.timetables.base import Timetable
-from airflow.timetables.simple import (
-    AssetTriggeredTimetable,
-    ContinuousTimetable,
-    NullTimetable,
-    OnceTimetable,
-)
 
 if TYPE_CHECKING:
     from re import Pattern
     from typing import TypeAlias
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
-    from typing_extensions import Self
+    from typing_extensions import Self, TypeIs
 
     from airflow.models.taskinstance import TaskInstance as SchedulerTaskInstance
     from airflow.sdk.definitions.decorators import TaskDecoratorCollection
@@ -76,6 +72,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.execution_time.supervisor import TaskRunResult
+    from airflow.timetables.base import DataInterval, Timetable as CoreTimetable
 
     Operator: TypeAlias = BaseOperator | MappedOperator
 
@@ -101,7 +98,7 @@ FINISHED_STATES = frozenset(
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = None | str | timedelta | relativedelta
 
-ScheduleArg: TypeAlias = ScheduleInterval | Timetable | BaseAsset | Collection[BaseAsset]
+ScheduleArg = Union[ScheduleInterval, BaseTimetable, "CoreTimetable", BaseAsset, Collection[BaseAsset]]
 
 
 _DAG_HASH_ATTRS = frozenset(
@@ -120,11 +117,22 @@ _DAG_HASH_ATTRS = frozenset(
 )
 
 
-def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
+def _is_core_timetable(schedule: ScheduleArg) -> TypeIs[CoreTimetable]:
+    try:
+        from airflow.timetables.base import Timetable
+    except ImportError:
+        return False
+    return isinstance(schedule, Timetable)
+
+
+def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> BaseTimetable:
     """Create a Timetable instance from a plain ``schedule`` value."""
     from airflow.sdk.configuration import conf as airflow_conf
-    from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-    from airflow.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
+    from airflow.sdk.definitions.timetables.interval import (
+        CronDataIntervalTimetable,
+        DeltaDataIntervalTimetable,
+    )
+    from airflow.sdk.definitions.timetables.trigger import CronTriggerTimetable, DeltaTriggerTimetable
 
     if interval is None:
         return NullTimetable()
@@ -132,7 +140,7 @@ def _create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTime
         return OnceTimetable()
     if interval == "@continuous":
         return ContinuousTimetable()
-    if isinstance(interval, (timedelta, relativedelta)):
+    if isinstance(interval, timedelta | relativedelta):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
             return DeltaDataIntervalTimetable(interval)
         return DeltaTriggerTimetable(interval)
@@ -190,7 +198,7 @@ def _convert_access_control(access_control):
     updated_access_control = {}
     for role, perms in access_control.items():
         updated_access_control[role] = updated_access_control.get(role, {})
-        if isinstance(perms, (set, list)):
+        if isinstance(perms, set | list):
             # Support for old-style access_control where only the actions are specified
             updated_access_control[role]["DAGs"] = set(perms)
         else:
@@ -422,7 +430,7 @@ class DAG:
     end_date: datetime | None = None
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
     schedule: ScheduleArg = attrs.field(default=None, on_setattr=attrs.setters.frozen)
-    timetable: Timetable = attrs.field(init=False)
+    timetable: BaseTimetable | CoreTimetable = attrs.field(init=False)
     template_searchpath: str | Iterable[str] | None = attrs.field(
         default=None, converter=_convert_str_to_tuple
     )
@@ -592,11 +600,13 @@ class DAG:
                 )
 
     @timetable.default
-    def _default_timetable(instance: DAG):
+    def _default_timetable(instance: DAG) -> BaseTimetable | CoreTimetable:
         schedule = instance.schedule
         # TODO: Once
         # delattr(self, "schedule")
-        if isinstance(schedule, Timetable):
+        if _is_core_timetable(schedule):
+            return schedule
+        if isinstance(schedule, BaseTimetable):
             return schedule
         if isinstance(schedule, BaseAsset):
             return AssetTriggeredTimetable(schedule)
@@ -757,10 +767,6 @@ class DAG:
         """
         return ", ".join({t.owner for t in self.tasks})
 
-    @property
-    def timetable_summary(self) -> str:
-        return self.timetable.summary
-
     def resolve_template_files(self):
         for t in self.tasks:
             # TODO: TaskSDK: move this on to BaseOperator and remove the check?
@@ -873,7 +879,7 @@ class DAG:
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
         def is_task(obj) -> TypeGuard[Operator]:
-            return isinstance(obj, (BaseOperator, MappedOperator))
+            return isinstance(obj, BaseOperator | MappedOperator)
 
         # deep-copying self.task_dict and self.task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
@@ -1179,6 +1185,7 @@ class DAG:
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
+        from airflow.serialization.encoders import coerce_to_core_timetable
         from airflow.serialization.serialized_objects import SerializedDAG
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1223,9 +1230,11 @@ class DAG:
             log.debug("Getting dagrun for dag %s", self.dag_id)
             logical_date = timezone.coerce_datetime(logical_date)
             run_after = timezone.coerce_datetime(run_after) or timezone.coerce_datetime(timezone.utcnow())
-            data_interval = (
-                self.timetable.infer_manual_data_interval(run_after=logical_date) if logical_date else None
-            )
+            if logical_date is None:
+                data_interval: DataInterval | None = None
+            else:
+                timetable = coerce_to_core_timetable(self.timetable)
+                data_interval = timetable.infer_manual_data_interval(run_after=logical_date)
             from airflow.models.dag_version import DagVersion
 
             version = DagVersion.get_version(self.dag_id)

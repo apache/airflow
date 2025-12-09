@@ -37,7 +37,6 @@ from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError, TimeoutError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     KubernetesApiException,
@@ -52,6 +51,7 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     get_container_status,
 )
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 

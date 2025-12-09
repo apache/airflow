@@ -32,7 +32,7 @@ from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
