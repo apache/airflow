@@ -516,7 +516,9 @@ class TestTriggeringAssetEventsAccessor:
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(name=name)] == expected
 
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByName(name=name, type="GetAssetByName"))
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetAssetByName(name=name, type="GetAssetByName"))
+        ]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
@@ -538,7 +540,7 @@ class TestTriggeringAssetEventsAccessor:
         mock_supervisor_comms.send.return_value = resolved_asset
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(uri=uri)] == expected
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByUri(uri=uri))
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
@@ -549,22 +551,24 @@ class TestTriggeringAssetEventsAccessor:
         mock_supervisor_comms.send.side_effect = [mock_dag_run]
         source = events[0].source_task_instance
         assert source == AssetEventSourceTaskInstance(dag_run=mock_dag_run, task_id="t2", map_index=-1)
-        mock_supervisor_comms.send.assert_called_once_with(GetDagRun(dag_id="d1", run_id="r1"))
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetDagRun(dag_id="d1", run_id="r1"))]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="d1",
-                run_id="r1",
-                task_id="t2",
-                map_index=-1,
-            ),
-        )
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="d1",
+                    run_id="r1",
+                    task_id="t2",
+                    map_index=-1,
+                ),
+            )
+        ]
 
 
 TEST_ASSET = Asset(name="test_uri", uri="test://test")
@@ -807,16 +811,18 @@ class TestInletEventAccessor:
             )
         ]
         events = list(sample_inlet_evnets_accessor[Asset.ref(name="test_uri")])
-        mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetEventByAsset(
-                name="test_uri",
-                uri=None,
-                after=None,
-                before=None,
-                limit=None,
-                ascending=True,
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetAssetEventByAsset(
+                    name="test_uri",
+                    uri=None,
+                    after=None,
+                    before=None,
+                    limit=None,
+                    ascending=True,
+                )
             )
-        )
+        ]
 
         assert len(events) == 2
 
@@ -834,22 +840,26 @@ class TestInletEventAccessor:
         assert events[1].source_task_instance is None
         source = events[0].source_task_instance
         assert source == AssetEventSourceTaskInstance(dag_run=dag_run_result, task_id="__task__", map_index=0)
-        mock_supervisor_comms.send.assert_called_once_with(GetDagRun(dag_id="__dag__", run_id="__run__"))
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetDagRun(dag_id="__dag__", run_id="__run__"))
+        ]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="__dag__",
-                run_id="__run__",
-                task_id="__task__",
-                map_index=0,
-            ),
-        )
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="__dag__",
+                    run_id="__run__",
+                    task_id="__task__",
+                    map_index=0,
+                ),
+            )
+        ]
 
 
 class TestAsyncGetConnection:
