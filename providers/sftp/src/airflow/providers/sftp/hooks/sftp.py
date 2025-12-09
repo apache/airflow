@@ -949,8 +949,8 @@ class SFTPClientPool(LoggingMixin):
                 self.sftp_conn_id,
                 self._semaphore._value,
             )
-            ssh_conn: SSHClientConnection
-            sftp: SFTPClient
+            ssh_conn: asyncssh.SSHClientConnection
+            sftp: asyncssh.SFTPClient
             ssh_conn, sftp = await self.acquire()
 
             try:
