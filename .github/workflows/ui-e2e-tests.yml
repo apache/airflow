@@ -22,14 +22,6 @@ name: UI End-to-End Tests
 permissions:
   contents: read
 on:  # yamllint disable-line rule:truthy
-  pull_request:
-    branches:
-      - main
-      - v[0-9]+-[0-9]+-test
-      - v[0-9]+-[0-9]+-stable
-    paths:
-      - 'airflow-core/src/airflow/ui/**'
-      - '.github/workflows/ui-e2e-tests.yml'
   workflow_dispatch:
     inputs:
       workflow-name:
@@ -92,10 +84,6 @@ on:  # yamllint disable-line rule:truthy
         type: string
         default: "all"
 
-concurrency:
-  group: ui-e2e-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   test-ui-e2e-tests:
     timeout-minutes: 90
@@ -119,6 +107,19 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+        if: github.event_name != 'workflow_dispatch'
+      - name: "Install Breeze (manual trigger)"
+        uses: ./.github/actions/breeze
+        if: github.event_name == 'workflow_dispatch'
       - name: "Setup pnpm"
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -128,37 +129,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 21
-      - name: "Compile UI assets"
+      - name: "Install Playwright browsers and dependencies"
         run: |
           cd airflow-core/src/airflow/ui
           pnpm install --frozen-lockfile
-          pnpm build
-          cd ../api_fastapi/auth/managers/simple/ui
-          pnpm install --frozen-lockfile
-          pnpm build
-      - name: "Install WebKit dependencies"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libgtk-4-1 \
-            libgraphene-1.0-0 \
-            libwoff1 \
-            libvpx9 \
-            libevent-2.1-7 \
-            libopus0 \
-            libgstreamer-plugins-base1.0-0 \
-            gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            libavif16 \
-            libharfbuzz-icu0 \
-            libsecret-1-0 \
-            libhyphen0 \
-            libmanette-0.2-0 \
-            libgles2 \
-            libx264-164 \
-            flite1-dev
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
+          pnpm exec playwright install --with-deps
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:
