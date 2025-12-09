@@ -2676,7 +2676,8 @@ def test_remote_logging_conn(remote_logging, remote_conn, expected_env, monkeypa
             with _remote_logging_conn(client):
                 new_keys = os.environ.keys() - env.keys()
                 if remote_logging:
-                    assert new_keys == {expected_env}
+                    # _remote_logging_conn sets both the connection env var and _AIRFLOW_PROCESS_CONTEXT
+                    assert new_keys == {expected_env, "_AIRFLOW_PROCESS_CONTEXT"}
                 else:
                     assert not new_keys
 
