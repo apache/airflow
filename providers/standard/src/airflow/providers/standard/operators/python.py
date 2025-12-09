@@ -303,7 +303,7 @@ if AIRFLOW_V_3_2_PLUS:
             return await runner.run(*self.op_args, **self.op_kwargs)
 else:
 
-    class PythonOperator(BasePythonOperator):
+    class PythonOperator(BasePythonOperator):  # type: ignore[no-redef]
         """Executes a Python callable."""
 
         pass
