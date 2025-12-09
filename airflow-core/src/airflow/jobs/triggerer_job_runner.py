@@ -954,6 +954,7 @@ class TriggerRunner:
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         while self.to_create:
             await asyncio.sleep(0)
+            context: Context | None = None
             workload = self.to_create.popleft()
             trigger_id = workload.id
             if trigger_id in self.triggers:
