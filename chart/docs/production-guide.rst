@@ -804,59 +804,8 @@ Security Implications
 Use Cases and Examples
 ^^^^^^^^^^^^^^^^^^^^^^
 
-**Basic Configuration**
-
-Disable automatic token mounting and enable manual token volume:
-
-.. code-block:: yaml
-
-  scheduler:
-    serviceAccount:
-      automountServiceAccountToken: false
-      serviceAccountTokenVolume:
-        enabled: true
-
-**Custom Token Expiration**
-
-Set a shorter token lifetime for enhanced security:
-
-.. code-block:: yaml
-
-  scheduler:
-    serviceAccount:
-      automountServiceAccountToken: false
-      serviceAccountTokenVolume:
-        enabled: true
-        expirationSeconds: 1800  # 30 minutes instead of default 1 hour
-
-**Custom Mount Path**
-
-Use a custom mount path for the service account token:
-
-.. code-block:: yaml
-
-  scheduler:
-    serviceAccount:
-      automountServiceAccountToken: false
-      serviceAccountTokenVolume:
-        enabled: true
-        mountPath: /custom/sa-token
-        volumeName: custom-kube-access
-
-**Kyverno Policy Compliance**
-
-When using Kyverno policies that restrict automatic service account token mounting:
-
-.. code-block:: yaml
-
-  # This configuration complies with Kyverno policies that require
-  # automountServiceAccountToken: false
-  scheduler:
-    serviceAccount:
-      automountServiceAccountToken: false
-      serviceAccountTokenVolume:
-        enabled: true
-        expirationSeconds: 3600
+For comprehensive configuration examples, security scenarios, and detailed use cases,
+see :doc:`service-account-token-examples`.
 
 Supported Executors
 ^^^^^^^^^^^^^^^^^^^
