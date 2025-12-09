@@ -27,15 +27,8 @@ class TestStatsd:
 
     def test_should_create_statsd_default(self):
         docs = render_chart(
-            values={
-                "statsd": {
-                    "enabled": True,
-                    "cacheSize": 1000,
-                    "cacheType": "lru", 
-                    "ttl": "0s"
-                }
-            },
-            show_only=["templates/statsd/statsd-deployment.yaml"]
+            values={"statsd": {"enabled": True, "cacheSize": 1000, "cacheType": "lru", "ttl": "0s"}},
+            show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
         assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
@@ -309,12 +302,14 @@ class TestStatsd:
         assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
-        args = ["--statsd.cache-size=",
-                "--statsd.cache-type=",
-                "--ttl=",
-                "--statsd.mapping-config=/custom/path"]
+        args = [
+            "--statsd.cache-size=",
+            "--statsd.cache-type=",
+            "--ttl=",
+            "--statsd.mapping-config=/custom/path",
+         ]
         docs = render_chart(
-            values={"statsd": {"enabled": True, "args": args,  "cacheSize": 0, "cacheType": "", "ttl": ""}},
+            values={"statsd": {"enabled": True, "args": args, "cacheSize": 0, "cacheType": "", "ttl": ""}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
@@ -322,7 +317,7 @@ class TestStatsd:
             "--statsd.cache-size=",
             "--statsd.cache-type=",
             "--ttl=",
-            "--statsd.mapping-config=/custom/path"
+            "--statsd.mapping-config=/custom/path",
         ]
 
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == expected_args
