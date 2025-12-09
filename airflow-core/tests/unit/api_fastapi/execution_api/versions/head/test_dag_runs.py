@@ -93,7 +93,10 @@ class TestDagRunTrigger:
         assert response.status_code == 400
         assert response.json() == {
             "detail": {
-                "message": "DAG with dag_id: 'test_trigger_dag_run_import_error' has import errors and cannot be triggered",
+                "message": (
+                    "Dag with dag_id 'test_trigger_dag_run_import_error' "
+                    "has import errors and cannot be triggered"
+                ),
                 "reason": "import_errors",
             }
         }
@@ -125,7 +128,10 @@ class TestDagRunTrigger:
         assert response.status_code == 409
         assert response.json() == {
             "detail": {
-                "message": "A DAG Run already exists for DAG test_trigger_dag_run_already_exists with run id test_run_id",
+                "message": (
+                    "A run already exists for Dag 'test_trigger_dag_run_already_exists' "
+                    "with run_id 'test_run_id'"
+                ),
                 "reason": "already_exists",
             }
         }
@@ -175,7 +181,10 @@ class TestDagRunClear:
         assert response.status_code == 400
         assert response.json() == {
             "detail": {
-                "message": "DAG with dag_id: 'test_trigger_dag_run_import_error' has import errors and cannot be triggered",
+                "message": (
+                    "Dag with dag_id 'test_trigger_dag_run_import_error' "
+                    "has import errors and cannot be triggered"
+                ),
                 "reason": "import_errors",
             }
         }

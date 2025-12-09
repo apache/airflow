@@ -39,7 +39,6 @@ from airflow.utils.types import DagRunTriggeredByType
 
 router = APIRouter()
 
-
 log = logging.getLogger(__name__)
 
 
@@ -47,9 +46,9 @@ log = logging.getLogger(__name__)
     "/{dag_id}/{run_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
-        status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
-        status.HTTP_409_CONFLICT: {"description": "DAG Run already exists for the given dag_id"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors and cannot be triggered"},
+        status.HTTP_404_NOT_FOUND: {"description": "Dag not found for the given dag_id"},
+        status.HTTP_409_CONFLICT: {"description": "Dag run already exists for the given dag_id"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
@@ -58,13 +57,13 @@ def trigger_dag_run(
     run_id: str,
     payload: TriggerDAGRunPayload,
     session: SessionDep,
-):
-    """Trigger a DAG Run."""
+) -> None:
+    """Trigger a Dag run."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"DAG with dag_id: '{dag_id}' not found"},
+            detail={"reason": "not_found", "message": f"Dag with dag_id: '{dag_id}' not found"},
         )
 
     if dm.has_import_errors:
@@ -72,7 +71,7 @@ def trigger_dag_run(
             status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "import_errors",
-                "message": f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+                "message": f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
             },
         )
 
@@ -91,7 +90,7 @@ def trigger_dag_run(
             status.HTTP_409_CONFLICT,
             detail={
                 "reason": "already_exists",
-                "message": f"A DAG Run already exists for DAG {dag_id} with run id {run_id}",
+                "message": f"A run already exists for Dag '{dag_id}' with run_id '{run_id}'",
             },
         )
 
@@ -100,8 +99,8 @@ def trigger_dag_run(
     "/{dag_id}/{run_id}/clear",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        status.HTTP_400_BAD_REQUEST: {"description": "DAG has import errors and cannot be triggered"},
-        status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
+        status.HTTP_400_BAD_REQUEST: {"description": "Dag has import errors and cannot be triggered"},
+        status.HTTP_404_NOT_FOUND: {"description": "Dag not found for the given dag_id"},
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload"},
     },
 )
@@ -110,13 +109,13 @@ def clear_dag_run(
     run_id: str,
     session: SessionDep,
     dag_bag: DagBagDep,
-):
-    """Clear a DAG Run."""
+) -> None:
+    """Clear a Dag run."""
     dm = session.scalar(select(DagModel).where(~DagModel.is_stale, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"DAG with dag_id: '{dag_id}' not found"},
+            detail={"reason": "not_found", "message": f"Dag with dag_id: '{dag_id}' not found"},
         )
 
     if dm.has_import_errors:
@@ -124,7 +123,7 @@ def clear_dag_run(
             status.HTTP_400_BAD_REQUEST,
             detail={
                 "reason": "import_errors",
-                "message": f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+                "message": f"Dag with dag_id '{dag_id}' has import errors and cannot be triggered",
             },
         )
 
@@ -134,7 +133,7 @@ def clear_dag_run(
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"DAG run with run_id: '{run_id}' not found"},
+            detail={"reason": "not_found", "message": f"Dag run with run_id: '{run_id}' not found"},
         )
     dag = get_dag_for_run(dag_bag, dag_run=dag_run, session=session)
 
@@ -143,28 +142,26 @@ def clear_dag_run(
 
 @router.get(
     "/{dag_id}/{run_id}/state",
-    responses={status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found"}},
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
 )
 def get_dagrun_state(
     dag_id: str,
     run_id: str,
     session: SessionDep,
 ) -> DagRunStateResponse:
-    """Get a DAG Run State."""
-    values = session.scalars(
-        select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
-    )
+    """Get a Dag run State."""
     try:
-        state = values.one()
+        state = session.scalars(
+            select(DagRunModel.state).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+        ).one()
     except NoResultFound:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
             },
         )
-
     return DagRunStateResponse(state=state)
 
 
@@ -176,20 +173,15 @@ def get_dr_count(
     run_ids: Annotated[list[str] | None, Query()] = None,
     states: Annotated[list[str] | None, Query()] = None,
 ) -> int:
-    """Get the count of DAG runs matching the given criteria."""
-    query = select(func.count()).select_from(DagRunModel).where(DagRunModel.dag_id == dag_id)
-
+    """Get the count of Dag runs matching the given criteria."""
+    stmt = select(func.count()).select_from(DagRunModel).where(DagRunModel.dag_id == dag_id)
     if logical_dates:
-        query = query.where(DagRunModel.logical_date.in_(logical_dates))
-
+        stmt = stmt.where(DagRunModel.logical_date.in_(logical_dates))
     if run_ids:
-        query = query.where(DagRunModel.run_id.in_(run_ids))
-
+        stmt = stmt.where(DagRunModel.run_id.in_(run_ids))
     if states:
-        query = query.where(DagRunModel.state.in_(states))
-
-    count = session.scalar(query)
-    return count or 0
+        stmt = stmt.where(DagRunModel.state.in_(states))
+    return session.scalar(stmt) or 0
 
 
 @router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
@@ -199,41 +191,33 @@ def get_previous_dagrun(
     session: SessionDep,
     state: Annotated[DagRunState | None, Query()] = None,
 ) -> DagRun | None:
-    """Get the previous DAG run before the given logical date, optionally filtered by state."""
-    query = (
+    """Get the previous Dag run before the given logical date, optionally filtered by state."""
+    stmt = (
         select(DagRunModel)
-        .where(
-            DagRunModel.dag_id == dag_id,
-            DagRunModel.logical_date < logical_date,
-        )
+        .where(DagRunModel.dag_id == dag_id, DagRunModel.logical_date < logical_date)
         .order_by(DagRunModel.logical_date.desc())
         .limit(1)
     )
-
     if state:
-        query = query.where(DagRunModel.state == state)
-
-    dag_run = session.scalar(query)
-
-    if not dag_run:
+        stmt = stmt.where(DagRunModel.state == state)
+    if not (dag_run := session.scalar(stmt)):
         return None
-
     return DagRun.model_validate(dag_run)
 
 
 @router.get(
     "/{dag_id}/{run_id}/detail",
-    responses={status.HTTP_404_NOT_FOUND: {"description": "DAG Run not found"}},
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
 )
 def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
-    """Get detail of a DAG Run."""
+    """Get detail of a Dag run."""
     dr = session.scalar(select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id))
     if dr is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"The DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found",
+                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
             },
         )
     return DagRun.model_validate(dr)
