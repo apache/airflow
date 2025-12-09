@@ -20,7 +20,7 @@
 Add index to task_instance table.
 
 Revision ID: 937cbd173ca1
-Revises: None
+Revises: 4bc4d934e2bc
 Create Date: 2023-05-03 11:31:32.527362
 
 """
@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "937cbd173ca1"
-down_revision = None
+down_revision = "4bc4d934e2bc"
 branch_labels = None
 depends_on = None
 airflow_version = "2.7.0"
