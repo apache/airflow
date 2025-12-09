@@ -2081,6 +2081,7 @@ class DagRun(Base, LoggingMixin):
                 result = session.execute(
                     update(TI)
                     .where(TI.id.in_(id_chunk))
+                    .where(TI.state.in_(SCHEDULEABLE_STATES))
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
