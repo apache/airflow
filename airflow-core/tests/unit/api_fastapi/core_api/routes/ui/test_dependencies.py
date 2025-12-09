@@ -272,3 +272,35 @@ class TestGetDependencies:
         assert response.json() == {
             "detail": "Unique connected component not found, got [] for connected components of node missing_node_id, expected only 1 connected component.",
         }
+
+    @pytest.mark.parametrize(
+        ("dependency_type", "has_dag", "has_task"),
+        [
+            (None, True, False),  # default is scheduling
+            ("scheduling", True, False),
+            ("data", False, True),
+        ],
+    )
+    def test_dependency_type_filter(self, test_client, asset1_id, dependency_type, has_dag, has_task):
+        params = {"node_id": f"asset:{asset1_id}"}
+        if dependency_type is not None:
+            params["dependency_type"] = dependency_type
+
+        response = test_client.get("/dependencies", params=params)
+        assert response.status_code == 200
+
+        result = response.json()
+        node_types = {node["type"] for node in result["nodes"]}
+
+        assert "asset" in node_types
+        assert ("dag" in node_types) == has_dag
+        assert ("task" in node_types) == has_task
+
+    def test_data_dependencies_requires_asset_node_id(self, test_client):
+        # No node_id
+        response = test_client.get("/dependencies", params={"dependency_type": "data"})
+        assert response.status_code == 400
+
+        # Non-asset node_id
+        response = test_client.get("/dependencies", params={"dependency_type": "data", "node_id": "dag:test"})
+        assert response.status_code == 400

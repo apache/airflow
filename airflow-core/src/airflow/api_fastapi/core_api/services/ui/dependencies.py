@@ -18,6 +18,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
+
+from airflow.models.asset import AssetModel
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 def _dfs_connected_components(
@@ -74,5 +80,101 @@ def extract_single_connected_component(
         for edge in edges
         if (edge["source_id"] in connected_component and edge["target_id"] in connected_component)
     ]
+
+    return {"nodes": nodes, "edges": edges}
+
+
+def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dict]]:
+    """Get full data lineage for an asset."""
+    from sqlalchemy import select
+
+    from airflow.models.asset import TaskInletAssetReference, TaskOutletAssetReference
+
+    SEPARATOR = "__SEPARATOR__"
+
+    nodes: list[dict] = []
+    edges: list[dict] = []
+    node_ids: set[str] = set()
+    edge_set: set[tuple[str, str]] = set()
+
+    # BFS to trace full lineage
+    assets_to_process: list[int] = [asset_id]
+    processed_assets: set[int] = set()
+    processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
+
+    while assets_to_process:
+        current_asset_id = assets_to_process.pop(0)
+        if current_asset_id in processed_assets:
+            continue
+        processed_assets.add(current_asset_id)
+
+        asset = session.get(AssetModel, current_asset_id)
+        if not asset:
+            continue
+
+        asset_node_id = f"asset:{current_asset_id}"
+
+        # Add asset node
+        if asset_node_id not in node_ids:
+            nodes.append({"id": asset_node_id, "label": asset.name, "type": "asset"})
+            node_ids.add(asset_node_id)
+
+        # Process producing tasks (tasks that output this asset)
+        for ref in asset.producing_tasks:
+            task_key = (ref.dag_id, ref.task_id)
+            task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
+
+            # Add task node
+            if task_node_id not in node_ids:
+                nodes.append({"id": task_node_id, "label": ref.task_id, "type": "task"})
+                node_ids.add(task_node_id)
+
+            # Add edge: task → asset
+            edge_key = (task_node_id, asset_node_id)
+            if edge_key not in edge_set:
+                edges.append({"source_id": task_node_id, "target_id": asset_node_id})
+                edge_set.add(edge_key)
+
+            # Find other assets this task consumes (inlets) to trace upstream
+            if task_key not in processed_tasks:
+                processed_tasks.add(task_key)
+                inlet_refs = session.scalars(
+                    select(TaskInletAssetReference).where(
+                        TaskInletAssetReference.dag_id == ref.dag_id,
+                        TaskInletAssetReference.task_id == ref.task_id,
+                    )
+                ).all()
+                for inlet_ref in inlet_refs:
+                    if inlet_ref.asset_id not in processed_assets:
+                        assets_to_process.append(inlet_ref.asset_id)
+
+        # Process consuming tasks (tasks that input this asset)
+        for ref in asset.consuming_tasks:
+            task_key = (ref.dag_id, ref.task_id)
+            task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
+
+            # Add task node
+            if task_node_id not in node_ids:
+                nodes.append({"id": task_node_id, "label": ref.task_id, "type": "task"})
+                node_ids.add(task_node_id)
+
+            # Add edge: asset → task
+            edge_key = (asset_node_id, task_node_id)
+            if edge_key not in edge_set:
+                edges.append({"source_id": asset_node_id, "target_id": task_node_id})
+                edge_set.add(edge_key)
+
+            # Find other assets this task produces (outlets) to trace downstream
+            if task_key not in processed_tasks:
+                processed_tasks.add(task_key)
+                outlet_refs = session.scalars(
+                    select(TaskOutletAssetReference).where(
+                        TaskOutletAssetReference.dag_id == ref.dag_id,
+                        TaskOutletAssetReference.task_id == ref.task_id,
+                    )
+                ).all()
+                for outlet_ref in outlet_refs:
+                    if outlet_ref.asset_id not in processed_assets:
+                        assets_to_process.append(outlet_ref.asset_id)
 
     return {"nodes": nodes, "edges": edges}
