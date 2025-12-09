@@ -437,7 +437,7 @@ class TestUtilsUnit:
             "scope_metrics": [
                 {
                     "scope": {
-                        "name": "airflow.metrics.otel_logger",
+                        "name": "airflow._shared.observability.metrics.otel_logger",
                         "version": null,
                         "schema_url": "",
                         "attributes": null
