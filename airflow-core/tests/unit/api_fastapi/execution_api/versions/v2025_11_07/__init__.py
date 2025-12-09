@@ -14,28 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from cadwyn import VersionChange, endpoint
-
-
-class MovePreviousRunEndpoint(VersionChange):
-    """Add new previous-run endpoint and migrate old endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/previous", ["GET"]).didnt_exist,
-        endpoint("/dag-runs/{dag_id}/previous", ["GET"]).existed,
-    )
-
-
-class AddDagRunDetailEndpoint(VersionChange):
-    """Add dag run detail endpoint."""
-
-    description = __doc__
-
-    instructions_to_migrate_to_previous_version = (
-        endpoint("/dag-runs/{dag_id}/{run_id}", ["GET"]).didnt_exist,
-    )

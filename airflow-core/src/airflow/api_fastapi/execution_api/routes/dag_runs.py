@@ -20,7 +20,8 @@ from __future__ import annotations
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from cadwyn import VersionedAPIRouter
+from fastapi import HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import NoResultFound
 
@@ -37,9 +38,45 @@ from airflow.models.dagrun import DagRun as DagRunModel
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType
 
-router = APIRouter()
+router = VersionedAPIRouter()
 
 log = logging.getLogger(__name__)
+
+
+@router.only_exists_in_older_versions
+@router.get("/{dag_id}/previous")
+def get_previous_dagrun_compat(
+    dag_id: str,
+    logical_date: UtcDateTime,
+    session: SessionDep,
+    state: DagRunState | None = None,
+):
+    """
+    Redirect old previous dag run request to the new endpoint.
+
+    This endpoint must be put before ``get_dag_run`` so not to be shadowed.
+    Newer client versions would not see this endpoint, and be routed to
+    ``get_dag_run`` below instead.
+    """
+    return get_previous_dagrun(dag_id, logical_date, session, state)
+
+
+@router.get(
+    "/{dag_id}/{run_id}",
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
+)
+def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
+    """Get detail of a Dag run."""
+    dr = session.scalar(select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id))
+    if dr is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "not_found",
+                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
+            },
+        )
+    return DagRun.model_validate(dr)
 
 
 @router.post(
@@ -184,7 +221,7 @@ def get_dr_count(
     return session.scalar(stmt) or 0
 
 
-@router.get("/{dag_id}/previous", status_code=status.HTTP_200_OK)
+@router.get("/previous", status_code=status.HTTP_200_OK)
 def get_previous_dagrun(
     dag_id: str,
     logical_date: UtcDateTime,
@@ -203,21 +240,3 @@ def get_previous_dagrun(
     if not (dag_run := session.scalar(stmt)):
         return None
     return DagRun.model_validate(dag_run)
-
-
-@router.get(
-    "/{dag_id}/{run_id}/detail",
-    responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
-)
-def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
-    """Get detail of a Dag run."""
-    dr = session.scalar(select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id))
-    if dr is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            detail={
-                "reason": "not_found",
-                "message": f"Dag run with dag_id '{dag_id}' and run_id '{run_id}' was not found",
-            },
-        )
-    return DagRun.model_validate(dr)

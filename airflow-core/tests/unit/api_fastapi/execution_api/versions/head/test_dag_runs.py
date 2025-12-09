@@ -208,7 +208,9 @@ class TestDagRunDetail:
 
     def test_get_state(self, client, session, dag_maker):
         dag_id = "test_dag_id"
-        run_id = "test_run_id"
+        # Named deliberately to check if this routes correctly.
+        # See v2025_11_07.test_dag_runs::test_get_previous_dag_run_redirect
+        run_id = "previous"
 
         with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
             EmptyOperator(task_id="test_task")
@@ -223,7 +225,8 @@ class TestDagRunDetail:
             )
         session.commit()
 
-        response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}/detail")
+        response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
+        assert response.url == f"{client.base_url}/execution/dag-runs/test_dag_id/previous"
         assert response.status_code == 200
         assert response.json() == {
             "clear_number": 0,
@@ -236,7 +239,7 @@ class TestDagRunDetail:
             "logical_date": None,
             "partition_key": None,
             "run_after": "2025-12-13T00:00:00Z",
-            "run_id": "test_run_id",
+            "run_id": "previous",
             "run_type": "manual",
             "start_date": "2023-01-02T00:00:00Z",
             "state": "success",
@@ -244,7 +247,7 @@ class TestDagRunDetail:
         }
 
     def test_dag_run_not_found(self, client):
-        response = client.get("/execution/dag-runs/dag_not_found/test_run_id/detail")
+        response = client.get("/execution/dag-runs/dag_not_found/test_run_id")
         assert response.status_code == 404
 
 
@@ -396,8 +399,8 @@ class TestGetPreviousDagRun:
 
         # Query for previous DAG run before 2025-01-10
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/previous",
-            params={"logical_date": timezone.datetime(2025, 1, 10).isoformat()},
+            "/execution/dag-runs/previous",
+            params={"dag_id": dag_id, "logical_date": timezone.datetime(2025, 1, 10).isoformat()},
         )
 
         assert response.status_code == 200
@@ -427,8 +430,12 @@ class TestGetPreviousDagRun:
 
         # Query for previous successful DAG run before 2025-01-10
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/previous",
-            params={"logical_date": timezone.datetime(2025, 1, 10).isoformat(), "state": "success"},
+            "/execution/dag-runs/previous",
+            params={
+                "dag_id": dag_id,
+                "logical_date": timezone.datetime(2025, 1, 10).isoformat(),
+                "state": "success",
+            },
         )
 
         assert response.status_code == 200
@@ -449,7 +456,9 @@ class TestGetPreviousDagRun:
             run_id="run1", logical_date=timezone.datetime(2025, 1, 1), state=DagRunState.SUCCESS
         )
 
-        response = client.get(f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-01T00:00:00Z")
+        response = client.get(
+            "/execution/dag-runs/previous?dag_id=test_get_previous_none&logical_date=2025-01-01T00:00:00Z"
+        )
 
         assert response.status_code == 200
         assert response.json() is None  # Should return null
@@ -471,7 +480,8 @@ class TestGetPreviousDagRun:
 
         # Look for previous success but only failed runs exist
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-03T00:00:00Z&state=success"
+            "/execution/dag-runs/previous?"
+            "dag_id=test_get_previous_no_match&logical_date=2025-01-03T00:00:00Z&state=success"
         )
 
         assert response.status_code == 200
@@ -480,7 +490,7 @@ class TestGetPreviousDagRun:
     def test_get_previous_dag_run_dag_not_found(self, client, session):
         """Test getting previous DAG run for non-existent DAG returns 404."""
         response = client.get(
-            "/execution/dag-runs/nonexistent_dag/previous?logical_date=2025-01-01T00:00:00Z"
+            "/execution/dag-runs/previous?dag_id=nonexistent_dag&logical_date=2025-01-01T00:00:00Z"
         )
 
         assert response.status_code == 200
@@ -499,7 +509,8 @@ class TestGetPreviousDagRun:
         session.commit()
 
         response = client.get(
-            f"/execution/dag-runs/{dag_id}/previous?logical_date=2025-01-02T00:00:00Z&state=invalid_state"
+            "/execution/dag-runs/previous?"
+            "dag_id=test_get_previous_invalid_state&logical_date=2025-01-02T00:00:00Z&state=invalid_state"
         )
 
         assert response.status_code == 422

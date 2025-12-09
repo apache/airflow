@@ -696,7 +696,7 @@ class DagRunOperations:
 
     def get_detail(self, dag_id: str, run_id: str) -> DagRun:
         """Get detail of a dag run."""
-        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/detail")
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
         return DagRun.model_validate_json(resp.read())
 
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
@@ -733,13 +733,12 @@ class DagRunOperations:
     ) -> PreviousDagRunResult:
         """Get the previous DAG run before the given logical date, optionally filtered by state."""
         params = {
+            "dag_id": dag_id,
             "logical_date": logical_date.isoformat(),
         }
-
         if state:
             params["state"] = state
-
-        resp = self.client.get(f"dag-runs/{dag_id}/previous", params=params)
+        resp = self.client.get("dag-runs/previous", params=params)
         return PreviousDagRunResult(dag_run=resp.json())
 
 
