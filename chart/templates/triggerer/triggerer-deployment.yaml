@@ -260,6 +260,9 @@ spec:
               {{- tpl (toYaml .Values.triggerer.logGroomerSidecar.env) $ | nindent 12 }}
           {{- end }}
           volumeMounts:
+            {{- if .Values.devMode.enabled }}
+              {{- include "airflow_code_mount" . | nindent 12 }}
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
               {{- if .Values.logs.persistence.subPath }}
@@ -303,6 +306,11 @@ spec:
         {{- end }}
         {{- if .Values.triggerer.extraVolumes }}
           {{- tpl (toYaml .Values.triggerer.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if .Values.devMode.enabled }}
+        - name: code
+          persistentVolumeClaim:
+            claimName: {{ template "airflow_code_volume_claim" . }}
         {{- end }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
