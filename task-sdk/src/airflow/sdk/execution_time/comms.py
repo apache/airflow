@@ -60,7 +60,6 @@ from uuid import UUID
 import attrs
 import msgspec
 import structlog
-from fastapi import Body
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
 
 from airflow.sdk.api.datamodels._generated import (
@@ -728,28 +727,7 @@ class GetXComSequenceSlice(BaseModel):
 
 class SetXCom(BaseModel):
     key: str
-    value: Annotated[
-        # JsonValue can handle non JSON stringified dicts, lists and strings, which is better
-        # for the task intuitibe to send to the supervisor
-        JsonValue,
-        Body(
-            description="A JSON-formatted string representing the value to set for the XCom.",
-            openapi_examples={
-                "simple_value": {
-                    "summary": "Simple value",
-                    "value": "value1",
-                },
-                "dict_value": {
-                    "summary": "Dictionary value",
-                    "value": {"key2": "value2"},
-                },
-                "list_value": {
-                    "summary": "List value",
-                    "value": ["value1"],
-                },
-            },
-        ),
-    ]
+    value: JsonValue
     dag_id: str
     run_id: str
     task_id: str
