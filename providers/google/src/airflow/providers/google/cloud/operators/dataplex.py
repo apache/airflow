@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
     DataplexDataProfileJobTrigger,
     DataplexDataQualityJobTrigger,

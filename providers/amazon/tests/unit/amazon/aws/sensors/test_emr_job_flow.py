@@ -24,10 +24,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil.tz import tzlocal
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
 from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 DESCRIBE_CLUSTER_STARTING_RETURN = {
     "Cluster": {

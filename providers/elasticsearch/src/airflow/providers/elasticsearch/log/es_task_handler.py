@@ -39,9 +39,8 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS

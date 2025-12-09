@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import json
 import warnings
 from ast import literal_eval
+from collections.abc import Callable
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -46,14 +48,8 @@ from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactor
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import (
-    AirflowBadRequest,
-    AirflowConfigException,
-    AirflowException,
-    AirflowNotFoundException,
-    AirflowProviderDeprecationWarning,
-)
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -62,6 +58,32 @@ if TYPE_CHECKING:
     from kiota_abstractions.serialization import ParsableFactory
 
     from airflow.providers.common.compat.sdk import Connection
+
+
+PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+
+def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Dynamically call a function by matching its signature to provided args/kwargs."""
+    sig = inspect.signature(func)
+    accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+    if not accepts_kwargs:
+        # Only pass arguments the function explicitly declares
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    else:
+        filtered_kwargs = kwargs
+
+    try:
+        sig.bind(*args, **filtered_kwargs)
+    except TypeError as err:
+        raise TypeError(
+            f"Failed to bind arguments to function {func.__name__}: {err}\n"
+            f"Expected parameters: {list(sig.parameters.keys())}\n"
+            f"Provided kwargs: {list(kwargs.keys())}"
+        ) from err
+
+    return func(*args, **filtered_kwargs)
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -128,7 +150,7 @@ class KiotaRequestAdapterHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
-        host: str = NationalClouds.Global.value,
+        host: str | None = None,
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
@@ -204,8 +226,12 @@ class KiotaRequestAdapterHook(BaseHook):
         )  # type: ignore
 
     def get_host(self, connection: Connection) -> str:
-        if connection.schema and connection.host:
-            return f"{connection.schema}://{connection.host}"
+        if not self.host:
+            if connection.schema and connection.host:
+                return f"{connection.schema}://{connection.host}"
+            return NationalClouds.Global.value
+        if not self.host.startswith("http://") or not self.host.startswith("https://"):
+            return f"{connection.schema}://{self.host}"
         return self.host
 
     def get_base_url(self, host: str, api_version: str, config: dict) -> str:
@@ -222,7 +248,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return url
 
     @classmethod
-    def to_httpx_proxies(cls, proxies: dict) -> dict:
+    def to_httpx_proxies(cls, proxies: dict | None) -> dict | None:
         if proxies:
             proxies = proxies.copy()
             if proxies.get("http"):
@@ -232,9 +258,10 @@ class KiotaRequestAdapterHook(BaseHook):
             if proxies.get("no"):
                 for url in proxies.pop("no", "").split(","):
                     proxies[cls.format_no_proxy_url(url.strip())] = None
-        return proxies
+            return proxies
+        return None
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
+    def to_msal_proxies(self, authority: str | None, proxies: dict | None) -> dict | None:
         self.log.debug("authority: %s", authority)
         if authority and proxies:
             no_proxies = proxies.get("no")
@@ -246,7 +273,8 @@ class KiotaRequestAdapterHook(BaseHook):
                     self.log.debug("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
-        return proxies
+            return proxies
+        return None
 
     def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
         client_id = connection.login
@@ -367,22 +395,24 @@ class KiotaRequestAdapterHook(BaseHook):
         self.api_version = api_version
         return request_adapter
 
-    def get_proxies(self, config: dict) -> dict:
-        proxies = self.proxies or config.get("proxies", {})
-        if isinstance(proxies, str):
-            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
-            #       we could then use the get_extra_dejson method on the connection which deserializes
-            #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
-            #       connection.extra_dejson.
-            with suppress(JSONDecodeError):
-                proxies = json.loads(proxies)
-            with suppress(Exception):
-                proxies = literal_eval(proxies)
-        if not isinstance(proxies, dict):
-            raise AirflowConfigException(
-                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
-            )
-        return proxies
+    def get_proxies(self, config: dict) -> dict | None:
+        proxies = self.proxies if self.proxies is not None else config.get("proxies", {})
+        if proxies:
+            if isinstance(proxies, str):
+                # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
+                #       we could then use the get_extra_dejson method on the connection which deserializes
+                #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+                #       connection.extra_dejson.
+                with suppress(JSONDecodeError):
+                    proxies = json.loads(proxies)
+                with suppress(Exception):
+                    proxies = literal_eval(proxies)
+            if not isinstance(proxies, dict):
+                raise AirflowConfigException(
+                    f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+                )
+            return proxies
+        return None
 
     def get_credentials(
         self,
@@ -391,7 +421,7 @@ class KiotaRequestAdapterHook(BaseHook):
         config,
         authority: str | None,
         verify: bool,
-        proxies: dict,
+        proxies: dict | None,
     ) -> ClientCredentialBase:
         tenant_id = config.get("tenant_id") or config.get("tenantId")
         certificate_path = config.get("certificate_path")
@@ -434,6 +464,27 @@ class KiotaRequestAdapterHook(BaseHook):
         except Exception as e:
             return False, str(e)
 
+    @staticmethod
+    def default_pagination(
+        response: dict,
+        url: str | None = None,
+        query_parameters: dict[str, Any] | None = None,
+        responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
+    ) -> tuple[Any, dict[str, Any] | None]:
+        if isinstance(response, dict):
+            odata_count = response.get("@odata.count")
+            if odata_count and query_parameters:
+                top = query_parameters.get("$top")
+
+                if top and odata_count:
+                    if len(response.get("value", [])) == top:
+                        results = responses()
+                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
+                        query_parameters["$skip"] = skip
+                        return url, query_parameters
+            return response.get("@odata.nextLink"), query_parameters
+        return None, query_parameters
+
     async def run(
         self,
         url: str = "",
@@ -462,6 +513,60 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.debug("response: %s", response)
 
         return response
+
+    async def paginated_run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+        pagination_function: PaginationCallable | None = None,
+    ):
+        if pagination_function is None:
+            pagination_function = self.default_pagination
+
+        responses: list[dict] = []
+
+        async def run(
+            url: str = "",
+            query_parameters: dict[str, Any] | None = None,
+        ):
+            while url:
+                response = await self.run(
+                    url=url,
+                    response_type=response_type,
+                    path_parameters=path_parameters,
+                    method=method,
+                    query_parameters=query_parameters,
+                    headers=headers,
+                    data=data,
+                )
+
+                if response:
+                    responses.append(response)
+
+                    if pagination_function:
+                        url, query_parameters = execute_callable(
+                            pagination_function,
+                            response=response,
+                            url=url,
+                            response_type=response_type,
+                            path_parameters=path_parameters,
+                            method=method,
+                            query_parameters=query_parameters,
+                            headers=headers,
+                            data=data,
+                            responses=lambda: responses,
+                        )
+                else:
+                    break
+
+        await run(url=url, query_parameters=query_parameters)
+
+        return responses
 
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
         conn = await self.get_async_conn()

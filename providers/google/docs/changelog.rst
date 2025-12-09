@@ -51,6 +51,24 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
+19.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat(google): add enable_open_telemetry_tracing to PubSubHook and PubSubPublishMessageOperator (#58766)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix composer sys test (#59200)``
+   * ``Remove global from openlineage provider (#58868)``
+
 19.1.0
 ......
 
