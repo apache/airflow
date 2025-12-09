@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import uuid
 from unittest.mock import patch
 
 import pytest
@@ -71,12 +70,11 @@ class TestCliTeams:
         team = self.session.query(Team).filter(Team.name == "test-team").first()
         assert team is not None
         assert team.name == "test-team"
-        assert isinstance(team.id, uuid.UUID)
 
         # Verify output message
         output = stdout.getvalue()
         assert "Team 'test-team' created successfully" in output
-        assert str(team.id) in output
+        assert str(team.name) in output
 
     def test_team_create_empty_name(self):
         """Test team creation with empty name."""
@@ -175,7 +173,9 @@ class TestCliTeams:
 
         # Create a DAG bundle association
         self.session.execute(
-            dag_bundle_team_association_table.insert().values(dag_bundle_name="test-bundle", team_id=team.id)
+            dag_bundle_team_association_table.insert().values(
+                dag_bundle_name="test-bundle", team_name=team.name
+            )
         )
         self.session.commit()
 
@@ -193,7 +193,7 @@ class TestCliTeams:
         team = self.session.query(Team).filter(Team.name == "conn-team").first()
 
         # Create connection associated with team
-        conn = Connection(conn_id="test-conn", conn_type="http", team_id=team.id)
+        conn = Connection(conn_id="test-conn", conn_type="http", team_name=team.name)
         self.session.add(conn)
         self.session.commit()
 
@@ -211,7 +211,7 @@ class TestCliTeams:
         team = self.session.query(Team).filter(Team.name == "var-team").first()
 
         # Create variable associated with team
-        var = Variable(key="test-var", val="test-value", team_id=team.id)
+        var = Variable(key="test-var", val="test-value", team_name=team.name)
         self.session.add(var)
         self.session.commit()
 
@@ -229,7 +229,7 @@ class TestCliTeams:
 
         # Create pool associated with team
         pool = Pool(
-            pool="test-pool", slots=5, description="Test pool", include_deferred=False, team_id=team.id
+            pool="test-pool", slots=5, description="Test pool", include_deferred=False, team_name=team.name
         )
         self.session.add(pool)
         self.session.commit()
@@ -252,15 +252,17 @@ class TestCliTeams:
         self.session.commit()
 
         # Create multiple associations
-        conn = Connection(conn_id="multi-conn", conn_type="http", team_id=team.id)
-        var = Variable(key="multi-var", val="value", team_id=team.id)
+        conn = Connection(conn_id="multi-conn", conn_type="http", team_name=team.name)
+        var = Variable(key="multi-var", val="value", team_name=team.name)
         pool = Pool(
-            pool="multi-pool", slots=3, description="Multi pool", include_deferred=False, team_id=team.id
+            pool="multi-pool", slots=3, description="Multi pool", include_deferred=False, team_name=team.name
         )
 
         self.session.add_all([conn, var, pool])
         self.session.execute(
-            dag_bundle_team_association_table.insert().values(dag_bundle_name="multi-bundle", team_id=team.id)
+            dag_bundle_team_association_table.insert().values(
+                dag_bundle_name="multi-bundle", team_name=team.name
+            )
         )
         self.session.commit()
 

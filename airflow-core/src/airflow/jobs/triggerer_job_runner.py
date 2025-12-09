@@ -787,6 +787,7 @@ class TriggerDetails(TypedDict):
     """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
+    is_watcher: bool
     name: str
     events: int
     trigger: tuple[str, dict[str, Any]] | None
