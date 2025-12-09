@@ -104,9 +104,6 @@ def get_unique_constraint_error_prefix():
     return ""
 
 
-uuid_suffix = "" if SQLALCHEMY_V_1_4 else "::UUID"
-
-
 class TestUniqueConstraintErrorHandler:
     unique_constraint_error_handler = _UniqueConstraintErrorHandler()
 
@@ -151,7 +148,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": f"INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_name)s{uuid_suffix}) RETURNING slot_pool.id",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_name)s) RETURNING slot_pool.id",
                             "orig_error": 'duplicate key value violates unique constraint "slot_pool_pool_uq"\nDETAIL:  Key (pool)=(test_pool) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -180,7 +177,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": f"INSERT INTO variable (key, val, description, is_encrypted, team_name) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_name)s{uuid_suffix}) RETURNING variable.id",
+                            "statement": "INSERT INTO variable (key, val, description, is_encrypted, team_name) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_name)s) RETURNING variable.id",
                             "orig_error": 'duplicate key value violates unique constraint "variable_key_uq"\nDETAIL:  Key (key)=(test_key) already exists.\n',
                             "message": MESSAGE,
                         },
