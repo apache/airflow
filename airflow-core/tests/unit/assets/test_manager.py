@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -220,13 +221,15 @@ class TestAssetManager:
     @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_get_or_create_apdr_race_condition_non_sqlite(self, session):
-        dag1 = DagModel(dag_id="dag100", is_stale=False, bundle_name="testing")
-        session.add(dag1)
+        asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
         session.flush()
         assert session.query(AssetPartitionDagRun).count() == 0
 
-        assert settings.Session is not None
-        assert settings.Session.session_factory is not None
+        assert settings.Session
+        assert settings.Session.session_factory
 
         session_1 = settings.Session.session_factory()
         session_2 = settings.Session.session_factory()
@@ -236,14 +239,16 @@ class TestAssetManager:
         session_2.begin()
         apdr_1 = AssetManager._get_or_create_apdr(
             target_key="test_partition_key",
-            target_dag=dag1,
+            target_dag=testing_dag,
+            asset_id=asm.id,
             session=session_1,
         )
         session_1.commit()
 
         apdr_2 = AssetManager._get_or_create_apdr(
             target_key="test_partition_key",
-            target_dag=dag1,
+            target_dag=testing_dag,
+            asset_id=asm.id,
             session=session_2,
         )
 
@@ -257,15 +262,22 @@ class TestAssetManager:
     @pytest.mark.backend("sqlite")
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
     def test_get_or_create_apdr_race_condition_sqlite(self, session):
-        dag_id = "test_dag"
-        target_key = "test_partition_key"
-        dag = DagModel(dag_id=dag_id, is_stale=False, bundle_name="testing")
-        session.add(dag)
+        asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
+        testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
+        session.add_all([asm, testing_dag])
+        session.commit()
         session.flush()
+        assert session.query(AssetPartitionDagRun).count() == 0
+
+        assert Session
+        assert Session.session_factory
+
+        target_key = "target_key"
 
         original_apdr = AssetManager._get_or_create_apdr(
             target_key=target_key,
-            target_dag=dag,
+            target_dag=testing_dag,
+            asset_id=asm.id,
             session=session,
         )
 
@@ -276,14 +288,16 @@ class TestAssetManager:
                 OperationalError("", "", "database is locked"),
                 AssetManager._get_or_create_apdr_with_lock(
                     target_key=target_key,
-                    target_dag=dag,
+                    target_dag=testing_dag,
+                    asset_id=asm.id,
                     session=session,
                 ),
             ],
         ):
             apdr = AssetManager._get_or_create_apdr(
                 target_key=target_key,
-                target_dag=dag,
+                target_dag=testing_dag,
+                asset_id=asm.id,
                 session=session,
             )
             session.commit()
