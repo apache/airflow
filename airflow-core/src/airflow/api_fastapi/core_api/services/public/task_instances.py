@@ -35,7 +35,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -98,7 +103,8 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+    commit: bool,
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -111,7 +117,7 @@ def _patch_task_instance_state(
         downstream=task_instance_body.include_downstream,
         future=task_instance_body.include_future,
         past=task_instance_body.include_past,
-        commit=True,
+        commit=commit,
         session=session,
     )
     if not updated_tis:
@@ -119,6 +125,8 @@ def _patch_task_instance_state(
             status.HTTP_409_CONFLICT,
             f"Task id {task_id} is already in {data['new_state']} state",
         )
+    if not commit:
+        return updated_tis
 
     for ti in updated_tis:
         try:
@@ -132,6 +140,8 @@ def _patch_task_instance_state(
                 )
         except Exception:
             log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
@@ -160,12 +170,14 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag_run_id: str,
         dag_bag: DagBagDep,
         user: GetUserDep,
+        commit: bool = False,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
         self.dag_run_id = dag_run_id
         self.dag_bag = dag_bag
         self.user = user
+        self.commit = commit
 
     def categorize_task_instances(
         self, task_keys: set[tuple[str, int]]
@@ -205,8 +217,9 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
-    ) -> None:
+    ) -> TaskInstanceCollectionResponse:
         """Bulk Update Task Instances."""
+        all_updated_tis: list[TI] = []
         to_update_task_keys = {
             (task_instance.task_id, task_instance.map_index if task_instance.map_index is not None else -1)
             for task_instance in action.entities
@@ -239,27 +252,45 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                     map_index=task_instance_body.map_index,
                     update_mask=None,
                 )
-
                 for key, _ in data.items():
                     if key == "new_state":
-                        _patch_task_instance_state(
+                        updated_tis = _patch_task_instance_state(
                             task_id=task_instance_body.task_id,
                             dag_run_id=self.dag_run_id,
                             dag=dag,
                             task_instance_body=task_instance_body,
                             session=self.session,
                             data=data,
+                            commit=self.commit,
                         )
+                        if updated_tis:
+                            all_updated_tis.extend(updated_tis)
+
                     elif key == "note":
                         _patch_task_instance_note(
                             task_instance_body=task_instance_body, tis=tis, user=self.user
                         )
+                        all_updated_tis.extend(tis)
 
                 results.success.append(task_instance_body.task_id)
         except ValidationError as e:
             results.errors.append({"error": f"{e.errors()}"})
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_tis: list[TI] = []
+        for ti in all_updated_tis:
+            ti_key = (ti.dag_id, ti.run_id, ti.task_id, ti.map_index if ti.map_index is not None else -1)
+            if ti_key not in seen:
+                seen.add(ti_key)
+                unique_tis.append(ti)
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in unique_tis],
+            total_entries=len(unique_tis),
+        )
 
     def handle_bulk_delete(
         self, action: BulkDeleteAction[BulkTaskInstanceBody], results: BulkActionResponse
