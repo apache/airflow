@@ -193,13 +193,17 @@ export const DurationChart = ({
               case "Task Instance": {
                 const entry = entries[element.index] as TaskInstanceResponse | undefined;
 
+                if (entry === undefined) {
+                  break;
+                }
+
                 const baseUrl = buildTaskInstanceUrl({
                   currentPathname: location.pathname,
-                  dagId: entry?.dag_id ?? "",
-                  isMapped: entry?.map_index !== undefined && entry.map_index >= 0,
-                  mapIndex: entry?.map_index.toString() ?? "",
-                  runId: entry?.dag_run_id ?? "",
-                  taskId: entry?.task_id ?? "",
+                  dagId: entry.dag_id,
+                  isMapped: entry.map_index >= 0,
+                  mapIndex: entry.map_index.toString(),
+                  runId: entry.dag_run_id,
+                  taskId: entry.task_id,
                 });
 
                 navigate(baseUrl);
