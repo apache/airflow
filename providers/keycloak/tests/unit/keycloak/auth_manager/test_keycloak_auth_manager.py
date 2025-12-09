@@ -222,14 +222,16 @@ class TestKeycloakAuthManager:
     ):
         mock_response = Mock()
         mock_response.status_code = status_code
-        auth_manager.session.post = Mock(return_value=mock_response)
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = getattr(auth_manager, function)(method=method, user=user, details=details)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -248,7 +250,7 @@ class TestKeycloakAuthManager:
     def test_is_authorized_failure(self, function, auth_manager, user):
         resp = Mock()
         resp.status_code = 500
-        auth_manager.session.post = Mock(return_value=resp)
+        auth_manager.http_session.post = Mock(return_value=resp)
 
         with pytest.raises(AirflowException) as e:
             getattr(auth_manager, function)(method="GET", user=user)
@@ -272,7 +274,7 @@ class TestKeycloakAuthManager:
         resp = Mock()
         resp.status_code = 400
         resp.text = json.dumps({"error": "invalid_scope", "error_description": "Invalid scopes: GET"})
-        auth_manager.session.post = Mock(return_value=resp)
+        auth_manager.http_session.post = Mock(return_value=resp)
 
         with pytest.raises(AirflowException) as e:
             getattr(auth_manager, function)(method="GET", user=user)
@@ -333,7 +335,7 @@ class TestKeycloakAuthManager:
     ):
         mock_response = Mock()
         mock_response.status_code = status_code
-        auth_manager.session.post = Mock(return_value=mock_response)
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_dag(
             method=method, user=user, access_entity=access_entity, details=details
@@ -342,7 +344,9 @@ class TestKeycloakAuthManager:
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -361,7 +365,7 @@ class TestKeycloakAuthManager:
     ):
         mock_response = Mock()
         mock_response.status_code = status_code
-        auth_manager.session.post = Mock(return_value=mock_response)
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_view(access_view=AccessView.CLUSTER_ACTIVITY, user=user)
 
@@ -370,7 +374,9 @@ class TestKeycloakAuthManager:
             "client_id", "View#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "CLUSTER_ACTIVITY"}
         )
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -389,14 +395,16 @@ class TestKeycloakAuthManager:
     ):
         mock_response = Mock()
         mock_response.status_code = status_code
-        auth_manager.session.post = Mock(return_value=mock_response)
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_custom_view(method="GET", resource_name="test", user=user)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", "Custom#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "test"})
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -416,7 +424,7 @@ class TestKeycloakAuthManager:
         mock_response = Mock()
         mock_response.status_code = status_code
         mock_response.json.return_value = response
-        auth_manager.session.post = Mock(return_value=mock_response)
+        auth_manager.http_session.post = Mock(return_value=mock_response)
         menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
 
         result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
@@ -426,7 +434,9 @@ class TestKeycloakAuthManager:
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert set(result) == expected
 
     @pytest.mark.parametrize(
@@ -437,7 +447,7 @@ class TestKeycloakAuthManager:
         resp = Mock()
         resp.status_code = status_code
         resp.text = json.dumps({})
-        auth_manager.session.post = Mock(return_value=resp)
+        auth_manager.http_session.post = Mock(return_value=resp)
 
         menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
 
@@ -449,7 +459,9 @@ class TestKeycloakAuthManager:
             "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
         )
         headers = auth_manager._get_headers("access_token")
-        auth_manager.session.post.assert_called_once_with(token_url, data=payload, headers=headers, timeout=5)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1

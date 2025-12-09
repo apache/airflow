@@ -96,7 +96,15 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def __init__(self):
         super().__init__()
-        self.session = requests.Session()
+        self._http_session = None
+
+    @property
+    def http_session(self) -> requests.Session:
+        """Lazy-initialize and return the requests session with connection pooling."""
+        if self._http_session is not None:
+            return self._http_session
+
+        self._http_session = requests.Session()
 
         pool_size = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
         retry_total = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_RETRIES_KEY, fallback=3)
@@ -110,8 +118,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         adapter = HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size, max_retries=retry_strategy)
 
-        self.session.mount("https://", adapter)
-        self.session.mount("http://", adapter)
+        self._http_session.mount("https://", adapter)
+        self._http_session.mount("http://", adapter)
+
+        return self._http_session
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
@@ -325,7 +335,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        resp = self.session.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
             headers=self._get_headers(user.access_token),
@@ -353,7 +363,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
-        resp = self.session.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_batch_payload(client_id, permissions),
             headers=self._get_headers(user.access_token),
