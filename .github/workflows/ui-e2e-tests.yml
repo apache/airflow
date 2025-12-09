@@ -22,6 +22,14 @@ name: UI End-to-End Tests
 permissions:
   contents: read
 on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches:
+      - main
+      - v[0-9]+-[0-9]+-test
+      - v[0-9]+-[0-9]+-stable
+    paths:
+      - 'airflow-core/src/airflow/ui/**'
+      - '.github/workflows/ui-e2e-tests.yml'
   workflow_dispatch:
     inputs:
       workflow-name:
@@ -87,14 +95,17 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   test-ui-e2e-tests:
     timeout-minutes: 60
-    name: ${{ inputs.workflow-name }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    name: ${{ inputs.workflow-name || 'UI E2E Tests' }}
+    runs-on: ${{ fromJSON(inputs.runners || '["ubuntu-24.04"]') }}
     env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.10' }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
+      BROWSER: "${{ inputs.browser || 'all' }}"
+      PLATFORM: "${{ inputs.platform || 'linux/amd64' }}"
+      USE_UV: "${{ inputs.use-uv || 'true' }}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -107,21 +118,20 @@ jobs:
       - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
-          platform: ${{ inputs.platform }}
+          platform: ${{ env.PLATFORM }}
           image-type: "prod"
           python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
-          use-uv: ${{ inputs.use-uv }}
+          use-uv: ${{ env.USE_UV }}
           make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Test UI e2e tests"
         run: breeze testing ui-e2e-tests --browser "$BROWSER"
         env:
-          BROWSER: "${{ inputs.browser }}"
-          DOCKER_IMAGE: "${{ inputs.docker-image-tag }}"
+          DOCKER_IMAGE: "${{ inputs.docker-image-tag || '' }}"
       - name: "Upload test results"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: "playwright-report-${{ inputs.browser }}"
+          name: "playwright-report-${{ env.BROWSER }}"
           path: |
             airflow-core/src/airflow/ui/playwright-report/
             airflow-core/src/airflow/ui/test-results/
