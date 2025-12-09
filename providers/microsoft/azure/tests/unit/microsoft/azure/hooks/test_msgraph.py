@@ -38,6 +38,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 from airflow.providers.microsoft.azure.hooks.msgraph import (
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
+    execute_callable,
 )
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
@@ -48,6 +49,7 @@ from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
     patch_hook,
+    patch_hook_and_request_adapter,
 )
 
 if TYPE_CHECKING:
@@ -232,6 +234,45 @@ class TestKiotaRequestAdapterHook:
 
             assert actual == NationalClouds.Global.value
 
+    def test_get_host_when_connection_has_no_scheme_or_host_but_hook_overrides_host(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(
+                conn_id="msgraph_api", host="wabi-north-europe-o-primary-redirect.analysis.windows.net"
+            )
+            connection = mock_connection(schema="https", host=NationalClouds.Global.value)
+            actual = hook.get_host(connection)
+
+            assert actual == "https://wabi-north-europe-o-primary-redirect.analysis.windows.net"
+
+    def test_execute_callable(self):
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        url, query_parameters = execute_callable(
+            KiotaRequestAdapterHook.default_pagination,
+            response=response,
+        )
+
+        assert url == response["@odata.nextLink"]
+        assert not query_parameters
+
+    def test_execute_callable_with_additional_parameters(self):
+        response = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+
+        url, query_parameters = execute_callable(
+            KiotaRequestAdapterHook.default_pagination,
+            response=response,
+            url="users",
+            query_parameters={},
+            data=None,
+        )
+
+        assert url == response["@odata.nextLink"]
+        assert query_parameters == {}
+
+    def test_execute_callable_when_required_parameter_is_missing(self):
+        with pytest.raises(TypeError):
+            execute_callable(KiotaRequestAdapterHook.default_pagination)
+
     @pytest.mark.asyncio
     async def test_tenant_id(self):
         with patch_hook():
@@ -252,6 +293,36 @@ class TestKiotaRequestAdapterHook:
             actual = await hook.get_async_conn()
 
             self.assert_tenant_id(actual, "azure-tenant-id")
+
+    @pytest.mark.asyncio
+    async def test_proxies(self):
+        with patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                proxies={"http": "http://proxy:80", "https": "https://proxy:80"},
+            )
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                actual = hook.get_conn()
+
+            assert actual._http_client._mounts
+
+    @pytest.mark.asyncio
+    async def test_proxies_override_with_empty_dict(self):
+        with patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                proxies={"http": "http://proxy:80", "https": "https://proxy:80"},
+            )
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api", proxies={})
+
+            with pytest.warns(AirflowProviderDeprecationWarning):
+                actual = hook.get_conn()
+
+            assert not actual._http_client._mounts
 
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(
@@ -312,6 +383,34 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, JsonParseNode)
             error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
             assert error_code == "TenantThrottleThresholdExceeded"
+
+    @pytest.mark.asyncio
+    async def test_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.run(url="users")
+
+            assert isinstance(actual, dict)
+            assert actual == users
+
+    @pytest.mark.asyncio
+    async def test_paginated_run(self):
+        users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
+        next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
+        response = mock_json_response(200, users, next_users)
+
+        with patch_hook_and_request_adapter(response):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            actual = await hook.paginated_run(url="users")
+
+            assert isinstance(actual, list)
+            assert actual == [users, next_users]
 
 
 class TestResponseHandler:

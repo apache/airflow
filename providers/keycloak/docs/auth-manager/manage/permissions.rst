@@ -41,6 +41,10 @@ CLI commands take the following parameters:
 * ``--user-realm``: Keycloak user realm
 * ``--client-id``: Keycloak client id (default: admin-cli)
 
+They also take the following optional parameters:
+
+* ``--dry-run``: If set, the command will check the connection to Keycloak and print the actions that would be performed, without actually executing them.
+
 Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
 
 One-go creation of permissions

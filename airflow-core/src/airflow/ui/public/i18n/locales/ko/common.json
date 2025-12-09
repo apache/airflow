@@ -182,6 +182,7 @@
   },
   "selectLanguage": "언어 선택",
   "showDetailsPanel": "세부 정보 패널 펼치기",
+  "signedInAs": "로그인한 사용자",
   "source": {
     "hide": "소스 숨기기",
     "hotkey": "s",

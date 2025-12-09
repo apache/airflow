@@ -165,8 +165,8 @@ export const AssetsList = () => {
           </Heading>
 
           <ExpandCollapseButtons
-            collapseLabel={translate("collapseAllExtra")}
-            expandLabel={translate("expandAllExtra")}
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
             onCollapse={onClose}
             onExpand={onOpen}
           />

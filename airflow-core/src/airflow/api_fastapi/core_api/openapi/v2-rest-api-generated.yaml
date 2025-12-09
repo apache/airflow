@@ -9275,7 +9275,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9299,7 +9299,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/PoolBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9323,7 +9323,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/VariableBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -13065,12 +13065,12 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        team_id:
+        team_name:
           anyOf:
           - type: string
-            format: uuid
+            maxLength: 50
           - type: 'null'
-          title: Team Id
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -13110,19 +13110,18 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
-        team_id:
+        team_name:
           anyOf:
           - type: string
-            format: uuid
           - type: 'null'
-          title: Team Id
+          title: Team Name
       type: object
       required:
       - key
       - value
       - description
       - is_encrypted
-      - team_id
+      - team_name
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:
