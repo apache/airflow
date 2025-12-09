@@ -143,12 +143,12 @@ def write_metric_tables_file(rst_tables_str: str, output_path: str, yaml_source:
 
 
 def generate_metrics_rst_from_registry():
-    metrics_list = read_metrics_yaml(yaml_path=YAML_REGISTRY_PATH)
+    metrics_list = read_metrics_yaml(yaml_path=str(YAML_REGISTRY_PATH))
 
     tables_str = convert_to_rst_tables(metrics=metrics_list)
 
     write_metric_tables_file(
-        rst_tables_str=tables_str, output_path=RST_TABLE_OUTPUT_PATH, yaml_source=YAML_REGISTRY_PATH
+        rst_tables_str=tables_str, output_path=RST_TABLE_OUTPUT_PATH, yaml_source=str(YAML_REGISTRY_PATH)
     )
 
 
@@ -156,7 +156,7 @@ class MetricsRegistry:
     """Class for storing and looking up metrics."""
 
     def __init__(self):
-        metrics_list = read_metrics_yaml(YAML_REGISTRY_PATH)
+        metrics_list = read_metrics_yaml(yaml_path=str(YAML_REGISTRY_PATH))
         # Convert the list to dict for faster lookup.
         self._metrics = {metric["name"]: metric for metric in metrics_list}
 
