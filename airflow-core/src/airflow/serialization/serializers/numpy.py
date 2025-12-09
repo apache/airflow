@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.utils.module_loading import qualname
+from airflow._shared.module_loading import qualname
 
 # lazy loading for performance reasons
 serializers = [

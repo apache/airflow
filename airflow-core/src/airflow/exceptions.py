@@ -328,7 +328,7 @@ def __getattr__(name: str):
         import warnings
 
         from airflow import DeprecatedImportWarning
-        from airflow.utils.module_loading import import_string
+        from airflow._shared.module_loading import import_string
 
         target_path = f"airflow.sdk.exceptions.{name}"
         warnings.warn(

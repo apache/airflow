@@ -39,7 +39,7 @@ class TestConnections:
         with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
             yield mock_manager
 
-    @mock.patch("airflow.sdk.module_loading.import_string")
+    @mock.patch("airflow.sdk._shared.module_loading.import_string")
     def test_get_hook(self, mock_import_string, mock_providers_manager):
         """Test that get_hook returns the correct hook instance."""
 
