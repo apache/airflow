@@ -9275,7 +9275,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9299,7 +9299,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/PoolBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9323,7 +9323,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/VariableBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
