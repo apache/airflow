@@ -98,7 +98,7 @@ class Trigger(Base):
     encrypted_kwargs: Mapped[str] = mapped_column("kwargs", Text, nullable=False)
     created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    trigger_queue: Mapped[str] = mapped_column(String(256), nullable=True)
+    trigger_queue: Mapped[str] = mapped_column(String(128), nullable=True)
 
     triggerer_job = relationship(
         "Job",
@@ -346,7 +346,7 @@ class Trigger(Base):
         """
         Assign unassigned triggers based on a number of conditions.
 
-        Takes a triggerer_id, the capacity for that triggerer and the Triggerer job heartrate
+        Takes a triggerer_id, the capacity for that triggerer, the trigger_queues, and the Triggerer job heartrate
         health check threshold, and assigns unassigned triggers until that capacity is reached,
         or there are no more unassigned triggers.
         """

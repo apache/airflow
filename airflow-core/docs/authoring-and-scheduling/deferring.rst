@@ -469,6 +469,27 @@ According to `benchmarks <https://github.com/apache/airflow/pull/58803#pullreque
 You can determine a suitable value for your deployment by creating a large number of triggers (for example, by triggering a Dag with many deferrable tasks) and observing both how the load is distributed across Triggerers in your environment and how long it takes for all Triggerers to pick up the triggers.
 
 
+Controlling Triggerer Assignment Per Trigger Via Trigger Queues
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.2.0
+
+Under some circumstances, it may be desirable to assign a Trigger to a specific subset of ``triggerer`` hosts. Some examples of when this might be desirable are:
+
+* In a multi-tenant Airflow system where you run one set of ``triggerers`` for one team, and another set of ``triggerers`` for another team.
+* Running separate sets of ``triggerers``, where each set of ``triggerers`` are configured for different ``trigger`` operations (e.g. each set of ``triggerers`` may have different cloud permissions).
+
+To achieve ``trigger`` assignment, you may use trigger queues.
+
+To use trigger queues, do the following:
+1. For a given group of ``triggerer`` hosts, set the ``triggerer.consume_trigger_queues`` to a comma-separated string containing the set of ``trigger_queue`` values which the triggerer host(s) should listen to.
+2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, you may set the ``trigger_queue`` keyword argument in the ``__init__`` method of ``trigger`` to any value present in ``triggerer.consume_trigger_queues``.
+
+If the ``trigger_queue`` value is left unset in both ``trigger`` instances and the ``triggerer`` configs, then there is no assignment constraint.
+
+.. note::
+    If you set the ``trigger_queue`` value of a trigger instance to some value which is not present in the ``triggerer.consume_trigger_queues`` config, the trigger will never run.
+
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors
 -------------------------------------------------------------------

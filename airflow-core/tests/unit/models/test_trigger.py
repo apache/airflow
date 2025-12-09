@@ -310,11 +310,11 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(finished_triggerer)
     assert not finished_triggerer.is_alive()
     healthy_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
-    TriggererJobRunner(healthy_triggerer)
+    TriggererJobRunner(healthy_triggerer, trigger_queues={"default", "custom_queue_name_1"})
     session.add(healthy_triggerer)
     assert healthy_triggerer.is_alive()
     new_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
-    TriggererJobRunner(new_triggerer)
+    TriggererJobRunner(new_triggerer, trigger_queues={"default", "other_queue_name"})
     session.add(new_triggerer)
     assert new_triggerer.is_alive()
     # This trigger's last heartbeat is older than the check threshold, expect
@@ -339,6 +339,20 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
     session.add(ti_trigger_on_healthy_triggerer)
+
+    trigger_explicit_queue_on_healthy_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, trigger_queue="custom_queue_name_1"
+    )
+    trigger_explicit_queue_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
+    session.add(trigger_explicit_queue_on_healthy_triggerer)
+    ti_trigger_explicit_queue_on_healthy_triggerer = create_task_instance(
+        task_id="ti_trigger_explicit_queue_on_healthy_triggerer",
+        logical_date=time_now,
+        run_id="trigger_explicit_queue_on_healthy_triggerer_run_id",
+    )
+    ti_trigger_explicit_queue_on_healthy_triggerer.trigger_id = trigger_explicit_queue_on_healthy_triggerer.id
+    session.add(ti_trigger_explicit_queue_on_healthy_triggerer)
+
     trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
     session.add(trigger_on_unhealthy_triggerer)
@@ -349,6 +363,7 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
     session.add(ti_trigger_on_unhealthy_triggerer)
+
     trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
     session.add(trigger_on_killed_triggerer)
@@ -359,6 +374,7 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
     session.add(ti_trigger_on_killed_triggerer)
+
     trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     session.add(trigger_unassigned_to_triggerer)
     ti_trigger_unassigned_to_triggerer = create_task_instance(
@@ -368,7 +384,23 @@ def test_assign_unassigned(session, create_task_instance):
     )
     ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
     session.add(ti_trigger_unassigned_to_triggerer)
+
+    trigger_explicit_queue_unassigned_to_triggerer = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, trigger_queue="other_queue_name"
+    )
+    session.add(trigger_explicit_queue_unassigned_to_triggerer)
+    ti_trigger_explicit_queue_unassigned_to_triggerer = create_task_instance(
+        task_id="ti_trigger_explicit_queue_unassigned_to_triggerer",
+        logical_date=time_now + datetime.timedelta(hours=3),
+        run_id="trigger_explicit_queue_unassigned_to_triggerer_run_id",
+    )
+    ti_trigger_explicit_queue_unassigned_to_triggerer.trigger_id = (
+        trigger_explicit_queue_unassigned_to_triggerer.id
+    )
+    session.add(ti_trigger_explicit_queue_unassigned_to_triggerer)
+
     assert trigger_unassigned_to_triggerer.triggerer_id is None
+    assert trigger_explicit_queue_unassigned_to_triggerer is None
     session.commit()
     assert session.scalar(select(func.count()).select_from(Trigger)) == 4
     Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
@@ -382,9 +414,26 @@ def test_assign_unassigned(session, create_task_instance):
         session.scalar(select(Trigger).where(Trigger.id == trigger_unassigned_to_triggerer.id)).triggerer_id
         == new_triggerer.id
     )
+    # Check that unassigned trigger with explicit, non-default queue value is assigned to new triggerer
+    assert (
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_explicit_queue_unassigned_to_triggerer.id)
+        .one()
+        .triggerer_id
+        == new_triggerer.id
+    )
     # Check that trigger on healthy triggerer still assigned to existing triggerer
     assert (
         session.scalar(select(Trigger).where(Trigger.id == trigger_on_healthy_triggerer.id)).triggerer_id
+        == healthy_triggerer.id
+    )
+    # Check that trigger with explicit, non-default queue value on healthy triggerer still assigned to
+    # existing triggerer
+    assert (
+        session.query(Trigger)
+        .filter(Trigger.id == trigger_explicit_queue_on_healthy_triggerer.id)
+        .one()
+        .triggerer_id
         == healthy_triggerer.id
     )
     # Check that trigger on unhealthy triggerer is assigned to new triggerer

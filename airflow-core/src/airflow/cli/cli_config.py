@@ -906,8 +906,8 @@ ARG_CAPACITY = Arg(
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 ARG_TRIGGER_QUEUES = Arg(
-    ("--trigger-queues",),
-    default=conf.get("triggerer", "default_trigger_queue"),
+    ("--consume-trigger-queues",),
+    default=conf.get("triggerer", "consume_trigger_queues"),
     type=string_list_type,
     help="Comma-separated list of trigger queues for which the triggerer should consume from",
 )
