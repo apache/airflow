@@ -20,7 +20,8 @@
       "all": "הכל",
       "paused": "מושהה"
     },
-    "runIdPatternFilter": "חפש הרצת Dag"
+    "runIdPatternFilter": "חפש הרצת Dag",
+    "triggeringUserNameFilter": "חפש לפי שם המשתמש המפעיל"
   },
   "ownerLink": "קישור בעלים ל-{{owner}}",
   "runAndTaskActions": {
@@ -33,6 +34,10 @@
       "buttonTooltip": "לחץ shift+c כדי לנקות",
       "error": "נכשל לנקות {{type}}",
       "title": "נקה {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "המשימה נמצאת כרגע במצב {{state}} שהופעל על ידי המשתמש {{user}} ב-{{time}}.\nלא ניתן לנקות את המשימה עד שהיא תסיים לרוץ או שמשתמש יבטל את הסימון \"מנע הרצה חוזרת אם המשימה כבר רצה\" בדיאלוג ניקוי המשימה.",
+      "title": "לא ניתן לנקות מופע משימה"
     },
     "delete": {
       "button": "מחק {{type}}",
@@ -61,6 +66,7 @@
       "future": "בעתיד",
       "onlyFailed": "נקה משימות שנכשלו בלבד",
       "past": "בעבר",
+      "preventRunningTasks": "מנע הרצה חוזרת אם המשימה כבר רצה",
       "queueNew": "תזמן משימות חדשות",
       "runOnLatestVersion": "הרץ על גרסת החבילה האחרונה",
       "upstream": "במעלה הזרם"

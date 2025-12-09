@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "גוף",
-    "createdAtFrom": "נוצר בתאריך מ-",
-    "createdAtTo": "נוצר בתאריך עד",
+    "createdAt": "נוצר בתאריך",
     "response": {
       "all": "הכל",
       "pending": "ממתין",
@@ -23,7 +22,7 @@
     "optionsLabel": "אפשרויות",
     "received": "תגובה התקבלה ב",
     "respond": "הגב",
-    "responded_by_user_name": "נענה על ידי",
+    "responded_by_user_name": "נענה על ידי (שם משתמש)",
     "success": "התגובה של {{taskId}} הצליחה",
     "title": "מופע משימה ידנית - {{taskId}}"
   },
