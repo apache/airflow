@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import Depends, status
 from fastapi.exceptions import HTTPException
 
@@ -26,7 +28,10 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.common import BaseGraphResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_access_dag
-from airflow.api_fastapi.core_api.services.ui.dependencies import extract_single_connected_component
+from airflow.api_fastapi.core_api.services.ui.dependencies import (
+    extract_single_connected_component,
+    get_data_dependencies,
+)
 from airflow.models.serialized_dag import SerializedDagModel
 
 dependencies_router = AirflowRouter(tags=["Dependencies"])
@@ -41,8 +46,24 @@ dependencies_router = AirflowRouter(tags=["Dependencies"])
     ),
     dependencies=[Depends(requires_access_dag("GET", DagAccessEntity.DEPENDENCIES))],
 )
-def get_dependencies(session: SessionDep, node_id: str | None = None) -> BaseGraphResponse:
+def get_dependencies(
+    session: SessionDep,
+    node_id: str | None = None,
+    dependency_type: Literal["scheduling", "data"] = "scheduling",
+) -> BaseGraphResponse:
     """Dependencies graph."""
+    if dependency_type == "data":
+        if node_id is None or not node_id.startswith("asset:"):
+            raise HTTPException(400, "Data dependencies require an asset node_id (e.g., 'asset:123')")
+
+        try:
+            asset_id = int(node_id.replace("asset:", ""))
+        except ValueError:
+            raise HTTPException(400, f"Invalid asset node_id: {node_id}")
+
+        data = get_data_dependencies(asset_id, session)
+        return BaseGraphResponse(**data)
+
     nodes_dict: dict[str, dict] = {}
     edge_tuples: set[tuple[str, str]] = set()
 

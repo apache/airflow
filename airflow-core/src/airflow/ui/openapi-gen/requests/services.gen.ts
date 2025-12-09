@@ -3781,6 +3781,7 @@ export class DependenciesService {
      * Dependencies graph.
      * @param data The data for the request.
      * @param data.nodeId
+     * @param data.dependencyType
      * @returns BaseGraphResponse Successful Response
      * @throws ApiError
      */
@@ -3789,7 +3790,8 @@ export class DependenciesService {
             method: 'GET',
             url: '/ui/dependencies',
             query: {
-                node_id: data.nodeId
+                node_id: data.nodeId,
+                dependency_type: data.dependencyType
             },
             errors: {
                 404: 'Not Found',
