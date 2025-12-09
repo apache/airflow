@@ -171,6 +171,7 @@ class ShellParams:
     celery_flower: bool = False
     clean_airflow_installation: bool = False
     collect_only: bool = False
+    create_all_roles: bool = False
     debug_components: tuple[str, ...] = ()
     debugger: str = "debugpy"
     db_reset: bool = False
@@ -561,7 +562,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.auth_manager == SIMPLE_AUTH_MANAGER:
-            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+            _set_var(
+                _env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer,user:user,op:op"
+            )
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
@@ -607,6 +610,7 @@ class ShellParams:
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
+        _set_var(_env, "CREATE_ALL_ROLES", self.create_all_roles)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
         _set_var(_env, "DB_RESET", self.db_reset)
