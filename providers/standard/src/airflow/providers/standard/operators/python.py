@@ -274,7 +274,7 @@ if AIRFLOW_V_3_2_PLUS:
                 )
 
                 return (
-                    cast(AsyncExecutionCallableRunner, create_async_executable_runner),
+                    cast("AsyncExecutionCallableRunner", create_async_executable_runner),
                     context_get_outlet_events(context),
                 )
 
