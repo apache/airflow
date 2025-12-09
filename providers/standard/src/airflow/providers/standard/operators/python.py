@@ -59,6 +59,13 @@ from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk.bases.decorator import is_async_callable
+    from airflow.sdk.bases.operator import BaseAsyncOperator
+
+    if TYPE_CHECKING:
+        from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
+
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -238,12 +245,6 @@ class BasePythonOperator(BaseOperator):
 
 
 if AIRFLOW_V_3_2_PLUS:
-    from airflow.sdk.bases.decorator import is_async_callable
-    from airflow.sdk.bases.operator import BaseAsyncOperator
-
-    if TYPE_CHECKING:
-        from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
-
     class PythonOperator(BaseAsyncOperator, BasePythonOperator):
         """Executes a Python callable."""
 
@@ -300,7 +301,7 @@ if AIRFLOW_V_3_2_PLUS:
             runner = create_execution_runner(self.python_callable, asset_events, logger=self.log)
             return await runner.run(*self.op_args, **self.op_kwargs)
 else:
-    PythonOperator = cast("type[BasePythonOperator]", BasePythonOperator)
+    PythonOperator = BasePythonOperator
 
 
 class BranchPythonOperator(BaseBranchOperator, PythonOperator):
