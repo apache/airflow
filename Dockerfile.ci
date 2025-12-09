@@ -1700,7 +1700,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
 ARG AIRFLOW_UV_VERSION=0.9.16
-ARG AIRFLOW_PREK_VERSION="0.2.19"
+ARG AIRFLOW_PREK_VERSION="0.2.21"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
