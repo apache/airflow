@@ -405,6 +405,8 @@ export const createTheme = (userTheme?: Theme) => {
   return createSystem(defaultConfig, customConfig);
 };
 
+export const defaultSystem = createTheme();
+
 // Utility function to resolve CSS variables to their computed values
 // See: https://github.com/chakra-ui/panda/discussions/2200
 export const getComputedCSSVariableValue = (variable: string): string =>
