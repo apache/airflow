@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-10T13:47:43.494180
+# This constraints file was automatically generated on 2025-12-10T23:09:09.243338
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -158,7 +158,7 @@ databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.4.4
-debugpy==1.8.17
+debugpy==1.8.18
 decorator==5.2.1
 defusedxml==0.7.1
 deltalake==1.2.1
@@ -212,7 +212,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.2
 google-auth==2.43.0
-google-cloud-aiplatform==1.129.0
+google-cloud-aiplatform==1.130.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -245,7 +245,7 @@ google-cloud-redis==2.19.0
 google-cloud-resource-manager==1.15.0
 google-cloud-run==0.12.0
 google-cloud-secret-manager==2.25.0
-google-cloud-spanner==3.59.0
+google-cloud-spanner==3.60.0
 google-cloud-speech==2.34.0
 google-cloud-storage-control==1.8.0
 google-cloud-storage-transfer==1.18.0
@@ -284,7 +284,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.2.1
+huggingface_hub==1.2.2
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -409,6 +409,7 @@ opentelemetry-exporter-otlp-proto-http==1.39.0
 opentelemetry-exporter-otlp==1.39.0
 opentelemetry-exporter-prometheus==0.60b0
 opentelemetry-proto==1.39.0
+opentelemetry-resourcedetector-gcp==1.11.0a0
 opentelemetry-sdk==1.39.0
 opentelemetry-semantic-conventions==0.60b0
 opsgenie-sdk==2.1.5
