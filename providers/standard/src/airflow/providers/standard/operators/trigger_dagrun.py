@@ -49,9 +49,11 @@ from airflow.utils.types import DagRunType
 
 try:
     from airflow.utils.types import DagRunTriggeredByType
-except ImportError:
-    DagRunTriggeredByType = None
-
+except Exception:
+    if TYPE_CHECKING:
+        from airflow.utils.types import DagRunTriggeredByType  # type: ignore[no-redef]
+    else:
+        DagRunTriggeredByType = None
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -273,10 +275,26 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
-        from airflow.providers.common.compat.sdk import DagRunTriggerException
+        try:
+            from airflow.providers.common.compat.sdk import DagRunTriggerException
+        except Exception:
+            if TYPE_CHECKING:
+                from airflow.providers.common.compat.sdk import (
+                    DagRunTriggerException,  # type: ignore[no-redef]
+                )
+            else:
+                DagRunTriggerException = None  # type: ignore[assignment]
 
-        if self.note:
-            self.log.info("Triggered DAG with note: %s", self.note)
+        if self.note is not None:
+            logger = getattr(self, "log", None)
+            if logger is not None:
+                logger.info("Triggered DAG with note: %s", self.note)
+
+        if DagRunTriggerException is None:
+            raise AirflowException(
+                f"Triggered DAG {self.trigger_dag_id} with run_id {run_id}. "
+                "DagRunTriggerException is not available in this Airflow version."
+            )
 
         raise DagRunTriggerException(
             trigger_dag_id=self.trigger_dag_id,
@@ -316,7 +334,7 @@ class TriggerDagRunOperator(BaseOperator):
             if "replace_microseconds" in params:
                 kwargs["replace_microseconds"] = False
 
-            if "triggered_by" in params and DagRunTriggeredByType:
+            if "triggered_by" in params and DagRunTriggeredByType is not None:
                 kwargs["triggered_by"] = DagRunTriggeredByType.MANUAL
 
             dag_run = trigger_dag(**kwargs)
