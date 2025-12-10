@@ -109,6 +109,7 @@ Doc Only Changes
 - Add missing DAG run table translations (#58572)
 
 
+
 Airflow 3.1.3 (2025-11-13)
 --------------------------
 
