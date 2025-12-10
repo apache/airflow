@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
 
@@ -31,6 +31,7 @@ from airflow.sdk import (  # TODO: Implement serialized assets.
     AssetAll,
     AssetAny,
 )
+from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert  # TODO: Implement serialized types.
 from airflow.serialization.definitions.assets import SerializedAssetWatcher
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -44,12 +45,21 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 
 
+def _decode_callback(var: dict[str, Any]) -> Callback:
+    # TODO: Do we care enough to implement compat?
+    match var["type"]:
+        case "sync":
+            return SyncCallback(var["path"], kwargs=var["kwargs"], executor=var.get("executor"))
+        case "async":
+            return AsyncCallback(var["path"], kwargs=var["kwargs"])
+        case callback_type:
+            raise ValueError(f"deserialization not implemented for callback type {callback_type!r}")
+
+
 def decode_deadline_alert(var: dict[str, Any]) -> DeadlineAlert:
-    from airflow.serialization.serde import deserialize  # TODO: Do not use this!!
+    # var = var.get(Encoding.VAR, var)  # TODO: Do we care enough to implement compat?Compat.
 
-    data = var.get(Encoding.VAR, var)  # Compat.
-
-    reference_data = data["reference"]
+    reference_data = var["reference"]
     reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
 
     reference_class = ReferenceModels.get_reference_class(reference_type)
@@ -57,8 +67,8 @@ def decode_deadline_alert(var: dict[str, Any]) -> DeadlineAlert:
 
     return DeadlineAlert(
         reference=reference,
-        interval=decode_interval(data["interval"]),
-        callback=cast("Callback", deserialize(data["callback"])),
+        interval=decode_interval(var["interval"]),
+        callback=_decode_callback(var["callback"]),
     )
 
 
@@ -134,7 +144,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
         case DAT.ASSET_REF:
             return Asset.ref(**{k: v for k, v in var.items() if k != "__type"})
         case data_type:
-            raise ValueError(f"deserialization not implemented for DAT {data_type!r}")
+            raise ValueError(f"deserialization not implemented for asset type {data_type!r}")
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:
