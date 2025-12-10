@@ -34,8 +34,6 @@ type Props = {
   readonly onSuccessConfirm: VoidFunction;
 };
 
-const SEPARATOR = "SEPARATOR";
-
 export const useBulkPatchTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
@@ -106,65 +104,32 @@ export const useBulkPatchTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }:
     } = {},
   ) => {
     const newState = getNewState(selectedAction);
+    const isSingleDagRun =
+      Boolean(dagId) && Boolean(dagRunId) && dagId !== undefined && dagRunId !== undefined;
 
-    if (Boolean(dagId) && Boolean(dagRunId) && dagId !== undefined && dagRunId !== undefined) {
-      mutate({
-        dagId,
-        dagRunId,
-        requestBody: {
-          actions: [
-            {
-              action: "update",
-              entities: entities.map((ti) => ({
-                include_downstream: options.include_downstream,
-                include_future: options.include_future,
-                include_past: options.include_past,
-                include_upstream: options.include_upstream,
-                map_index: ti.map_index,
-                new_state: newState,
-                note: options.note,
-                task_id: ti.task_id,
-              })),
-            },
-          ],
-        },
-      });
-    } else {
-      // cross dag run
-      const groupedByDagRunTIs: Record<string, Array<TaskInstanceResponse>> = {};
-
-      entities.forEach((ti) => {
-        (groupedByDagRunTIs[`${ti.dag_id}${SEPARATOR}${ti.dag_run_id}`] ??= []).push(ti);
-      });
-
-      Object.entries(groupedByDagRunTIs).forEach(([key, groupTIs]) => {
-        const [groupDagId, groupDagRunId] = key.split(SEPARATOR);
-
-        if (groupDagId !== undefined && groupDagRunId !== undefined) {
-          mutate({
-            dagId: groupDagId,
-            dagRunId: groupDagRunId,
-            requestBody: {
-              actions: [
-                {
-                  action: "update",
-                  entities: groupTIs.map((ti) => ({
-                    include_downstream: options.include_downstream,
-                    include_future: options.include_future,
-                    include_past: options.include_past,
-                    include_upstream: options.include_upstream,
-                    map_index: ti.map_index,
-                    new_state: newState,
-                    note: options.note,
-                    task_id: ti.task_id,
-                  })),
-                },
-              ],
-            },
-          });
-        }
-      });
-    }
+    mutate({
+      dagId: isSingleDagRun ? dagId : "~",
+      dagRunId: isSingleDagRun ? dagRunId : "~",
+      requestBody: {
+        actions: [
+          {
+            action: "update",
+            entities: entities.map((ti) => ({
+              dag_id: isSingleDagRun ? undefined : ti.dag_id,
+              dag_run_id: isSingleDagRun ? undefined : ti.dag_run_id,
+              include_downstream: options.include_downstream,
+              include_future: options.include_future,
+              include_past: options.include_past,
+              include_upstream: options.include_upstream,
+              map_index: ti.map_index,
+              new_state: newState,
+              note: options.note,
+              task_id: ti.task_id,
+            })),
+          },
+        ],
+      },
+    });
   };
 
   return { error, isPending, patchTaskInstances };

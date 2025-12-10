@@ -17,7 +17,7 @@
  * under the License.
  */
 import { useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -34,15 +34,10 @@ type Props = {
   readonly onSuccessConfirm: VoidFunction;
 };
 
-const SEPARATOR = "SEPARATOR";
-
 export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }: Props) => {
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(undefined);
   const { t: translate } = useTranslation("common");
-  const pendingOperationsRef = useRef(0);
-  const allSuccessesRef = useRef<Array<string>>([]);
-  const hasErrorsRef = useRef(false);
 
   const onSuccess = async (responseData: { delete?: { errors: Array<unknown>; success: Array<string> } }) => {
     const queryKeys = [
@@ -60,40 +55,25 @@ export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }
       if (Array.isArray(errors) && errors.length > 0) {
         const apiError = errors[0] as { error: string };
 
-        hasErrorsRef.current = true;
         setError({
           body: { detail: apiError.error },
         });
       } else if (Array.isArray(success) && success.length > 0) {
-        allSuccessesRef.current = [...allSuccessesRef.current, ...success];
-      }
-    }
-
-    pendingOperationsRef.current -= 1;
-
-    if (pendingOperationsRef.current === 0 && !hasErrorsRef.current) {
-      // All operations completed successfully
-      if (allSuccessesRef.current.length > 0) {
         toaster.create({
           description: translate("bulkAction.delete.taskInstance.success.description", {
-            count: allSuccessesRef.current.length,
-            keys: allSuccessesRef.current.join(", "),
+            count: success.length,
+            keys: success.join(", "),
           }),
           title: translate("bulkAction.delete.taskInstance.success.title"),
           type: "success",
         });
         onSuccessConfirm();
       }
-      // Reset state for next operation
-      allSuccessesRef.current = [];
-      hasErrorsRef.current = false;
     }
   };
 
   const onError = (_error: unknown) => {
     setError(_error);
-    hasErrorsRef.current = true;
-    pendingOperationsRef.current -= 1;
   };
 
   const { isPending, mutate } = useTaskInstanceServiceBulkTaskInstances({
@@ -102,54 +82,28 @@ export const useBulkDeleteTaskInstances = ({ dagId, dagRunId, onSuccessConfirm }
   });
 
   const deleteTaskInstances = (entities: Array<TaskInstanceResponse>) => {
-    // Reset state for new operation
-    allSuccessesRef.current = [];
-    hasErrorsRef.current = false;
     setError(undefined);
 
-    if (Boolean(dagId) && Boolean(dagRunId) && dagId !== undefined && dagRunId !== undefined) {
-      pendingOperationsRef.current = 1;
-      mutate({
-        dagId,
-        dagRunId,
-        requestBody: {
-          actions: [
-            {
-              action: "delete",
-              entities: entities.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
-            },
-          ],
-        },
-      });
-    } else {
-      // cross dag run
-      const groupedByDagRunTIs: Record<string, Array<TaskInstanceResponse>> = {};
+    const isSingleDagRun =
+      Boolean(dagId) && Boolean(dagRunId) && dagId !== undefined && dagRunId !== undefined;
 
-      entities.forEach((ti) => {
-        (groupedByDagRunTIs[`${ti.dag_id}${SEPARATOR}${ti.dag_run_id}`] ??= []).push(ti);
-      });
-
-      pendingOperationsRef.current = Object.keys(groupedByDagRunTIs).length;
-
-      Object.entries(groupedByDagRunTIs).forEach(([key, groupTIs]) => {
-        const [groupDagId, groupDagRunId] = key.split(SEPARATOR);
-
-        if (groupDagId !== undefined && groupDagRunId !== undefined) {
-          mutate({
-            dagId: groupDagId,
-            dagRunId: groupDagRunId,
-            requestBody: {
-              actions: [
-                {
-                  action: "delete",
-                  entities: groupTIs.map((ti) => ({ map_index: ti.map_index, task_id: ti.task_id })),
-                },
-              ],
-            },
-          });
-        }
-      });
-    }
+    mutate({
+      dagId: isSingleDagRun ? dagId : "~",
+      dagRunId: isSingleDagRun ? dagRunId : "~",
+      requestBody: {
+        actions: [
+          {
+            action: "delete",
+            entities: entities.map((ti) => ({
+              dag_id: isSingleDagRun ? undefined : ti.dag_id,
+              dag_run_id: isSingleDagRun ? undefined : ti.dag_run_id,
+              map_index: ti.map_index,
+              task_id: ti.task_id,
+            })),
+          },
+        ],
+      },
+    });
   };
 
   return { deleteTaskInstances, error, isPending };
