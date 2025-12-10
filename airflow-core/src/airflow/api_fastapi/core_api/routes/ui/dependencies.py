@@ -54,12 +54,12 @@ def get_dependencies(
     """Dependencies graph."""
     if dependency_type == "data":
         if node_id is None or not node_id.startswith("asset:"):
-            raise HTTPException(400, "Data dependencies require an asset node_id (e.g., 'asset:123')")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Data dependencies require an asset node_id (e.g., 'asset:123')")
 
         try:
             asset_id = int(node_id.replace("asset:", ""))
         except ValueError:
-            raise HTTPException(400, f"Invalid asset node_id: {node_id}")
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Invalid asset node_id: {node_id}")
 
         data = get_data_dependencies(asset_id, session)
         return BaseGraphResponse(**data)
