@@ -732,6 +732,17 @@ class MockAirflowConnectionWithPrivate:
         }
 
 
+def mock_ssh_client_connection() -> AsyncMock:
+    # Maak een async context manager mock
+    mock_context = AsyncMock()
+    mock_client = MockSSHClient()
+
+    mock_context.__aenter__.return_value = mock_client
+    mock_context.__aexit__.return_value = False
+
+    return mock_context
+
+
 class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
@@ -953,8 +964,7 @@ class TestSFTPHookAsync:
         """
         Assert that AirflowException is raised when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
-
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         expected_files = None
@@ -968,7 +978,7 @@ class TestSFTPHookAsync:
         """
         Assert that AirflowException is raised when path does not exist on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         expected_files = None
@@ -982,7 +992,7 @@ class TestSFTPHookAsync:
         """
         Assert that file list is returned when path exists on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         expected_files = ["..", ".", "file"]
@@ -996,7 +1006,7 @@ class TestSFTPHookAsync:
         """
         Assert that filename is returned when file pattern is matched on SFTP server
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         files = await hook.get_files_and_attrs_by_pattern(path="/path/exists/", fnmatch_pattern="file")
@@ -1011,7 +1021,7 @@ class TestSFTPHookAsync:
         """
         Assert that file attribute and return the modified time of the file
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         mod_time = await hook.get_mod_time("/path/exists/file")
@@ -1024,7 +1034,7 @@ class TestSFTPHookAsync:
         """
         Assert that get_mod_time raise exception when file does not exist
         """
-        mock_hook_get_conn.return_value.__aenter__.return_value = MockSSHClient()
+        mock_hook_get_conn.return_value = mock_ssh_client_connection()
         hook = SFTPHookAsync()
 
         with pytest.raises(AirflowException) as exc:
