@@ -36,19 +36,6 @@ logger = logging.getLogger(__name__)
 DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
 
 
-class DeadlineAlertFields:
-    """
-    Define field names used in DeadlineAlert serialization/deserialization.
-
-    These constants provide a single source of truth for the field names used when
-    serializing DeadlineAlert instances to and from their dictionary representation.
-    """
-
-    REFERENCE = "reference"
-    INTERVAL = "interval"
-    CALLBACK = "callback"
-
-
 @attrs.define
 class DeadlineAlert:
     """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
