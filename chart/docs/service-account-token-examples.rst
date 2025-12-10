@@ -139,7 +139,7 @@ Configuration that complies with Kyverno policies requiring ``automountServiceAc
          audience: "https://kubernetes.default.svc.cluster.local"
 
 Custom Mount Path Configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For applications that expect service account tokens at custom locations:
 
@@ -161,7 +161,7 @@ Executor-Specific Examples
 --------------------------
 
 KubernetesExecutor Configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Optimal configuration for KubernetesExecutor with security focus:
 
@@ -184,7 +184,7 @@ Optimal configuration for KubernetesExecutor with security focus:
      create: true
 
 CeleryKubernetesExecutor Configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Configuration for hybrid executor that launches both Celery workers and Kubernetes task pods:
 
@@ -209,7 +209,7 @@ Multi-Environment Examples
 --------------------------
 
 Development Environment
-^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Relaxed configuration for development with longer token lifetimes:
 
@@ -225,7 +225,7 @@ Relaxed configuration for development with longer token lifetimes:
          mountPath: /var/run/secrets/kubernetes.io/serviceaccount
 
 Production Environment
-^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 Strict production configuration with enhanced security:
 
@@ -294,7 +294,7 @@ Step 3: Complete migration to manual-only:
          expirationSeconds: 3600
 
 Troubleshooting Examples
------------------------
+------------------------
 
 Debug Configuration
 ^^^^^^^^^^^^^^^^^^^
@@ -319,7 +319,7 @@ Configuration with extended token lifetime for troubleshooting:
        logging_level: DEBUG
 
 Validation Commands
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 Commands to validate the configuration is working correctly:
 
@@ -396,7 +396,7 @@ Configuration compatible with external security scanning and policy tools:
      security.policy/compliant: "service-account-token-manual"
 
 Best Practices Summary
----------------------
+----------------------
 
 **Container Security:**
 
