@@ -8,4 +8,4 @@ The Helm Chart now includes new configuration options for StatsD aggregation man
 
 This feature addresses uncontrolled memory growth in StatsD daemons by automatically cleaning up stale or unused metric entries. When enabled, the cache uses both LRU (Least Recently Used) eviction and TTL (Time To Live) expiration to manage memory usage effectively.
 
-To maintain backward compatibility, the values are kept default values from ``StatsD`` Users experiencing memory growth issues with StatsD can enable this feature by setting ``statsd.cache: true`` in their Helm values.
+To maintain backward compatibility, the default behaviour remains unchanged. Users experiencing memory growth issues with StatsD can enable this feature by setting ``statsd.cache: true`` in their Helm values.
