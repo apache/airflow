@@ -259,6 +259,99 @@ class TestParam:
             with pytest.raises(ParamValidationError, match=exception_msg):
                 p.resolve(value={1, 2, 3})  # when resolved with not JSON-serializable, should warn.
 
+    def test_param_config_source_ini(self, tmp_path):
+        """Test Param with config_source loading from INI file."""
+        # Create test INI file
+        ini_file = tmp_path / "interfaces.ini"
+        ini_file.write_text(
+            "[InterfaceA]\n"
+            "TYPE = Script\n"
+            "\n"
+            "[InterfaceB]\n"
+            "TYPE = API\n"
+            "\n"
+            "[InterfaceC]\n"
+            "TYPE = Script\n"
+        )
+
+        # Test with filter
+        p = Param(
+            default="InterfaceA",
+            config_source={
+                "file": str(ini_file),
+                "filter": {"TYPE": "Script"},
+                "key_field": "section",
+            },
+        )
+
+        # Check that enum was populated from config file
+        assert "enum" in p.schema
+        assert set(p.schema["enum"]) == {"InterfaceA", "InterfaceC"}
+
+    def test_param_config_source_json(self, tmp_path):
+        """Test Param with config_source loading from JSON file."""
+        import json
+
+        # Create test JSON file
+        json_file = tmp_path / "interfaces.json"
+        json_file.write_text(
+            json.dumps([
+                {"name": "ItemA", "type": "Script"},
+                {"name": "ItemB", "type": "API"},
+                {"name": "ItemC", "type": "Script"},
+            ])
+        )
+
+        # Test with filter
+        p = Param(
+            default="ItemA",
+            config_source={
+                "file": str(json_file),
+                "filter": {"type": "Script"},
+                "key_field": "name",
+            },
+        )
+
+        # Check that enum was populated
+        assert "enum" in p.schema
+        assert set(p.schema["enum"]) == {"ItemA", "ItemC"}
+
+    def test_param_config_source_invalid_file(self, caplog):
+        """Test Param with config_source pointing to non-existent file."""
+        # Should log warning but not raise exception
+        p = Param(
+            default="default_value",
+            config_source={
+                "file": "/nonexistent/file.ini",
+            },
+        )
+
+        # Should have logged a warning
+        assert "Failed to load options from config_source" in caplog.text
+        # Should not have enum in schema
+        assert "enum" not in p.schema
+
+    def test_param_config_source_serialization(self, tmp_path):
+        """Test that config_source is preserved in serialization."""
+        ini_file = tmp_path / "test.ini"
+        ini_file.write_text("[Section]\nkey = value\n")
+
+        config_source = {
+            "file": str(ini_file),
+            "filter": {"key": "value"},
+            "key_field": "section",
+        }
+
+        p = Param(default="test", config_source=config_source)
+
+        # Test serialize
+        serialized = p.serialize()
+        assert serialized["config_source"] == config_source
+
+        # Test deserialize
+        p2 = Param.deserialize(serialized, version=1)
+        assert p2.config_source == config_source
+
 
 class TestParamsDict:
     def test_params_dict(self):
