@@ -44,3 +44,11 @@ with DAG(
     )
 
     # [END howto_operator_trigger_dagrun]
+
+    # [START howto_operator_trigger_dagrun_with_note]
+    trigger_with_note = TriggerDagRunOperator(
+        task_id="trigger_with_note",
+        trigger_dag_id="example_trigger_target_dag",
+        note="Triggered with a note!",
+    )
+    # [END howto_operator_trigger_dagrun_with_note]
