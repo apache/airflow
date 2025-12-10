@@ -735,34 +735,10 @@ def _create_db_from_orm(session):
 
 
 def _setup_debug_logging_if_needed():
-    """Set up debug logging and stack trace dumping if SQLALCHEMY_ENGINE_DEBUG is set."""
+    """Set up debug logging if SQLALCHEMY_ENGINE_DEBUG is set."""
     if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
         return
-
-    import atexit
-    import faulthandler
-    from contextlib import suppress
-
-    # Enable SQLA debug logging
     logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
-
-    # Enable faulthandler for debugging long-running threads and deadlocks,
-    # but disable it before interpreter shutdown to avoid segfaults during
-    # cleanup (especially with SQLAlchemy 2.0 + pytest teardown)
-    faulthandler.enable(file=sys.stderr, all_threads=True)
-
-    # Cancel any pending traceback dumps and disable faulthandler before exit
-    # to prevent it from interfering with C extension cleanup
-    def cleanup_faulthandler():
-        with suppress(Exception):
-            faulthandler.cancel_dump_traceback_later()
-        with suppress(Exception):
-            faulthandler.disable()
-
-    atexit.register(cleanup_faulthandler)
-
-    # Set up periodic traceback dumps for debugging hanging tests/threads
-    faulthandler.dump_traceback_later(timeout=300, repeat=True, file=sys.stderr)
 
 
 @provide_session
