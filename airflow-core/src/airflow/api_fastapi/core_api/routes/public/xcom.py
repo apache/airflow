@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -256,7 +257,7 @@ def create_xcom_entry(
         )
 
     try:
-        value = XComModel.serialize_value(request_body.value)
+        value = json.dumps(request_body.value)
     except (ValueError, TypeError):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST, f"Couldn't serialise the XCom with key: `{request_body.key}`"
@@ -314,6 +315,7 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
+    xcom_new_value = json.dumps(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
@@ -334,6 +336,6 @@ def update_xcom_entry(
         )
 
     # Update XCom entry (serialize exactly once, consistent with create)
-    xcom_entry.value = XComModel.serialize_value(patch_body.value)
+    xcom_entry.value = json.dumps(xcom_new_value)
 
     return XComResponseNative.model_validate(xcom_entry)

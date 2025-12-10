@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from urllib.parse import quote
 
 import pytest
 
@@ -669,9 +668,8 @@ class TestCreateXComEntry(TestXComEndpoint):
         assert response.status_code == 201
         assert response.json()["key"] == slash_key
         # Verify retrieval via encoded path
-        encoded_key = quote(slash_key, safe="")
         get_resp = test_client.get(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{encoded_key}"
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
         )
         assert get_resp.status_code == 200
         assert get_resp.json()["key"] == slash_key
@@ -704,7 +702,8 @@ class TestPatchXComEntry(TestXComEndpoint):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-            expected_value = XComModel.serialize_value(patch_body["value"])
+            # The value is double-serialized: first json.dumps(patch_body["value"]), then json.dumps() again
+            new_value = json.dumps(json.dumps(patch_body["value"]))
 
         response = test_client.patch(
             f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
@@ -714,7 +713,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == expected_value
+            assert response.json()["value"] == new_value
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -736,13 +735,13 @@ class TestPatchXComEntry(TestXComEndpoint):
     def test_patch_xcom_entry_with_slash_key(self, test_client, session):
         slash_key = "x/y"
         self._create_xcom(slash_key, TEST_XCOM_VALUE)
-        encoded_key = quote(slash_key, safe="")
         new_value = {"updated": True}
         response = test_client.patch(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{encoded_key}",
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}",
             json={"value": new_value},
         )
         assert response.status_code == 200
         assert response.json()["key"] == slash_key
-        assert response.json()["value"] == XComModel.serialize_value(new_value)
+        # The value is double-serialized: first json.dumps(new_value), then json.dumps() again
+        assert response.json()["value"] == json.dumps(json.dumps(new_value))
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
