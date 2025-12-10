@@ -344,6 +344,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         if resp.status_code == 200:
             return True
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return False
         if resp.status_code == 403:
             return False
         if resp.status_code == 400:
