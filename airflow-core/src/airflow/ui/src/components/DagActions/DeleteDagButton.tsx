@@ -19,7 +19,7 @@
 import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import ActionButton from "src/components/ui/ActionButton";
@@ -31,15 +31,21 @@ type DeleteDagButtonProps = {
   readonly withText?: boolean;
 } & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
+const DeleteDagButton = ({
+  dagDisplayName,
+  dagId,
+  width,
+  withText = true,
+}: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t: translate } = useTranslation("dags");
   const { isPending, mutate: deleteDag } = useDeleteDag({
     dagId,
     onSuccessConfirm: () => {
       onClose();
-      navigate("/dags");
+      navigate({ pathname: "/dags", search: location.search });
     },
   });
 
