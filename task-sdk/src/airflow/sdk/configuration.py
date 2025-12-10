@@ -195,6 +195,7 @@ def initialize_secrets_backends(
 
     Uses SDK's conf instead of Core's conf.
     """
+    from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.module_loading import import_string
 
     backend_list = []
@@ -214,6 +215,9 @@ def initialize_secrets_backends(
 
     for class_name in default_backends:
         secrets_backend_cls = import_string(class_name)
+        if not hasattr(secrets_backend_cls, "set_connection_class"):
+            raise ValueError(f"{secrets_backend_cls} does not have set_connection_class method")
+        secrets_backend_cls.set_connection_class(Connection)
         backend_list.append(secrets_backend_cls())
 
     return backend_list
