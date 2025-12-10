@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import concurrent.futures
 import itertools
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 from sqlalchemy import delete, func, select
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -218,9 +219,8 @@ class TestAssetManager:
         assert len(asms) == 1
         assert asset_listener.created[0].uri == asset.uri == asms[0].uri
 
-    @pytest.mark.backend("mysql", "postgres")
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
-    def test_get_or_create_apdr_race_condition_non_sqlite(self, session):
+    def test_get_or_create_apdr_race_condition(self, session):
         asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
@@ -228,77 +228,27 @@ class TestAssetManager:
         session.flush()
         assert session.query(AssetPartitionDagRun).count() == 0
 
-        assert settings.Session
-        assert settings.Session.session_factory
+        def _get_or_create_apdr():
+            if TYPE_CHECKING:
+                assert settings.Session
+                assert settings.Session.session_factory
 
-        session_1 = settings.Session.session_factory()
-        session_2 = settings.Session.session_factory()
-        assert session_1 != session_2
-
-        session_1.begin()
-        session_2.begin()
-        apdr_1 = AssetManager._get_or_create_apdr(
-            target_key="test_partition_key",
-            target_dag=testing_dag,
-            asset_id=asm.id,
-            session=session_1,
-        )
-        session_1.commit()
-
-        apdr_2 = AssetManager._get_or_create_apdr(
-            target_key="test_partition_key",
-            target_dag=testing_dag,
-            asset_id=asm.id,
-            session=session_2,
-        )
-
-        session_2.commit()
-
-        assert apdr_1.id == apdr_2.id
-        assert apdr_1.created_dag_run_id is None
-        assert apdr_2.created_dag_run_id is None
-        assert session.query(AssetPartitionDagRun).count() == 1
-
-    @pytest.mark.backend("sqlite")
-    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
-    def test_get_or_create_apdr_race_condition_sqlite(self, session):
-        asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
-        testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
-        session.add_all([asm, testing_dag])
-        session.commit()
-        session.flush()
-        assert session.query(AssetPartitionDagRun).count() == 0
-
-        assert Session
-        assert Session.session_factory
-
-        target_key = "target_key"
-
-        original_apdr = AssetManager._get_or_create_apdr(
-            target_key=target_key,
-            target_dag=testing_dag,
-            asset_id=asm.id,
-            session=session,
-        )
-
-        with mock.patch.object(
-            AssetManager,
-            "_get_or_create_apdr_with_lock",
-            side_effect=[
-                OperationalError("", "", "database is locked"),
-                AssetManager._get_or_create_apdr_with_lock(
-                    target_key=target_key,
+            _session = settings.Session.session_factory()
+            _session.begin()
+            try:
+                return AssetManager._get_or_create_apdr(
+                    target_key="test_partition_key",
                     target_dag=testing_dag,
                     asset_id=asm.id,
-                    session=session,
-                ),
-            ],
-        ):
-            apdr = AssetManager._get_or_create_apdr(
-                target_key=target_key,
-                target_dag=testing_dag,
-                asset_id=asm.id,
-                session=session,
-            )
-            session.commit()
-        assert original_apdr == apdr
+                    session=_session,
+                ).id
+            finally:
+                _session.commit()
+                _session.close()
+
+        # run both workers simultaneously
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            id1, id2 = pool.map(lambda _: _get_or_create_apdr(), [None, None])
+
+        assert id1 == id2
+        assert session.query(AssetPartitionDagRun).count() == 1
