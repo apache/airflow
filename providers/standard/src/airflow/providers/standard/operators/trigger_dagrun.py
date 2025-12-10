@@ -29,16 +29,17 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    DagNotFound,
-    DagRunAlreadyExists,
-)
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    BaseOperatorLink,
+    XCom,
+    timezone,
+)
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator

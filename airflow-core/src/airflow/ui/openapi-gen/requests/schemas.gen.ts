@@ -863,7 +863,7 @@ export const $BulkDeleteAction_ConnectionBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/ConnectionBody'
                     }
                 ]
             },
@@ -897,7 +897,7 @@ export const $BulkDeleteAction_PoolBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/PoolBody'
                     }
                 ]
             },
@@ -931,7 +931,7 @@ export const $BulkDeleteAction_VariableBody_ = {
                         type: 'string'
                     },
                     {
-                        '$ref': '#/components/schemas/BulkTaskInstanceBody'
+                        '$ref': '#/components/schemas/VariableBody'
                     }
                 ]
             },
@@ -1053,6 +1053,28 @@ export const $BulkTaskInstanceBody = {
                 }
             ],
             title: 'Map Index'
+        },
+        dag_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Id'
+        },
+        dag_run_id: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Id'
         }
     },
     additionalProperties: false,
@@ -6560,17 +6582,17 @@ export const $VariableBody = {
             ],
             title: 'Description'
         },
-        team_id: {
+        team_name: {
             anyOf: [
                 {
                     type: 'string',
-                    format: 'uuid'
+                    maxLength: 50
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Team Id'
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -6625,21 +6647,20 @@ export const $VariableResponse = {
             type: 'boolean',
             title: 'Is Encrypted'
         },
-        team_id: {
+        team_name: {
             anyOf: [
                 {
-                    type: 'string',
-                    format: 'uuid'
+                    type: 'string'
                 },
                 {
                     type: 'null'
                 }
             ],
-            title: 'Team Id'
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['key', 'value', 'description', 'is_encrypted', 'team_id'],
+    required: ['key', 'value', 'description', 'is_encrypted', 'team_name'],
     title: 'VariableResponse',
     description: 'Variable serializer for responses.'
 } as const;
@@ -8222,18 +8243,13 @@ export const $TeamCollectionResponse = {
 
 export const $TeamResponse = {
     properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            title: 'Id'
-        },
         name: {
             type: 'string',
             title: 'Name'
         }
     },
     type: 'object',
-    required: ['id', 'name'],
+    required: ['name'],
     title: 'TeamResponse',
     description: 'Base serializer for Team.'
 } as const;

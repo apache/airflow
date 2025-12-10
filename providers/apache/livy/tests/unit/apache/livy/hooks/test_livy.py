@@ -26,9 +26,9 @@ import requests
 from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.db import clear_test_connections
 

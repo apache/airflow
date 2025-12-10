@@ -22,9 +22,9 @@ import warnings
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.logging.remote import RemoteLogIO

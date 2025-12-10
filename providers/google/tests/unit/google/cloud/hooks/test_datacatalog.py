@@ -27,7 +27,8 @@ from google.api_core.retry import Retry
 from google.cloud.datacatalog import CreateTagRequest, CreateTagTemplateRequest, Entry, Tag, TagTemplate
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 
 from unit.google.cloud.utils.base_gcp_mock import (

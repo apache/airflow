@@ -28,7 +28,7 @@ import pytest
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
     MSGraphTrigger,

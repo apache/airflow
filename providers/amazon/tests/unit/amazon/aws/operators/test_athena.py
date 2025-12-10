@@ -23,7 +23,6 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
@@ -37,6 +36,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SQLJobFacet,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType

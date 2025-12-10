@@ -32,9 +32,10 @@ from deprecated import deprecated
 from typing_extensions import overload
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    AirflowException,
     BaseHook,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook

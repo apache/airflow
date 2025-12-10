@@ -49,7 +49,7 @@ from googleapiclient.errors import HttpError
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:

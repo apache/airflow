@@ -29,7 +29,7 @@ from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
 from yarl import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks import mlengine as hook
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
 

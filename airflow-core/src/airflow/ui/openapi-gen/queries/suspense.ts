@@ -1637,7 +1637,7 @@ export const useCalendarServiceGetCalendarSuspense = <TData = Common.CalendarSer
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
 * @returns TeamCollectionResponse Successful Response
 * @throws ApiError
 */

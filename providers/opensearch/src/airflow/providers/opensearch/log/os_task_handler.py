@@ -33,15 +33,15 @@ from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:

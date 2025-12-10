@@ -34,7 +34,7 @@ from requests.auth import AuthBase
 from requests.sessions import Session
 from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 if TYPE_CHECKING:

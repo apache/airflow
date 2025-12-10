@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -35,8 +35,8 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 pytestmark = pytest.mark.db_test
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
     from airflow.sdk.definitions.mappedoperator import MappedOperator

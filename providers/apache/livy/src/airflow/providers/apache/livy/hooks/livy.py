@@ -28,7 +28,7 @@ import requests
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 if TYPE_CHECKING:

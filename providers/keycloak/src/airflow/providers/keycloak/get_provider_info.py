@@ -62,6 +62,20 @@ def get_provider_info():
                         "example": None,
                         "default": "http://host.docker.internal:48080",
                     },
+                    "requests_pool_size": {
+                        "description": "Size of the connection pool used by the Keycloak auth manager.\nThis setting improves performance when multiple requests are made to Keycloak server.\n",
+                        "type": "integer",
+                        "version_added": "0.4.0",
+                        "example": "10",
+                        "default": "10",
+                    },
+                    "requests_retries": {
+                        "description": "Number of retries for failed requests made by the Keycloak auth manager.\nThis setting helps to handle transient network issues.\n",
+                        "type": "integer",
+                        "version_added": "0.4.0",
+                        "example": "3",
+                        "default": "3",
+                    },
                 },
             }
         },

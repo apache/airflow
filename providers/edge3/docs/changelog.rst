@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
 .. warning::
     This release of the Edge3 provider drops support for Airflow versions below 3.0.0.
 
@@ -34,6 +37,21 @@ Changelog
     Productive operation was not intended in Airflow 2.x, therefore the support for Airflow 2.x is now dropped
     earlier than the usual release support policy would indicate.
 
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* ``Drop Airflow 2 Support in Edge Provider (#59143)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 1.6.0
 .....

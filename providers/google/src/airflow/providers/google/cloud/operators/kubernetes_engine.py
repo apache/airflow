@@ -29,7 +29,7 @@ from kubernetes.client import V1JobList, models as k8s
 from packaging.version import parse as parse_version
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
@@ -41,6 +41,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,

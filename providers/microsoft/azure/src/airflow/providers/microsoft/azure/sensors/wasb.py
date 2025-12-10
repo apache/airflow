@@ -22,8 +22,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 

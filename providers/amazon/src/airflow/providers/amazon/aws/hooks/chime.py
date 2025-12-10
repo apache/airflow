@@ -25,7 +25,7 @@ import re
 from functools import cached_property
 from typing import Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 

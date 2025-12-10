@@ -24,8 +24,8 @@ import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
 CREDENTIALS = "test-creds"

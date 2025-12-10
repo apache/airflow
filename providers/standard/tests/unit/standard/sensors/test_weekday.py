@@ -21,8 +21,8 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 

@@ -26,11 +26,16 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,

@@ -68,7 +68,7 @@ apache-airflow-providers-openfaas package
 `OpenFaaS <https://www.openfaas.com/>`__
 
 
-Release: 3.9.0
+Release: 3.9.1
 
 Provider package
 ----------------
@@ -92,7 +92,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -120,5 +120,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-openfaas 3.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-openfaas 3.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-openfaas 3.9.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openfaas 3.9.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openfaas-3.9.1-py3-none-any.whl.sha512>`__)

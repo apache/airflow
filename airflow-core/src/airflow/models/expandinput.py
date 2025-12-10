@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Mapping, Sequence, Sized
+from collections.abc import Iterable, Sized
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
@@ -122,19 +122,6 @@ class SchedulerDictOfListsExpandInput:
         for x in self.value.values():
             if isinstance(x, ReferenceMixin):
                 yield from x.iter_references()
-
-
-# To replace tedious isinstance() checks.
-def _is_parse_time_mappable(v: OperatorExpandArgument) -> TypeGuard[Mapping | Sequence]:
-    from airflow.sdk.definitions.xcom_arg import XComArg
-
-    return not isinstance(v, (MappedArgument, XComArg))
-
-
-def _describe_type(value: Any) -> str:
-    if value is None:
-        return "None"
-    return type(value).__name__
 
 
 @attrs.define

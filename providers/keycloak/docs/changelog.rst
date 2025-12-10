@@ -25,6 +25,33 @@
 Changelog
 ---------
 
+0.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak CLI: add dry run functionality (#59134)``
+* ``keycloak: enable client_secret retrieval from secrets backend (#59065)``
+* ``Passwords from stdin in Keycloak Provider (#59119)``
+* ``Keycloak: implement connection pooling (#59252)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add Keycloak login settings management documentation (#58605)``
+* ``update keycloak command references in permissions documentation (#58590)``
+* ``Updates to release process of providers (#58316)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.3.0
 .....
 

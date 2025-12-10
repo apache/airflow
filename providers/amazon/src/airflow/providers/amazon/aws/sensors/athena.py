@@ -26,8 +26,8 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class AthenaSensor(AwsBaseSensor[AthenaHook]):

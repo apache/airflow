@@ -21,11 +21,11 @@ from unittest.mock import AsyncMock, Mock, call, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateClusterTrigger,
     EksDeleteClusterTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 EXCEPTION_MOCK = AirflowException("MOCK ERROR")

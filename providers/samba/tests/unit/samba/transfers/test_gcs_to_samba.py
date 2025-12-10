@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.samba.transfers.gcs_to_samba import GCSToSambaOperator
 
 TASK_ID = "test-gcs-to-samba-operator"

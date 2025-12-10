@@ -35,6 +35,24 @@
 Changelog
 ---------
 
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.0
 ......
 

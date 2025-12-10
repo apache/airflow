@@ -35,8 +35,8 @@ from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from airflow.exceptions import AirflowBadRequest, AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.exceptions import AirflowBadRequest
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,

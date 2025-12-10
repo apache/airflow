@@ -23,7 +23,7 @@ import ydb
 from sqlalchemy.engine import URL
 from ydb_dbapi import Connection as DbApiConnection
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
 from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME

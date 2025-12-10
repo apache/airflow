@@ -23,7 +23,7 @@ from typing import Any
 
 import structlog
 
-from airflow.sdk.module_loading import import_string, is_valid_dotpath
+from airflow.sdk._shared.module_loading import import_string, is_valid_dotpath
 
 log = structlog.getLogger(__name__)
 

@@ -21,9 +21,9 @@ from unittest import mock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type

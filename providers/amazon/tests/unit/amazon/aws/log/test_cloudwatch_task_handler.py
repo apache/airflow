@@ -39,10 +39,10 @@ from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
     CloudwatchTaskHandler,
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
-from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs

@@ -737,5 +737,6 @@ def asset_test_setup(docker_compose_setup, airflow_ready):
         additional_metadata={
             "name": "test_asset",
             "uri": "test://asset1/",
+            "alias_name": "test_asset_alias",
         },
     )

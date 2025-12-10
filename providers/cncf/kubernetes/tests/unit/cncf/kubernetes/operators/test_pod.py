@@ -28,11 +28,6 @@ import pytest
 from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    TaskDeferred,
-)
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import (
@@ -44,7 +39,12 @@ from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
-from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY
+from airflow.providers.common.compat.sdk import (
+    XCOM_RETURN_KEY,
+    AirflowException,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
