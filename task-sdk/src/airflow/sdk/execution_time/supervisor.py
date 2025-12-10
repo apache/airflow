@@ -910,15 +910,25 @@ def _remote_logging_conn(client: Client):
 
     if conn:
         key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
+        old_conn = os.getenv(key)
+        old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
         os.environ[key] = conn.get_uri()
+        # Set process context to "client" so that Connection deserialization uses SDK Connection class
+        # which has from_uri() method, instead of core Connection class
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         try:
             yield
         finally:
-            if old is None:
+            if old_conn is None:
                 del os.environ[key]
             else:
-                os.environ[key] = old
+                os.environ[key] = old_conn
+
+            if old_context is None:
+                del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
 
 
 @attrs.define(kw_only=True)

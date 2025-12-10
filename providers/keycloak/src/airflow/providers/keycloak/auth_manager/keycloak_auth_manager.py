@@ -27,6 +27,8 @@ from urllib.parse import urljoin
 import requests
 from fastapi import FastAPI
 from keycloak import KeycloakOpenID
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -45,6 +47,8 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
+    CONF_REQUESTS_POOL_SIZE_KEY,
+    CONF_REQUESTS_RETRIES_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
@@ -89,6 +93,35 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     Leverages Keycloak to perform authentication and authorization in Airflow.
     """
+
+    def __init__(self):
+        super().__init__()
+        self._http_session = None
+
+    @property
+    def http_session(self) -> requests.Session:
+        """Lazy-initialize and return the requests session with connection pooling."""
+        if self._http_session is not None:
+            return self._http_session
+
+        self._http_session = requests.Session()
+
+        pool_size = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        retry_total = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_RETRIES_KEY, fallback=3)
+
+        retry_strategy = Retry(
+            total=retry_total,
+            backoff_factor=0.1,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],
+        )
+
+        adapter = HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size, max_retries=retry_strategy)
+
+        self._http_session.mount("https://", adapter)
+        self._http_session.mount("http://", adapter)
+
+        return self._http_session
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
@@ -302,10 +335,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         elif method == "GET":
             method = "LIST"
 
-        resp = requests.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
             headers=self._get_headers(user.access_token),
+            timeout=5,
         )
 
         if resp.status_code == 200:
@@ -329,10 +363,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
-        resp = requests.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_batch_payload(client_id, permissions),
             headers=self._get_headers(user.access_token),
+            timeout=5,
         )
 
         if resp.status_code == 200:
