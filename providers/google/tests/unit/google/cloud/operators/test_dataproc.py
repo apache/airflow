@@ -31,13 +31,9 @@ from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig, KafkaTransport
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,
@@ -1506,7 +1502,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_http_transport_info_injection(
@@ -1514,7 +1510,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1561,7 +1559,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
@@ -1569,7 +1567,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1617,7 +1617,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_unsupported_transport_info_injection(
@@ -1634,7 +1634,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             flush=True,
             messageKey="some",
         )
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
             kafka_config
         )
         job_config = {
@@ -1710,14 +1712,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_already_present(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1793,14 +1797,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1875,14 +1881,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -2783,7 +2791,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
@@ -2791,7 +2799,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
 
@@ -2889,7 +2899,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
@@ -2897,7 +2907,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         template = {
@@ -3017,14 +3029,16 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig("https://some-custom.url")
         )
 
@@ -3065,14 +3079,16 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig("https://some-custom.url")
         )
 
@@ -3465,7 +3481,7 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3474,7 +3490,9 @@ class TestDataprocCreateBatchOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         expected_batch = {
@@ -3522,7 +3540,7 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3531,7 +3549,9 @@ class TestDataprocCreateBatchOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         expected_batch = {
@@ -3617,7 +3637,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3625,7 +3645,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {
@@ -3703,7 +3725,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3711,7 +3733,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {
@@ -3783,7 +3807,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3791,7 +3815,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {

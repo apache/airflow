@@ -399,6 +399,7 @@ sql_alchemy_conn_secret = sql_alchemy_conn
 sql_alchemy_conn = airflow
 """
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
+        # Configure secrets backend on test_conf itself
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
             ("test", "sql_alchemy_conn"),
@@ -1189,6 +1190,52 @@ key7 =
 
         assert test_conf.get("core", "executor") == "LocalExecutor"
 
+    def test_write_pretty_prints_multiline_json(self):
+        """
+        Tests that the `write` method correctly pretty-prints
+        a config value that is a valid multi-line JSON string.
+        """
+        json_string = '[\n{\n"name": "dags-folder",\n"classpath": "test.class"\n}\n]'
+
+        test_conf = AirflowConfigParser()
+        test_conf.add_section("test_json")
+        test_conf.set("test_json", "my_json_config", json_string)
+
+        with StringIO() as string_file:
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            content = string_file.getvalue()
+
+        expected_formatted_string = (
+            "my_json_config = [\n"
+            "        {\n"
+            '            "name": "dags-folder",\n'
+            '            "classpath": "test.class"\n'
+            "        }\n"
+            "    ]\n"
+        )
+
+        assert expected_formatted_string in content
+        assert json_string not in content
+
+    def test_write_handles_multiline_non_json_string(self):
+        """
+        Tests that `write` does not crash when encountering a multi-line string
+        that is NOT valid JSON.
+        """
+        multiline_string = "This is the first line.\nThis is the second line."
+
+        test_conf = AirflowConfigParser()
+        test_conf.add_section("test_multiline")
+        test_conf.set("test_multiline", "my_string_config", multiline_string)
+
+        with StringIO() as string_file:
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            content = string_file.getvalue()
+
+        expected_raw_output = "my_string_config = This is the first line.\nThis is the second line.\n"
+
+        assert expected_raw_output in content
+
 
 @mock.patch.dict(
     "os.environ",
@@ -1896,6 +1943,7 @@ def test_sensitive_values():
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
+        ("keycloak_auth_manager", "client_secret"),
         ("core", "sql_alchemy_conn"),
         ("celery_broker_transport_options", "sentinel_kwargs"),
         ("celery", "broker_url"),

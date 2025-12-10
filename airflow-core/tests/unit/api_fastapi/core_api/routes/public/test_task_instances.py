@@ -817,10 +817,12 @@ class TestGetMappedTaskInstances:
         assert len(body["task_instances"]) == params["limit"]
         assert expected_map_indexes == [ti["map_index"] for ti in body["task_instances"]]
 
+    # Ordering of nulls values is DB specific.
+    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
         ("params", "expected_map_indexes"),
         [
-            ({"order_by": "rendered_map_index", "limit": 108}, [0] + list(range(1, 108))),  # Asc
+            ({"order_by": "rendered_map_index", "limit": 108}, list(range(1, 109))),  # Asc
             ({"order_by": "-rendered_map_index", "limit": 100}, [0] + list(range(11, 110)[::-1])),  # Desc
         ],
     )
@@ -1324,6 +1326,18 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 2,
                 3,
                 id="test map_index filter",
+            ),
+            pytest.param(
+                [
+                    {},
+                ],
+                True,
+                ("/dags/~/dagRuns/~/taskInstances"),
+                {"run_id_pattern": "TEST_DAG_"},
+                1,  # apart from the TIs in the fixture, we also get one from
+                # the create_task_instances method
+                3,
+                id="test run_id_pattern filter",
             ),
             pytest.param(
                 "dag_id_pattern_test",  # Special marker for multi-DAG test
@@ -2705,6 +2719,27 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 4,
                 id="clear mapped tasks with and without map index",
             ),
+            pytest.param(
+                "example_task_group_mapping",
+                [
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                    {
+                        "state": State.FAILED,
+                        "map_indexes": (0, 1, 2),
+                    },
+                ],
+                "example_task_group_mapping",
+                {
+                    "task_ids": [["op.mul_2", 0]],
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "include_upstream": True,
+                },
+                2,
+                id="clear tasks in mapped task group",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -2903,7 +2938,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
 
         # dag (3rd argument) is a different session object. Manually asserting that the dag_id
         # is the same.
-        mock_clearti.assert_called_once_with([], mock.ANY, DagRunState.QUEUED, run_on_latest_version=False)
+        mock_clearti.assert_called_once_with(
+            [], mock.ANY, DagRunState.QUEUED, prevent_running_task=False, run_on_latest_version=False
+        )
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -5133,9 +5170,12 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
     ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances"
+    BASH_DAG_ID = "example_bash_operator"
+    BASH_TASK_ID = "also_run_this"
+    WILDCARD_ENDPOINT = "/dags/~/dagRuns/~/taskInstances"
 
     @pytest.mark.parametrize(
-        ("default_ti", "actions", "expected_results"),
+        ("default_ti", "actions", "expected_results", "endpoint_url", "setup_dags"),
         [
             pytest.param(
                 [{"task_id": TASK_ID, "state": State.SUCCESS}],
@@ -5151,10 +5191,12 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="delete-success",
             ),
             pytest.param(
@@ -5174,10 +5216,12 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [f"{TASK_ID}[-1]"],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="delete-with-entity-success",
             ),
             pytest.param(
@@ -5199,6 +5243,8 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="delete-skip",
             ),
             pytest.param(
@@ -5223,6 +5269,8 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="delete-with-entity-skip",
             ),
             pytest.param(
@@ -5242,12 +5290,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "No task instances found for task_id: non_existent_task",
+                                "error": f"No task instances found for dag_id: {DAG_ID}, run_id: {RUN_ID}, task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
+                None,
+                None,
                 id="delete-failure",
             ),
             pytest.param(
@@ -5270,12 +5320,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The task instances with these task_ids: ['non_existent_task[-1]'] were not found",
+                                "error": f"The task instances with these identifiers: [{{'dag_id': '{DAG_ID}', 'dag_run_id': '{RUN_ID}', 'task_id': 'non_existent_task', 'map_index': -1}}] were not found",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
+                None,
+                None,
                 id="delete-with-entity-failure",
             ),
             pytest.param(
@@ -5296,10 +5348,16 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[0]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[2]",
+                        ],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="delete-all-map-indexes",
             ),
             pytest.param(
@@ -5317,10 +5375,15 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "delete": {
-                        "success": ["another_task[-1]", TASK_ID],
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.another_task[-1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                        ],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="mixed-string-and-object",
             ),
             pytest.param(
@@ -5345,10 +5408,12 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="update-success",
             ),
             pytest.param(
@@ -5378,6 +5443,8 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="update-skip",
             ),
             pytest.param(
@@ -5403,10 +5470,12 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[100]"],
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="update-success-mapped-task",
             ),
             pytest.param(
@@ -5434,12 +5503,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `None` was not found",
+                                "error": f"The Task Instance with dag_id: `{DAG_ID}`, run_id: `{RUN_ID}`, task_id: `non_existent_task` and map_index: `None` was not found",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
+                None,
+                None,
                 id="update-failure",
             ),
             pytest.param(
@@ -5468,12 +5539,14 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "success": [],
                         "errors": [
                             {
-                                "error": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `print_the_context` and map_index: `-100` was not found",
+                                "error": f"The Task Instance with dag_id: `{DAG_ID}`, run_id: `{RUN_ID}`, task_id: `{TASK_ID}` and map_index: `-100` was not found",
                                 "status_code": 404,
                             }
                         ],
                     }
                 },
+                None,
+                None,
                 id="update-failure-mapped-task",
             ),
             pytest.param(
@@ -5504,6 +5577,8 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         "errors": [],
                     }
                 },
+                None,
+                None,
                 id="update-failure-mapped-task-with-skip",
             ),
             pytest.param(
@@ -5544,24 +5619,26 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                 },
                 {
                     "update": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [
                             {
-                                "error": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `None` was not found",
+                                "error": f"The Task Instance with dag_id: `{DAG_ID}`, run_id: `{RUN_ID}`, task_id: `non_existent_task` and map_index: `None` was not found",
                                 "status_code": 404,
                             }
                         ],
                     },
                     "delete": {
-                        "success": [TASK_ID],
+                        "success": [f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]"],
                         "errors": [
                             {
-                                "error": "No task instances found for task_id: non_existent_task",
+                                "error": f"No task instances found for dag_id: {DAG_ID}, run_id: {RUN_ID}, task_id: non_existent_task",
                                 "status_code": 404,
                             }
                         ],
                     },
                 },
+                None,
+                None,
                 id="update-delete-success",
             ),
             pytest.param(
@@ -5577,20 +5654,106 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
                         ],
                     }
                 },
+                None,
+                None,
                 id="create-failure",
+            ),
+            pytest.param(
+                [
+                    {"task_id": BASH_TASK_ID, "state": State.SUCCESS},
+                    {"task_id": TASK_ID, "state": State.SUCCESS},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "delete",
+                            "entities": [
+                                {
+                                    "dag_id": BASH_DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": BASH_TASK_ID,
+                                },
+                                {
+                                    "dag_id": DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": TASK_ID,
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "delete": {
+                        "success": [
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                            f"{BASH_DAG_ID}.{RUN_ID}.{BASH_TASK_ID}[-1]",
+                        ],
+                        "errors": [],
+                    }
+                },
+                WILDCARD_ENDPOINT,
+                [BASH_DAG_ID, DAG_ID],
+                id="wildcard-delete-across-dags",
+            ),
+            pytest.param(
+                [
+                    {"task_id": BASH_TASK_ID, "state": State.RUNNING},
+                    {"task_id": TASK_ID, "state": State.RUNNING},
+                ],
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "dag_id": BASH_DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": BASH_TASK_ID,
+                                    "new_state": "success",
+                                },
+                                {
+                                    "dag_id": DAG_ID,
+                                    "dag_run_id": RUN_ID,
+                                    "task_id": TASK_ID,
+                                    "new_state": "success",
+                                },
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "update": {
+                        "success": [
+                            f"{BASH_DAG_ID}.{RUN_ID}.{BASH_TASK_ID}[-1]",
+                            f"{DAG_ID}.{RUN_ID}.{TASK_ID}[-1]",
+                        ],
+                        "errors": [],
+                    }
+                },
+                WILDCARD_ENDPOINT,
+                [BASH_DAG_ID, DAG_ID],
+                id="wildcard-update-across-dags",
             ),
         ],
     )
-    def test_bulk_task_instances(self, test_client, session, default_ti, actions, expected_results):
-        self.create_task_instances(session, task_instances=default_ti)
-        response = test_client.patch(
-            self.ENDPOINT_URL,
-            json=actions,
-        )
+    def test_bulk_task_instances(
+        self, test_client, session, default_ti, actions, expected_results, endpoint_url, setup_dags
+    ):
+        # Setup task instances
+        if setup_dags:
+            for dag_id in setup_dags:
+                self.create_task_instances(
+                    session, task_instances=default_ti, dag_id=dag_id, update_extras=True
+                )
+        else:
+            self.create_task_instances(session, task_instances=default_ti)
+
+        url = endpoint_url or self.ENDPOINT_URL
+        response = test_client.patch(url, json=actions)
         assert response.status_code == 200
         response_data = response.json()
         for task_id, value in expected_results.items():
-            assert response_data[task_id] == value
+            assert sorted(response_data[task_id]) == sorted(value)
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(self.ENDPOINT_URL, json={})

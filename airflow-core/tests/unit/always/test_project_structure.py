@@ -59,14 +59,12 @@ class TestProjectStructure:
         """
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
-        # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/executors/utils/test_base_config_keys.py",

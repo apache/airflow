@@ -27,6 +27,50 @@
 Changelog
 ---------
 
+9.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+9.1.4
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Remove direct dependency on thrift (#57423)``
+* ``Add Kerberos dependency to hive provider (#55773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+
+
 9.1.3
 .....
 
@@ -219,8 +263,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 8.2.1
@@ -317,7 +359,8 @@ Features
 
 * ``Adding support to hive hook for high availability Hive installations (#38651)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix TRY002 for apache hive provider (#38781)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Fix D105 for Apache Hive Provider (#38042)``
@@ -354,7 +397,8 @@ Misc
 
 * ``Fix pyhive hive_pure_sasl extra name (#37323)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``D401 Support in Providers (simple) (#37258)``
 
 6.4.2
@@ -629,7 +673,6 @@ of ``apache.hive`` the hive macros are provided by the Provider.
 * ``Move Hive macros to the provider (#28538)``
 * ``Make pandas dependency optional for Amazon Provider (#28505)``
 
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....
@@ -690,7 +733,8 @@ Misc
 
 * ``Add common-sql lower bound for common-sql (#25789)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 
 4.0.0

@@ -23,6 +23,23 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/me:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Current User Info
+      description: Convienently get the current authenticated user information.
+      operationId: get_current_user_info
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedMeResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -1058,12 +1075,12 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id`'
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
-          - id
+          - name
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id`'
+          with `-` for descending order. Supported attributes: `name`'
       responses:
         '200':
           description: Successful Response
@@ -1079,6 +1096,20 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AuthenticatedMeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        username:
+          type: string
+          title: Username
+      type: object
+      required:
+      - id
+      - username
+      title: AuthenticatedMeResponse
+      description: Authenticated user information serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1893,7 +1924,7 @@ components:
         run_type:
           $ref: '#/components/schemas/DagRunType'
         duration:
-          type: integer
+          type: number
           title: Duration
           readOnly: true
       type: object
@@ -2611,16 +2642,11 @@ components:
       description: Team collection serializer for responses.
     TeamResponse:
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
           title: Name
       type: object
       required:
-      - id
       - name
       title: TeamResponse
       description: Base serializer for Team.

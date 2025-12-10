@@ -35,7 +35,7 @@ from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.deadline import AsyncCallback
+from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseTrigger,
@@ -480,6 +480,23 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     """
     Tests that triggers are sorted by the priority_weight.
     """
+    callback_triggers = [
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+    ]
+    session.add_all(callback_triggers)
+    session.flush()
+
+    callbacks = [
+        TriggererCallback(callback_def=AsyncCallback("classpath.low"), priority_weight=1),
+        TriggererCallback(callback_def=AsyncCallback("classpath.mid"), priority_weight=5),
+        TriggererCallback(callback_def=AsyncCallback("classpath.high"), priority_weight=10),
+    ]
+    for callback, trigger in zip(callbacks, callback_triggers):
+        callback.trigger = trigger
+    session.add_all(callbacks)
+
     old_logical_date = datetime.datetime(
         2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
@@ -517,11 +534,108 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.add(TI_new)
 
     session.commit()
-    assert session.query(Trigger).count() == 2
+    assert session.query(Trigger).count() == 5
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
-    assert trigger_ids_query == [(trigger_new.id,), (trigger_old.id,)]
+    assert trigger_ids_query == [
+        (callback_triggers[2].id,),
+        (callback_triggers[1].id,),
+        (callback_triggers[0].id,),
+        (trigger_new.id,),
+        (trigger_old.id,),
+    ]
+
+
+@pytest.mark.need_serialized_dag
+def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
+    """
+    Tests that get_sorted_triggers respects max_trigger_to_select_per_loop to prevent
+    starvation in HA setups. When capacity is large, it should limit triggers per loop
+    to avoid one triggerer picking up too many triggers.
+    """
+    # Create 20 callback triggers with different priorities
+    callback_triggers = []
+    for i in range(20):
+        trigger = Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+        callback = TriggererCallback(
+            callback_def=AsyncCallback(f"classpath.callback_{i}"), priority_weight=20 - i
+        )
+        callback.trigger = trigger
+        session.add(callback)
+        callback_triggers.append(trigger)
+
+    # Create 20 task instance triggers with different priorities
+    task_triggers = []
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=logical_date,
+        )
+        session.add(trigger)
+        session.flush()
+        ti = create_task_instance(
+            task_id=f"task_{i}",
+            logical_date=logical_date,
+            run_id=f"run_{i}",
+        )
+        ti.priority_weight = 20 - i
+        ti.trigger_id = trigger.id
+        session.add(ti)
+        task_triggers.append(trigger)
+
+    # Create 20 asset triggers
+    asset_triggers = []
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 13, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.AssetTrigger",
+            kwargs={},
+            created_date=logical_date,
+        )
+        session.add(trigger)
+        session.flush()
+        asset = AssetModel(f"test_asset_{i}")
+        asset.add_trigger(trigger, f"test_asset_watcher_{i}")
+        session.add(asset)
+        asset_triggers.append(trigger)
+
+    session.commit()
+    assert session.query(Trigger).count() == 60
+
+    # Mock max_trigger_to_select_per_loop to 5 for testing
+    with patch.object(Trigger, "max_trigger_to_select_per_loop", 5):
+        # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
+        # and return only 5 triggers from each category (callback, task, asset)
+        trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+
+        # Should get 5 callbacks (max_trigger_to_select_per_loop), then 5 tasks, then 5 assets
+        # Total: 15 triggers instead of all 60
+        assert len(trigger_ids_query) == 15
+
+        # First 5 should be callback triggers (highest priority first)
+        callback_ids = [t.id for t in callback_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[:5]] == callback_ids
+
+        # Next 5 should be task triggers (highest priority first)
+        task_ids = [t.id for t in task_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[5:10]] == task_ids
+
+        # Last 5 should be asset triggers (earliest created_date first)
+        asset_ids = [t.id for t in asset_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[10:15]] == asset_ids
+
+        # Test with capacity smaller than max_trigger_to_select_per_loop
+        # Should respect capacity instead
+        trigger_ids_query = Trigger.get_sorted_triggers(capacity=3, alive_triggerer_ids=[], session=session)
+
+        # Should get only 3 callback triggers (capacity limit)
+        assert len(trigger_ids_query) == 3
+        assert [row[0] for row in trigger_ids_query] == callback_ids[:3]
 
 
 class SensitiveKwargsTrigger(BaseTrigger):

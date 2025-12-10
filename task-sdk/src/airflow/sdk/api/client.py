@@ -39,13 +39,13 @@ from tenacity import (
 )
 from uuid6 import uuid7
 
-from airflow.configuration import conf
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
     AssetEventsResponse,
     AssetResponse,
     ConnectionResponse,
+    DagRun,
     DagRunStateResponse,
     DagRunType,
     HITLDetailRequest,
@@ -74,6 +74,7 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
@@ -289,7 +290,7 @@ class TaskInstanceOperations:
     def get_reschedule_start_date(self, id: uuid.UUID, try_number: int = 1) -> TaskRescheduleStartDate:
         """Get the start date of a task reschedule via the API server."""
         resp = self.client.get(f"task-reschedules/{id}/start_date", params={"try_number": try_number})
-        return TaskRescheduleStartDate.model_construct(start_date=resp.json())
+        return TaskRescheduleStartDate(start_date=resp.json())
 
     def get_count(
         self,
@@ -693,6 +694,11 @@ class DagRunOperations:
         # TODO: Error handling
         return OKResponse(ok=True)
 
+    def get_detail(self, dag_id: str, run_id: str) -> DagRun:
+        """Get detail of a dag run."""
+        resp = self.client.get(f"dag-runs/{dag_id}/{run_id}")
+        return DagRun.model_validate_json(resp.read())
+
     def get_state(self, dag_id: str, run_id: str) -> DagRunStateResponse:
         """Get the state of a Dag run via the API server."""
         resp = self.client.get(f"dag-runs/{dag_id}/{run_id}/state")
@@ -727,13 +733,12 @@ class DagRunOperations:
     ) -> PreviousDagRunResult:
         """Get the previous DAG run before the given logical date, optionally filtered by state."""
         params = {
+            "dag_id": dag_id,
             "logical_date": logical_date.isoformat(),
         }
-
         if state:
             params["state"] = state
-
-        resp = self.client.get(f"dag-runs/{dag_id}/previous", params=params)
+        resp = self.client.get("dag-runs/previous", params=params)
         return PreviousDagRunResult(dag_run=resp.json())
 
 

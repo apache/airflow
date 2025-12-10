@@ -25,6 +25,7 @@
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Collapse all extra json",
   "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
@@ -73,6 +74,9 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -90,6 +94,7 @@
     "back": "Back",
     "defaultMessage": "An unexpected error occurred",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
     "title": "Error"
   },
@@ -99,6 +104,7 @@
     "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
+  "expandAllExtra": "Expand all extra json",
   "expression": {
     "all": "All",
     "and": "AND",
@@ -109,10 +115,13 @@
   "filters": {
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
-    "runAfterTo": "Run After To"
+    "runAfterTo": "Run After To",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Logical Date",
   "logout": "Logout",
@@ -178,6 +187,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",

@@ -30,7 +30,7 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
     option_version_suffix,
 )
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
     TarBallType,
     get_airflow_version,
@@ -332,6 +332,11 @@ def create_tarball_release(
         if not version:
             version = date.strftime(date.today(), "%Y-%m-%d")
             console_print(f"\n[info]Using current date {version} as tarball version\n")
+    elif tarball_type == TarBallType.PYTHON_CLIENT:
+        tag = f"python-client/{version + version_suffix}" if version else "HEAD"
+        if not version:
+            version = date.strftime(date.today(), "%Y-%m-%d")
+            console_print(f"\n[info]Using current date {version} as tarball version\n")
     else:  # pragma: no cover
         console_print(f"[error]Unsupported tarball type: {tarball_type}")
         exit(1)
@@ -451,13 +456,18 @@ def clone_asf_repo(version, repo_root):
         console_print("[success]Cloned ASF repo successfully")
 
 
-def move_artifacts_to_svn(version, task_sdk_version, repo_root):
+def move_artifacts_to_svn(
+    version, version_without_rc, task_sdk_version, task_sdk_version_without_rc, repo_root
+):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
         run_command(["svn", "mkdir", f"{version}"], check=True)
-        run_command(f"mv {repo_root}/dist/*{version}* {version}/", check=True, shell=True)
+        run_command(f"mv {repo_root}/dist/*{version_without_rc}* {version}/", check=True, shell=True)
+        run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"])
         run_command(
-            f"mv {repo_root}/dist/*{task_sdk_version}* task-sdk/{task_sdk_version}/", check=True, shell=True
+            f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/",
+            check=True,
+            shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
         run_command(["ls"])
@@ -465,16 +475,22 @@ def move_artifacts_to_svn(version, task_sdk_version, repo_root):
         run_command([f"ls task-sdk/{task_sdk_version}"])
 
 
-def push_artifacts_to_asf_repo(version, repo_root):
+def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
-        console_print("Files to push to svn:")
+        console_print("Airflow Version Files to push to svn:")
         if not get_dry_run():
             os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
         run_command(["ls"])
         confirm_action("Do you want to continue?", abort=True)
         run_command("svn add *", check=True, shell=True)
+        console_print("Task SDK Version Files to push to svn:")
+        if not get_dry_run():
+            os.chdir(f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}")
+        run_command(["ls"])
+        confirm_action("Do you want to continue?", abort=True)
+        run_command("svn add *", check=True, shell=True)
         run_command(
-            ["svn", "commit", "-m", f"Add artifacts for Airflow {version}"],
+            ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
             check=True,
         )
         console_print("[success]Files pushed to svn")
@@ -597,7 +613,7 @@ def remove_old_releases(version, repo_root):
     os.chdir(repo_root)
 
 
-@release_management.command(
+@release_management_group.command(
     name="prepare-tarball",
     help="Prepare source tarball.",
 )
@@ -632,7 +648,7 @@ def prepare_tarball(
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
@@ -733,9 +749,11 @@ def publish_release_candidate(
     # Clone the asf repo
     clone_asf_repo(version, airflow_repo_root)
     # Move artifacts to SVN
-    move_artifacts_to_svn(version, task_sdk_version, airflow_repo_root)
+    move_artifacts_to_svn(
+        version, version_without_rc, task_sdk_version, task_sdk_version_without_rc, airflow_repo_root
+    )
     # Push the artifacts to the asf repo
-    push_artifacts_to_asf_repo(version, airflow_repo_root)
+    push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
 
     # Remove old releases
     remove_old_releases(version, airflow_repo_root)

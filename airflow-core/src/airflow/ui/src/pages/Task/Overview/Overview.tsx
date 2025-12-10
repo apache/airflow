@@ -96,7 +96,7 @@ export const Overview = () => {
           })}
           route={{
             pathname: "task_instances",
-            search: `${SearchParamsKeys.STATE}=failed`,
+            search: `${SearchParamsKeys.TASK_STATE}=failed`,
           }}
           startDate={startDate}
         />

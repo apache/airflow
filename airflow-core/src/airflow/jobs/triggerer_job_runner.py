@@ -27,6 +27,7 @@ import time
 from collections import deque
 from collections.abc import Generator, Iterable
 from contextlib import suppress
+from datetime import datetime
 from socket import socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
@@ -37,12 +38,15 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
     CommsDecoder,
@@ -72,12 +76,9 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
@@ -743,6 +744,7 @@ class TriggerDetails(TypedDict):
     """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
+    is_watcher: bool
     name: str
     events: int
 
@@ -936,7 +938,7 @@ class TriggerRunner:
             await asyncio.sleep(0)
 
             try:
-                from airflow.serialization.serialized_objects import smart_decode_trigger_kwargs
+                from airflow.serialization.decoders import smart_decode_trigger_kwargs
 
                 # Decrypt and clean trigger kwargs before for execution
                 # Note: We only clean up serialization artifacts (__var, __type keys) here,
@@ -962,7 +964,7 @@ class TriggerRunner:
             )
             self.triggers[trigger_id] = {
                 "task": asyncio.create_task(
-                    self.run_trigger(trigger_id, trigger_instance), name=trigger_name
+                    self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
                 "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
                 "name": trigger_name,
@@ -1097,7 +1099,7 @@ class TriggerRunner:
                 )
                 Stats.incr("triggers.blocked_main_thread")
 
-    async def run_trigger(self, trigger_id, trigger):
+    async def run_trigger(self, trigger_id: int, trigger: BaseTrigger, timeout_after: datetime | None = None):
         """Run a trigger (they are async generators) and push their events into our outbound event deque."""
         if not os.environ.get("AIRFLOW_DISABLE_GREENBACK_PORTAL", "").lower() == "true":
             import greenback
@@ -1118,7 +1120,7 @@ class TriggerRunner:
         except asyncio.CancelledError:
             # We get cancelled by the scheduler changing the task state. But if we do lets give a nice error
             # message about it
-            if timeout := trigger.timeout_after:
+            if timeout := timeout_after:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     await self.log.aerror("Trigger cancelled due to timeout")

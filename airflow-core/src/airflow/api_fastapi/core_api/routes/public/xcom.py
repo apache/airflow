@@ -335,7 +335,7 @@ def update_xcom_entry(
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
         )
 
-    # Update XCom entry (serialize exactly once, consistent with create)
+    # Update XCom entry
     xcom_entry.value = json.dumps(xcom_new_value)
 
     return XComResponseNative.model_validate(xcom_entry)

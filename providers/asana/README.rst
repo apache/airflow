@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-asana``
 
-Release: ``2.10.3``
+Release: ``2.11.0``
 
 
 `Asana <https://asana.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``asana`` provider. All classes for this provider
 are in ``airflow.providers.asana`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-asana/2.10.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-asana/2.11.0/>`_.
 
 Installation
 ------------
@@ -53,7 +53,7 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``asana``                                   ``>=5.0.0``
 ==========================================  ==================
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-asana/2.10.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-asana/2.11.0/changelog.html>`_.

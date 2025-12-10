@@ -51,6 +51,120 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
+19.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat(google): add enable_open_telemetry_tracing to PubSubHook and PubSubPublishMessageOperator (#58766)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix composer sys test (#59200)``
+   * ``Remove global from openlineage provider (#58868)``
+
+19.1.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Create CloudComposerExternalTaskSensor for Cloud Composer service (#57971)``
+* ``Add gcp_conn_id as template field (#58298)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix generate_if for BQ if the run_type=scheduled (#58035)``
+* ``Fix incorrect default docstring for gke_finish_action in GKEStartPodOperator (#58349)``
+* ``Fix Google provider to handle False boolean values in connection extras (#58348)``
+* ``Fix KuberetesPodTriggerer use correct parameter name to read pod logs. (#58489)``
+* ``Fix poll_sleep is ignored in DataflowStartFlexTemplateOperator definition (#58846)``
+* ``Fix race condition in test_execute_wildcard for LocalFilesystemToGCSOperator (#58613)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Fix mypy errors for RayHook (#58843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Update create_airflow_connection helper method for making able to create Connection in Composer environment (#57804)``
+   * ``Ensure blank line before bullet lists (#58760)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+19.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated in google provider scheduled for October 2025 (#56935)``
+
+Features
+~~~~~~~~
+
+* ``issue-58236: Adding gcp_conn_id to template_fields for BigQuery and Dataproc Operators (#58250)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: add required arguments when creating an external table (#58199)``
+* ``Fix MSSQLToGCSOperator MSSQL BIT data type conversion to Parquet boolean (#57514)``
+* ``Small fix for feature_store system test + add output for operator (#57605)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate google provider to 'common.compat' (#57130)``
+* ``Move subprocess utility closer to usage in google beam (#57187)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove tasks which use DirectRunner from Dataflow system tests (#57803)``
+* ``[Doc] Fixing some typos and spelling errors (#57225)``
+* ``Add google provider dataflow pipeline streaming system test (#56265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to google Provider test (triggers) (#57953)``
+   * ``Enable PT006 rule to google Provider test (triggers) (#57950)``
+   * ``Enable PT006 rule to google Provider test (log,openlineage,common,utils) (#57947)``
+   * ``Enable PT006 rule to google Provider test (operators part2)  (#57944)``
+   * ``KubernetesPodTriggerer reads pod logs instead of KubernetesPodOperator (#57531)``
+   * ``modify test_variables (#57945)``
+   * ``Enable PT006 rule to google Provider test (operators part1) (#57943)``
+   * ``Enable PT006 rule to google Provider test （hooks） (#57915)``
+   * ``Add gcp_conn_id parameter to DataprocDiagnoseClusterOperator examples (#57904)``
+   * ``Replace dag.log.info with log.info in system tests in google provider (#57550)``
+   * ``Change the runtime for Google Cloud Function system test (#57623)``
+   * ``Enable ruff PLW1510 rule (#57660)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+   * ``Enable ruff PLW0120 rule (#57456)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Fixing some typos and spelling errors (#57186)``
+
 18.1.0
 ......
 
@@ -1250,7 +1364,8 @@ Bug Fixes
 * ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
 * ``fix respect project_id in CloudBatchSubmitJobOperator (#40560)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Resolve google deprecations in tests (#40629)``
    * ``Resolve google vertex ai deprecations in tests (#40506)``
    * ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
@@ -2430,8 +2545,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
 
 8.6.0
 .....

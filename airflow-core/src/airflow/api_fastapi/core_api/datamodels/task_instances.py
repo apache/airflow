@@ -166,6 +166,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the dag after "
         "clearing the task instances.",
     )
+    prevent_running_task: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -218,3 +219,5 @@ class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
 
     task_id: str
     map_index: int | None = None
+    dag_id: str | None = None
+    dag_run_id: str | None = None

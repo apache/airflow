@@ -26,13 +26,14 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -481,7 +482,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert (
             re.match(
-                r"job-a{71}-[a-z0-9]{8}",
+                r"job-a{50}-[a-z0-9]{8}",
                 job.metadata.name,
             )
             is not None

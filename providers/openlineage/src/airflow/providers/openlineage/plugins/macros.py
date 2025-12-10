@@ -20,7 +20,11 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-from airflow.providers.openlineage.utils.utils import get_job_name, get_root_information_from_dagrun_conf
+from airflow.providers.openlineage.utils.utils import (
+    get_job_name,
+    get_parent_information_from_dagrun_conf,
+    get_root_information_from_dagrun_conf,
+)
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -136,7 +140,13 @@ def lineage_root_job_namespace(task_instance: TaskInstance):
 
 def _get_ol_root_id(id_key: str, task_instance: TaskInstance) -> str | None:
     dr_conf = _get_dag_run_conf(task_instance=task_instance)
+    # Check DagRun conf for root info
     ol_root_info = get_root_information_from_dagrun_conf(dr_conf=dr_conf)
+    if ol_root_info and ol_root_info.get(id_key):
+        return ol_root_info[id_key]
+    # Then check DagRun conf for parent into that is used as root in case explicit root is missing
+    id_key = id_key.replace("root_", "")
+    ol_root_info = get_parent_information_from_dagrun_conf(dr_conf=dr_conf)
     if ol_root_info and ol_root_info.get(id_key):
         return ol_root_info[id_key]
     return None

@@ -20,12 +20,15 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1761117213
+source-date-epoch: 1765299261
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 12.10.0
+  - 12.9.0
+  - 12.8.1
   - 12.8.0
   - 12.7.1
   - 12.7.0
@@ -232,7 +235,7 @@ sensors:
 
 filesystems:
   - airflow.providers.microsoft.azure.fs.adls
-  - airflow.providers.microsoft.azure.fs.msgraphfs
+  - airflow.providers.microsoft.azure.fs.msgraph
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
@@ -293,6 +296,9 @@ triggers:
   - integration-name: Microsoft Power BI
     python-modules:
       - airflow.providers.microsoft.azure.triggers.powerbi
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.message_bus
 
 transfers:
   - source-integration-name: Local

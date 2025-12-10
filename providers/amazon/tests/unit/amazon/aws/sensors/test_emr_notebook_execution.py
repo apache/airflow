@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrNotebookExecutionSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestEmrNotebookExecutionSensor:

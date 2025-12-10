@@ -25,7 +25,6 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -35,6 +34,7 @@ from airflow.providers.amazon.aws.operators.glue import (
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

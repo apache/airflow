@@ -27,7 +27,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
@@ -36,17 +36,19 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContex
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.deadline import Deadline
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
-from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
@@ -562,7 +564,7 @@ class TestDagRun:
         active_spans = ThreadSafeDict()
         dag_run.set_active_spans(active_spans)
 
-        from airflow.traces.tracer import Trace
+        from airflow.observability.trace import Trace
 
         dr_span = Trace.start_root_span(span_name="test_span", start_as_current=False)
 
@@ -1291,6 +1293,60 @@ class TestDagRun:
         assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
+
+    def test_dagrun_success_deadline_prune(self, dag_maker, session):
+        """Ensure only the deadline associated with dagrun marked as success is deleted."""
+        now = timezone.utcnow()
+        future_date = datetime.datetime.now() + datetime.timedelta(days=365)
+        initial_task_states = {
+            "test_state_succeeded1": TaskInstanceState.SUCCESS,
+        }
+
+        with dag_maker(
+            dag_id="dag_1",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="test_state_succeeded1")
+
+        dag_run1 = self.create_dag_run(
+            dag=dag1, session=session, logical_date=now, task_states=initial_task_states
+        )
+
+        with dag_maker(
+            dag_id="dag_2",
+            schedule=datetime.timedelta(days=1),
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.FIXED_DATETIME(future_date),
+                interval=datetime.timedelta(hours=1),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="test_state_succeeded1")
+
+        dag_run2 = self.create_dag_run(
+            dag=dag2, session=session, logical_date=now, task_states=initial_task_states
+        )
+
+        dag_run1_deadline = exists().where(Deadline.dagrun_id == dag_run1.id)
+        dag_run2_deadline = exists().where(Deadline.dagrun_id == dag_run2.id)
+
+        assert session.query(dag_run1_deadline).scalar()
+        assert session.query(dag_run2_deadline).scalar()
+
+        session.add(dag_run1)
+        dag_run1.update_state()
+
+        assert not session.query(dag_run1_deadline).scalar()
+        assert session.query(dag_run2_deadline).scalar()
+        assert dag_run1.state == DagRunState.SUCCESS
+        assert dag_run2.state == DagRunState.RUNNING
 
 
 @pytest.mark.parametrize(
@@ -2936,11 +2992,14 @@ class TestDagRunGetLastTi:
         dr = dag_maker.create_dagrun()
 
         tis = dr.get_task_instances(session=session)
+        assert len(tis) == 3
+
+        ti_by_id = {ti.task_id: ti for ti in tis}
 
         # Mark some TIs as removed
-        tis[0].state = TaskInstanceState.REMOVED
-        tis[1].state = TaskInstanceState.REMOVED
-        tis[2].state = TaskInstanceState.SUCCESS
+        ti_by_id["task1"].state = TaskInstanceState.REMOVED
+        ti_by_id["task2"].state = TaskInstanceState.REMOVED
+        ti_by_id["task3"].state = TaskInstanceState.SUCCESS
         session.commit()
 
         last_ti = dr.get_last_ti(dag, session=session)

@@ -24,7 +24,7 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 

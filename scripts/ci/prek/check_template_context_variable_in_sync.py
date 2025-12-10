@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -90,11 +90,11 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
         and isinstance(stmt.target, ast.Attribute)
         and isinstance(stmt.target.value, ast.Name)
         and stmt.target.value.id == "self"
-        and stmt.target.attr == "_context"
+        and stmt.target.attr == "_cached_template_context"
     )
 
     if not isinstance(context_assignment.value, ast.BoolOp):
-        raise TypeError("Expected a BoolOp like 'self._context or {...}'.")
+        raise TypeError("Expected a BoolOp like 'self._cached_template_context or {...}'.")
 
     context_assignment_op = context_assignment.value
     _, context_assignment_value = context_assignment_op.values

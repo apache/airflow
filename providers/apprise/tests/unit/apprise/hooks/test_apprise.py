@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import apprise
 import pytest
@@ -42,13 +42,9 @@ class TestAppriseHook:
     )
     def test_get_config_from_conn(self, config):
         extra = {"config": config}
-        with patch.object(
-            AppriseHook,
-            "get_connection",
-            return_value=Connection(conn_type="apprise", extra=extra),
-        ):
-            hook = AppriseHook()
-            assert hook.get_config_from_conn() == (json.loads(config) if isinstance(config, str) else config)
+        conn = Connection(conn_type="apprise", extra=extra)
+        hook = AppriseHook()
+        assert hook.get_config_from_conn(conn) == (json.loads(config) if isinstance(config, str) else config)
 
     def test_set_config_from_conn_with_dict(self):
         """
@@ -57,13 +53,9 @@ class TestAppriseHook:
         extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
-        with patch.object(
-            AppriseHook,
-            "get_connection",
-            return_value=Connection(conn_type="apprise", extra=extra),
-        ):
-            hook = AppriseHook()
-            hook.set_config_from_conn(apprise_obj)
+        conn = Connection(conn_type="apprise", extra=extra)
+        hook = AppriseHook()
+        hook.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
 
         apprise_obj.add.assert_called_once_with("http://some_path_that_dont_exist/", tag="alert")
 
@@ -80,13 +72,9 @@ class TestAppriseHook:
 
         apprise_obj = apprise.Apprise()
         apprise_obj.add = MagicMock()
-        with patch.object(
-            AppriseHook,
-            "get_connection",
-            return_value=Connection(conn_type="apprise", extra=extra),
-        ):
-            hook = AppriseHook()
-            hook.set_config_from_conn(apprise_obj)
+        conn = Connection(conn_type="apprise", extra=extra)
+        hook = AppriseHook()
+        hook.set_config_from_conn(conn=conn, apprise_obj=apprise_obj)
 
         apprise_obj.add.assert_has_calls(
             [
@@ -97,7 +85,9 @@ class TestAppriseHook:
 
     @mock.patch(
         "airflow.providers.apprise.hooks.apprise.AppriseHook.get_connection",
-        return_value=Connection(
+    )
+    def test_notify(self, mock_conn):
+        mock_conn.return_value = Connection(
             conn_id="apprise",
             extra={
                 "config": [
@@ -105,9 +95,7 @@ class TestAppriseHook:
                     {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"},
                 ]
             },
-        ),
-    )
-    def test_notify(self, connection):
+        )
         apprise_obj = apprise.Apprise()
         apprise_obj.notify = MagicMock()
         apprise_obj.add = MagicMock()
@@ -116,6 +104,38 @@ class TestAppriseHook:
             hook.notify(body="test")
 
         apprise_obj.notify.assert_called_once_with(
+            body="test",
+            title="",
+            notify_type=NotifyType.INFO,
+            body_format=NotifyFormat.TEXT,
+            tag="all",
+            attach=None,
+            interpret_escapes=None,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.apprise.hooks.apprise.get_async_connection",
+    )
+    async def test_async_notify(self, mock_conn):
+        mock_conn.return_value = Connection(
+            conn_id="apprise",
+            extra={
+                "config": [
+                    {"path": "http://some_path_that_dont_exist/", "tag": "p0"},
+                    {"path": "http://some_other_path_that_dont_exist/", "tag": "p1"},
+                ]
+            },
+        )
+        apprise_obj = apprise.Apprise()
+        apprise_obj.async_notify = AsyncMock()
+        apprise_obj.add = MagicMock()
+        with patch.object(apprise, "Apprise", return_value=apprise_obj):
+            hook = AppriseHook()
+            await hook.async_notify(body="test")
+
+        mock_conn.assert_called()
+        apprise_obj.async_notify.assert_called_once_with(
             body="test",
             title="",
             notify_type=NotifyType.INFO,

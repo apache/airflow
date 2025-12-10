@@ -207,10 +207,16 @@ jinja_contexts = {
     "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
     "quick_start_ctx": {"doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"},
     "official_download_page": {
-        "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",
-        "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}",
-        "airflow_version": PACKAGE_VERSION,
+        "base_url": f"https://downloads.apache.org/airflow/airflow-ctl/{PACKAGE_VERSION}",
+        "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/airflow-ctl/{PACKAGE_VERSION}",
+        "airflowctl_version": PACKAGE_VERSION,
     },
+}
+
+# Use for generate rst_epilog and other post-generation substitutions
+global_substitutions = {
+    "version": PACKAGE_VERSION,
+    "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------

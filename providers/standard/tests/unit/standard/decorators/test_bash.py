@@ -25,8 +25,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
@@ -41,7 +41,9 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     # bad hack but does the job
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
-    from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[assignment]
+    from airflow.utils.types import (  # type: ignore[attr-defined,no-redef]
+        NOTSET as SET_DURING_EXECUTION,  # type: ignore[assignment]
+    )
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
