@@ -29,8 +29,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator, uncompress_file
+from airflow.providers.common.compat.sdk import AirflowException
 
 import tests_common.test_utils.file_loading
 

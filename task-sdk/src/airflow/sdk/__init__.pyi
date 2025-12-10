@@ -34,6 +34,7 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.configuration import AirflowSDKConfigParser
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
     AssetAlias as AssetAlias,
@@ -71,6 +72,8 @@ from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
+
+conf: AirflowSDKConfigParser
 
 __all__ = [
     "__version__",
@@ -120,6 +123,7 @@ __all__ = [
     "task",
     "task_group",
     "teardown",
+    "conf",
 ]
 
 __version__: str

@@ -24,9 +24,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow import XComArg
-from airflow.exceptions import AirflowException
 from airflow.models import SkipMixin
 from airflow.providers.common.compat.sdk import (
+    AirflowException,
     AirflowFailException,
     AirflowSkipException,
     BaseHook,

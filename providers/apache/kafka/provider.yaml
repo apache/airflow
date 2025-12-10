@@ -20,7 +20,7 @@ package-name: apache-airflow-providers-apache-kafka
 name: Apache Kafka
 
 state: ready
-source-date-epoch: 1764109527
+source-date-epoch: 1765298784
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 # Note that those versions are maintained by release manager - do not update them manually
@@ -28,6 +28,7 @@ description: |
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.11.1
   - 1.11.0
   - 1.10.6
   - 1.10.5

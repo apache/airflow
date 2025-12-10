@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-cncf-kubernetes"
-version = "10.11.0"
+version = "10.11.1"
 description = "Provider package apache-airflow-providers-cncf-kubernetes for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.0",
+    "apache-airflow-providers-common-compat>=1.10.1",
     "asgiref>=3.5.2",
     # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
     "cryptography>=41.0.0,<46.0.0",
@@ -73,6 +73,10 @@ dependencies = [
     # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
     # core is not hard-limited via install-requirements, only by extra).
     "kubernetes>=32.0.0,<35.0.0",
+    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
+    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Tracked in https://github.com/kubernetes-client/python/issues/2477
+    "urllib3>=2.1.0,!=2.6.0",
     # the version is limited to the next MAJOR version and should by synced with the kubernetes version
     "kubernetes_asyncio>=32.0.0,<35.0.0",
 ]
@@ -112,8 +116,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes/10.11.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

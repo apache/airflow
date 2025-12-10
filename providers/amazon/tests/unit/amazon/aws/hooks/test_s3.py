@@ -33,7 +33,6 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
@@ -43,6 +42,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import datetime
 
 try:
