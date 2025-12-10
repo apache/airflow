@@ -351,7 +351,7 @@ class AssetManager(LoggingMixin):
         target_dag: SerializedDagModel,
         session: Session,
     ) -> AssetPartitionDagRun:
-        latest_apdr: AssetPartitionDagRun = session.scalar(
+        latest_apdr: AssetPartitionDagRun | None = session.scalar(
             select(AssetPartitionDagRun)
             .where(
                 AssetPartitionDagRun.partition_key == target_key,

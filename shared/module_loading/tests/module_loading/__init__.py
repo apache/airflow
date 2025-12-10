@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,6 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""OpenAPI Specs for Connexion API in Airflow 2.10.x."""
-
-# Note: This module folder is to be removed once Airflow 2.10.x support is removed.

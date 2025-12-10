@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
 
+from airflow._shared.module_loading import import_string
 from airflow.sdk import (  # TODO: Implement serialized assets.
     Asset,
     AssetAlias,
@@ -32,7 +33,6 @@ from airflow.sdk import (  # TODO: Implement serialized assets.
 from airflow.serialization.definitions.assets import SerializedAssetWatcher
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import BaseAsset

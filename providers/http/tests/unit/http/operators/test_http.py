@@ -31,9 +31,9 @@ from aiohttp import BasicAuth
 from requests import Response
 from requests.models import RequestEncodingMixin
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.hooks import base
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type

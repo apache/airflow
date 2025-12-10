@@ -21,9 +21,9 @@ from __future__ import annotations
 import time
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowBadRequest, AirflowException
+from airflow.exceptions import AirflowBadRequest
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout
 
 
 class DataSyncHook(AwsBaseHook):

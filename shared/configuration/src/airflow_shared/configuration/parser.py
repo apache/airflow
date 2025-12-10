@@ -896,6 +896,7 @@ class AirflowConfigParser(ConfigParser):
         section: str,
         issue_warning: bool = True,
         extra_stacklevel: int = 0,
+        team_name: str | None = None,
         **kwargs,
     ) -> str | ValueNotFound:
         """Get config option from default values."""
@@ -1149,7 +1150,7 @@ class AirflowConfigParser(ConfigParser):
 
         try:
             # Import here to avoid circular dependency
-            from airflow.utils.module_loading import import_string
+            from ..module_loading import import_string
 
             return import_string(full_qualified_path)
         except ImportError as e:

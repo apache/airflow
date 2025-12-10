@@ -139,8 +139,8 @@ def validate_and_load_priority_weight_strategy(
 
     :meta private:
     """
+    from airflow._shared.module_loading import qualname
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
-    from airflow.utils.module_loading import qualname
 
     if priority_weight_strategy is None:
         return _AbsolutePriorityWeightStrategy()

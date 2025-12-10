@@ -269,7 +269,7 @@ export type BulkDeleteAction_ConnectionBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | ConnectionBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -281,7 +281,7 @@ export type BulkDeleteAction_PoolBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | PoolBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -293,7 +293,7 @@ export type BulkDeleteAction_VariableBody_ = {
     /**
      * A list of entity id/key or entity objects to be deleted.
      */
-    entities: Array<(string | BulkTaskInstanceBody)>;
+    entities: Array<(string | VariableBody)>;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
 
@@ -331,6 +331,8 @@ export type BulkTaskInstanceBody = {
     include_past?: boolean;
     task_id: string;
     map_index?: number | null;
+    dag_id?: string | null;
+    dag_run_id?: string | null;
 };
 
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
@@ -1594,7 +1596,7 @@ export type VariableBody = {
     key: string;
     value: JsonValue;
     description?: string | null;
-    team_id?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1613,7 +1615,7 @@ export type VariableResponse = {
     value: string;
     description: string | null;
     is_encrypted: boolean;
-    team_id: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2048,7 +2050,6 @@ export type TeamCollectionResponse = {
  * Base serializer for Team.
  */
 export type TeamResponse = {
-    id: string;
     name: string;
 };
 
@@ -3436,7 +3437,7 @@ export type ListTeamsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      */
     orderBy?: Array<(string)>;
 };

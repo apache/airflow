@@ -23,7 +23,6 @@ from unittest import mock
 import pytest
 from boto3.session import Session
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
 from airflow.providers.common.compat.openlineage.facet import (
@@ -33,6 +32,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 

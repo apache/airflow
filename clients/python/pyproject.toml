@@ -51,7 +51,7 @@ classifiers = [
 dependencies = [
     "pydantic >= 2.11.0",
     "python-dateutil",
-    "urllib3 >= 2.1.0",
+    "urllib3>=2.1.0,!=2.6.0",
 ]
 
 [project.urls]
