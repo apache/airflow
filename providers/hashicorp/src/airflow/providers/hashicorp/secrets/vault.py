@@ -226,7 +226,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault secret %s fetched but does not have required key "value"', key)
+            return None
 
     def get_config(self, key: str) -> str | None:
         """
