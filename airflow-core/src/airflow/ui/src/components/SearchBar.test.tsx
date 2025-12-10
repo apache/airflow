@@ -25,7 +25,7 @@ import { SearchBar } from "./SearchBar";
 
 describe("Test SearchBar", () => {
   it("Renders and clear button works", async () => {
-    render(<SearchBar defaultValue="" onChange={vi.fn()} placeHolder="Search Dags" />, {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search Dags" />, {
       wrapper: Wrapper,
     });
 

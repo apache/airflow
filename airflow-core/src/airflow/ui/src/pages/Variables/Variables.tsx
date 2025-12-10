@@ -166,10 +166,9 @@ export const Variables = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={variableKeyPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("variables.searchPlaceholder")}
+          placeholder={translate("variables.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <ImportVariablesButton disabled={selectedRows.size > 0} />
