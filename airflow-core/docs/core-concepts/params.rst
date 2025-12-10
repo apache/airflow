@@ -410,6 +410,9 @@ Disabling Runtime Param Modification
 The ability to update params while triggering a Dag depends on the flag ``core.dag_run_conf_overrides_params``.
 Setting this config to ``False`` will effectively turn your default params into constants.
 
+Pre-populating Trigger Form via URL
+-----------------------------------
+
 To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger/single`` or ``/dags/<dag_name>/trigger/backfill``,
 and add query parameters to the URL.
 
@@ -434,7 +437,7 @@ There are two trigger form URLs available, each supporting a different set of qu
 
   - ``run_backwards`` - if set to true, the backfill is scheduled in reverse order. Defaults to ``false``.
 
-The trigger form now supports two different ways of providing ``conf`` values. The available input methods are summarized in the table below:
+The trigger form supports two different ways of providing ``conf`` values. The available input methods are summarized in the table below:
 
 .. list-table:: ``conf`` parameter usage
    :header-rows: 1
