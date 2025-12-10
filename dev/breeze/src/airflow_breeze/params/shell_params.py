@@ -194,6 +194,7 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
+    target_branch: str = os.environ.get("GITHUB_TARGET_BRANCH", "main")
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
@@ -284,9 +285,16 @@ class ShellParams:
         return image
 
     @cached_property
+    def airflow_base_image_branch(self) -> str:
+        """Return main if airflow_branch is a release branch"""
+        if self.airflow_branch != self.target_branch:
+            return AIRFLOW_BRANCH
+        return self.airflow_branch
+
+    @cached_property
     def airflow_image_name(self) -> str:
         """Construct CI image link"""
-        image = f"{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}"
+        image = f"{self.airflow_base_image_name}/{self.airflow_base_image_branch}/ci/python{self.python}"
         return image
 
     @cached_property
