@@ -690,9 +690,7 @@ class TestDagProcessor:
         # The git-sync container should be present when persistence is enabled
         # (it's the part that runs the sync for everything else), but the
         # git-sync-init container should not be present
-        assert "git-sync" in [
-            c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
-        ]
+        assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])]
         assert "git-sync-init" not in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
