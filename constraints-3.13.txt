@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-10T09:54:40.101694
+# This constraints file was automatically generated on 2025-12-10T21:55:30.022536
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -195,7 +195,7 @@ databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.4.4
-debugpy==1.8.17
+debugpy==1.8.18
 decorator==5.2.1
 defusedxml==0.7.1
 deprecation==2.1.0
@@ -217,7 +217,7 @@ exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.124.0
+fastapi==0.124.2
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -240,7 +240,7 @@ google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.2
 google-auth==2.43.0
-google-cloud-aiplatform==1.129.0
+google-cloud-aiplatform==1.130.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
 google-cloud-audit-log==0.4.0
@@ -309,7 +309,7 @@ httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.2.1
+huggingface_hub==1.2.2
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
