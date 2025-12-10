@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Box, useDisclosure, Heading, Stack } from "@chakra-ui/react";
+import { Box, CloseButton, Dialog, Heading, Stack, Text, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Dialog, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 
 import { capitalize } from "./capitalize";
 import { trimText } from "./trimTextFn";
@@ -70,50 +70,55 @@ export const TrimText = ({
       </Tooltip>
 
       <Dialog.Root onOpenChange={onClose} open={isClickable ? open : undefined} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="xl">{translate("trimText.details")}</Heading>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <Heading size="xl">{translate("trimText.details")}</Heading>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body>
-            <Stack gap={4}>
-              {onClickContent ? (
-                Object.entries(onClickContent).map(([key, value]) => {
-                  const formattedKey = formatKey(key);
-                  const isEmpty = value === "" || value === null;
+            <Dialog.Body>
+              <Stack gap={4}>
+                {onClickContent ? (
+                  Object.entries(onClickContent).map(([key, value]) => {
+                    const formattedKey = formatKey(key);
+                    const isEmpty = value === "" || value === null;
 
-                  return (
-                    <Box key={key}>
-                      <Text fontWeight="bold" mb={2}>
-                        {formattedKey}
-                      </Text>
-                      <Box
-                        bg="bg.subtle"
-                        borderRadius="md"
-                        maxHeight={200}
-                        overflow="auto"
-                        overflowWrap="break-word"
-                        p={4}
-                        whiteSpace="pre-wrap"
-                      >
-                        <Text
-                          color={isEmpty ? "gray.emphasized" : undefined}
-                          fontWeight={isEmpty ? "bold" : "normal"}
-                        >
-                          {isEmpty ? translate("trimText.empty") : String(value)}
+                    return (
+                      <Box key={key}>
+                        <Text fontWeight="bold" mb={2}>
+                          {formattedKey}
                         </Text>
+                        <Box
+                          bg="bg.subtle"
+                          borderRadius="md"
+                          maxHeight={200}
+                          overflow="auto"
+                          overflowWrap="break-word"
+                          p={4}
+                          whiteSpace="pre-wrap"
+                        >
+                          <Text
+                            color={isEmpty ? "gray.emphasized" : undefined}
+                            fontWeight={isEmpty ? "bold" : "normal"}
+                          >
+                            {isEmpty ? translate("trimText.empty") : String(value)}
+                          </Text>
+                        </Box>
                       </Box>
-                    </Box>
-                  );
-                })
-              ) : (
-                <Text>{translate("trimText.noContent")}</Text>
-              )}
-            </Stack>
-          </Dialog.Body>
-        </Dialog.Content>
+                    );
+                  })
+                ) : (
+                  <Text>{translate("trimText.noContent")}</Text>
+                )}
+              </Stack>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, CloseButton, Dialog, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,6 @@ import { useLocalStorage } from "usehooks-ts";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { renderStructuredLog } from "src/components/renderStructuredLog";
-import { Dialog } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
@@ -184,41 +183,46 @@ export const Logs = () => {
         wrap={wrap}
       />
       <Dialog.Root onOpenChange={onOpenChange} open={fullscreen} scrollBehavior="inside" size="full">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack alignItems="flex-start" gap={2}>
-              <Heading size="xl">{taskId}</Heading>
-              <TaskLogHeader
-                downloadLogs={downloadLogs}
-                expanded={expanded}
-                isFullscreen
-                onSelectTryNumber={onSelectTryNumber}
-                showSource={showSource}
-                showTimestamp={showTimestamp}
-                taskInstance={taskInstance}
-                toggleExpanded={toggleExpanded}
-                toggleFullscreen={toggleFullscreen}
-                toggleSource={toggleSource}
-                toggleTimestamp={toggleTimestamp}
-                toggleWrap={toggleWrap}
-                tryNumber={tryNumber}
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <VStack alignItems="flex-start" gap={2}>
+                <Heading size="xl">{taskId}</Heading>
+                <TaskLogHeader
+                  downloadLogs={downloadLogs}
+                  expanded={expanded}
+                  isFullscreen
+                  onSelectTryNumber={onSelectTryNumber}
+                  showSource={showSource}
+                  showTimestamp={showTimestamp}
+                  taskInstance={taskInstance}
+                  toggleExpanded={toggleExpanded}
+                  toggleFullscreen={toggleFullscreen}
+                  toggleSource={toggleSource}
+                  toggleTimestamp={toggleTimestamp}
+                  toggleWrap={toggleWrap}
+                  tryNumber={tryNumber}
+                  wrap={wrap}
+                />
+              </VStack>
+            </Dialog.Header>
+
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
+
+            <Dialog.Body display="flex" flexDirection="column">
+              <TaskLogContent
+                error={error}
+                isLoading={isLoading || isLoadingLogs}
+                logError={logError}
+                parsedLogs={parsedData.parsedLogs ?? []}
                 wrap={wrap}
               />
-            </VStack>
-          </Dialog.Header>
-
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body display="flex" flexDirection="column">
-            <TaskLogContent
-              error={error}
-              isLoading={isLoading || isLoadingLogs}
-              logError={logError}
-              parsedLogs={parsedData.parsedLogs ?? []}
-              wrap={wrap}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </Box>
   );

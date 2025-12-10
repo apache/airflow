@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -25,7 +25,7 @@ import { useParams } from "react-router-dom";
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog, Checkbox } from "src/components/ui";
+import { Button, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
@@ -104,93 +104,98 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              <strong>
-                {translate("dags:runAndTaskActions.clear.title", {
-                  type: translate("taskInstance", { count: affectedTasks.total_entries }),
-                })}
-                :
-              </strong>{" "}
-              {groupId}
-            </Heading>
-          </VStack>
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">
+                <strong>
+                  {translate("dags:runAndTaskActions.clear.title", {
+                    type: translate("taskInstance", { count: affectedTasks.total_entries }),
+                  })}
+                  :
+                </strong>{" "}
+                {groupId}
+              </Heading>
+            </VStack>
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body width="full">
-          <Flex justifyContent="center">
-            <SegmentedControl
-              defaultValues={["downstream"]}
-              multiple
-              onChange={setSelectedOptions}
-              options={[
-                {
-                  label: translate("dags:runAndTaskActions.options.past"),
-                  value: "past",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.future"),
-                  value: "future",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.upstream"),
-                  value: "upstream",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.downstream"),
-                  value: "downstream",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
-                  value: "onlyFailed",
-                },
-              ]}
-            />
-          </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex
-            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
-            mt={3}
-          >
-            {shouldShowBundleVersionOption ? (
-              <Checkbox
-                checked={runOnLatestVersion}
-                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-              >
-                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-              </Checkbox>
-            ) : undefined}
-            <Button
-              colorPalette="brand"
-              disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
-              loading={isPending}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  requestBody: {
-                    dag_run_id: runId,
-                    dry_run: false,
-                    include_downstream: downstream,
-                    include_future: future,
-                    include_past: past,
-                    include_upstream: upstream,
-                    only_failed: onlyFailed,
-                    run_on_latest_version: runOnLatestVersion,
-                    task_ids: groupTaskIds,
+          <Dialog.Body width="full">
+            <Flex justifyContent="center">
+              <SegmentedControl
+                defaultValues={["downstream"]}
+                multiple
+                onChange={setSelectedOptions}
+                options={[
+                  {
+                    label: translate("dags:runAndTaskActions.options.past"),
+                    value: "past",
                   },
-                });
-              }}
+                  {
+                    label: translate("dags:runAndTaskActions.options.future"),
+                    value: "future",
+                  },
+                  {
+                    label: translate("dags:runAndTaskActions.options.upstream"),
+                    value: "upstream",
+                  },
+                  {
+                    label: translate("dags:runAndTaskActions.options.downstream"),
+                    value: "downstream",
+                  },
+                  {
+                    label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                    value: "onlyFailed",
+                  },
+                ]}
+              />
+            </Flex>
+            <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+            <Flex
+              {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+              justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+              mt={3}
             >
-              <CgRedo /> {translate("modal.confirm")}
-            </Button>
-          </Flex>
-        </Dialog.Body>
-      </Dialog.Content>
+              {shouldShowBundleVersionOption ? (
+                <Checkbox
+                  checked={runOnLatestVersion}
+                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                >
+                  {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+                </Checkbox>
+              ) : undefined}
+              <Button
+                colorPalette="brand"
+                disabled={affectedTasks.total_entries === 0 || groupTaskIds.length === 0}
+                loading={isPending}
+                onClick={() => {
+                  mutate({
+                    dagId,
+                    requestBody: {
+                      dag_run_id: runId,
+                      dry_run: false,
+                      include_downstream: downstream,
+                      include_future: future,
+                      include_past: past,
+                      include_upstream: upstream,
+                      only_failed: onlyFailed,
+                      run_on_latest_version: runOnLatestVersion,
+                      task_ids: groupTaskIds,
+                    },
+                  });
+                }}
+              >
+                <CgRedo /> {translate("modal.confirm")}
+              </Button>
+            </Flex>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { CloseButton, Code, Dialog, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Button } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useDeleteConnection } from "src/queries/useDeleteConnection";
 
@@ -51,41 +51,46 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
       />
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">{translate("connections.delete.deleteConnection", { count: 1 })}</Heading>
-            </VStack>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <VStack align="start" gap={4}>
+                <Heading size="xl">{translate("connections.delete.deleteConnection", { count: 1 })}</Heading>
+              </VStack>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body width="full">
-            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
-              {translate("connections.delete.firstConfirmMessage_one")}
-              <br />
-              <Code mb={2} mt={2} p={4}>
-                {connectionId}
-              </Code>
-              <br />
-              {translate("deleteActions.modal.secondConfirmMessage")}
-              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
-            </Text>
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                colorPalette="danger"
-                loading={isPending}
-                onClick={() => {
-                  mutate({
-                    connectionId,
-                  });
-                }}
-              >
-                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body width="full">
+              <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
+                {translate("connections.delete.firstConfirmMessage_one")}
+                <br />
+                <Code mb={2} mt={2} p={4}>
+                  {connectionId}
+                </Code>
+                <br />
+                {translate("deleteActions.modal.secondConfirmMessage")}
+                <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
+              </Text>
+              <Flex justifyContent="end" mt={3}>
+                <Button
+                  colorPalette="danger"
+                  loading={isPending}
+                  onClick={() => {
+                    mutate({
+                      connectionId,
+                    });
+                  }}
+                >
+                  <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
+                </Button>
+              </Flex>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );

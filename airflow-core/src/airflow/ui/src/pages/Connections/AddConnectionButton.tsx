@@ -16,12 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, CloseButton, Dialog, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useAddConnection } from "src/queries/useAddConnection";
 
@@ -56,24 +54,29 @@ const AddConnectionButton = () => {
       />
 
       <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
-        <Dialog.Content backdrop>
-          <Dialog.Header paddingBottom={0}>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">{translate("connections.add")}</Heading>
-            </VStack>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header paddingBottom={0}>
+              <VStack align="start" gap={4}>
+                <Heading size="xl">{translate("connections.add")}</Heading>
+              </VStack>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body>
-            <ConnectionForm
-              error={error}
-              initialConnection={initialConnection}
-              isPending={isPending}
-              mutateConnection={addConnection}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body>
+              <ConnectionForm
+                error={error}
+                initialConnection={initialConnection}
+                isPending={isPending}
+                mutateConnection={addConnection}
+              />
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </Box>
   );

@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { CloseButton, Dialog } from "@chakra-ui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-
-import { Dialog } from "src/components/ui";
 
 import TimezoneSelector from "./TimezoneSelector";
 
@@ -33,13 +32,18 @@ const TimezoneModal: React.FC<TimezoneModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={isOpen} size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("timezoneModal.title")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <TimezoneSelector />
-        </Dialog.Body>
-      </Dialog.Content>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>{translate("timezoneModal.title")}</Dialog.Header>
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
+          <Dialog.Body>
+            <TimezoneSelector />
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

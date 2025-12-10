@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit } from "react-icons/fi";
 
 import type { VariableResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useEditVariable } from "src/queries/useEditVariable";
 
@@ -75,23 +74,28 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="xl">{translate("variables.edit")}</Heading>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <Heading size="xl">{translate("variables.edit")}</Heading>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body>
-            <VariableForm
-              error={error}
-              initialVariable={initialVariableValue}
-              isPending={isPending}
-              manageMutate={editVariable}
-              setError={setError}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body>
+              <VariableForm
+                error={error}
+                initialVariable={initialVariableValue}
+                isPending={isPending}
+                manageMutate={editVariable}
+                setError={setError}
+              />
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );

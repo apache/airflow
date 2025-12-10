@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, HStack, Spacer, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
-import { Dialog } from "src/components/ui";
 
 import { ErrorAlert } from "../ErrorAlert";
 import { WarningAlert } from "../WarningAlert";
@@ -45,31 +44,36 @@ export const DAGWarningsModal: React.FC<ImportDAGErrorModalProps> = ({ error, on
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} scrollBehavior="inside" size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <HStack fontSize="xl">
-            <LuFileWarning />
-            <Heading>{heading}</Heading>
-          </HStack>
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>
+            <HStack fontSize="xl">
+              <LuFileWarning />
+              <Heading>{heading}</Heading>
+            </HStack>
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body>
-          {Boolean(error) && (
-            <VStack>
-              <ErrorAlert error={error} />
-              <Spacer />
-            </VStack>
-          )}
-          {warnings?.map((warning) => (
-            <VStack key={warning.message}>
-              <WarningAlert warning={warning} />
-              <Spacer />
-            </VStack>
-          ))}
-        </Dialog.Body>
-      </Dialog.Content>
+          <Dialog.Body>
+            {Boolean(error) && (
+              <VStack>
+                <ErrorAlert error={error} />
+                <Spacer />
+              </VStack>
+            )}
+            {warnings?.map((warning) => (
+              <VStack key={warning.message}>
+                <WarningAlert warning={warning} />
+                <Spacer />
+              </VStack>
+            ))}
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

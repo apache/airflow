@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Box, Kbd } from "@chakra-ui/react";
+import { Box, Button, Dialog, Kbd } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { MdSearch } from "react-icons/md";
 
-import { Dialog } from "src/components/ui";
 import { getMetaKey } from "src/utils";
 
 import { SearchDags } from "./SearchDags";
@@ -61,9 +60,11 @@ export const SearchDagsButton = () => {
         </Kbd>
       </Button>
       <Dialog.Root onOpenChange={onOpenChange} open={isOpen} size="sm">
-        <Dialog.Content>
-          <SearchDags setIsOpen={setIsOpen} />
-        </Dialog.Content>
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <SearchDags setIsOpen={setIsOpen} />
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </Box>
   );

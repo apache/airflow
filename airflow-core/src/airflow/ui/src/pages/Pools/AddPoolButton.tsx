@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Button, Dialog, Toaster } from "src/components/ui";
+import { Button, Toaster } from "src/components/ui";
 import { useAddPool } from "src/queries/useAddPool";
 
 import PoolForm, { type PoolBody } from "./PoolForm";
@@ -52,23 +52,28 @@ const AddPoolButton = () => {
       </Button>
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <Heading size="xl">{translate("pools.add")}</Heading>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <Heading size="xl">{translate("pools.add")}</Heading>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body>
-            <PoolForm
-              error={error}
-              initialPool={initialPoolValue}
-              isPending={isPending}
-              manageMutate={addPool}
-              setError={setError}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body>
+              <PoolForm
+                error={error}
+                initialPool={initialPoolValue}
+                isPending={isPending}
+                manageMutate={addPool}
+                setError={setError}
+              />
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );

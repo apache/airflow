@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, Text, HStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -24,7 +24,7 @@ import { PiFilePy } from "react-icons/pi";
 
 import type { PluginImportErrorResponse } from "openapi/requests/types.gen";
 import { SearchBar } from "src/components/SearchBar";
-import { Accordion, Dialog } from "src/components/ui";
+import { Accordion } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type PluginImportErrorsModalProps = {
@@ -65,53 +65,58 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
-      <Dialog.Content backdrop p={4}>
-        <Dialog.Header display="flex" justifyContent="space-between">
-          <HStack fontSize="xl">
-            <LuFileWarning />
-            <Heading>{translate("plugins.importError_one")}</Heading>
-          </HStack>
-          <SearchBar
-            defaultValue={searchQuery}
-            onChange={setSearchQuery}
-            placeholder={translate("plugins.searchPlaceholder")}
-          />
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content p={4}>
+          <Dialog.Header display="flex" justifyContent="space-between">
+            <HStack fontSize="xl">
+              <LuFileWarning />
+              <Heading>{translate("plugins.importError_one")}</Heading>
+            </HStack>
+            <SearchBar
+              defaultValue={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={translate("plugins.searchPlaceholder")}
+            />
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body>
-          <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {visibleItems.map((importError) => (
-              <Accordion.Item key={importError.error} value={importError.source}>
-                <Accordion.ItemTrigger cursor="pointer">
-                  <PiFilePy />
-                  {importError.source}
-                </Accordion.ItemTrigger>
-                <Accordion.ItemContent>
-                  <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-                    <code>{importError.error}</code>
-                  </Text>
-                </Accordion.ItemContent>
-              </Accordion.Item>
-            ))}
-          </Accordion.Root>
-        </Dialog.Body>
+          <Dialog.Body>
+            <Accordion.Root collapsible multiple size="md" variant="enclosed">
+              {visibleItems.map((importError) => (
+                <Accordion.Item key={importError.error} value={importError.source}>
+                  <Accordion.ItemTrigger cursor="pointer">
+                    <PiFilePy />
+                    {importError.source}
+                  </Accordion.ItemTrigger>
+                  <Accordion.ItemContent>
+                    <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
+                      <code>{importError.error}</code>
+                    </Text>
+                  </Accordion.ItemContent>
+                </Accordion.Item>
+              ))}
+            </Accordion.Root>
+          </Dialog.Body>
 
-        <Pagination.Root
-          count={filteredErrors.length}
-          onPageChange={(event) => setPage(event.page)}
-          p={4}
-          page={page}
-          pageSize={PAGE_LIMIT}
-        >
-          <HStack>
-            <Pagination.PrevTrigger />
-            <Pagination.Items />
-            <Pagination.NextTrigger />
-          </HStack>
-        </Pagination.Root>
-      </Dialog.Content>
+          <Pagination.Root
+            count={filteredErrors.length}
+            onPageChange={(event) => setPage(event.page)}
+            p={4}
+            page={page}
+            pageSize={PAGE_LIMIT}
+          >
+            <HStack>
+              <Pagination.PrevTrigger />
+              <Pagination.Items />
+              <Pagination.NextTrigger />
+            </HStack>
+          </Pagination.Root>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

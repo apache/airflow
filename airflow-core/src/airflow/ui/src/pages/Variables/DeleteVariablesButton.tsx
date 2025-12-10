@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { CloseButton, Code, Dialog, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button, Dialog } from "src/components/ui";
+import { Button } from "src/components/ui";
 import { useBulkDeleteVariables } from "src/queries/useBulkDeleteVariables";
 
 type Props = {
@@ -49,53 +49,58 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
       </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl">
-                {translate("variables.delete.deleteVariable", {
-                  count: variableKeys.length,
-                })}
-              </Heading>
-            </VStack>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <VStack align="start" gap={4}>
+                <Heading size="xl">
+                  {translate("variables.delete.deleteVariable", {
+                    count: variableKeys.length,
+                  })}
+                </Heading>
+              </VStack>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
-          <Dialog.Body width="full">
-            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
-              {translate("variables.delete.firstConfirmMessage", { count: variableKeys.length })}
-              <br />
-              <Code mb={2} mt={2} p={4}>
-                {variableKeys.join(", ")}
-              </Code>
-              <br />
-              {translate("deleteActions.modal.secondConfirmMessage")}
-              <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
-            </Text>
-            <ErrorAlert error={error} />
-            <Flex justifyContent="end" mt={3}>
-              <Button
-                colorPalette="danger"
-                loading={isPending}
-                onClick={() => {
-                  mutate({
-                    requestBody: {
-                      actions: [
-                        {
-                          action: "delete" as const,
-                          action_on_non_existence: "fail",
-                          entities: variableKeys,
-                        },
-                      ],
-                    },
-                  });
-                }}
-              >
-                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
-              </Button>
-            </Flex>
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
+            <Dialog.Body width="full">
+              <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
+                {translate("variables.delete.firstConfirmMessage", { count: variableKeys.length })}
+                <br />
+                <Code mb={2} mt={2} p={4}>
+                  {variableKeys.join(", ")}
+                </Code>
+                <br />
+                {translate("deleteActions.modal.secondConfirmMessage")}
+                <strong>{translate("deleteActions.modal.thirdConfirmMessage")}</strong>
+              </Text>
+              <ErrorAlert error={error} />
+              <Flex justifyContent="end" mt={3}>
+                <Button
+                  colorPalette="danger"
+                  loading={isPending}
+                  onClick={() => {
+                    mutate({
+                      requestBody: {
+                        actions: [
+                          {
+                            action: "delete" as const,
+                            action_on_non_existence: "fail",
+                            entities: variableKeys,
+                          },
+                        ],
+                      },
+                    });
+                  }}
+                >
+                  <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
+                </Button>
+              </Flex>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -24,7 +24,7 @@ import { CgRedo } from "react-icons/cg";
 import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog, Checkbox } from "src/components/ui";
+import { Button, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
@@ -78,84 +78,89 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              <strong>
-                {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_one") })}:{" "}
-              </strong>{" "}
-              {dagRunId}
-            </Heading>
-          </VStack>
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">
+                <strong>
+                  {translate("dags:runAndTaskActions.clear.title", { type: translate("dagRun_one") })}:{" "}
+                </strong>{" "}
+                {dagRunId}
+              </Heading>
+            </VStack>
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body width="full">
-          <Flex justifyContent="center">
-            <SegmentedControl
-              defaultValues={["existingTasks"]}
-              onChange={setSelectedOptions}
-              options={[
-                {
-                  label: translate("dags:runAndTaskActions.options.existingTasks"),
-                  value: "existingTasks",
-                },
-                {
-                  label: translate("dags:runAndTaskActions.options.onlyFailed"),
-                  value: "onlyFailed",
-                },
-                {
-                  disabled: true,
-                  label: translate("dags:runAndTaskActions.options.queueNew"),
-                  value: "new_tasks",
-                },
-              ]}
-            />
-          </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
-          <Flex
-            {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
-            justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
-            mt={3}
-          >
-            {shouldShowBundleVersionOption ? (
-              <Checkbox
-                checked={runOnLatestVersion}
-                onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-              >
-                {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-              </Checkbox>
-            ) : undefined}
-            <Button
-              colorPalette="brand"
-              disabled={affectedTasks.total_entries === 0}
-              loading={isPending || isPendingPatchDagRun}
-              onClick={() => {
-                mutate({
-                  dagId,
-                  dagRunId,
-                  requestBody: {
-                    dry_run: false,
-                    only_failed: onlyFailed,
-                    run_on_latest_version: runOnLatestVersion,
+          <Dialog.Body width="full">
+            <Flex justifyContent="center">
+              <SegmentedControl
+                defaultValues={["existingTasks"]}
+                onChange={setSelectedOptions}
+                options={[
+                  {
+                    label: translate("dags:runAndTaskActions.options.existingTasks"),
+                    value: "existingTasks",
                   },
-                });
-                if (note !== dagRun.note) {
-                  mutatePatchDagRun({
+                  {
+                    label: translate("dags:runAndTaskActions.options.onlyFailed"),
+                    value: "onlyFailed",
+                  },
+                  {
+                    disabled: true,
+                    label: translate("dags:runAndTaskActions.options.queueNew"),
+                    value: "new_tasks",
+                  },
+                ]}
+              />
+            </Flex>
+            <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
+            <Flex
+              {...(shouldShowBundleVersionOption ? { alignItems: "center" } : {})}
+              justifyContent={shouldShowBundleVersionOption ? "space-between" : "end"}
+              mt={3}
+            >
+              {shouldShowBundleVersionOption ? (
+                <Checkbox
+                  checked={runOnLatestVersion}
+                  onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+                >
+                  {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+                </Checkbox>
+              ) : undefined}
+              <Button
+                colorPalette="brand"
+                disabled={affectedTasks.total_entries === 0}
+                loading={isPending || isPendingPatchDagRun}
+                onClick={() => {
+                  mutate({
                     dagId,
                     dagRunId,
-                    requestBody: { note },
+                    requestBody: {
+                      dry_run: false,
+                      only_failed: onlyFailed,
+                      run_on_latest_version: runOnLatestVersion,
+                    },
                   });
-                }
-              }}
-            >
-              <CgRedo /> {translate("modal.confirm")}
-            </Button>
-          </Flex>
-        </Dialog.Body>
-      </Dialog.Content>
+                  if (note !== dagRun.note) {
+                    mutatePatchDagRun({
+                      dagId,
+                      dagRunId,
+                      requestBody: { note },
+                    });
+                  }
+                }}
+              >
+                <CgRedo /> {translate("modal.confirm")}
+              </Button>
+            </Flex>
+          </Dialog.Body>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

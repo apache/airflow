@@ -17,11 +17,9 @@
  * under the License.
  */
 
-export * from "./Dialog";
 export * from "./Pagination";
 export * from "./Select";
 export * from "./Alert";
-export * from "./CloseButton";
 export * from "./Switch";
 export * from "./Tooltip";
 export * from "./ProgressBar";

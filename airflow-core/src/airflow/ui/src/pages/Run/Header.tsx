@@ -26,7 +26,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import { EditableMarkdownButton } from "src/components/EditableMarkdown";
 import { HeaderCard } from "src/components/HeaderCard";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";

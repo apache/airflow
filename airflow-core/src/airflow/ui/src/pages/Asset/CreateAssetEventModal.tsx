@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Field, Heading, HStack, VStack, Text } from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, Field, Heading, HStack, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -40,7 +40,7 @@ import type {
 } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Dialog, toaster } from "src/components/ui";
+import { toaster } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -166,75 +166,80 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header paddingBottom={0}>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">{translate("createEvent.title", { name: asset.name })}</Heading>
-          </VStack>
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header paddingBottom={0}>
+            <VStack align="start" gap={4}>
+              <Heading size="xl">{translate("createEvent.title", { name: asset.name })}</Heading>
+            </VStack>
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body>
-          <RadioCardRoot
-            mb={6}
-            onChange={(event) => {
-              setEventType((event.target as HTMLInputElement).value);
-            }}
-            value={eventType}
-          >
-            <HStack align="stretch">
-              <RadioCardItem
-                description={
-                  upstreamDagId === undefined
-                    ? translate("createEvent.materialize.description")
-                    : translate("createEvent.materialize.descriptionWithDag", {
-                        dagName: dag?.dag_display_name ?? upstreamDagId,
-                      })
-                }
-                disabled={!hasUpstreamDag}
-                label={translate("createEvent.materialize.label")}
-                value="materialize"
-              />
-              <RadioCardItem
-                description={translate("createEvent.manual.description")}
-                label={translate("createEvent.manual.label")}
-                value="manual"
-              />
-            </HStack>
-          </RadioCardRoot>
-          {eventType === "manual" ? (
-            <>
-              <Field.Root mt={6}>
-                <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
-                <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
-                <Text color="fg.error">{extraError}</Text>
-              </Field.Root>
-              <Field.Root mt={6}>
-                <Field.Label fontSize="md">{translate("dagRun.partitionKey")}</Field.Label>
-                <JsonEditor onChange={setPartitionKey} value={partitionKey} />
-                <Text color="fg.error">{extraError}</Text>
-              </Field.Root>
-            </>
-          ) : undefined}
-          {eventType === "materialize" && dag?.is_paused ? (
-            <Checkbox checked={unpause} colorPalette="brand" onChange={() => setUnpause(!unpause)}>
-              {translate("createEvent.materialize.unpauseDag", { dagName: dag.dag_display_name })}
-            </Checkbox>
-          ) : undefined}
-          <ErrorAlert error={eventType === "manual" ? manualError : materializeError} />
-        </Dialog.Body>
-        <Dialog.Footer>
-          <Button
-            colorPalette="brand"
-            disabled={Boolean(extraError)}
-            loading={isPending || isMaterializePending}
-            onClick={handleSubmit}
-          >
-            <FiPlay /> {translate("createEvent.button")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
+          <Dialog.Body>
+            <RadioCardRoot
+              mb={6}
+              onChange={(event) => {
+                setEventType((event.target as HTMLInputElement).value);
+              }}
+              value={eventType}
+            >
+              <HStack align="stretch">
+                <RadioCardItem
+                  description={
+                    upstreamDagId === undefined
+                      ? translate("createEvent.materialize.description")
+                      : translate("createEvent.materialize.descriptionWithDag", {
+                          dagName: dag?.dag_display_name ?? upstreamDagId,
+                        })
+                  }
+                  disabled={!hasUpstreamDag}
+                  label={translate("createEvent.materialize.label")}
+                  value="materialize"
+                />
+                <RadioCardItem
+                  description={translate("createEvent.manual.description")}
+                  label={translate("createEvent.manual.label")}
+                  value="manual"
+                />
+              </HStack>
+            </RadioCardRoot>
+            {eventType === "manual" ? (
+              <>
+                <Field.Root mt={6}>
+                  <Field.Label fontSize="md">{translate("createEvent.manual.extra")}</Field.Label>
+                  <JsonEditor onChange={validateAndPrettifyJson} value={extra} />
+                  <Text color="fg.error">{extraError}</Text>
+                </Field.Root>
+                <Field.Root mt={6}>
+                  <Field.Label fontSize="md">{translate("dagRun.partitionKey")}</Field.Label>
+                  <JsonEditor onChange={setPartitionKey} value={partitionKey} />
+                  <Text color="fg.error">{extraError}</Text>
+                </Field.Root>
+              </>
+            ) : undefined}
+            {eventType === "materialize" && dag?.is_paused ? (
+              <Checkbox checked={unpause} colorPalette="brand" onChange={() => setUnpause(!unpause)}>
+                {translate("createEvent.materialize.unpauseDag", { dagName: dag.dag_display_name })}
+              </Checkbox>
+            ) : undefined}
+            <ErrorAlert error={eventType === "manual" ? manualError : materializeError} />
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button
+              colorPalette="brand"
+              disabled={Boolean(extraError)}
+              loading={isPending || isMaterializePending}
+              onClick={handleSubmit}
+            >
+              <FiPlay /> {translate("createEvent.button")}
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

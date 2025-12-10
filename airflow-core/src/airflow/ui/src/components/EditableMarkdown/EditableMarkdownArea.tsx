@@ -16,23 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, Editable, Text } from "@chakra-ui/react";
+import { Box, Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 
-import ReactMarkdown from "./ReactMarkdown";
+import ReactMarkdown from "src/components/ReactMarkdown";
 
-const EditableMarkdownArea = ({
-  mdContent,
-  onBlur,
-  placeholder,
-  setMdContent,
-}: {
+type EditableMarkdownAreaProps = {
   readonly mdContent?: string | null;
   readonly onBlur?: () => void;
   readonly placeholder?: string | null;
   readonly setMdContent: (value: string) => void;
-}) => {
+};
+
+export const EditableMarkdownArea = ({
+  mdContent,
+  onBlur,
+  placeholder,
+  setMdContent,
+}: EditableMarkdownAreaProps) => {
   const [currentValue, setCurrentValue] = useState(mdContent ?? "");
   const prevMdContentRef = useRef(mdContent);
 
@@ -81,5 +83,3 @@ const EditableMarkdownArea = ({
     </Box>
   );
 };
-
-export default EditableMarkdownArea;

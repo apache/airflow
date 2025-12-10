@@ -16,10 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type DialogBodyProps, Heading } from "@chakra-ui/react";
+import { Button, CloseButton, Dialog, type DialogBodyProps, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-
-import { Dialog } from "src/components/ui";
 
 type Props = {
   readonly children?: DialogBodyProps["children"];
@@ -34,31 +32,36 @@ export const ConfirmationModal = ({ children, header, onConfirm, onOpenChange, o
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading>{header}</Heading>
-        </Dialog.Header>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>
+            <Heading>{header}</Heading>
+          </Dialog.Header>
 
-        <Dialog.CloseTrigger />
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
 
-        <Dialog.Body>{children}</Dialog.Body>
-        <Dialog.Footer>
-          <Dialog.ActionTrigger asChild>
-            <Button onClick={() => onOpenChange({ open })} variant="outline">
-              {translate("modal.cancel")}
+          <Dialog.Body>{children}</Dialog.Body>
+          <Dialog.Footer>
+            <Dialog.ActionTrigger asChild>
+              <Button onClick={() => onOpenChange({ open })} variant="outline">
+                {translate("modal.cancel")}
+              </Button>
+            </Dialog.ActionTrigger>
+            <Button
+              colorPalette="brand"
+              onClick={() => {
+                onConfirm();
+                onOpenChange({ open });
+              }}
+            >
+              {translate("modal.confirm")}
             </Button>
-          </Dialog.ActionTrigger>
-          <Button
-            colorPalette="brand"
-            onClick={() => {
-              onConfirm();
-              onOpenChange({ open });
-            }}
-          >
-            {translate("modal.confirm")}
-          </Button>
-        </Dialog.Footer>
-      </Dialog.Content>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

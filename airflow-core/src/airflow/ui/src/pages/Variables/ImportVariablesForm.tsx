@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, FileUpload, HStack, Spinner } from "@chakra-ui/react";
+import { CloseButton, Box, Button, Center, FileUpload, HStack, Spinner } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,7 +25,6 @@ import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button, CloseButton } from "src/components/ui";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 

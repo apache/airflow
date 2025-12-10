@@ -25,7 +25,7 @@ import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownButton from "src/components/EditableMarkdownButton";
+import { EditableMarkdownButton } from "src/components/EditableMarkdown";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";

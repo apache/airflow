@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Heading, HStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Button } from "src/components/ui";
 
 type DeleteDialogProps = {
   readonly deleteButtonText?: string;
@@ -48,29 +48,34 @@ const DeleteDialog: React.FC<DeleteDialogProps> = ({
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="md" unmountOnExit>
-      <Dialog.Content backdrop>
-        <Dialog.Header>
-          <Heading size="lg">{title}</Heading>
-        </Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
-          <Text color="fg.error" fontWeight="bold" mt={4}>
-            {warningText}
-          </Text>
-        </Dialog.Body>
-        <Dialog.Footer>
-          <HStack justifyContent="flex-end" width="100%">
-            <Button onClick={onClose} variant="outline">
-              {translate("modal.cancel")}
-            </Button>
-            <Button colorPalette="danger" loading={isDeleting} onClick={onDelete}>
-              <FiTrash2 style={{ marginRight: "8px" }} />{" "}
-              {deleteButtonText ?? translate("modal.delete.button")}
-            </Button>
-          </HStack>
-        </Dialog.Footer>
-      </Dialog.Content>
+      <Dialog.Backdrop />
+      <Dialog.Positioner>
+        <Dialog.Content>
+          <Dialog.Header>
+            <Heading size="lg">{title}</Heading>
+          </Dialog.Header>
+          <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+            <CloseButton size="sm" />
+          </Dialog.CloseTrigger>
+          <Dialog.Body>
+            <Text>{translate("modal.delete.confirmation", { resourceName })}</Text>
+            <Text color="fg.error" fontWeight="bold" mt={4}>
+              {warningText}
+            </Text>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <HStack justifyContent="flex-end" width="100%">
+              <Button onClick={onClose} variant="outline">
+                {translate("modal.cancel")}
+              </Button>
+              <Button colorPalette="danger" loading={isDeleting} onClick={onDelete}>
+                <FiTrash2 style={{ marginRight: "8px" }} />{" "}
+                {deleteButtonText ?? translate("modal.delete.button")}
+              </Button>
+            </HStack>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Positioner>
     </Dialog.Root>
   );
 };

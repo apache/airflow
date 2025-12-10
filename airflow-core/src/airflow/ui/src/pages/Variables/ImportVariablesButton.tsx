@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
+import { CloseButton, Dialog, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiUploadCloud } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Button } from "src/components/ui";
 
 import ImportVariablesForm from "./ImportVariablesForm";
 
@@ -39,19 +39,24 @@ const ImportVariablesButton = ({ disabled }: Props) => {
       </Button>
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={4}>
-              <Heading size="xl"> {translate("variables.import.title")} </Heading>
-            </VStack>
-          </Dialog.Header>
+        <Dialog.Backdrop />
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>
+              <VStack align="start" gap={4}>
+                <Heading size="xl"> {translate("variables.import.title")} </Heading>
+              </VStack>
+            </Dialog.Header>
 
-          <Dialog.CloseTrigger />
+            <Dialog.CloseTrigger asChild position="absolute" right="2" top="2">
+              <CloseButton size="sm" />
+            </Dialog.CloseTrigger>
 
-          <Dialog.Body width="full">
-            <ImportVariablesForm onClose={onClose} />
-          </Dialog.Body>
-        </Dialog.Content>
+            <Dialog.Body width="full">
+              <ImportVariablesForm onClose={onClose} />
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </>
   );
