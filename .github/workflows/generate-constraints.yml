@@ -74,7 +74,7 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "true"
       PYTHON_VERSION: ${{ matrix.python-version }}
       VERBOSE: "true"
-      TARGET_BRANCH: ${{ inputs.branch }}`
+      GITHUB_TARGET_BRANCH: ${{ inputs.branch }}`
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -91,12 +91,11 @@ jobs:
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
-          branch: main
+          branch: ${{ inputs.branch }}
       - name: "Source constraints"
         shell: bash
         run: >
           breeze release-management generate-constraints
-          --target-branch "${TARGET_BRANCH}"
           --airflow-constraints-mode constraints-source-providers --answer yes
           --python "${PYTHON_VERSION}"
       - name: "No providers constraints"
@@ -104,7 +103,6 @@ jobs:
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints
-          --target-branch "${TARGET_BRANCH}"
           --airflow-constraints-mode constraints-no-providers --answer yes
           --python "${PYTHON_VERSION}"
         if: inputs.generate-no-providers-constraints == 'true'
