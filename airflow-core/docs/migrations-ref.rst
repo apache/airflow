@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``b12d4f98a91e`` (head) | ``665854ef0536`` | ``3.1.0``         | Drop ``id`` column from ``team`` table and make ``name`` the |
+| ``b12d4f98a91e`` (head) | ``665854ef0536`` | ``3.2.0``         | Drop ``id`` column from ``team`` table and make ``name`` the |
 |                         |                  |                   | primary key.                                                 |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``665854ef0536``        | ``e812941398f4`` | ``3.2.0``         | Update ORM for asset partitioning.                           |

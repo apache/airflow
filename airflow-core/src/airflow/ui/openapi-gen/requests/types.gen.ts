@@ -331,6 +331,8 @@ export type BulkTaskInstanceBody = {
     include_past?: boolean;
     task_id: string;
     map_index?: number | null;
+    dag_id?: string | null;
+    dag_run_id?: string | null;
 };
 
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
