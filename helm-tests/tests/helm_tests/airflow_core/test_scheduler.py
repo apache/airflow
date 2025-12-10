@@ -20,6 +20,11 @@ import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
+from helm_tests.utils import (
+    _get_enabled_git_sync_test_params,
+    _get_git_sync_test_params_for_no_containers,
+    _test_git_sync_presence,
+)
 
 
 class TestScheduler:
@@ -955,6 +960,45 @@ class TestScheduler:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
         assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_git_sync_test_params_for_no_containers("scheduler", include_enabled_git_sync_and_persistence_case=False),
+    )
+    def test_git_sync_not_added_when_disabled_or_persistent_dags(
+        self, git_sync_values, dags_persistence_enabled
+    ):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/scheduler/scheduler-deployment.yaml",
+            in_init_containers=False,
+            in_containers=False,
+        )
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        [
+            *_get_enabled_git_sync_test_params("scheduler"),
+            # If git sync is enabled, regardless of the persistence setting, both of the containers should
+            # be present for the scheduler.
+            (
+                {"enabled": True, "components": {"scheduler": True}},
+                True,
+            ),
+        ]
+    )
+    def test_git_sync_added_when_enabled(self, git_sync_values, dags_persistence_enabled):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/scheduler/scheduler-deployment.yaml",
+            in_init_containers=True,
+            in_containers=True,
+        )
+
+
 
 
 class TestSchedulerNetworkPolicy:

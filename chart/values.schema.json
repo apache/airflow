@@ -9510,6 +9510,53 @@
                             "type": "boolean",
                             "default": false
                         },
+                        "components": {
+                            "description": "Enable git sync for specific components. The finer control is made available to support designs where git sync may be desired beyond the standard scheduler and dag processor, e.g. to make a custom secret backend work.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "apiServer": {
+                                    "description": "Enable git sync for the API server.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "createUserJob": {
+                                    "description": "Enable git sync for the create user job.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "dagProcessor": {
+                                    "description": "Enable git sync for the dag processor.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "migrateDatabaseJob": {
+                                    "description": "Enable git sync for the migrate database job.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "scheduler": {
+                                    "description": "Enable git sync for the scheduler.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "triggerer": {
+                                    "description": "Enable git sync for the triggerer.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "webserver": {
+                                    "description": "Enable git sync for the webserver.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "workers": {
+                                    "description": "Enable git sync for the workers.",
+                                    "type": "boolean",
+                                    "default": true
+                                }
+                            }
+                        },
                         "repo": {
                             "description": "Git repository.",
                             "type": "string",

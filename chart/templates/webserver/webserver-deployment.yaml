@@ -133,35 +133,10 @@ spec:
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       initContainers:
-        {{- if .Values.webserver.waitForMigrations.enabled }}
-        - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
-          volumeMounts:
-            {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
-            {{- end }}
-            {{- if .Values.webserver.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.webserver.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
-          args: {{- include "wait-for-migrations-command" . | indent 10 }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-            {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values.webserver.waitForMigrations.env }}
-              {{- tpl (toYaml .Values.webserver.waitForMigrations.env) $ | nindent 12 }}
-            {{- end }}
-        {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.webserver (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
+        {{- include "wait_for_airflow_migrations_container" (list . "webserver") | nindent 8 }}
         {{- if .Values.webserver.extraInitContainers }}
           {{- tpl (toYaml .Values.webserver.extraInitContainers) . | nindent 8 }}
         {{- end }}
@@ -191,9 +166,7 @@ spec:
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
-            {{- if and (semverCompare "<2.0.0" .Values.airflowVersion) (or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled) }}
-              {{- include "airflow_dags_mount" . | nindent 12 }}
-            {{- end }}
+            {{- include "airflow_dags_mount" (list . "webserver") | nindent 12 }}
             {{- if .Values.logs.persistence.enabled }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -257,7 +230,7 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.webserver.env) | indent 10 }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.webserver (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraContainers }}
@@ -272,19 +245,8 @@ spec:
           configMap:
             name: {{ template "airflow_webserver_config_configmap_name" . }}
         {{- end }}
-        {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
-        {{- if .Values.dags.persistence.enabled }}
-        - name: dags
-          persistentVolumeClaim:
-            claimName: {{ template "airflow_dags_volume_claim" . }}
-        {{- else if .Values.dags.gitSync.enabled }}
-        - name: dags
-          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
-          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
-        {{- end }}
-        {{- end }}
-        {{- end }}
+        {{- include "airflow_dags_volume" (list . "webserver") | nindent 8 }}
+        {{- include "git_sync_ssh_key_volume" (list . "webserver") | indent 8 }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:

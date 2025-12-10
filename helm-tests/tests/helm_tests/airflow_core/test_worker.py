@@ -20,6 +20,11 @@ import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
+from helm_tests.utils import (
+    _get_enabled_git_sync_test_params,
+    _get_git_sync_test_params_for_no_containers,
+    _test_git_sync_presence,
+)
 
 
 class TestWorker:
@@ -1044,6 +1049,35 @@ class TestWorker:
         assert (
             jmespath.search("spec.volumeClaimTemplates[0].spec.storageClassName", docs[0])
             == "release-name-storage-class"
+        )
+
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_git_sync_test_params_for_no_containers("workers"),
+    )
+    def test_git_sync_not_added_when_disabled_or_persistent_dags(
+        self, git_sync_values, dags_persistence_enabled
+    ):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/workers/worker-deployment.yaml",
+            in_init_containers=False,
+            in_containers=False,
+        )
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_enabled_git_sync_test_params("workers"),
+    )
+    def test_git_sync_added_when_enabled(self, git_sync_values, dags_persistence_enabled):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/workers/worker-deployment.yaml",
+            in_init_containers=True,
+            in_containers=True,
         )
 
 

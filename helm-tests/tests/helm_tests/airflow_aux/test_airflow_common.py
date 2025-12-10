@@ -77,7 +77,18 @@ class TestAirflowCommon:
         ("dag_values", "expected_mount"),
         [
             (
-                {"gitSync": {"enabled": True}},
+                {
+                    "gitSync": {
+                        "enabled": True,
+                        "components": {
+                            "dagProcessor": True,
+                            "scheduler": True,
+                            "triggerer": True,
+                            "workers": True,
+                            "webserver": True,
+                        }
+                    }
+                },
                 {
                     "mountPath": "/opt/airflow/dags",
                     "name": "dags",
@@ -94,7 +105,16 @@ class TestAirflowCommon:
             ),
             (
                 {
-                    "gitSync": {"enabled": True},
+                    "gitSync": {
+                        "enabled": True,
+                        "components": {
+                            "dagProcessor": True,
+                            "scheduler": True,
+                            "triggerer": True,
+                            "workers": True,
+                            "webserver": True,
+                        }
+                    },
                     "persistence": {"enabled": True},
                 },
                 {
@@ -113,7 +133,19 @@ class TestAirflowCommon:
                 },
             ),
             (
-                {"mountPath": "/opt/airflow/dags/custom", "gitSync": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "gitSync": {
+                        "enabled": True,
+                        "components": {
+                            "dagProcessor": True,
+                            "scheduler": True,
+                            "triggerer": True,
+                            "workers": True,
+                            "webserver": True,
+                        }
+                    }
+                },
                 {
                     "mountPath": "/opt/airflow/dags/custom",
                     "name": "dags",
@@ -134,16 +166,18 @@ class TestAirflowCommon:
         docs = render_chart(
             values={
                 "dags": dag_values,
-                "airflowVersion": "1.10.15",
-            },  # airflowVersion is present so webserver gets the mount
+                "dagProcessor": {"enabled": True},
+            },
             show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
             ],
         )
 
-        assert len(docs) == 3
+        assert len(docs) == 5
         for doc in docs:
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 

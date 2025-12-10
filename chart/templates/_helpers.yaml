@@ -217,10 +217,16 @@ If release name contains chart name it will be used as a full name.
 
 {{/*  Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
+{{- $ := index . 0 -}}
+{{- $component := index . 1 -}}
+{{- $gitSync := $.Values.dags.gitSync -}}
+{{- $enabledGitSyncForComponent := index $gitSync.components $component -}}
+{{- if and $gitSync.enabled $enabledGitSyncForComponent (or $gitSync.sshKeySecret $gitSync.sshKey) }}
 - name: git-sync-ssh-key
   secret:
-    secretName: {{ template "git_sync_ssh_key" . }}
+    secretName: {{ template "git_sync_ssh_key" $ }}
     defaultMode: 288
+{{- end }}
 {{- end }}
 
 {{/*  Git sync container */}}
@@ -355,6 +361,46 @@ If release name contains chart name it will be used as a full name.
   lifecycle: {{- tpl (toYaml .Values.dags.gitSync.containerLifecycleHooks) . | nindent 4 }}
   {{- end }}
 {{- end }}
+
+{{/* Container for waiting for Airflow migrations */}}
+{{- define "wait_for_airflow_migrations_container" -}}
+{{- $ := index . 0 -}}
+{{- $component := index . 1 -}}
+{{- $componentValues := index $.Values $component -}}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list $ $componentValues.waitForMigrations) -}}
+{{- if $componentValues.waitForMigrations.enabled }}
+- name: wait-for-airflow-migrations
+  resources: {{- toYaml $componentValues.resources | nindent 4 }}
+  image: {{ template "airflow_image_for_migrations" $ }}
+  imagePullPolicy: {{ $.Values.images.airflow.pullPolicy }}
+  securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 4 }}
+  volumeMounts:
+    - name: logs
+      mountPath: {{ template "airflow_logs" $ }}
+      {{- if $.Values.logs.persistence.subPath }}
+      subPath: {{ $.Values.logs.persistence.subPath }}
+      {{- end }}
+    {{- include "airflow_config_mount" $ | nindent 4 }}
+    {{- include "airflow_dags_mount" (list $ $component) | nindent 4 }}
+    {{- if $.Values.volumeMounts }}
+      {{- toYaml $.Values.volumeMounts | nindent 4 }}
+    {{- end }}
+    {{- if $componentValues.extraVolumeMounts }}
+      {{- tpl (toYaml $componentValues.extraVolumeMounts) $ | nindent 4 }}
+    {{- end }}
+    {{- if or $.Values.webserver.webserverConfig $.Values.webserver.webserverConfigConfigMapName }}
+      {{- include "airflow_webserver_config_mount" $ | nindent 4 }}
+    {{- end }}
+  args: {{- include "wait-for-migrations-command" $ | indent 2 }}
+  envFrom: {{- include "custom_airflow_environment_from" $ | default "\n  []" | indent 2 }}
+  env:
+    {{- include "custom_airflow_environment" $ | indent 4 }}
+    {{- include "standard_airflow_environment" $ | indent 4 }}
+    {{- if $componentValues.waitForMigrations.env }}
+      {{- tpl (toYaml $componentValues.waitForMigrations.env) $ | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end -}}
 
 {{/* This helper will change when customers deploy a new image */}}
 {{- define "airflow_image" -}}
@@ -594,17 +640,43 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{- define "airflow_dags_mount" -}}
+{{- define "airflow_dags_volume" -}}
+{{- $ := index . 0 -}}
+{{- $component := index . 1 -}}
+{{- $gitSync := $.Values.dags.gitSync -}}
+{{- $enabledGitSyncForComponent := index $gitSync.components $component -}}
+{{- if $.Values.dags.persistence.enabled }}
 - name: dags
-  {{- if .Values.dags.mountPath }}
-  mountPath: {{ .Values.dags.mountPath }}
+  persistentVolumeClaim:
+    claimName: {{ template "airflow_dags_volume_claim" $ }}
+{{- else if and $gitSync.enabled $enabledGitSyncForComponent }}
+- name: dags
+  emptyDir: {{- toYaml (default (dict) $gitSync.emptyDirConfig) | nindent 4 }}
+{{- end }}
+{{- end }}
+
+{{- define "airflow_dags_mount" -}}
+{{- $ := index . 0 -}}
+{{- $component := index . 1 -}}
+# TODO: It appears that localMode is not necessary anymore. If this is true, remove its usage from the definition.
+{{- $localMode := false -}}
+{{- if gt (len .) 2 -}}
+  {{- $localMode := index . 2 -}}
+{{- end -}}
+{{- $gitSync := $.Values.dags.gitSync -}}
+{{- $enabledGitSyncForComponent := index $gitSync.components $component -}}
+{{- if or $localMode $.Values.dags.persistence.enabled (and $gitSync.enabled $enabledGitSyncForComponent) }}
+- name: dags
+  {{- if $.Values.dags.mountPath }}
+  mountPath: {{ $.Values.dags.mountPath }}
   {{- else }}
-  mountPath: {{ printf "%s/dags" .Values.airflowHome }}
+  mountPath: {{ printf "%s/dags" $.Values.airflowHome }}
   {{- end }}
-  {{- if .Values.dags.persistence.subPath }}
-  subPath: {{ .Values.dags.persistence.subPath }}
+  {{- if $.Values.dags.persistence.subPath }}
+  subPath: {{ $.Values.dags.persistence.subPath }}
   {{- end }}
-  readOnly: {{ .Values.dags.gitSync.enabled | ternary "True" "False" }}
+  readOnly: {{ $.Values.dags.gitSync.enabled | ternary "True" "False" }}
+{{- end }}
 {{- end }}
 
 {{- define "airflow_config_path" -}}

@@ -21,9 +21,13 @@ from subprocess import CalledProcessError
 import jmespath
 import pytest
 from chart_utils.helm_template_generator import render_chart as _render_chart
+from helm_tests.utils import (
+    _get_enabled_git_sync_test_params,
+    _get_git_sync_test_params_for_no_containers,
+    _test_git_sync_presence,
+)
 
-
-# Everything in here needcs to set airflowVersion to get the API server to render
+# Everything in here needs to set airflowVersion to get the API server to render
 def render_chart(values=None, **kwargs):
     values = values or {}
     values.setdefault("airflowVersion", "3.0.0")
@@ -602,6 +606,36 @@ class TestAPIServerDeployment:
 
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_git_sync_test_params_for_no_containers("apiServer"),
+    )
+    def test_git_sync_not_added_when_disabled_or_persistent_dags(
+        self, git_sync_values, dags_persistence_enabled
+    ):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/api-server/api-server-deployment.yaml",
+            extra_values={"airflowVersion": "3.0.0"},
+            in_init_containers=False,
+            in_containers=False,
+        )
+
+    @pytest.mark.parametrize(
+        ("git_sync_values", "dags_persistence_enabled"),
+        _get_enabled_git_sync_test_params("apiServer"),
+    )
+    def test_git_sync_added_when_enabled(self, git_sync_values, dags_persistence_enabled):
+        _test_git_sync_presence(
+            git_sync_values=git_sync_values,
+            dags_persistence_enabled=dags_persistence_enabled,
+            template_path="templates/api-server/api-server-deployment.yaml",
+            extra_values={"airflowVersion": "3.0.0"},
+            in_init_containers=True,
+            in_containers=True,
+        )
 
     def test_can_be_disabled(self):
         """

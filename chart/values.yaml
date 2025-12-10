@@ -3138,6 +3138,19 @@ dags:
   gitSync:
     enabled: false
 
+    components:
+      # Whether to deploy the git-sync sidecar container in a particular component of Airflow.
+      # The finer control is made available to support designs where git sync may be desired beyond the
+      # standard scheduler and dag processor, e.g. to make a custom secret backend work.
+      apiServer: true
+      createUserJob: true
+      dagProcessor: true
+      migrateDatabaseJob: true
+      scheduler: true
+      triggerer: true
+      webserver: true
+      workers: true
+
     # git repo clone url
     # ssh example: git@github.com:apache/airflow.git
     # https example: https://github.com/apache/airflow.git

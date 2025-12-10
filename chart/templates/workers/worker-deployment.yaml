@@ -162,6 +162,9 @@ spec:
               subPath: {{ .Values.logs.persistence.subPath }}
               {{- end }}
         {{- end }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.workers (not .Values.dags.persistence.enabled) }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+        {{- end }}
         {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosInitContainer.enabled }}
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
@@ -204,40 +207,7 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
-        {{- if .Values.workers.waitForMigrations.enabled }}
-        - name: wait-for-airflow-migrations
-          resources: {{- toYaml .Values.workers.resources | nindent 12 }}
-          image: {{ template "airflow_image_for_migrations" . }}
-          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
-          volumeMounts:
-            - name: logs
-              mountPath: "/opt/airflow/logs"
-              {{- if .Values.logs.persistence.subPath }}
-              subPath: {{ .Values.logs.persistence.subPath }}
-              {{- end }}
-            {{- include "airflow_config_mount" . | nindent 12 }}
-            {{- if .Values.volumeMounts }}
-              {{- toYaml .Values.volumeMounts | nindent 12 }}
-            {{- end }}
-            {{- if .Values.workers.extraVolumeMounts }}
-              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
-            {{- end }}
-            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
-            {{- end }}
-          args: {{- include "wait-for-migrations-command" . | indent 10 }}
-          envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
-          env:
-            {{- include "custom_airflow_environment" . | indent 10 }}
-            {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if .Values.workers.waitForMigrations.env }}
-              {{- tpl (toYaml .Values.workers.waitForMigrations.env) $ | nindent 12 }}
-            {{- end }}
-        {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
-        {{- end }}
+        {{- include "wait_for_airflow_migrations_container" (list . "workers") | nindent 8 }}
         {{- if .Values.workers.extraInitContainers }}
           {{- tpl (toYaml .Values.workers.extraInitContainers) . | nindent 8 }}
         {{- end }}
@@ -304,9 +274,7 @@ spec:
               mountPath: {{ .Values.kerberos.ccacheMountPath | quote }}
               readOnly: true
             {{- end }}
-            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-              {{- include "airflow_dags_mount" . | nindent 12 }}
-            {{- end }}
+            {{- include "airflow_dags_mount" (list . "workers") | nindent 12 }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
             {{- end }}
@@ -324,7 +292,7 @@ spec:
             - name: KRB5CCNAME
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.components.workers (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | nindent 8 }}
         {{- end }}
         {{- if and $persistence .Values.workers.logGroomerSidecar.enabled }}
@@ -443,17 +411,8 @@ spec:
         - name: kerberos-ccache
           emptyDir: {}
         {{- end }}
-        {{- if .Values.dags.persistence.enabled }}
-        - name: dags
-          persistentVolumeClaim:
-            claimName: {{ template "airflow_dags_volume_claim" . }}
-        {{- else if .Values.dags.gitSync.enabled }}
-        - name: dags
-          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
-        {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey}}
-          {{- include "git_sync_ssh_key_volume" . | indent 8 }}
-        {{- end }}
-        {{- end }}
+        {{- include "airflow_dags_volume" (list . "workers") | indent 8 }}
+        {{- include "git_sync_ssh_key_volume" (list . "workers") | indent 8 }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
           persistentVolumeClaim:
