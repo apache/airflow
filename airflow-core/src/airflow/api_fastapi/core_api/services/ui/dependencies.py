@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
 from airflow.models.asset import AssetModel
@@ -92,18 +92,16 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
 
     SEPARATOR = "__SEPARATOR__"
 
-    nodes: list[dict] = []
-    edges: list[dict] = []
-    node_ids: set[str] = set()
+    nodes_dict: dict[str, dict] = {}
     edge_set: set[tuple[str, str]] = set()
 
     # BFS to trace full lineage
-    assets_to_process: list[int] = [asset_id]
+    assets_to_process: deque[int] = deque([asset_id])
     processed_assets: set[int] = set()
     processed_tasks: set[tuple[str, str]] = set()  # (dag_id, task_id)
 
     while assets_to_process:
-        current_asset_id = assets_to_process.pop(0)
+        current_asset_id = assets_to_process.popleft()
         if current_asset_id in processed_assets:
             continue
         processed_assets.add(current_asset_id)
@@ -115,9 +113,8 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
         asset_node_id = f"asset:{current_asset_id}"
 
         # Add asset node
-        if asset_node_id not in node_ids:
-            nodes.append({"id": asset_node_id, "label": asset.name, "type": "asset"})
-            node_ids.add(asset_node_id)
+        if asset_node_id not in nodes_dict:
+            nodes_dict[asset_node_id] = {"id": asset_node_id, "label": asset.name, "type": "asset"}
 
         # Process producing tasks (tasks that output this asset)
         for ref in asset.producing_tasks:
@@ -125,15 +122,11 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
             # Add task node
-            if task_node_id not in node_ids:
-                nodes.append({"id": task_node_id, "label": ref.task_id, "type": "task"})
-                node_ids.add(task_node_id)
+            if task_node_id not in nodes_dict:
+                nodes_dict[task_node_id] = {"id": task_node_id, "label": ref.task_id, "type": "task"}
 
             # Add edge: task → asset
-            edge_key = (task_node_id, asset_node_id)
-            if edge_key not in edge_set:
-                edges.append({"source_id": task_node_id, "target_id": asset_node_id})
-                edge_set.add(edge_key)
+            edge_set.add((task_node_id, asset_node_id))
 
             # Find other assets this task consumes (inlets) to trace upstream
             if task_key not in processed_tasks:
@@ -154,15 +147,11 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
             task_node_id = f"task:{ref.dag_id}{SEPARATOR}{ref.task_id}"
 
             # Add task node
-            if task_node_id not in node_ids:
-                nodes.append({"id": task_node_id, "label": ref.task_id, "type": "task"})
-                node_ids.add(task_node_id)
+            if task_node_id not in nodes_dict:
+                nodes_dict[task_node_id] = {"id": task_node_id, "label": ref.task_id, "type": "task"}
 
             # Add edge: asset → task
-            edge_key = (asset_node_id, task_node_id)
-            if edge_key not in edge_set:
-                edges.append({"source_id": asset_node_id, "target_id": task_node_id})
-                edge_set.add(edge_key)
+            edge_set.add((asset_node_id, task_node_id))
 
             # Find other assets this task produces (outlets) to trace downstream
             if task_key not in processed_tasks:
@@ -177,4 +166,7 @@ def get_data_dependencies(asset_id: int, session: Session) -> dict[str, list[dic
                     if outlet_ref.asset_id not in processed_assets:
                         assets_to_process.append(outlet_ref.asset_id)
 
-    return {"nodes": nodes, "edges": edges}
+    return {
+        "nodes": list(nodes_dict.values()),
+        "edges": [{"source_id": source, "target_id": target} for source, target in edge_set],
+    }
