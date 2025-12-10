@@ -35,53 +35,60 @@ export const PoolBar = ({
   readonly totalSlots: number;
 }) => {
   const { t: translate } = useTranslation("common");
+  const ACTIVE_SLOTS = ["running", "queued", "open"];
 
   return (
     <>
-      {slotConfigs.map(({ color, icon, key }) => {
-        const slotValue = pool[key];
-        const flexValue = slotValue / totalSlots || 0;
+      {slotConfigs
+        .filter((config) => {
+          const slotType = config.key.replace("_slots", "");
 
-        if (flexValue === 0) {
-          return undefined;
-        }
+          return ACTIVE_SLOTS.includes(slotType);
+        })
+        .map(({ color, icon, key }) => {
+          const slotValue = pool[key];
+          const flexValue = slotValue / totalSlots || 0;
 
-        const slotType = key.replace("_slots", "");
-        const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
-        const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
-        const poolContent = (
-          <Tooltip content={tooltipContent} key={key}>
-            <Flex
-              alignItems="center"
-              bg={`${color}.solid`}
-              color={`${color}.contrast`}
-              gap={1}
-              h="100%"
-              justifyContent="center"
-              px={1}
-              textAlign="center"
-              w="100%"
-            >
-              {icon}
-              {slotValue}
-            </Flex>
-          </Tooltip>
-        );
+          if (flexValue === 0) {
+            return undefined;
+          }
 
-        return color !== "success" && "name" in pool ? (
-          <Link asChild display="flex" flex={flexValue} key={key}>
-            <RouterLink
-              to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
-            >
+          const slotType = key.replace("_slots", "");
+          const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
+          const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
+          const poolContent = (
+            <Tooltip content={tooltipContent} key={key}>
+              <Flex
+                alignItems="center"
+                bg={`${color}.solid`}
+                color={`${color}.contrast`}
+                gap={1}
+                h="100%"
+                justifyContent="center"
+                px={1}
+                textAlign="center"
+                w="100%"
+              >
+                {icon}
+                {slotValue}
+              </Flex>
+            </Tooltip>
+          );
+
+          return color !== "success" && "name" in pool ? (
+            <Link asChild display="flex" flex={flexValue} key={key}>
+              <RouterLink
+                to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
+              >
+                {poolContent}
+              </RouterLink>
+            </Link>
+          ) : (
+            <Box display="flex" flex={flexValue} key={key}>
               {poolContent}
-            </RouterLink>
-          </Link>
-        ) : (
-          <Box display="flex" flex={flexValue} key={key}>
-            {poolContent}
-          </Box>
-        );
-      })}
+            </Box>
+          );
+        })}
     </>
   );
 };
