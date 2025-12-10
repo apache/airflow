@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
+import { CloseButton, Input, InputGroup, Kbd, type InputGroupProps } from "@chakra-ui/react";
 import { useState, useRef, type ChangeEvent } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -24,8 +24,6 @@ import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
 import { getMetaKey } from "src/utils";
-
-import { CloseButton } from "./ui";
 
 const debounceDelay = 200;
 
