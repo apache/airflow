@@ -1175,7 +1175,7 @@ def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_bu
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
         """
-        Test that ToSupervisor is a superset of ToTriggerSupervisor and ToTask is a superset of ToTriggerRunner.
+        Test that ToSupervisor is a airflow of ToTriggerSupervisor and ToTask is a airflow of ToTriggerRunner.
 
         This test ensures that when new message types are added to ToSupervisor or ToTask,
         they are also properly handled in ToTriggerSupervisor and ToTriggerSupervisor.

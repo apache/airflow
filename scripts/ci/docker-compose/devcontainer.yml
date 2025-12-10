@@ -22,7 +22,7 @@ services:
     image: ghcr.io/apache/airflow/main/ci/python3.10
     env_file: devcontainer.env
     ports:
-      - "22:22"
+      - "2222:22"
       - "8080:8080"
       - "5555:5555"
       - "6379:6379"

@@ -1737,7 +1737,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
 
-        if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
+        if not set(allowed_schema_update_options).isairflow(set(schema_update_options)):
             raise ValueError(
                 f"{schema_update_options} contains invalid schema update options."
                 f" Please only use one or more of the following options: {allowed_schema_update_options}"

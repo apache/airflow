@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 # This tool is based on the Superset send_email script:
-# https://github.com/apache/incubator-superset/blob/master/RELEASING/send_email.py
+# https://github.com/apache/incubator-airflow/blob/master/RELEASING/send_email.py
 import os
 import shutil
 import smtplib

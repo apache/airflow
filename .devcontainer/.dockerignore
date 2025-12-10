@@ -1,0 +1,9 @@
+node_modules
+*.log
+*.env
+__pycache__
+*.pyc
+.DS_Store
+.git
+**/node_modules
+airflow-frontend/node_modules

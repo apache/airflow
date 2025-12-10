@@ -1692,7 +1692,7 @@ class TestExecuteEmailCallbacks:
 class TestDagProcessingMessageTypes:
     def test_message_types_in_dag_processor(self):
         """
-        Test that ToSupervisor is a superset of ToManager and ToTask is a superset of ToDagProcessor.
+        Test that ToSupervisor is a airflow of ToManager and ToTask is a airflow of ToDagProcessor.
 
         This test ensures that when new message types are added to ToSupervisor or ToTask,
         they are also properly handled in ToManager and ToDagProcessor.

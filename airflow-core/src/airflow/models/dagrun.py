@@ -1886,7 +1886,7 @@ class DagRun(Base, LoggingMixin):
         """
         # Fetch the information we need before handling the exception to avoid
         # PendingRollbackError due to the session being invalidated on exception
-        # see https://github.com/apache/superset/pull/530
+        # see https://github.com/apache/airflow/pull/530
         run_id = self.run_id
         try:
             if hook_is_noop:

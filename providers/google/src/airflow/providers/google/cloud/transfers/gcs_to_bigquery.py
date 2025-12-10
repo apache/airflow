@@ -601,7 +601,7 @@ class GCSToBigQueryOperator(BaseOperator):
         # for more details:
         # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
         allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
-        if not set(allowed_schema_update_options).issuperset(set(self.schema_update_options)):
+        if not set(allowed_schema_update_options).isairflow(set(self.schema_update_options)):
             raise ValueError(
                 f"{self.schema_update_options} contains invalid schema update options. "
                 f"Please only use one or more of the following options: {allowed_schema_update_options}"
