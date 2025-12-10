@@ -20,8 +20,7 @@
 ################################
 ## Airflow Triggerer PodDisruptionBudget
 #################################
-{{- if .Values.triggerer.enabled }}
-{{- if .Values.triggerer.podDisruptionBudget.enabled }}
+{{- if and .Values.triggerer.enabled .Values.triggerer.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
