@@ -50,10 +50,7 @@ from airflow.utils.types import DagRunType
 try:
     from airflow.utils.types import DagRunTriggeredByType
 except Exception:
-    if TYPE_CHECKING:
-        from airflow.utils.types import DagRunTriggeredByType  # type: ignore[no-redef]
-    else:
-        DagRunTriggeredByType = None
+    DagRunTriggeredByType = None  # type: ignore[assignment,misc,unused-ignore]
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
