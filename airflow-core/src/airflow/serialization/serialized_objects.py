@@ -98,6 +98,7 @@ from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.decoders import (
     decode_asset,
     decode_asset_condition,
+    decode_deadline_alert,
     decode_relativedelta,
     decode_timetable,
 )
@@ -105,6 +106,7 @@ from airflow.serialization.definitions.param import SerializedParam, SerializedP
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.encoders import (
     encode_asset_condition,
+    encode_deadline_alert,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
@@ -617,7 +619,7 @@ class BaseSerialization:
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, DeadlineAlert):
-            return cls._encode(DeadlineAlert.serialize_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
+            return cls._encode(encode_deadline_alert(var), type_=DAT.DEADLINE_ALERT)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -828,7 +830,7 @@ class BaseSerialization:
 
             return NOTSET
         elif type_ == DAT.DEADLINE_ALERT:
-            return DeadlineAlert.deserialize_deadline_alert(var)
+            return decode_deadline_alert(var)
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -2397,7 +2399,7 @@ class SerializedDAG(BaseSerialization):
             serialized_dag["task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             serialized_dag["deadline"] = (
-                [deadline.serialize_deadline_alert() for deadline in dag.deadline]
+                [encode_deadline_alert(deadline) for deadline in dag.deadline]
                 if isinstance(dag.deadline, list)
                 else None
             )
@@ -2537,10 +2539,7 @@ class SerializedDAG(BaseSerialization):
 
         if "deadline" in encoded_dag and encoded_dag["deadline"] is not None:
             dag.deadline = (
-                [
-                    DeadlineAlert.deserialize_deadline_alert(deadline_data)
-                    for deadline_data in encoded_dag["deadline"]
-                ]
+                [decode_deadline_alert(deadline_data) for deadline_data in encoded_dag["deadline"]]
                 if encoded_dag["deadline"]
                 else None
             )

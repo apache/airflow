@@ -52,9 +52,20 @@ if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
 
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
+
+
+def encode_deadline_alert(var: DeadlineAlert) -> dict[str, Any]:
+    from airflow.serialization.serde import serialize  # TODO: Do not use this!!
+
+    return {
+        "reference": var.reference.serialize_reference(),
+        "interval": encode_interval(var.interval),
+        "callback": serialize(var.callback),
+    }
 
 
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:

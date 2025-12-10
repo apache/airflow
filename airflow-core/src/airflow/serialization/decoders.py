@@ -19,26 +19,47 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import dateutil.relativedelta
 
 from airflow._shared.module_loading import import_string
+from airflow.models.deadline import ReferenceModels
 from airflow.sdk import (  # TODO: Implement serialized assets.
     Asset,
     AssetAlias,
     AssetAll,
     AssetAny,
 )
+from airflow.sdk.definitions.deadline import DeadlineAlert  # TODO: Implement serialized types.
 from airflow.serialization.definitions.assets import SerializedAssetWatcher
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.callback import Callback
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
+
+
+def decode_deadline_alert(var: dict[str, Any]) -> DeadlineAlert:
+    from airflow.serialization.serde import deserialize  # TODO: Do not use this!!
+
+    data = var.get(Encoding.VAR, var)  # Compat.
+
+    reference_data = data["reference"]
+    reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
+
+    reference_class = ReferenceModels.get_reference_class(reference_type)
+    reference = reference_class.deserialize_reference(reference_data)
+
+    return DeadlineAlert(
+        reference=reference,
+        interval=decode_interval(data["interval"]),
+        callback=cast("Callback", deserialize(data["callback"])),
+    )
 
 
 def decode_relativedelta(var: dict[str, Any]) -> dateutil.relativedelta.relativedelta:
