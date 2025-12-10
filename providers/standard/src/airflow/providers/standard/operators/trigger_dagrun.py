@@ -45,7 +45,13 @@ from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import DagRunType
+
+try:
+    from airflow.utils.types import DagRunTriggeredByType
+except ImportError:
+    DagRunTriggeredByType = None
+
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -310,11 +316,8 @@ class TriggerDagRunOperator(BaseOperator):
             if "replace_microseconds" in params:
                 kwargs["replace_microseconds"] = False
 
-            if "triggered_by" in params:
-                try:
-                    kwargs["triggered_by"] = DagRunTriggeredByType.MANUAL
-                except Exception:
-                    pass
+            if "triggered_by" in params and DagRunTriggeredByType:
+                kwargs["triggered_by"] = DagRunTriggeredByType.MANUAL
 
             dag_run = trigger_dag(**kwargs)
 
