@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
+import { Accordion, HStack, Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
 import { useCallback, useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
 
@@ -24,7 +24,6 @@ import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 
 import ReactMarkdown from "../ReactMarkdown";
-import { Accordion } from "../ui";
 import { Row } from "./Row";
 import { isRequired } from "./isParamRequired";
 
@@ -129,12 +128,17 @@ export const FlexibleForm = ({
             value={currentSection}
           >
             <Accordion.ItemTrigger cursor="button">
-              <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>{currentSection}</Text>
-              {sectionError.get(currentSection) ? (
-                <Icon color="fg.error" margin="-1">
-                  <MdError />
-                </Icon>
-              ) : undefined}
+              <HStack flex="1" gap="4" textAlign="start" width="full">
+                <Text color={sectionError.get(currentSection) ? "fg.error" : undefined}>
+                  {currentSection}
+                </Text>
+                {sectionError.get(currentSection) ? (
+                  <Icon color="fg.error" margin="-1">
+                    <MdError />
+                  </Icon>
+                ) : undefined}
+              </HStack>
+              <Accordion.ItemIndicator />
             </Accordion.ItemTrigger>
 
             <Accordion.ItemContent pt={0}>
@@ -167,14 +171,17 @@ export const FlexibleForm = ({
   ) : isHITL ? (
     <Accordion.Item key={flexibleFormDefaultSection} value={flexibleFormDefaultSection}>
       <Accordion.ItemTrigger cursor="button">
-        <Text color={sectionError.get(flexibleFormDefaultSection) ? "fg.error" : undefined}>
-          {flexibleFormDefaultSection}
-        </Text>
-        {sectionError.get(flexibleFormDefaultSection) ? (
-          <Icon color="fg.error" margin="-1">
-            <MdError />
-          </Icon>
-        ) : undefined}
+        <HStack flex="1" gap="4" textAlign="start" width="full">
+          <Text color={sectionError.get(flexibleFormDefaultSection) ? "fg.error" : undefined}>
+            {flexibleFormDefaultSection}
+          </Text>
+          {sectionError.get(flexibleFormDefaultSection) ? (
+            <Icon color="fg.error" margin="-1">
+              <MdError />
+            </Icon>
+          ) : undefined}
+        </HStack>
+        <Accordion.ItemIndicator />
       </Accordion.ItemTrigger>
 
       <Accordion.ItemContent pt={0}>

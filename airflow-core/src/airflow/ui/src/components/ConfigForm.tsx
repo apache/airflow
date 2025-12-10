@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion, Box, Field } from "@chakra-ui/react";
+import { Accordion, Box, Field, Span } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -95,7 +95,8 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
       />
       <Accordion.Item key="advancedOptions" value="advancedOptions">
         <Accordion.ItemTrigger cursor="button">
-          {translate("configForm.advancedOptions")}
+          <Span flex="1">{translate("configForm.advancedOptions")}</Span>
+          <Accordion.ItemIndicator />
         </Accordion.ItemTrigger>
         <Accordion.ItemContent>
           <Box p={4}>

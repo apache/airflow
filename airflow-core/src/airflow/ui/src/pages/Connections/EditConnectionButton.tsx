@@ -24,7 +24,7 @@ import type { ConnectionResponse } from "openapi/requests/types.gen";
 import ActionButton from "src/components/ui/ActionButton";
 import { useEditConnection } from "src/queries/useEditConnection";
 
-import ConnectionForm from "./ConnectionForm";
+import { ConnectionForm } from "./ConnectionForm";
 import type { ConnectionBody } from "./Connections";
 
 type Props = {

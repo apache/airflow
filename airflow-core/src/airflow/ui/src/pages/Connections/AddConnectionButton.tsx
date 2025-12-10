@@ -23,7 +23,7 @@ import { FiPlusCircle } from "react-icons/fi";
 import ActionButton from "src/components/ui/ActionButton";
 import { useAddConnection } from "src/queries/useAddConnection";
 
-import ConnectionForm from "./ConnectionForm";
+import { ConnectionForm } from "./ConnectionForm";
 import type { ConnectionBody } from "./Connections";
 
 const AddConnectionButton = () => {

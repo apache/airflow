@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Accordion, Box, Heading, HStack, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
 import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Accordion, Alert } from "src/components/ui";
+import { Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
 import { ReactPlugin } from "../ReactPlugin";
@@ -55,15 +55,20 @@ export const Dashboard = () => {
               {alerts.map((alert: UIAlert, index) =>
                 index === 0 ? (
                   <Accordion.ItemTrigger key={alert.text} mb={2}>
-                    <Alert status={alert.category}>
-                      <ReactMarkdown>{alert.text}</ReactMarkdown>
-                    </Alert>
+                    <HStack flex="1" gap="4" textAlign="start" width="full">
+                      <Alert status={alert.category}>
+                        <ReactMarkdown>{alert.text}</ReactMarkdown>
+                      </Alert>
+                    </HStack>
+                    <Accordion.ItemIndicator />
                   </Accordion.ItemTrigger>
                 ) : (
                   <Accordion.ItemContent key={alert.text} pr={8}>
-                    <Alert status={alert.category}>
-                      <ReactMarkdown>{alert.text}</ReactMarkdown>
-                    </Alert>
+                    <Accordion.ItemBody>
+                      <Alert status={alert.category}>
+                        <ReactMarkdown>{alert.text}</ReactMarkdown>
+                      </Alert>
+                    </Accordion.ItemBody>
                   </Accordion.ItemContent>
                 ),
               )}

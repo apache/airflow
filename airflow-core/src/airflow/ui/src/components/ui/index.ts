@@ -24,7 +24,6 @@ export * from "./Switch";
 export * from "./Tooltip";
 export * from "./ProgressBar";
 export * from "./Menu";
-export * from "./Accordion";
 export * from "./Button";
 export * from "./Toaster";
 export * from "./Breadcrumb";

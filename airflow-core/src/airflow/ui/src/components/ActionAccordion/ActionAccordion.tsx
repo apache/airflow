@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Editable, Text, VStack } from "@chakra-ui/react";
+import { Accordion, Box, Editable, Text, Span, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGRunResponse, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import { Accordion } from "src/components/ui";
 
 import { DataTable } from "../DataTable";
 import { getColumns } from "./columns";
@@ -52,58 +51,64 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
       {showTaskSection ? (
         <Accordion.Item key="tasks" value="tasks">
           <Accordion.ItemTrigger>
-            <Text fontWeight="bold">
+            <Span flex="1">
               {translate("dags:runAndTaskActions.affectedTasks.title", {
                 count: affectedTasks.total_entries,
               })}
-            </Text>
+            </Span>
+            <Accordion.ItemIndicator />
           </Accordion.ItemTrigger>
           <Accordion.ItemContent>
-            <Box maxH="400px" overflowY="scroll">
-              <DataTable
-                columns={columns}
-                data={affectedTasks.task_instances}
-                displayMode="table"
-                modelName={translate("common:taskInstance_other")}
-                noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
-                total={affectedTasks.total_entries}
-              />
-            </Box>
+            <Accordion.ItemBody>
+              <Box maxH="400px" overflowY="scroll">
+                <DataTable
+                  columns={columns}
+                  data={affectedTasks.task_instances}
+                  displayMode="table"
+                  modelName={translate("common:taskInstance_other")}
+                  noRowsMessage={translate("dags:runAndTaskActions.affectedTasks.noItemsFound")}
+                  total={affectedTasks.total_entries}
+                />
+              </Box>
+            </Accordion.ItemBody>
           </Accordion.ItemContent>
         </Accordion.Item>
       ) : undefined}
       <Accordion.Item key="note" value="note">
         <Accordion.ItemTrigger>
-          <Text fontWeight="bold">{translate("note.label")}</Text>
+          <Span flex="1">{translate("note.label")}</Span>
+          <Accordion.ItemIndicator />
         </Accordion.ItemTrigger>
         <Accordion.ItemContent>
-          <Editable.Root
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
-            value={note ?? ""}
-          >
-            <Editable.Preview
-              _hover={{ backgroundColor: "transparent" }}
-              alignItems="flex-start"
-              as={VStack}
-              gap="0"
-              height="200px"
-              overflowY="auto"
-              width="100%"
+          <Accordion.ItemBody>
+            <Editable.Root
+              onChange={(event: ChangeEvent<HTMLInputElement>) => setNote(event.target.value)}
+              value={note ?? ""}
             >
-              {Boolean(note) ? (
-                <ReactMarkdown>{note}</ReactMarkdown>
-              ) : (
-                <Text color="fg.subtle">{translate("note.placeholder")}</Text>
-              )}
-            </Editable.Preview>
-            <Editable.Textarea
-              data-testid="notes-input"
-              height="200px"
-              overflowY="auto"
-              placeholder={translate("note.placeholder")}
-              resize="none"
-            />
-          </Editable.Root>
+              <Editable.Preview
+                _hover={{ backgroundColor: "transparent" }}
+                alignItems="flex-start"
+                as={VStack}
+                gap="0"
+                height="200px"
+                overflowY="auto"
+                width="100%"
+              >
+                {Boolean(note) ? (
+                  <ReactMarkdown>{note}</ReactMarkdown>
+                ) : (
+                  <Text color="fg.subtle">{translate("note.placeholder")}</Text>
+                )}
+              </Editable.Preview>
+              <Editable.Textarea
+                data-testid="notes-input"
+                height="200px"
+                overflowY="auto"
+                placeholder={translate("note.placeholder")}
+                resize="none"
+              />
+            </Editable.Root>
+          </Accordion.ItemBody>
         </Accordion.ItemContent>
       </Accordion.Item>
     </Accordion.Root>

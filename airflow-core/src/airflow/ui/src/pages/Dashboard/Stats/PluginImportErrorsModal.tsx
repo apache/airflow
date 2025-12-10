@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
+import { Accordion, CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -24,7 +24,6 @@ import { PiFilePy } from "react-icons/pi";
 
 import type { PluginImportErrorResponse } from "openapi/requests/types.gen";
 import { SearchBar } from "src/components/SearchBar";
-import { Accordion } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type PluginImportErrorsModalProps = {
@@ -89,13 +88,18 @@ export const PluginImportErrorsModal: React.FC<PluginImportErrorsModalProps> = (
               {visibleItems.map((importError) => (
                 <Accordion.Item key={importError.error} value={importError.source}>
                   <Accordion.ItemTrigger cursor="pointer">
-                    <PiFilePy />
-                    {importError.source}
+                    <HStack flex="1" gap="4" textAlign="start" width="full">
+                      <PiFilePy />
+                      {importError.source}
+                    </HStack>
+                    <Accordion.ItemIndicator />
                   </Accordion.ItemTrigger>
                   <Accordion.ItemContent>
-                    <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-                      <code>{importError.error}</code>
-                    </Text>
+                    <Accordion.ItemBody>
+                      <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
+                        <code>{importError.error}</code>
+                      </Text>
+                    </Accordion.ItemBody>
                   </Accordion.ItemContent>
                 </Accordion.Item>
               ))}

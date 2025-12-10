@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
+import { Accordion, CloseButton, Dialog, Heading, HStack, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -25,7 +25,6 @@ import { PiFilePy } from "react-icons/pi";
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
-import { Accordion } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
@@ -90,23 +89,28 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
               {data?.import_errors.map((importError) => (
                 <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                   <Accordion.ItemTrigger cursor="pointer">
-                    <Text display="flex" fontWeight="bold">
-                      {translate("components:versionDetails.bundleName")}
-                      {": "}
-                      {importError.bundle_name}
-                    </Text>
-                    <PiFilePy />
-                    {importError.filename}
+                    <HStack flex="1" gap="4" textAlign="start" width="full">
+                      <Text display="flex" fontWeight="bold">
+                        {translate("components:versionDetails.bundleName")}
+                        {": "}
+                        {importError.bundle_name}
+                      </Text>
+                      <PiFilePy />
+                      {importError.filename}
+                    </HStack>
+                    <Accordion.ItemIndicator />
                   </Accordion.ItemTrigger>
                   <Accordion.ItemContent>
-                    <Text color="fg.muted" fontSize="sm" mb={1}>
-                      {translate("importErrors.timestamp")}
-                      {": "}
-                      <Time datetime={importError.timestamp} />
-                    </Text>
-                    <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
-                      <code>{importError.stack_trace}</code>
-                    </Text>
+                    <Accordion.ItemBody>
+                      <Text color="fg.muted" fontSize="sm" mb={1}>
+                        {translate("importErrors.timestamp")}
+                        {": "}
+                        <Time datetime={importError.timestamp} />
+                      </Text>
+                      <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
+                        <code>{importError.stack_trace}</code>
+                      </Text>
+                    </Accordion.ItemBody>
                   </Accordion.ItemContent>
                 </Accordion.Item>
               ))}
