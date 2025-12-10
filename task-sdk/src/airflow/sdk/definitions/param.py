@@ -45,6 +45,22 @@ class Param:
     :param description: Optional help text for the Param
     :param schema: The validation schema of the Param, if not given then all kwargs except
         default & description will form the schema
+    :param config_source: Optional dictionary specifying an external configuration file
+        to load enum options from. Should contain:
+        - file: Path to the configuration file (INI, JSON, or YAML)
+        - filter: Optional dict of key-value pairs to filter items
+        - key_field: Field name to use as option value (default: "section" for INI, "name" for JSON/YAML)
+
+        Example::
+
+            Param(
+                default=None,
+                config_source={
+                    "file": "config/interfaces.ini",
+                    "filter": {"TYPE": "Script"},
+                    "key_field": "section",
+                },
+            )
     """
 
     __version__: ClassVar[int] = 1
@@ -56,6 +72,7 @@ class Param:
         default: Any = NOTSET,
         description: str | None = None,
         source: Literal["dag", "task"] | None = None,
+        config_source: dict[str, Any] | None = None,
         **kwargs,
     ):
         if default is not NOTSET:
@@ -64,6 +81,20 @@ class Param:
         self.description = description
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
         self.source = source
+        self.config_source = config_source
+
+        # If config_source is provided, load options and add to schema as enum
+        if config_source:
+            try:
+                options = self._load_options_from_config(config_source)
+                if options:
+                    self.schema["enum"] = options
+            except Exception as e:
+                logger.warning(
+                    "Failed to load options from config_source: %s. "
+                    "Parameter will be treated as a regular string field.",
+                    e,
+                )
 
     def __copy__(self) -> Param:
         return Param(
@@ -71,6 +102,53 @@ class Param:
             self.description,
             schema=self.schema,
             source=self.source,
+            config_source=self.config_source,
+        )
+
+    def _load_options_from_config(self, config_source: dict[str, Any]) -> list[str]:
+        """
+        Load dropdown options from an external configuration file.
+
+        :param config_source: Dictionary containing configuration for loading options.
+            Must include 'file' key with path to config file.
+            Optional keys: 'filter' (dict), 'key_field' (str)
+        :return: List of option values loaded from the configuration file
+        :raises FileNotFoundError: If the configuration file is not found
+        :raises ValueError: If config_source is invalid or file format is unsupported
+        """
+        # Import here to avoid circular dependencies and to allow task-sdk to be independent
+        try:
+            from airflow.utils.param_config_loader import (
+                load_options_from_ini,
+                load_options_from_json,
+                load_options_from_yaml,
+            )
+        except ImportError:
+            logger.warning(
+                "Could not import config loaders. Make sure airflow-core is installed. "
+                "Falling back to empty options."
+            )
+            return []
+
+        file_path = config_source.get("file")
+        if not file_path:
+            raise ValueError("config_source must include 'file' key with path to configuration file")
+
+        filter_conditions = config_source.get("filter")
+        key_field = config_source.get("key_field")
+
+        # Detect file type and use appropriate loader
+        if file_path.endswith(".ini"):
+            key_field = key_field or "section"
+            return load_options_from_ini(file_path, filter_conditions, key_field)
+        if file_path.endswith(".json"):
+            key_field = key_field or "name"
+            return load_options_from_json(file_path, filter_conditions, key_field)
+        if file_path.endswith((".yaml", ".yml")):
+            key_field = key_field or "name"
+            return load_options_from_yaml(file_path, filter_conditions, key_field)
+        raise ValueError(
+            f"Unsupported config file type: {file_path}. Supported types are: .ini, .json, .yaml, .yml"
         )
 
     @staticmethod
@@ -136,6 +214,7 @@ class Param:
             "description": self.description,
             "schema": self.schema,
             "source": self.source,
+            "config_source": self.config_source,
         }
 
     @staticmethod
@@ -148,6 +227,7 @@ class Param:
             description=data["description"],
             schema=data["schema"],
             source=data.get("source", None),
+            config_source=data.get("config_source", None),
         )
 
 
