@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -78,7 +79,6 @@ from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffer
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:

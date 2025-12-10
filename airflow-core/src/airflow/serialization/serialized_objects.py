@@ -56,6 +56,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from sqlalchemy import func, or_, select, tuple_
 
 from airflow import macros
+from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.timezones.timezone import coerce_datetime, from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf as airflow_conf
@@ -129,7 +130,6 @@ from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
