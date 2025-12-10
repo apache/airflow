@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.exc import OperationalError
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.types import TypeEngine
