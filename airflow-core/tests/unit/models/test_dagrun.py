@@ -2991,11 +2991,14 @@ class TestDagRunGetLastTi:
         dr = dag_maker.create_dagrun()
 
         tis = dr.get_task_instances(session=session)
+        assert len(tis) == 3
+
+        ti_by_id = {ti.task_id: ti for ti in tis}
 
         # Mark some TIs as removed
-        tis[0].state = TaskInstanceState.REMOVED
-        tis[1].state = TaskInstanceState.REMOVED
-        tis[2].state = TaskInstanceState.SUCCESS
+        ti_by_id["task1"].state = TaskInstanceState.REMOVED
+        ti_by_id["task2"].state = TaskInstanceState.REMOVED
+        ti_by_id["task3"].state = TaskInstanceState.SUCCESS
         session.commit()
 
         last_ti = dr.get_last_ti(dag, session=session)
