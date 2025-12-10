@@ -31,8 +31,8 @@ from sqlalchemy.orm import Session
 from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
-from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
+from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes
@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink, Context
+    from airflow.sdk.definitions._internal.node import DAGNode as TaskSDKDAGNode
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.task.trigger_rule import TriggerRule
@@ -503,7 +504,7 @@ class MappedOperator(DAGNode):
 
 
 @functools.singledispatch
-def get_mapped_ti_count(task: DAGNode, run_id: str, *, session: Session) -> int:
+def get_mapped_ti_count(task: DAGNode | TaskSDKDAGNode, run_id: str, *, session: Session) -> int:
     raise NotImplementedError(f"Not implemented for {type(task)}")
 
 
