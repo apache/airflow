@@ -1029,27 +1029,22 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.need_serialized_dag
 def test_task_decorator_asset(dag_maker, session):
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.asset import AssetActive, AssetModel
-        from airflow.sdk.definitions.asset import Asset
-    else:
-        from airflow.datasets import Dataset as Asset
-        from airflow.models.dataset import DatasetModel as AssetModel
-
     result = None
     uri = "s3://bucket/name"
     asset_name = "test_asset"
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import Asset
+
         asset = Asset(uri=uri, name=asset_name)
     else:
-        asset = Asset(uri)
-    session.add(AssetModel.from_public(asset))
-    if AIRFLOW_V_3_0_PLUS:
-        session.add(AssetActive.for_asset(asset))
+        from airflow.datasets import Dataset as Asset
 
-    with dag_maker(session=session, serialized=True) as dag:
+        asset = Asset(uri)
+
+    with dag_maker(session=session) as dag:
 
         @dag.task()
         def up1() -> Asset:
