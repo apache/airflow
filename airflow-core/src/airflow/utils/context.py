@@ -84,6 +84,12 @@ class VariableAccessor(VariableAccessorSDK):
     """Wrapper to access Variable values in template."""
 
     def __getattr__(self, key: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger variable lookups.
+        if key.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
+
         from airflow.models.variable import Variable
 
         return Variable.get(key, deserialize_json=self._deserialize_json)
@@ -100,6 +106,12 @@ class ConnectionAccessor(ConnectionAccessorSDK):
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger connection lookups.
+        if conn_id.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{conn_id}'")
+
         from airflow.models.connection import Connection
 
         return Connection.get_connection_from_secrets(conn_id)
