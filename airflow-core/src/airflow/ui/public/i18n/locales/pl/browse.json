@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
-      "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON"
-    },
     "columns": {
       "event": "Zdarzenie",
       "extra": "Dodatkowe",

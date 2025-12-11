@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 
 import structlog
 
+from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -34,7 +35,6 @@ from airflow.executors.executor_constants import (
 )
 from airflow.executors.executor_utils import ExecutorName
 from airflow.models.team import Team
-from airflow.utils.module_loading import import_string
 
 log = structlog.get_logger(__name__)
 

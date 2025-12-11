@@ -55,8 +55,8 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
-from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -449,7 +449,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
