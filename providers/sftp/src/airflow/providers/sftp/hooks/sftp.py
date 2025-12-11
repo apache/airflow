@@ -797,7 +797,7 @@ class SFTPHookAsync(BaseHook):
     async def list_directory(self, path: str) -> list[str] | None:
         """Return a list of files on the SFTP server at the provided path."""
         files = await self.read_directory(path)
-        return [str(file.filename) for file in files] if files else []
+        return [str(file.filename) for file in files] if files is not None else None
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         async def walk(dir_path: str) -> list[asyncssh.sftp.SFTPName]:
