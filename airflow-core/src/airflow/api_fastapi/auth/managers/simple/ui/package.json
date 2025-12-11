@@ -13,7 +13,7 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../openapi/v2-simple-auth-manager-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i \"../openapi/v2-simple-auth-manager-generated.yaml\" -c @hey-api/client-axios --format prettier -o openapi-gen",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
