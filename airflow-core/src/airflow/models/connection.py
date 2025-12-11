@@ -468,24 +468,11 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 extra = json.loads(self.extra)
-
-                # If "nested" is True, we want to parse string values as JSON
-                # This was the existing behavior, but we're extending it to
-                # always try to parse if the value looks like JSON, which helps
-                # with URI-provided extras which are often just strings.
-
-                # We iterate over a copy of items to avoid modification issues if needed,
-                # though here we are rewriting the dict keys.
                 for key, value in extra.items():
                     if isinstance(value, str):
                         try:
-                            # Try to parse the string value as JSON
-                            # This handles "true" -> True, "123" -> 123, etc.
                             extra[key] = json.loads(value)
                         except (JSONDecodeError, TypeError):
-                            # usage of nested=True is to allow the user to
-                            # specify that they want to parse nested JSON
-                            # so if it fails, we leave it as is
                             pass
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
