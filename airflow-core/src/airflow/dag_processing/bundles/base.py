@@ -32,8 +32,8 @@ from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import pendulum
 from pendulum.parsing import ParserError
-from sqlalchemy_utils.types.enriched_datetime.pendulum_datetime import pendulum
 
 from airflow.configuration import conf
 
@@ -98,7 +98,8 @@ class BundleUsageTrackingManager:
 
     def _parse_dt(self, val) -> DateTime | None:
         try:
-            return pendulum.parse(val)
+            dt = pendulum.parse(val)
+            return dt if isinstance(dt, pendulum.DateTime) else None
         except ParserError:
             return None
 

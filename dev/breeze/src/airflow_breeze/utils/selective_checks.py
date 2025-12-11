@@ -869,6 +869,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    def run_ui_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
