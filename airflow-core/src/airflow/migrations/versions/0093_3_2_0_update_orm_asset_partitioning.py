@@ -76,14 +76,14 @@ def upgrade():
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("partition_key", StringID(), nullable=True))
-    if op.get_bind().dialect.name == "sqlite":
-        # This table is only needed in sqlite and used as mutex lock for asset_partition_dag_run.
-        op.create_table(
-            "asset_partition_dag_run_mutex_lock",
-            sa.Column("target_dag_id", StringID(), nullable=False),
-            sa.Column("partition_key", StringID(), nullable=False),
-            sa.PrimaryKeyConstraint("target_dag_id", "partition_key", name="apdr_mutex_lock_pkey"),
-        )
+
+    # This table is only needed in sqlite and used as mutex lock for asset_partition_dag_run.
+    op.create_table(
+        "asset_partition_dag_run_mutex_lock",
+        sa.Column("target_dag_id", StringID(), nullable=False),
+        sa.Column("partition_key", StringID(), nullable=False),
+        sa.PrimaryKeyConstraint("target_dag_id", "partition_key", name="apdr_mutex_lock_pkey"),
+    )
 
 
 def downgrade():
@@ -97,5 +97,4 @@ def downgrade():
     op.drop_table("partitioned_asset_key_log")
     op.drop_table("asset_partition_dag_run")
 
-    if op.get_bind().dialect.name == "sqlite":
-        op.drop_table("asset_partition_dag_run_mutex_lock", if_exists=True)
+    op.drop_table("asset_partition_dag_run_mutex_lock")
