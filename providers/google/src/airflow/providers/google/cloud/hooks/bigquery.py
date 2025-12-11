@@ -1990,18 +1990,19 @@ def _format_schema_for_description(schema: dict) -> list:
     internal_size, precision, scale, null_ok.
     """
     description = []
-    for field in schema["fields"]:
-        mode = field.get("mode", "NULLABLE")
-        field_description = (
-            field["name"],
-            field["type"],
-            None,
-            None,
-            None,
-            None,
-            mode == "NULLABLE",
-        )
-        description.append(field_description)
+    if "fields" in schema:
+        for field in schema["fields"]:
+            mode = field.get("mode", "NULLABLE")
+            field_description = (
+                field["name"],
+                field["type"],
+                None,
+                None,
+                None,
+                None,
+                mode == "NULLABLE",
+            )
+            description.append(field_description)
     return description
 
 
