@@ -842,6 +842,15 @@ logging:
       type: string
       example: ~
       default: "WARNING"
+    uvicorn_logging_level:
+      description: |
+        Logging level for uvicorn (API server and serve-logs).
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "INFO"
     logging_config_class:
       description: |
         Logging class

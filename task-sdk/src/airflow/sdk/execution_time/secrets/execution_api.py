@@ -88,11 +88,13 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # to allow fallback to other backends
             return None
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Return variable value by routing through SUPERVISOR_COMMS.
 
         :param key: Variable key
+        :param team_id: ID of the team associated to the task trying to access the variable.
+            Unused here because the team ID is inferred from the task ID provided in the execution API JWT token.
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
