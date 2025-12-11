@@ -842,6 +842,15 @@ logging:
       type: string
       example: ~
       default: "WARNING"
+    uvicorn_logging_level:
+      description: |
+        Logging level for uvicorn (API server and serve-logs).
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "INFO"
     logging_config_class:
       description: |
         Logging class
@@ -1359,6 +1368,66 @@ api:
       type: string
       example: ~
       default:
+    theme:
+      description: |
+        JSON config to customize the Chakra UI theme.
+        Currently only supports ``brand`` color customization.
+
+        Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+        For usage see :ref:`customizing-ui-theme`
+
+        .. important::
+          ``oklch(l c h)`` must follow next format:
+
+          - l (lightness) : ``float`` Must be between 0 and 1
+          - c (chroma) : ``float`` Must be between 0 and 0.5
+          - h (hue) : ``float`` Must be between 0 and 360
+
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+      version_added: ~
+      type: string
+      example: >
+        {
+              "tokens": {
+                "colors": {
+                  "brand": {
+                    "50": { "value": "oklch(0.971 0.013 17.38)" },
+                    "100": { "value": "oklch(0.936 0.032 17.717)" },
+                    "200": { "value": "oklch(0.885 0.062 18.334)" },
+                    "300": { "value": "oklch(0.808 0.114 19.571)" },
+                    "400": { "value": "oklch(0.704 0.191 22.216)" },
+                    "500": { "value": "oklch(0.637 0.237 25.331)" },
+                    "600": { "value": "oklch(0.577 0.245 27.325)" },
+                    "700": { "value": "oklch(0.505 0.213 27.518)" },
+                    "800": { "value": "oklch(0.444 0.177 26.899)" },
+                    "900": { "value": "oklch(0.396 0.141 25.723)" },
+                    "950": { "value": "oklch(0.258 0.092 26.042)" }
+                  }
+                }
+              }
+            }
+      default: >
+        {{
+              "tokens": {{
+                "colors": {{
+                  "brand": {{
+                    "50": {{ "value": "oklch(0.98 0.006 248.717)" }},
+                    "100": {{ "value": "oklch(0.962 0.012 249.460)" }},
+                    "200": {{ "value": "oklch(0.923 0.023 255.082)" }},
+                    "300": {{ "value": "oklch(0.865 0.039 252.420)" }},
+                    "400": {{ "value": "oklch(0.705 0.066 256.378)" }},
+                    "500": {{ "value": "oklch(0.575 0.08 257.759)" }},
+                    "600": {{ "value": "oklch(0.469 0.084 257.657)" }},
+                    "700": {{ "value": "oklch(0.399 0.084 257.850)" }},
+                    "800": {{ "value": "oklch(0.324 0.072 260.329)" }},
+                    "900": {{ "value": "oklch(0.259 0.062 265.566)" }},
+                    "950": {{ "value": "oklch(0.179 0.05 265.487)" }}
+                  }}
+                }}
+              }}
+            }}
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.

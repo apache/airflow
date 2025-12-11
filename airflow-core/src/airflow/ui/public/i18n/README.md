@@ -66,7 +66,7 @@ communicating in the dev list or merging Pull Requests on their behalf).
 **Inactive owner** — Either a translation owner or a code owner might be considered inactive if they meet any of
 the following criteria:
 
-- The locale under their responsibility has remained incomplete for at least 2 consecutive releases.
+- The locale under their responsibility has remained incomplete for at least 2 consecutive major/minor releases.
 - They have not contributed to Apache Airflow for more than 12 months.
 - Code owners specifically might be considered inactive according to any other terms mentioned in the
   ["Committers and PMC Members"](../../../../../../COMMITTERS.rst#inactive-committers) document.
@@ -366,11 +366,11 @@ breeze ui check-translation-completeness --verbose --all-files
 
 ## 11. Freeze time
 
-Few weeks before a minor or major release, a freeze time for accepting new translations
-MUST be announced in the dev list, to allow time for testing and verification of translations.
+A few weeks before a minor or major release, a freeze time for accepting new translations, might be announced in the dev list by the Release Manager.
+It should be announced when the median coverage across all translations is below the completeness threshold (90%), or when needed (e.g., due to a critical UI feature that requires many new terms to be added).
+It will be announced in the dev list about two weeks before it starts, to allow time for preparing, and it should last until median completeness is back above the threshold, or RC is cut for the release (whichever is earlier).
 
-During that freeze time there should be no changes applied to the English translation source files
-by default. When freeze time starts we set this variable in the
+During that freeze time there should be no changes applied to the default language (English) locale files. When freeze time starts we set this variable in the
 `dev/breeze/src/airflow_breeze/utils/selective_checks.py` file:
 
 ```python

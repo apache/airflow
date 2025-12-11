@@ -59,6 +59,7 @@
     "dataIntervalEnd": "Veri Aralığı Sonu",
     "dataIntervalStart": "Veri Aralığı Başlangıcı",
     "lastSchedulingDecision": "Son Zamanlama Kararı",
+    "partitionKey": "Bölüm Anahtarı",
     "queuedAt": "Kuyruğa Alınma Zamanı",
     "runAfter": "Sonra Çalıştır",
     "runType": "Çalıştırma Tipi",
@@ -89,6 +90,7 @@
     "back": "Geri",
     "defaultMessage": "Beklenmeyen bir hata oluştu",
     "home": "Ana Sayfa",
+    "invalidUrl": "Sayfa Bulunamadı. Lütfen URL'yi kontrol edin ve tekrar deneyin.",
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
@@ -108,10 +110,13 @@
   "filters": {
     "durationFrom": "Süre Başlangıcı",
     "durationTo": "Süre Bitişi",
+    "endTime": "Bitiş Zamanı",
     "logicalDateFrom": "Mantıksal tarih başlangıcı",
     "logicalDateTo": "Mantıksal tarih bitişi",
     "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
-    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)"
+    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "selectDateRange": "Lütfen bir tarih aralığı seçin",
+    "startTime": "Başlangıç Zamanı"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -51,17 +51,24 @@ class MetastoreBackend(BaseSecretsBackend):
         return conn
 
     @provide_session
-    def get_variable(self, key: str, session: Session = NEW_SESSION) -> str | None:
+    def get_variable(
+        self, key: str, team_name: str | None = None, session: Session = NEW_SESSION
+    ) -> str | None:
         """
         Get Airflow Variable from Metadata DB.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :param session: SQLAlchemy Session
         :return: Variable Value
         """
         from airflow.models import Variable
 
-        var_value = session.scalar(select(Variable).where(Variable.key == key).limit(1))
+        var_value = session.scalar(
+            select(Variable)
+            .where(Variable.key == key, or_(Variable.team_name == team_name, Variable.team_name.is_(None)))
+            .limit(1)
+        )
         session.expunge_all()
         if var_value:
             return var_value.val
