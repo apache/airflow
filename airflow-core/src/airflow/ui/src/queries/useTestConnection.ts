@@ -17,12 +17,31 @@
  * under the License.
  */
 import type { Dispatch, SetStateAction } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useConnectionServiceTestConnection } from "openapi/queries";
 import type { ConnectionTestResponse } from "openapi/requests/types.gen";
+import { toaster } from "src/components/ui";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
-  const onSuccess = (res: ConnectionTestResponse) => setConnected(res.status);
+  const { t: translate } = useTranslation("common");
+
+  const onSuccess = (res: ConnectionTestResponse) => {
+    setConnected(res.status);
+    if (res.status) {
+      toaster.create({
+        description: res.message,
+        title: translate("toaster.test.success.title"),
+        type: "success",
+      });
+    } else {
+      toaster.create({
+        description: res.message,
+        title: translate("toaster.test.error.title"),
+        type: "error",
+      });
+    }
+  };
 
   const onError = () => {
     setConnected(false);
