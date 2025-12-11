@@ -942,17 +942,15 @@ virtualenv_string_args: list[str] = []
 
 @pytest.mark.execution_timeout(120)
 @pytest.mark.parametrize(
-    ("opcls", "pytest_marks", "test_class_ref"),
+    ("opcls", "test_class_ref"),
     [
         pytest.param(
             PythonVirtualenvOperator,
-            [pytest.mark.virtualenv_operator],
             lambda: TestPythonVirtualenvOperator,
             id="PythonVirtualenvOperator",
         ),
         pytest.param(
             ExternalPythonOperator,
-            [pytest.mark.external_python_operator],
             lambda: TestExternalPythonOperator,
             id="ExternalPythonOperator",
         ),
@@ -969,7 +967,7 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag Bundle import fix is for Airflow 3.x+")
     @mock.patch("airflow.providers.standard.operators.python._execute_in_subprocess")
     def test_dag_bundle_import_in_subprocess(
-        self, mock_execute_subprocess, dag_maker, opcls, pytest_marks, test_class_ref, tmp_path
+        self, mock_execute_subprocess, dag_maker, opcls, test_class_ref, tmp_path
     ):
         """
         Tests that a callable in a subprocess can import modules from its
