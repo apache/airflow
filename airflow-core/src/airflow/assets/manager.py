@@ -72,31 +72,34 @@ def _acquire_apdr_lock(
     """
     Context manager to acquire a lock for AssetPartitionDagRun creation.
 
-    - SQLite: uses AssetPartitionDagRunMutexLock table as row-level lock is not supported
+    - SQLite: Use a no-op ORM update to trigger a write-transaction and acquire SQLite's global writer lock.
     - Postgres/MySQL: uses row-level lock on AssetModel.
     """
     if get_dialect_name(session) == "sqlite":
-        from airflow.models.asset import AssetPartitionDagRunMutexLock
+        import time
 
+        from sqlalchemy import update
+
+        # no-op update
+        # This is used to acquire SQLite's global writer lock.
+        stmt = update(AssetModel).where(AssetModel.id == asset_id).values(id=AssetModel.id)
         for _ in range(max_retries):
             try:
-                mutex = AssetPartitionDagRunMutexLock(target_dag_id=dag_id, partition_key=partition_key)
-                session.add(mutex)
+                session.execute(stmt)
                 session.flush()
                 try:
-                    yield  # mutex acquired
+                    # lock acquired
+                    yield
                 finally:
-                    session.delete(mutex)
                     session.flush()
                 return
-            except exc.IntegrityError:
-                import time
+            except exc.OperationalError as err:
+                err_msg = str(err).lower()
+                if "locked" in err_msg or "busy" in err_msg:
+                    session.rollback()
+                    time.sleep(retry_delay)
 
-                session.rollback()  # another thread/process holds mutex
-                time.sleep(retry_delay)
-        raise RuntimeError(
-            f"Could not acquire APDR mutex for dag_id={dag_id}, partition_key={partition_key} after {max_retries} retries"
-        )
+        raise RuntimeError(f"Could not acquire SQLite APDR mutex (writer lock) for asset_id={asset_id}")
     else:
         # Postgres/MySQL row-level lock
         if (

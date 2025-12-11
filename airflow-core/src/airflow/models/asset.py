@@ -914,20 +914,6 @@ class AssetPartitionDagRun(Base):
     )
 
 
-class AssetPartitionDagRunMutexLock(Base):
-    """
-    Mutex Lock for AssetPartitionDagRun.
-
-    This is only used in SQLite as it does not support row-level lock.
-    """
-
-    target_dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-    partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=False)
-
-    __tablename__ = "asset_partition_dag_run_mutex_lock"
-    __table_args__ = (PrimaryKeyConstraint(target_dag_id, partition_key, name="apdr_mutex_lock_pkey"),)
-
-
 class PartitionedAssetKeyLog(Base):
     """
     Mapping table between AssetPartitionDagRun and AssetEvent.

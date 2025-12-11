@@ -247,8 +247,8 @@ class TestAssetManager:
                 _session.close()
 
         # run both workers simultaneously
-        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-            id1, id2 = pool.map(lambda _: _get_or_create_apdr(), [None, None])
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+            ids = pool.map(lambda _: _get_or_create_apdr(), [None, None])
 
-        assert id1 == id2
+        assert len(set(ids)) == 1
         assert session.query(AssetPartitionDagRun).count() == 1
