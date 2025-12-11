@@ -940,23 +940,6 @@ class TestShortCircuitOperator(BasePythonTest):
 virtualenv_string_args: list[str] = []
 
 
-def _callable_that_imports_from_bundle():
-    """
-    A callable function for testing Dag bundle imports.
-    This import will fail if PYTHONPATH is not set correctly by the operator.
-    The module 'bug_test_dag_repro' is created dynamically in the test.
-    """
-    try:
-        from bug_test_dag_repro.lib.helper import get_message
-
-        return get_message()
-    except ImportError as e:
-        # This helps debug if the import fails during the test
-        import sys
-
-        return f"Failed to import: {e}. PYTHONPATH: {sys.path}"
-
-
 @pytest.mark.execution_timeout(120)
 @pytest.mark.parametrize(
     ("opcls", "pytest_marks", "test_class_ref"),
@@ -984,15 +967,23 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
     """
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag Bundle import fix is for Airflow 3.x+")
-    def test_dag_bundle_import_in_subprocess(self, dag_maker, opcls, pytest_marks, test_class_ref, tmp_path):
+    @mock.patch("airflow.providers.standard.operators.python._execute_in_subprocess")
+    def test_dag_bundle_import_in_subprocess(
+        self, mock_execute_subprocess, dag_maker, opcls, pytest_marks, test_class_ref, tmp_path
+    ):
         """
         Tests that a callable in a subprocess can import modules from its
-        own Dag bundle (fix for Airflow 3.x).
+        own Dag bundle (Airflow 3.x+).
         """
+
+        def _callable_that_imports_from_bundle():
+            from test_bundle_pkg.lib.helper import get_message
+
+            return get_message()
+
         bundle_root = tmp_path
 
-        # Dummy module structure inside the temp dir
-        module_dir = bundle_root / "bug_test_dag_repro"
+        module_dir = bundle_root / "test_bundle_pkg"
         lib_dir = module_dir / "lib"
         lib_dir.mkdir(parents=True)
 
@@ -1016,9 +1007,23 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
         ti.bundle_instance = mock_bundle_instance
 
         context = ti.get_template_context()
-        result = op.execute(context)
 
-        assert result == "it works from bundle"
+        # Mock subprocess execution to avoid testing-environment related issues
+        # on the ExternalPythonOperator (Socket operation on non-socket)
+        # Instead, we just check the env argument of _execute_in_subprocess
+        # if the bundle_path was added to PYTHONPATH
+
+        # Mock _read_result to avoid reading the non-existent output file
+        with mock.patch.object(op, "_read_result", return_value=None):
+            op.execute(context)
+
+        assert mock_execute_subprocess.called, "_execute_in_subprocess should have been called"
+        call_kwargs = mock_execute_subprocess.call_args.kwargs
+        env = call_kwargs.get("env")
+        assert "PYTHONPATH" in env, "PYTHONPATH should be in env"
+
+        pythonpath = env["PYTHONPATH"]
+        assert str(bundle_root) in pythonpath, f"Bundle path {bundle_root} should be in PYTHONPATH"
 
 
 @pytest.mark.execution_timeout(120)
