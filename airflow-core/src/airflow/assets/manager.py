@@ -104,6 +104,7 @@ def _acquire_apdr_lock(
                 with_row_locks(
                     query=select(AssetModel.id).where(AssetModel.id == asset_id),
                     session=session,
+                    key_share=True,
                 )
             )
         ) is None:
