@@ -48,6 +48,34 @@ class BaseDBManager(LoggingMixin):
         super().__init__()
         self.session = session
 
+    def _is_mysql(self) -> bool:
+        """Check if the database is MySQL."""
+        return self.session.get_bind().dialect.name == "mysql"
+
+    def _release_metadata_locks(self) -> None:
+        """
+        Release MySQL metadata locks by committing the underlying Connection.
+
+        In SQLAlchemy 2.0, session.commit() may NOT commit the underlying
+        Connection transaction due to join_transaction_mode behavior.
+        We must commit the Connection directly.
+        """
+        if not self._is_mysql():
+            return
+
+        self.log.debug("MySQL: Releasing metadata locks for DDL operations")
+
+        # Get the Connection from the Session
+        connection = self.session.connection()
+
+        # Check if we're in an active transaction
+        if connection.in_transaction():
+            self.log.debug("MySQL: Connection is in transaction, committing directly")
+            # Commit the Connection directly - this WILL release the transaction
+            # regardless of join_transaction_mode
+            connection.commit()
+            self.log.debug("MySQL: Connection committed, metadata locks released")
+
     def get_alembic_config(self):
         from alembic.config import Config
 
@@ -107,6 +135,8 @@ class BaseDBManager(LoggingMixin):
     def resetdb(self, skip_init=False):
         from airflow.utils.db import DBLocks, create_global_lock
 
+        self._release_metadata_locks()
+
         connection = settings.engine.connect()
 
         with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
@@ -117,6 +147,7 @@ class BaseDBManager(LoggingMixin):
 
     def initdb(self):
         """Initialize the database."""
+        self._release_metadata_locks()
         db_exists = self.get_current_revision()
         if db_exists:
             self.upgradedb()
@@ -126,6 +157,8 @@ class BaseDBManager(LoggingMixin):
     def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
         self.log.info("Upgrading the %s database", self.__class__.__name__)
+
+        self._release_metadata_locks()
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
