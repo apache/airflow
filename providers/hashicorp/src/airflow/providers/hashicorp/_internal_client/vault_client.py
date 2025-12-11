@@ -421,7 +421,9 @@ class _VaultClient(LoggingMixin):
         if not self.mount_point:
             split_secret_path = secret_path.split("/", 1)
             if len(split_secret_path) < 2:
-                raise InvalidPath("The variable path you have provided is invalid. Please provide a full path: path/to/secret/variable")
+                raise InvalidPath(
+                    "The variable path you have provided is invalid. Please provide a full path: path/to/secret/variable"
+                    )
             return split_secret_path[0], split_secret_path[1]
         return self.mount_point, secret_path
 
