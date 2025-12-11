@@ -21,7 +21,7 @@ import copy
 import json
 import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypedDict
 
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
@@ -33,6 +33,22 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Operator
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigSource(TypedDict, total=False):
+    """
+    Type definition for config_source parameter.
+
+    Attributes:
+        file: Path to the configuration file (INI, JSON, or YAML)
+        filter: Optional dictionary of key-value pairs to filter items
+        key_field: Optional field name to use as option value
+            (default: "section" for INI, "name" for JSON/YAML)
+    """
+
+    file: str
+    filter: dict[str, Any]
+    key_field: str
 
 
 class Param:
@@ -72,7 +88,7 @@ class Param:
         default: Any = NOTSET,
         description: str | None = None,
         source: Literal["dag", "task"] | None = None,
-        config_source: dict[str, Any] | None = None,
+        config_source: ConfigSource | None = None,
         **kwargs,
     ):
         if default is not NOTSET:
@@ -105,7 +121,7 @@ class Param:
             config_source=self.config_source,
         )
 
-    def _load_options_from_config(self, config_source: dict[str, Any]) -> list[str]:
+    def _load_options_from_config(self, config_source: ConfigSource) -> list[str]:
         """
         Load dropdown options from an external configuration file.
 
@@ -117,11 +133,7 @@ class Param:
         :raises ValueError: If config_source is invalid or file format is unsupported
         """
         # Import here to avoid circular dependencies
-        from airflow.sdk.definitions.param_config_loader import (
-            load_options_from_ini,
-            load_options_from_json,
-            load_options_from_yaml,
-        )
+        from airflow.sdk.definitions.param_config_loader import load_options_from_file
 
         file_path = config_source.get("file")
         if not file_path:
@@ -130,19 +142,19 @@ class Param:
         filter_conditions = config_source.get("filter")
         key_field = config_source.get("key_field")
 
-        # Detect file type and use appropriate loader
+        # Detect file type from extension
         if file_path.endswith(".ini"):
-            key_field = key_field or "section"
-            return load_options_from_ini(file_path, filter_conditions, key_field)
-        if file_path.endswith(".json"):
-            key_field = key_field or "name"
-            return load_options_from_json(file_path, filter_conditions, key_field)
-        if file_path.endswith((".yaml", ".yml")):
-            key_field = key_field or "name"
-            return load_options_from_yaml(file_path, filter_conditions, key_field)
-        raise ValueError(
-            f"Unsupported config file type: {file_path}. Supported types are: .ini, .json, .yaml, .yml"
-        )
+            extension = "ini"
+        elif file_path.endswith(".json"):
+            extension = "json"
+        elif file_path.endswith((".yaml", ".yml")):
+            extension = "yaml"
+        else:
+            raise ValueError(
+                f"Unsupported config file type: {file_path}. Supported types are: .ini, .json, .yaml, .yml"
+            )
+
+        return load_options_from_file(file_path, extension, filter_conditions, key_field)
 
     @staticmethod
     def _check_json(value):

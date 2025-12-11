@@ -22,31 +22,37 @@ from __future__ import annotations
 import configparser
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+import yaml
 
 
-def load_options_from_ini(
+def load_options_from_file(
     file_path: str | Path,
+    extension: Literal["ini", "json", "yaml"],
     filter_conditions: dict[str, Any] | None = None,
-    key_field: str = "section",
+    key_field: str | None = None,
 ) -> list[str]:
     """
-    Load dropdown options from an INI configuration file.
+    Load dropdown options from a configuration file.
 
-    This function reads an INI file and extracts option values based on the specified
-    parameters. It can filter sections based on key-value pairs and choose which field
-    to use as the option value.
+    This function reads a configuration file (INI, JSON, or YAML) and extracts
+    option values based on the specified parameters. It can filter items based
+    on key-value pairs and choose which field to use as the option value.
 
-    :param file_path: Path to the INI configuration file
-    :param filter_conditions: Optional dictionary of key-value pairs to filter sections.
-        Only sections where all specified keys match the given values will be included.
-        Example: {"TYPE": "Script"} will only include sections where TYPE=Script
-    :param key_field: Which field to use as the option value. Special value "section"
-        uses the section name itself. Otherwise, uses the value of the specified key
-        within each section.
-    :return: List of option values extracted from the INI file
+    :param file_path: Path to the configuration file
+    :param extension: File format type - "ini", "json", or "yaml"
+    :param filter_conditions: Optional dictionary of key-value pairs to filter items.
+        Only items where all specified keys match the given values will be included.
+        Example: {"TYPE": "Script"} will only include items where TYPE=Script
+    :param key_field: Which field to use as the option value.
+        For INI files: Special value "section" uses the section name itself,
+        otherwise uses the value of the specified key within each section.
+        For JSON/YAML files: Uses the value of the specified field from each object.
+        Defaults: "section" for INI, "name" for JSON/YAML
+    :return: List of option values extracted from the configuration file
     :raises FileNotFoundError: If the specified file does not exist
-    :raises ValueError: If the INI file is malformed
+    :raises ValueError: If the file format is invalid or unsupported
 
     Example INI file (interfaces.ini)::
 
@@ -58,136 +64,12 @@ def load_options_from_ini(
         TYPE = EBICS
         DESCRIPTION = Electronic banking interface
 
-    Example usage::
-
-        # Get all section names where TYPE=Script
-        options = load_options_from_ini(
-            "config/interfaces.ini", filter_conditions={"TYPE": "Script"}, key_field="section"
-        )
-        # Returns: ["InterfaceA"]
-
-        # Get all DESCRIPTION values
-        options = load_options_from_ini("config/interfaces.ini", key_field="DESCRIPTION")
-        # Returns: ["Script interface A", "Electronic banking interface"]
-    """
-    file_path = Path(file_path)
-    if not file_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {file_path}")
-
-    config = configparser.ConfigParser()
-    try:
-        config.read(file_path)
-    except configparser.Error as e:
-        raise ValueError(f"Invalid INI file format: {e}") from e
-
-    options = []
-    for section in config.sections():
-        # Check if section matches filter conditions
-        if filter_conditions:
-            matches = all(
-                config.get(section, key, fallback=None) == value for key, value in filter_conditions.items()
-            )
-            if not matches:
-                continue
-
-        # Get the value to use as option
-        if key_field == "section":
-            options.append(section)
-        else:
-            value = config.get(section, key_field, fallback=None)
-            if value:
-                options.append(value)
-
-    return options
-
-
-def load_options_from_json(
-    file_path: str | Path,
-    filter_conditions: dict[str, Any] | None = None,
-    key_field: str = "name",
-) -> list[str]:
-    """
-    Load dropdown options from a JSON configuration file.
-
-    This function reads a JSON file containing an array of objects and extracts
-    option values based on the specified parameters. It can filter objects based
-    on key-value pairs and choose which field to use as the option value.
-
-    :param file_path: Path to the JSON configuration file
-    :param filter_conditions: Optional dictionary of key-value pairs to filter objects.
-        Only objects where all specified keys match the given values will be included.
-    :param key_field: Which field to use as the option value from each object
-    :return: List of option values extracted from the JSON file
-    :raises FileNotFoundError: If the specified file does not exist
-    :raises ValueError: If the JSON file is malformed or not an array
-    :raises json.JSONDecodeError: If the file contains invalid JSON
-
     Example JSON file (interfaces.json)::
 
         [
             {"name": "InterfaceA", "type": "Script", "description": "Script interface A"},
             {"name": "InterfaceB", "type": "EBICS", "description": "Electronic banking"},
         ]
-
-    Example usage::
-
-        # Get all names where type=Script
-        options = load_options_from_json(
-            "config/interfaces.json", filter_conditions={"type": "Script"}, key_field="name"
-        )
-        # Returns: ["InterfaceA"]
-    """
-    file_path = Path(file_path)
-    if not file_path.exists():
-        raise FileNotFoundError(f"Configuration file not found: {file_path}")
-
-    try:
-        with open(file_path) as f:
-            data = json.load(f)
-    except json.JSONDecodeError as e:
-        raise json.JSONDecodeError(f"Invalid JSON file format: {e.msg}", e.doc, e.pos) from e
-
-    if not isinstance(data, list):
-        raise ValueError("JSON file must contain an array of objects at the root level")
-
-    options = []
-    for item in data:
-        if not isinstance(item, dict):
-            continue
-
-        # Check if item matches filter conditions
-        if filter_conditions:
-            matches = all(item.get(key) == value for key, value in filter_conditions.items())
-            if not matches:
-                continue
-
-        # Get the value to use as option
-        value = item.get(key_field)
-        if value is not None:
-            options.append(str(value))
-
-    return options
-
-
-def load_options_from_yaml(
-    file_path: str | Path,
-    filter_conditions: dict[str, Any] | None = None,
-    key_field: str = "name",
-) -> list[str]:
-    """
-    Load dropdown options from a YAML configuration file.
-
-    This function reads a YAML file containing an array of objects and extracts
-    option values based on the specified parameters. Similar to JSON loading but
-    supports YAML format.
-
-    :param file_path: Path to the YAML configuration file
-    :param filter_conditions: Optional dictionary of key-value pairs to filter objects
-    :param key_field: Which field to use as the option value from each object
-    :return: List of option values extracted from the YAML file
-    :raises FileNotFoundError: If the specified file does not exist
-    :raises ValueError: If the YAML file is malformed or not an array
-    :raises ImportError: If PyYAML is not installed
 
     Example YAML file (interfaces.yaml)::
 
@@ -200,21 +82,97 @@ def load_options_from_yaml(
 
     Example usage::
 
-        # Get all names where type=Script
-        options = load_options_from_yaml(
-            "config/interfaces.yaml", filter_conditions={"type": "Script"}, key_field="name"
+        # Load from INI file - get section names where TYPE=Script
+        options = load_options_from_file(
+            "config/interfaces.ini",
+            extension="ini",
+            filter_conditions={"TYPE": "Script"},
+            key_field="section",
+        )
+        # Returns: ["InterfaceA"]
+
+        # Load from JSON file - get names where type=Script
+        options = load_options_from_file(
+            "config/interfaces.json", extension="json", filter_conditions={"type": "Script"}, key_field="name"
         )
         # Returns: ["InterfaceA"]
     """
-    try:
-        import yaml
-    except ImportError as e:
-        raise ImportError("PyYAML is required to load YAML files. Install it with: pip install PyYAML") from e
-
+    # Validate file path
     file_path = Path(file_path)
     if not file_path.exists():
         raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
+    # Set default key_field based on extension
+    if key_field is None:
+        key_field = "section" if extension == "ini" else "name"
+
+    # Load and parse based on extension
+    if extension == "ini":
+        return _load_from_ini(file_path, filter_conditions, key_field)
+    if extension == "json":
+        return _load_from_json(file_path, filter_conditions, key_field)
+    if extension == "yaml":
+        return _load_from_yaml(file_path, filter_conditions, key_field)
+    raise ValueError(f"Unsupported extension: {extension}. Supported: ini, json, yaml")
+
+
+def _load_from_ini(
+    file_path: Path,
+    filter_conditions: dict[str, Any] | None,
+    key_field: str,
+) -> list[str]:
+    """Load options from INI file."""
+    config = configparser.ConfigParser()
+    try:
+        config.read(file_path)
+    except configparser.Error as e:
+        raise ValueError(f"Invalid INI file format: {e}") from e
+
+    options = []
+    for section in config.sections():
+        # Apply filter conditions
+        if filter_conditions:
+            matches = all(
+                config.get(section, key, fallback=None) == value for key, value in filter_conditions.items()
+            )
+            if not matches:
+                continue
+
+        # Extract option value
+        if key_field == "section":
+            options.append(section)
+        else:
+            value = config.get(section, key_field, fallback=None)
+            if value:
+                options.append(value)
+
+    return options
+
+
+def _load_from_json(
+    file_path: Path,
+    filter_conditions: dict[str, Any] | None,
+    key_field: str,
+) -> list[str]:
+    """Load options from JSON file."""
+    try:
+        with open(file_path) as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON file format: {e.msg}") from e
+
+    if not isinstance(data, list):
+        raise ValueError("JSON file must contain an array of objects at the root level")
+
+    return _extract_options_from_list(data, filter_conditions, key_field)
+
+
+def _load_from_yaml(
+    file_path: Path,
+    filter_conditions: dict[str, Any] | None,
+    key_field: str,
+) -> list[str]:
+    """Load options from YAML file."""
     try:
         with open(file_path) as f:
             data = yaml.safe_load(f)
@@ -224,18 +182,27 @@ def load_options_from_yaml(
     if not isinstance(data, list):
         raise ValueError("YAML file must contain an array of objects at the root level")
 
+    return _extract_options_from_list(data, filter_conditions, key_field)
+
+
+def _extract_options_from_list(
+    data: list,
+    filter_conditions: dict[str, Any] | None,
+    key_field: str,
+) -> list[str]:
+    """Extract options from a list of dictionaries with filtering."""
     options = []
     for item in data:
         if not isinstance(item, dict):
             continue
 
-        # Check if item matches filter conditions
+        # Apply filter conditions
         if filter_conditions:
             matches = all(item.get(key) == value for key, value in filter_conditions.items())
             if not matches:
                 continue
 
-        # Get the value to use as option
+        # Extract option value
         value = item.get(key_field)
         if value is not None:
             options.append(str(value))

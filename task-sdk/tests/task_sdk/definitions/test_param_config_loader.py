@@ -23,211 +23,207 @@ import json
 
 import pytest
 
-from airflow.sdk.definitions.param_config_loader import (
-    load_options_from_ini,
-    load_options_from_json,
-    load_options_from_yaml,
-)
+from airflow.sdk.definitions.param_config_loader import load_options_from_file
 
 
-class TestLoadOptionsFromIni:
-    """Test load_options_from_ini function."""
+class TestLoadOptionsFromFile:
+    """Test load_options_from_file function with different file formats."""
 
-    def test_load_all_sections(self, tmp_path):
+    def test_load_ini_all_sections(self, tmp_path):
         """Test loading all section names from INI file."""
-        ini_file = tmp_path / "test.ini"
-        ini_file.write_text("[SectionA]\nkey1 = value1\n\n[SectionB]\nkey1 = value2\n")
-
-        result = load_options_from_ini(ini_file, key_field="section")
-        assert result == ["SectionA", "SectionB"]
-
-    def test_load_with_filter(self, tmp_path):
-        """Test loading sections with filter condition."""
         ini_file = tmp_path / "test.ini"
         ini_file.write_text(
             "[InterfaceA]\n"
             "TYPE = Script\n"
-            "DESC = A\n"
-            "\n"
+            "DESCRIPTION = Interface A\n\n"
             "[InterfaceB]\n"
-            "TYPE = API\n"
-            "DESC = B\n"
-            "\n"
-            "[InterfaceC]\n"
-            "TYPE = Script\n"
-            "DESC = C\n"
+            "TYPE = EBICS\n"
+            "DESCRIPTION = Interface B\n"
         )
 
-        result = load_options_from_ini(
+        result = load_options_from_file(ini_file, extension="ini")
+        assert result == ["InterfaceA", "InterfaceB"]
+
+    def test_load_ini_with_filter(self, tmp_path):
+        """Test loading INI sections with filter condition."""
+        ini_file = tmp_path / "test.ini"
+        ini_file.write_text(
+            "[InterfaceA]\nTYPE = Script\n[InterfaceB]\nTYPE = API\n[InterfaceC]\nTYPE = Script\n"
+        )
+
+        result = load_options_from_file(
             ini_file,
+            extension="ini",
             filter_conditions={"TYPE": "Script"},
-            key_field="section",
         )
         assert result == ["InterfaceA", "InterfaceC"]
 
-    def test_load_specific_key(self, tmp_path):
-        """Test loading specific key values from sections."""
+    def test_load_ini_specific_key(self, tmp_path):
+        """Test loading specific key values from INI file."""
         ini_file = tmp_path / "test.ini"
-        ini_file.write_text("[SectionA]\nname = NameA\n\n[SectionB]\nname = NameB\n")
-
-        result = load_options_from_ini(ini_file, key_field="name")
-        assert result == ["NameA", "NameB"]
-
-    def test_file_not_found(self):
-        """Test FileNotFoundError when file doesn't exist."""
-        with pytest.raises(FileNotFoundError, match="Configuration file not found"):
-            load_options_from_ini("/nonexistent/file.ini")
-
-    def test_invalid_ini_format(self, tmp_path):
-        """Test ValueError for invalid INI format."""
-        ini_file = tmp_path / "invalid.ini"
-        ini_file.write_text("this is not valid ini format [[[")
-
-        with pytest.raises(ValueError, match="Invalid INI file format"):
-            load_options_from_ini(ini_file)
-
-    def test_missing_key_field(self, tmp_path):
-        """Test that sections without the specified key are skipped."""
-        ini_file = tmp_path / "test.ini"
-        ini_file.write_text("[SectionA]\nname = NameA\n\n[SectionB]\nother = OtherValue\n")
-
-        result = load_options_from_ini(ini_file, key_field="name")
-        assert result == ["NameA"]  # SectionB is skipped
-
-
-class TestLoadOptionsFromJson:
-    """Test load_options_from_json function."""
-
-    def test_load_all_items(self, tmp_path):
-        """Test loading all items from JSON array."""
-        json_file = tmp_path / "test.json"
-        json_file.write_text(
-            json.dumps(
-                [
-                    {"name": "ItemA", "type": "Type1"},
-                    {"name": "ItemB", "type": "Type2"},
-                ]
-            )
+        ini_file.write_text(
+            "[InterfaceA]\nNAME = Interface A\nTYPE = Script\n[InterfaceB]\nNAME = Interface B\nTYPE = API\n"
         )
 
-        result = load_options_from_json(json_file, key_field="name")
-        assert result == ["ItemA", "ItemB"]
+        result = load_options_from_file(ini_file, extension="ini", key_field="NAME")
+        assert result == ["Interface A", "Interface B"]
 
-    def test_load_with_filter(self, tmp_path):
-        """Test loading items with filter condition."""
+    def test_load_json_all_items(self, tmp_path):
+        """Test loading all items from JSON file."""
         json_file = tmp_path / "test.json"
-        json_file.write_text(
-            json.dumps(
-                [
-                    {"name": "ItemA", "type": "Script"},
-                    {"name": "ItemB", "type": "API"},
-                    {"name": "ItemC", "type": "Script"},
-                ]
-            )
-        )
+        data = [
+            {"name": "InterfaceA", "type": "Script"},
+            {"name": "InterfaceB", "type": "EBICS"},
+        ]
+        json_file.write_text(json.dumps(data))
 
-        result = load_options_from_json(
+        result = load_options_from_file(json_file, extension="json")
+        assert result == ["InterfaceA", "InterfaceB"]
+
+    def test_load_json_with_filter(self, tmp_path):
+        """Test loading JSON items with filter condition."""
+        json_file = tmp_path / "test.json"
+        data = [
+            {"name": "InterfaceA", "type": "Script"},
+            {"name": "InterfaceB", "type": "API"},
+            {"name": "InterfaceC", "type": "Script"},
+        ]
+        json_file.write_text(json.dumps(data))
+
+        result = load_options_from_file(
             json_file,
+            extension="json",
             filter_conditions={"type": "Script"},
-            key_field="name",
         )
-        assert result == ["ItemA", "ItemC"]
+        assert result == ["InterfaceA", "InterfaceC"]
 
-    def test_file_not_found(self):
-        """Test FileNotFoundError when file doesn't exist."""
-        with pytest.raises(FileNotFoundError, match="Configuration file not found"):
-            load_options_from_json("/nonexistent/file.json")
-
-    def test_invalid_json_format(self, tmp_path):
-        """Test JSONDecodeError for invalid JSON."""
-        json_file = tmp_path / "invalid.json"
-        json_file.write_text("this is not valid json {{{")
-
-        with pytest.raises(json.JSONDecodeError):
-            load_options_from_json(json_file)
-
-    def test_non_array_json(self, tmp_path):
-        """Test ValueError when JSON is not an array."""
-        json_file = tmp_path / "object.json"
-        json_file.write_text('{"key": "value"}')
-
-        with pytest.raises(ValueError, match="JSON file must contain an array"):
-            load_options_from_json(json_file)
-
-    def test_missing_key_field(self, tmp_path):
-        """Test that items without the specified key are skipped."""
+    def test_load_json_custom_key(self, tmp_path):
+        """Test loading specific key from JSON items."""
         json_file = tmp_path / "test.json"
-        json_file.write_text(
-            json.dumps(
-                [
-                    {"name": "ItemA"},
-                    {"other": "value"},
-                ]
-            )
-        )
+        data = [
+            {"name": "InterfaceA", "code": "IF_A"},
+            {"name": "InterfaceB", "code": "IF_B"},
+        ]
+        json_file.write_text(json.dumps(data))
 
-        result = load_options_from_json(json_file, key_field="name")
-        assert result == ["ItemA"]
+        result = load_options_from_file(json_file, extension="json", key_field="code")
+        assert result == ["IF_A", "IF_B"]
 
-
-class TestLoadOptionsFromYaml:
-    """Test load_options_from_yaml function."""
-
-    def test_load_all_items(self, tmp_path):
-        """Test loading all items from YAML array."""
+    def test_load_yaml_all_items(self, tmp_path):
+        """Test loading all items from YAML file."""
         yaml_file = tmp_path / "test.yaml"
-        yaml_file.write_text("- name: ItemA\n  type: Type1\n- name: ItemB\n  type: Type2\n")
+        yaml_file.write_text("- name: InterfaceA\n  type: Script\n- name: InterfaceB\n  type: EBICS\n")
 
-        result = load_options_from_yaml(yaml_file, key_field="name")
-        assert result == ["ItemA", "ItemB"]
+        result = load_options_from_file(yaml_file, extension="yaml")
+        assert result == ["InterfaceA", "InterfaceB"]
 
-    def test_load_with_filter(self, tmp_path):
-        """Test loading items with filter condition."""
+    def test_load_yaml_with_filter(self, tmp_path):
+        """Test loading YAML items with filter condition."""
         yaml_file = tmp_path / "test.yaml"
         yaml_file.write_text(
-            "- name: ItemA\n  type: Script\n- name: ItemB\n  type: API\n- name: ItemC\n  type: Script\n"
+            "- name: InterfaceA\n"
+            "  type: Script\n"
+            "- name: InterfaceB\n"
+            "  type: API\n"
+            "- name: InterfaceC\n"
+            "  type: Script\n"
         )
 
-        result = load_options_from_yaml(
+        result = load_options_from_file(
             yaml_file,
+            extension="yaml",
             filter_conditions={"type": "Script"},
-            key_field="name",
         )
-        assert result == ["ItemA", "ItemC"]
+        assert result == ["InterfaceA", "InterfaceC"]
 
-    def test_file_not_found(self):
-        """Test FileNotFoundError when file doesn't exist."""
+    def test_file_not_found(self, tmp_path):
+        """Test error handling when file doesn't exist."""
         with pytest.raises(FileNotFoundError, match="Configuration file not found"):
-            load_options_from_yaml("/nonexistent/file.yaml")
+            load_options_from_file(tmp_path / "nonexistent.ini", extension="ini")
+
+    def test_invalid_ini_format(self, tmp_path):
+        """Test error handling for invalid INI format."""
+        ini_file = tmp_path / "invalid.ini"
+        ini_file.write_text("[Section\nMissing closing bracket")
+
+        with pytest.raises(ValueError, match="Invalid INI file format"):
+            load_options_from_file(ini_file, extension="ini")
+
+    def test_invalid_json_format(self, tmp_path):
+        """Test error handling for invalid JSON format."""
+        json_file = tmp_path / "invalid.json"
+        json_file.write_text("{invalid json")
+
+        with pytest.raises(ValueError, match="Invalid JSON file format"):
+            load_options_from_file(json_file, extension="json")
 
     def test_invalid_yaml_format(self, tmp_path):
-        """Test ValueError for invalid YAML."""
+        """Test error handling for invalid YAML format."""
         yaml_file = tmp_path / "invalid.yaml"
-        yaml_file.write_text("invalid: yaml: content: [[[")
+        yaml_file.write_text("- item:\n  - nested:\n    bad indentation")
 
         with pytest.raises(ValueError, match="Invalid YAML file format"):
-            load_options_from_yaml(yaml_file)
+            load_options_from_file(yaml_file, extension="yaml")
 
-    def test_non_array_yaml(self, tmp_path):
-        """Test ValueError when YAML is not an array."""
-        yaml_file = tmp_path / "object.yaml"
+    def test_json_non_array(self, tmp_path):
+        """Test error when JSON file doesn't contain array."""
+        json_file = tmp_path / "test.json"
+        json_file.write_text('{"key": "value"}')
+
+        with pytest.raises(ValueError, match="must contain an array"):
+            load_options_from_file(json_file, extension="json")
+
+    def test_yaml_non_array(self, tmp_path):
+        """Test error when YAML file doesn't contain array."""
+        yaml_file = tmp_path / "test.yaml"
         yaml_file.write_text("key: value\n")
 
-        with pytest.raises(ValueError, match="YAML file must contain an array"):
-            load_options_from_yaml(yaml_file)
+        with pytest.raises(ValueError, match="must contain an array"):
+            load_options_from_file(yaml_file, extension="yaml")
 
-    def test_yaml_not_installed(self, tmp_path, monkeypatch):
-        """Test ImportError when PyYAML is not installed."""
+    def test_ini_missing_key_field(self, tmp_path):
+        """Test handling of missing key field in INI file."""
+        ini_file = tmp_path / "test.ini"
+        ini_file.write_text("[InterfaceA]\nTYPE = Script\n[InterfaceB]\nTYPE = API\n")
+
+        # Request a key that doesn't exist - should return empty list
+        result = load_options_from_file(ini_file, extension="ini", key_field="NONEXISTENT")
+        assert result == []
+
+    def test_json_missing_key_field(self, tmp_path):
+        """Test handling of missing key field in JSON file."""
+        json_file = tmp_path / "test.json"
+        data = [
+            {"name": "InterfaceA"},
+            {"name": "InterfaceB"},
+        ]
+        json_file.write_text(json.dumps(data))
+
+        # Request a key that doesn't exist - should return empty list
+        result = load_options_from_file(json_file, extension="json", key_field="nonexistent")
+        assert result == []
+
+    def test_default_key_field_ini(self, tmp_path):
+        """Test default key_field for INI files is 'section'."""
+        ini_file = tmp_path / "test.ini"
+        ini_file.write_text("[SectionA]\nkey=value\n[SectionB]\nkey=value\n")
+
+        result = load_options_from_file(ini_file, extension="ini")
+        assert result == ["SectionA", "SectionB"]
+
+    def test_default_key_field_json(self, tmp_path):
+        """Test default key_field for JSON files is 'name'."""
+        json_file = tmp_path / "test.json"
+        data = [{"name": "ItemA"}, {"name": "ItemB"}]
+        json_file.write_text(json.dumps(data))
+
+        result = load_options_from_file(json_file, extension="json")
+        assert result == ["ItemA", "ItemB"]
+
+    def test_default_key_field_yaml(self, tmp_path):
+        """Test default key_field for YAML files is 'name'."""
         yaml_file = tmp_path / "test.yaml"
-        yaml_file.write_text("- name: ItemA\n")
+        yaml_file.write_text("- name: ItemA\n- name: ItemB\n")
 
-        # Mock ImportError when importing yaml
-        def mock_import(*args, **kwargs):
-            if args[0] == "yaml":
-                raise ImportError("No module named 'yaml'")
-            return __import__(*args, **kwargs)
-
-        monkeypatch.setattr("builtins.__import__", mock_import)
-
-        with pytest.raises(ImportError, match="PyYAML is required"):
-            load_options_from_yaml(yaml_file)
+        result = load_options_from_file(yaml_file, extension="yaml")
+        assert result == ["ItemA", "ItemB"]
