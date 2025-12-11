@@ -148,6 +148,17 @@ class TestConnection:
                 None,
                 r"Invalid connection string: type://user:pass@protocol://host:port?param=value.",
             ),
+            (
+                "type://host?int_param=123&bool_param=true&float_param=1.5&str_param=some_str",
+                "type",
+                "host",
+                None,
+                None,
+                None,
+                "",
+                {"int_param": 123, "bool_param": True, "float_param": 1.5, "str_param": "some_str"},
+                None,
+            ),
         ],
     )
     def test_parse_from_uri(
@@ -211,6 +222,14 @@ class TestConnection:
                     extra={"param1": "val1", "param2": "val2"},
                 ),
                 "type://protocol://user:pass@host:100/schema?param1=val1&param2=val2",
+            ),
+            (
+                Connection(
+                    conn_type="type",
+                    host="host",
+                    extra={"bool_param": True, "int_param": 123, "float_param": 1.5, "list_param": [1, 2]},
+                ),
+                "type://host/?bool_param=true&int_param=123&float_param=1.5&list_param=%5B1%2C+2%5D",
             ),
         ],
     )
