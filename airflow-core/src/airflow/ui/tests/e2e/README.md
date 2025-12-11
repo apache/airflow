@@ -138,17 +138,37 @@ Common options:
 - `--test-pattern` - Run specific test file
 - `--workers` - Number of parallel workers
 
-## Test Coverage
+## Contributing New Tests
 
-Current tests:
+This framework uses the **Page Object Model (POM)** pattern. Each page's elements and interactions are encapsulated in a page class.
 
-- Login flow
-- DAG triggering
-- DAG run status
+### Steps to Add a New Test
 
-Planned tests:
+1. **Create a page object** (if needed) in `pages/`
+   - Extend `BasePage` and define page elements as locators
+   - Add methods for page interactions
+   - See existing pages: [LoginPage.ts](pages/LoginPage.ts), [DagsPage.ts](pages/DagsPage.ts)
 
-- DAG pause/unpause
-- Task details
-- Connections
-- Variables
+2. **Create a spec file** in `specs/`
+   - Import page objects and write test steps
+   - See existing test: [dag-trigger.spec.ts](specs/dag-trigger.spec.ts)
+
+3. **Run tests locally**
+
+   ```bash
+   breeze testing ui-e2e-tests --test-pattern "your-test.spec.ts"
+   ```
+
+4. **Submit PR**
+
+### Best Practices
+
+- Use `data-testid` attributes for selectors when available
+- Keep tests independent - each test should set up its own state
+- Add meaningful assertions, not just navigation checks
+
+### Naming Convention
+
+- Spec files: `<feature>.spec.ts`
+- Page objects: `<Page>Page.ts`
+- Test names: Start with "should"
