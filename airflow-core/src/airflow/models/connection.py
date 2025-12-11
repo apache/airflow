@@ -331,15 +331,26 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query: str | None = urlencode(self.extra_dejson)
+                stringified_extras = {k: self._stringify_extra_value(v) for k, v in self.extra_dejson.items()}
+                query: str | None = urlencode(stringified_extras)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+            if query and stringified_extras == dict(parse_qsl(query, keep_blank_values=True)):
                 uri += ("?" if self.schema else "/?") + query
             else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
+
+    @staticmethod
+    def _stringify_extra_value(value: Any) -> str:
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+        if isinstance(value, bool):
+            return str(value).lower()
+        if value is None:
+            return "null"
+        return str(value)
 
     def get_password(self) -> str | None:
         """Return encrypted password."""
@@ -457,14 +468,26 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                if nested:
-                    for key, value in json.loads(self.extra).items():
-                        extra[key] = value
-                        if isinstance(value, str):
-                            with suppress(JSONDecodeError):
-                                extra[key] = json.loads(value)
-                else:
-                    extra = json.loads(self.extra)
+                extra = json.loads(self.extra)
+
+                # If "nested" is True, we want to parse string values as JSON
+                # This was the existing behavior, but we're extending it to
+                # always try to parse if the value looks like JSON, which helps
+                # with URI-provided extras which are often just strings.
+                
+                # We iterate over a copy of items to avoid modification issues if needed,
+                # though here we are rewriting the dict keys.
+                for key, value in extra.items():
+                    if isinstance(value, str):
+                        try:
+                            # Try to parse the string value as JSON
+                            # This handles "true" -> True, "123" -> 123, etc.
+                            extra[key] = json.loads(value)
+                        except (JSONDecodeError, TypeError):
+                            # usage of nested=True is to allow the user to
+                            # specify that they want to parse nested JSON
+                            # so if it fails, we leave it as is
+                            pass
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
