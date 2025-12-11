@@ -22,7 +22,6 @@ import logging
 import re
 import sys
 import warnings
-from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -474,7 +473,7 @@ class Connection(Base, LoggingMixin):
                 # This was the existing behavior, but we're extending it to
                 # always try to parse if the value looks like JSON, which helps
                 # with URI-provided extras which are often just strings.
-                
+
                 # We iterate over a copy of items to avoid modification issues if needed,
                 # though here we are rewriting the dict keys.
                 for key, value in extra.items():
