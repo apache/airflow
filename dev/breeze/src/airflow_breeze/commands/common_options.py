@@ -572,7 +572,7 @@ option_platform_single = click.option(
 option_airflow_ui_base_url = click.option(
     "--airflow-ui-base-url",
     help="Base URL for Airflow UI during e2e tests",
-    default="http://localhost:28080",
+    default="http://localhost:8080",
     show_default=True,
     envvar="AIRFLOW_UI_BASE_URL",
 )
@@ -642,7 +642,7 @@ option_e2e_reporter = click.option(
 option_test_admin_username = click.option(
     "--test-admin-username",
     help="Admin username for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_USERNAME",
 )
@@ -650,7 +650,7 @@ option_test_admin_username = click.option(
 option_test_admin_password = click.option(
     "--test-admin-password",
     help="Admin password for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_PASSWORD",
 )

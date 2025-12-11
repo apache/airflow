@@ -205,6 +205,7 @@ class TestKeycloakAuthManager:
         ("status_code", "expected"),
         [
             [200, True],
+            [401, False],
             [403, False],
         ],
     )

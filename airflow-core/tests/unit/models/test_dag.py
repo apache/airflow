@@ -36,6 +36,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
@@ -81,7 +82,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
