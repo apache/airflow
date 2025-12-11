@@ -101,7 +101,7 @@ class TestCliBackfill:
             dag_run_conf=None,
             reprocess_behavior=expected_repro,
             triggering_user_name="root",
-            run_on_latest_version=False,
+            run_on_latest_version=True,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
@@ -189,7 +189,7 @@ class TestCliBackfill:
             dag_run_conf={"example_key": "example_value"},
             reprocess_behavior=None,
             triggering_user_name="root",
-            run_on_latest_version=False,
+            run_on_latest_version=True,
         )
 
     def test_backfill_with_invalid_dag_run_conf(self):
@@ -235,5 +235,5 @@ class TestCliBackfill:
             dag_run_conf={},
             reprocess_behavior=None,
             triggering_user_name="root",
-            run_on_latest_version=False,
+            run_on_latest_version=True,
         )
