@@ -264,14 +264,7 @@ class TestParam:
         # Create test INI file
         ini_file = tmp_path / "interfaces.ini"
         ini_file.write_text(
-            "[InterfaceA]\n"
-            "TYPE = Script\n"
-            "\n"
-            "[InterfaceB]\n"
-            "TYPE = API\n"
-            "\n"
-            "[InterfaceC]\n"
-            "TYPE = Script\n"
+            "[InterfaceA]\nTYPE = Script\n\n[InterfaceB]\nTYPE = API\n\n[InterfaceC]\nTYPE = Script\n"
         )
 
         # Test with filter
@@ -295,11 +288,13 @@ class TestParam:
         # Create test JSON file
         json_file = tmp_path / "interfaces.json"
         json_file.write_text(
-            json.dumps([
-                {"name": "ItemA", "type": "Script"},
-                {"name": "ItemB", "type": "API"},
-                {"name": "ItemC", "type": "Script"},
-            ])
+            json.dumps(
+                [
+                    {"name": "ItemA", "type": "Script"},
+                    {"name": "ItemB", "type": "API"},
+                    {"name": "ItemC", "type": "Script"},
+                ]
+            )
         )
 
         # Test with filter

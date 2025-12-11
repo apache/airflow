@@ -20,12 +20,10 @@
 from __future__ import annotations
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
-from airflow.utils.param_config_loader import (
+from airflow.sdk.definitions.param_config_loader import (
     load_options_from_ini,
     load_options_from_json,
     load_options_from_yaml,
@@ -38,13 +36,7 @@ class TestLoadOptionsFromIni:
     def test_load_all_sections(self, tmp_path):
         """Test loading all section names from INI file."""
         ini_file = tmp_path / "test.ini"
-        ini_file.write_text(
-            "[SectionA]\n"
-            "key1 = value1\n"
-            "\n"
-            "[SectionB]\n"
-            "key1 = value2\n"
-        )
+        ini_file.write_text("[SectionA]\nkey1 = value1\n\n[SectionB]\nkey1 = value2\n")
 
         result = load_options_from_ini(ini_file, key_field="section")
         assert result == ["SectionA", "SectionB"]
@@ -76,13 +68,7 @@ class TestLoadOptionsFromIni:
     def test_load_specific_key(self, tmp_path):
         """Test loading specific key values from sections."""
         ini_file = tmp_path / "test.ini"
-        ini_file.write_text(
-            "[SectionA]\n"
-            "name = NameA\n"
-            "\n"
-            "[SectionB]\n"
-            "name = NameB\n"
-        )
+        ini_file.write_text("[SectionA]\nname = NameA\n\n[SectionB]\nname = NameB\n")
 
         result = load_options_from_ini(ini_file, key_field="name")
         assert result == ["NameA", "NameB"]
@@ -103,13 +89,7 @@ class TestLoadOptionsFromIni:
     def test_missing_key_field(self, tmp_path):
         """Test that sections without the specified key are skipped."""
         ini_file = tmp_path / "test.ini"
-        ini_file.write_text(
-            "[SectionA]\n"
-            "name = NameA\n"
-            "\n"
-            "[SectionB]\n"
-            "other = OtherValue\n"
-        )
+        ini_file.write_text("[SectionA]\nname = NameA\n\n[SectionB]\nother = OtherValue\n")
 
         result = load_options_from_ini(ini_file, key_field="name")
         assert result == ["NameA"]  # SectionB is skipped
@@ -122,10 +102,12 @@ class TestLoadOptionsFromJson:
         """Test loading all items from JSON array."""
         json_file = tmp_path / "test.json"
         json_file.write_text(
-            json.dumps([
-                {"name": "ItemA", "type": "Type1"},
-                {"name": "ItemB", "type": "Type2"},
-            ])
+            json.dumps(
+                [
+                    {"name": "ItemA", "type": "Type1"},
+                    {"name": "ItemB", "type": "Type2"},
+                ]
+            )
         )
 
         result = load_options_from_json(json_file, key_field="name")
@@ -135,11 +117,13 @@ class TestLoadOptionsFromJson:
         """Test loading items with filter condition."""
         json_file = tmp_path / "test.json"
         json_file.write_text(
-            json.dumps([
-                {"name": "ItemA", "type": "Script"},
-                {"name": "ItemB", "type": "API"},
-                {"name": "ItemC", "type": "Script"},
-            ])
+            json.dumps(
+                [
+                    {"name": "ItemA", "type": "Script"},
+                    {"name": "ItemB", "type": "API"},
+                    {"name": "ItemC", "type": "Script"},
+                ]
+            )
         )
 
         result = load_options_from_json(
@@ -174,10 +158,12 @@ class TestLoadOptionsFromJson:
         """Test that items without the specified key are skipped."""
         json_file = tmp_path / "test.json"
         json_file.write_text(
-            json.dumps([
-                {"name": "ItemA"},
-                {"other": "value"},
-            ])
+            json.dumps(
+                [
+                    {"name": "ItemA"},
+                    {"other": "value"},
+                ]
+            )
         )
 
         result = load_options_from_json(json_file, key_field="name")
@@ -190,12 +176,7 @@ class TestLoadOptionsFromYaml:
     def test_load_all_items(self, tmp_path):
         """Test loading all items from YAML array."""
         yaml_file = tmp_path / "test.yaml"
-        yaml_file.write_text(
-            "- name: ItemA\n"
-            "  type: Type1\n"
-            "- name: ItemB\n"
-            "  type: Type2\n"
-        )
+        yaml_file.write_text("- name: ItemA\n  type: Type1\n- name: ItemB\n  type: Type2\n")
 
         result = load_options_from_yaml(yaml_file, key_field="name")
         assert result == ["ItemA", "ItemB"]
@@ -204,12 +185,7 @@ class TestLoadOptionsFromYaml:
         """Test loading items with filter condition."""
         yaml_file = tmp_path / "test.yaml"
         yaml_file.write_text(
-            "- name: ItemA\n"
-            "  type: Script\n"
-            "- name: ItemB\n"
-            "  type: API\n"
-            "- name: ItemC\n"
-            "  type: Script\n"
+            "- name: ItemA\n  type: Script\n- name: ItemB\n  type: API\n- name: ItemC\n  type: Script\n"
         )
 
         result = load_options_from_yaml(

@@ -116,19 +116,12 @@ class Param:
         :raises FileNotFoundError: If the configuration file is not found
         :raises ValueError: If config_source is invalid or file format is unsupported
         """
-        # Import here to avoid circular dependencies and to allow task-sdk to be independent
-        try:
-            from airflow.utils.param_config_loader import (
-                load_options_from_ini,
-                load_options_from_json,
-                load_options_from_yaml,
-            )
-        except ImportError:
-            logger.warning(
-                "Could not import config loaders. Make sure airflow-core is installed. "
-                "Falling back to empty options."
-            )
-            return []
+        # Import here to avoid circular dependencies
+        from airflow.sdk.definitions.param_config_loader import (
+            load_options_from_ini,
+            load_options_from_json,
+            load_options_from_yaml,
+        )
 
         file_path = config_source.get("file")
         if not file_path:
