@@ -51,7 +51,7 @@
     "eslint-plugin-unicorn": "^62.0.0",
     "happy-dom": "^20.0.11",
     "prettier": "^3.7.4",
-    "typescript": "~5.9.3",
+    "typescript": "~5.8.3",
     "typescript-eslint": "^8.48.1",
     "vite": "^7.2.6",
     "vite-plugin-css-injected-by-js": "^3.5.2",
