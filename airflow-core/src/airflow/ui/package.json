@@ -29,6 +29,7 @@
     "@chakra-ui/react": "^3.20.0",
     "@codemirror/lang-json": "^6.0.1",
     "@emotion/react": "^11.14.0",
+    "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.75.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.8",

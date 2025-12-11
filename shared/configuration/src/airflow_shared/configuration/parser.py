@@ -1150,7 +1150,7 @@ class AirflowConfigParser(ConfigParser):
 
         try:
             # Import here to avoid circular dependency
-            from airflow.utils.module_loading import import_string
+            from ..module_loading import import_string
 
             return import_string(full_qualified_path)
         except ImportError as e:
