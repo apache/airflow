@@ -241,14 +241,25 @@ class KubernetesPodTrigger(BaseTrigger):
     async def _wait_for_pod_start(self) -> ContainerState:
         """Loops until pod phase leaves ``PENDING`` If timeout is reached, throws error."""
         pod = await self._get_pod()
-        events_task = self.pod_manager.watch_pod_events(pod, self.startup_check_interval)
-        pod_start_task = self.pod_manager.await_pod_start(
-            pod=pod,
-            schedule_timeout=self.schedule_timeout,
-            startup_timeout=self.startup_timeout,
-            check_interval=self.startup_check_interval,
-        )
-        await asyncio.gather(pod_start_task, events_task)
+        # Start event stream in background
+        events_task = asyncio.create_task(self.pod_manager.watch_pod_events(pod, self.startup_check_interval))
+
+        # Await pod start completion
+        try:
+            await self.pod_manager.await_pod_start(
+                pod=pod,
+                schedule_timeout=self.schedule_timeout,
+                startup_timeout=self.startup_timeout,
+                check_interval=self.startup_check_interval,
+            )
+        finally:
+            # Stop watching events
+            events_task.cancel()
+            try:
+                await events_task
+            except asyncio.CancelledError:
+                pass
+
         return self.define_container_state(await self._get_pod())
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
