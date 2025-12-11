@@ -18,7 +18,7 @@
  */
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
@@ -57,7 +57,22 @@ export type DagRunTriggerParams = {
   dataIntervalStart: string;
   logicalDate: string;
   note: string;
+  params?: Record<string, unknown>;
   partitionKey: string | undefined;
+};
+const extractParamValues = (obj: Record<string, unknown>) => {
+  const out: Record<string, unknown> = {};
+  Object.entries(obj).forEach(([key, val]) => {
+    if (val !== null && typeof val === "object" && "value" in val) {
+      out[key] = (val as { value: unknown }).value;
+    } else if (val !== null && typeof val === "object" && "default" in val) {
+      out[key] = (val as { default: unknown }).default;
+    } else {
+      out[key] = val;
+    }
+  });
+
+  return out;
 };
 
 const dataIntervalModeOptions: Array<{ label: string; value: DataIntervalMode }> = [
@@ -78,19 +93,26 @@ const TriggerDAGForm = ({
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const { conf } = useParamStore();
+  const { conf, setParamsDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
   const [searchParams] = useSearchParams();
-  const reservedKeys = ["run_id", "logical_date", "note"];
-  const urlConf = getTriggerConf(searchParams, reservedKeys);
+  const urlConf = getTriggerConf(searchParams, ["run_id", "logical_date", "note"]);
   const urlRunId = searchParams.get("run_id") ?? "";
   const urlDate = searchParams.get("logical_date");
   const urlNote = searchParams.get("note") ?? "";
 
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const defaultsRef = useRef<DagRunTriggerParams | undefined>(undefined);
+  const isSyncedRef = useRef(false);
+
+  const cleanInitialParams = useMemo(
+    () => extractParamValues(initialParamsDict.paramsDict as Record<string, unknown>),
+    [initialParamsDict.paramsDict],
+  );
+  const { control, getValues, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
+      ...initialParamsDict,
       conf: urlConf === "{}" ? conf || "{}" : urlConf,
       dagRunId: urlRunId,
       dataIntervalEnd: "",
@@ -99,23 +121,74 @@ const TriggerDAGForm = ({
       // Default logical date to now, show it in the selected timezone
       logicalDate: urlDate ?? dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: urlNote,
+      params: cleanInitialParams,
       partitionKey: undefined,
     },
   });
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    if (conf && urlConf === "{}") {
-      reset((prevValues) => ({
-        ...prevValues,
-        conf,
-      }));
-    }
-  }, [conf, reset, urlConf]);
+    if (defaultsRef.current === undefined && Object.keys(cleanInitialParams).length > 0) {
+      const current = getValues();
 
-  const resetDateError = () => {
-    setErrors((prev) => ({ ...prev, date: undefined }));
-  };
+      defaultsRef.current = {
+        ...current,
+        params: cleanInitialParams,
+      };
+    }
+  }, [getValues, cleanInitialParams]);
+
+  useEffect(() => {
+    if (defaultsRef.current === undefined) {
+      return;
+    }
+
+    if (isSyncedRef.current) {
+      return;
+    }
+
+    if (urlConf === "{}") {
+      if (conf) {
+        reset((prev) => ({ ...prev, conf }));
+      }
+      isSyncedRef.current = true;
+
+      return;
+    }
+
+    let parsed: Record<string, unknown> = {};
+
+    try {
+      parsed = JSON.parse(urlConf) as Record<string, unknown>;
+    } catch {
+      /* empty */
+    }
+    const mergedValues = { ...defaultsRef.current.params, ...parsed };
+    const mergedConfJson = JSON.stringify(mergedValues, undefined, 2);
+
+    reset({
+      ...defaultsRef.current,
+      conf: mergedConfJson,
+      dagRunId: Boolean(urlRunId) ? urlRunId : defaultsRef.current.dagRunId,
+      logicalDate: urlDate ?? defaultsRef.current.logicalDate,
+      note: Boolean(urlNote) ? urlNote : defaultsRef.current.note,
+      partitionKey: undefined,
+    });
+
+    const updatedParamsDict = structuredClone(initialParamsDict.paramsDict);
+
+    Object.entries(mergedValues).forEach(([key, val]) => {
+      if (updatedParamsDict[key]) {
+        updatedParamsDict[key].value = val;
+      }
+    });
+    setParamsDict(updatedParamsDict);
+
+    isSyncedRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlConf, urlRunId, urlDate, urlNote, initialParamsDict, reset, setParamsDict]);
+
+  const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
   const dataIntervalMode = watch("dataIntervalMode");
   const dataIntervalStart = watch("dataIntervalStart");
@@ -124,17 +197,25 @@ const TriggerDAGForm = ({
   const dataIntervalInvalid =
     dataIntervalMode === "manual" &&
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
-
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
-      togglePause({
-        dagId,
-        requestBody: {
-          is_paused: false,
-        },
-      });
+      togglePause({ dagId, requestBody: { is_paused: false } });
     }
-    triggerDagRun(data);
+
+    const finalParams = { ...data.params };
+
+    try {
+      const manualJson = JSON.parse(data.conf) as Record<string, unknown>;
+
+      Object.assign(finalParams, manualJson);
+    } catch {
+      /* empty */
+    }
+
+    triggerDagRun({
+      ...data,
+      conf: JSON.stringify(finalParams),
+    });
   };
 
   return (
