@@ -25,7 +25,6 @@ import platform
 import re
 import subprocess
 import sys
-import uuid
 import warnings
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
@@ -2785,7 +2784,7 @@ def testing_team():
         with create_session() as session:
             team = session.query(Team).filter_by(name="testing").one_or_none()
             if not team:
-                team = Team(id=uuid.uuid4(), name="testing")
+                team = Team(name="testing")
                 session.add(team)
                 session.flush()
             yield team

@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -40,7 +42,6 @@ def _show_teams(teams, output):
         data=teams,
         output=output,
         mapper=lambda x: {
-            "id": str(x.id),
             "name": x.name,
         },
     )
@@ -51,6 +52,8 @@ def _extract_team_name(args):
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
+        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
     return team_name
 
 
@@ -71,7 +74,7 @@ def team_create(args, session=NEW_SESSION):
     try:
         session.add(new_team)
         session.commit()
-        print(f"Team '{team_name}' created successfully with ID: {new_team.id}")
+        print(f"Team '{team_name}' created successfully.")
     except IntegrityError as e:
         session.rollback()
         raise SystemExit(f"Failed to create team '{team_name}': {e}")
@@ -96,23 +99,25 @@ def team_delete(args, session=NEW_SESSION):
     dag_bundle_count = session.scalar(
         select(func.count())
         .select_from(dag_bundle_team_association_table)
-        .where(dag_bundle_team_association_table.c.team_id == team.id)
+        .where(dag_bundle_team_association_table.c.team_name == team.name)
     )
     if dag_bundle_count:
         associations.append(f"{dag_bundle_count} DAG bundle(s)")
 
     # Check connection associations
     if connection_count := session.scalar(
-        select(func.count(Connection.id)).where(Connection.team_id == team.id)
+        select(func.count(Connection.id)).where(Connection.team_name == team.name)
     ):
         associations.append(f"{connection_count} connection(s)")
 
     # Check variable associations
-    if variable_count := session.scalar(select(func.count(Variable.id)).where(Variable.team_id == team.id)):
+    if variable_count := session.scalar(
+        select(func.count(Variable.id)).where(Variable.team_name == team.name)
+    ):
         associations.append(f"{variable_count} variable(s)")
 
     # Check pool associations
-    if pool_count := session.scalar(select(func.count(Pool.id)).where(Pool.team_id == team.id)):
+    if pool_count := session.scalar(select(func.count(Pool.id)).where(Pool.team_name == team.name)):
         associations.append(f"{pool_count} pool(s)")
 
     # If there are associations, prevent deletion

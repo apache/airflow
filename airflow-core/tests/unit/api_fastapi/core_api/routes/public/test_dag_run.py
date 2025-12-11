@@ -77,7 +77,7 @@ class CustomTimetable(CronDataIntervalTimetable):
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
     from airflow import plugins_manager
-    from airflow.utils.module_loading import qualname
+    from airflow._shared.module_loading import qualname
 
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
