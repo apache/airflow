@@ -1200,6 +1200,7 @@ class TestTriggererMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
             "GetTaskBreadcrumbs",
@@ -1223,6 +1224,7 @@ class TestTriggererMessageTypes:
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "SentFDs",
             "StartupDetails",
             "TaskBreadcrumbsResult",

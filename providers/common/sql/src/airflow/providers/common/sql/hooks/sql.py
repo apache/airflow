@@ -35,10 +35,10 @@ from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
@@ -333,7 +333,7 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def dialect(self) -> Dialect:
-        from airflow.utils.module_loading import import_string
+        from airflow.providers.common.compat.module_loading import import_string
 
         dialect_info = self._dialects.get(self.dialect_name)
 

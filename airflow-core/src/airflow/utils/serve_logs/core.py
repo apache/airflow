@@ -49,8 +49,13 @@ def serve_logs(port=None):
 
     logger.info("Starting log server on %s", serve_log_uri)
 
+    # Get uvicorn logging configuration from Airflow settings
+    uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+
     # Use uvicorn directly for ASGI applications
-    uvicorn.run("airflow.utils.serve_logs.log_server:get_app", host="", port=port, log_level="info")
+    uvicorn.run(
+        "airflow.utils.serve_logs.log_server:get_app", host="", port=port, log_level=uvicorn_log_level
+    )
     # Log serving is I/O bound and has low concurrency, so single process is sufficient
 
 

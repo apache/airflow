@@ -32,7 +32,6 @@ from airflow.utils.sqlalchemy import mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
 
@@ -176,7 +175,7 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query: Select[Any] | Query[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
