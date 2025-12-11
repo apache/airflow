@@ -199,14 +199,15 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         from airflow.models.connection import Connection
 
         response = self.get_response(conn_id)
-        if response is None:
+        if not response:
             return None
+        try:
+            uri = response["conn_uri"]
+        except KeyError:
+            self.log.warning('Vault connection %s fetched but does not have required key "conn_uri"', conn_id)
+            return Connection(conn_id, **response)
 
-        uri = response.get("conn_uri")
-        if uri:
-            return Connection(conn_id, uri=uri)
-
-        return Connection(conn_id, **response)
+        return Connection(conn_id, uri=uri)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
