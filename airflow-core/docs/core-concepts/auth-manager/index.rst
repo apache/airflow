@@ -170,7 +170,7 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
     return response
 
 .. note::
-    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
+  Ensure that the cookie parameter ``httponly`` is set to ``True``. UI no longer manages the token.
 
 Refreshing JWT Token
 ''''''''''''''''''''
