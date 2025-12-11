@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-10T21:51:38.342590
+# This constraints file was automatically generated on 2025-12-11T04:01:50.134617
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -247,7 +247,7 @@ google-cloud-redis==2.19.0
 google-cloud-resource-manager==1.15.0
 google-cloud-run==0.12.0
 google-cloud-secret-manager==2.25.0
-google-cloud-spanner==3.59.0
+google-cloud-spanner==3.60.0
 google-cloud-speech==2.34.0
 google-cloud-storage-control==1.8.0
 google-cloud-storage-transfer==1.18.0
@@ -259,7 +259,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.54.0
+google-genai==1.55.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -415,6 +415,7 @@ opentelemetry-exporter-otlp-proto-http==1.39.0
 opentelemetry-exporter-otlp==1.39.0
 opentelemetry-exporter-prometheus==0.60b0
 opentelemetry-proto==1.39.0
+opentelemetry-resourcedetector-gcp==1.11.0a0
 opentelemetry-sdk==1.39.0
 opentelemetry-semantic-conventions==0.60b0
 opsgenie-sdk==2.1.5
