@@ -106,8 +106,6 @@ Authentication related methods
 * ``get_url_login``: Return the URL the user is redirected to for signing in.
 * ``get_url_logout``: Return the URL the user is redirected to when logging out. This is an optional method,
   this redirection is usually needed to invalidate resources when logging out, such as a session.
-* ``get_url_refresh``: Return the URL the user is redirected to when refreshing the JWT token.
-  This is an optional method, if not implemented, the Airflow UI/API will fall to log out if the auth manager needs to refresh the JWT token.
 * ``serialize_user``: Serialize a user instance to a dict. This dict is the actual content of the JWT token.
   It should contain all the information needed to identify the user and make an authorization request.
 * ``deserialize_user``: Create a user instance from a dict. The dict is the payload of the JWT token.
@@ -176,58 +174,72 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
 
 Refreshing JWT Token
 ''''''''''''''''''''
-The refresh token logic is to automatically refresh the JWT token when it is about to expire.
-The auth manager should implement ``get_url_refresh`` method to return the URL of the refresh token endpoint.
+Refreshing token is optional feature and its availability depends on the specific implementation of the auth manager.
+The auth manager is responsible for refreshing the JWT token when it expires.
+The Airflow API uses middleware that intercepts every request and checks the validity of the JWT token.
+Token communication is handled through ``httponly`` cookies to improve security.
+When the token expires, the middleware calls the auth manager's ``refresh_token`` method to obtain a new token.
 
-It requires the user to be authenticated, and it is usually called by the Airflow UI/API when the JWT token is about to expire.
-This endpoint is used to refresh the JWT token when it is about to expire.
-The auth manager should implement this endpoint to allow the Airflow UI/API to refresh the JWT token.
-If the auth manager does not implement this endpoint, the Airflow UI/API will not be able to refresh the JWT token.
-The user will be logged out when the JWT token expires in that case, and they will have to log in again.
+To support token refresh operations, the auth manager must implement the ``refresh_token`` method.
+This method receives an expired token and must return a new valid token.
+User information is extracted from the expired token and used to generate a fresh token.
 
-This procedure is following the same pattern as the initial token generation endpoints and login/logout logic.
-
-If the auth manager have a token which expires and need to be refreshed, it should override the endpoint.
-
-Example token structure below shows that we need to refresh the token via using the ``refresh_token`` key in the token dict.
-This is example and the names can be different in your auth manager implementation.
-If this is not the case, auth manager don't need to implement the refresh token endpoint.
+An example implementation of ``refresh_user`` could be:
 
 .. code-block:: python
 
-  token = {
-      "access_token": "ACCESS_TOKEN",
-      "refresh_token": "REFRESH_TOKEN",
-      "param1": "value1",
-      "param2": "value2",
-      "...": "...",
-  }
+    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        if self._token_expired(user.access_token):
+            log.debug("Refreshing the token")
+            client = self.get_keycloak_client()
+            tokens = client.refresh_token(user.refresh_token)
+            user.refresh_token = tokens["refresh_token"]
+            user.access_token = tokens["access_token"]
+            return user
 
+        return None
 
-A typical implementation of the refresh token endpoint would look like this:
-
+User information is derived from the ``BaseUser`` instance. It is important that the user object contains all the fields required to refresh the token. An example user class that includes all necessary fields is shown below:
 
 .. code-block:: python
 
-    @router.post("/auth/token/refresh")
-    def refresh_token(
-        request: Request,
-        user: T = Depends(get_current_user),
-    ) -> TokenResponse:
-        """
-        Refresh the JWT token for the current user.
-        """
-        # Generate a new token for the user
-        new_token = auth_manager.generate_token(user)  # Or similar with calling the client from auth manager
+    class KeycloakAuthManagerUser(BaseUser):
+        """User model for users managed by the Keycloak auth manager."""
 
-        # Set the new token in the cookie
-        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-        response = RedirectResponse(url="/")
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, new_token, secure=secure)
+        def __init__(self, *, user_id: str, name: str, access_token: str, refresh_token: str) -> None:
+            self.user_id = user_id
+            self.name = name
+            self.access_token = access_token
+            self.refresh_token = refresh_token
 
-        return response
-.. note::
-    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
+        def get_id(self) -> str:
+            return self.user_id
+
+        def get_name(self) -> str:
+            return self.name
+
+The refresh token endpoint must implement the refresh logic required by the auth manager. An example ``refresh_token`` implementation is shown below:
+
+.. code-block:: python
+
+    def refresh_token(self, expired_token: str) -> str:
+        expired_user_dict = self.deserialize_user(jwt.decode(expired_token, options={"verify_signature": False}))
+        expired_user = cast(KeycloakAuthManagerUser, expired_user_dict)
+
+        new_access_token, new_refresh_token = self._refresh_tokens(
+            expired_user.access_token,
+            expired_user.refresh_token,
+        )
+
+        new_user = KeycloakAuthManagerUser(
+            user_id=expired_user.get_id(),
+            name=expired_user.get_name(),
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+        )
+
+        new_token = self._create_jwt_token(new_user)
+        return new_token
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
