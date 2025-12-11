@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-11T04:01:50.134617
+# This constraints file was automatically generated on 2025-12-11T09:50:42.287243
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -630,7 +630,7 @@ tinycss2==1.4.0
 tokenizers==0.22.1
 tomli_w==1.2.0
 tomlkit==0.13.3
-tornado==6.5.2
+tornado==6.5.3
 towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
