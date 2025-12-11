@@ -18,21 +18,21 @@
  */
 import { Box, Portal } from "@chakra-ui/react";
 import type { ReactElement, ReactNode } from "react";
-import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
-  readonly children: ReactElement;
+  readonly children: ReactNode;
   readonly content: ReactNode;
 };
 
 const offset = 8;
 
 export const BasicTooltip = ({ children, content }: Props): ReactElement => {
-  const triggerRef = useRef<HTMLElement>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [showOnTop, setShowOnTop] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = useCallback(() => {
     if (timeoutRef.current) {
@@ -46,7 +46,8 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const handleMouseLeave = useCallback(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
-      timeoutRef.current = undefined;
+      // eslint-disable-next-line unicorn/no-null
+      timeoutRef.current = null;
     }
     setIsOpen(false);
   }, []);
@@ -72,12 +73,17 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
     [],
   );
 
-  // Clone children and attach event handlers + ref
-  const trigger = cloneElement(children, {
-    onMouseEnter: handleMouseEnter,
-    onMouseLeave: handleMouseLeave,
-    ref: triggerRef,
-  });
+  const trigger = (
+    <Box
+      as="span"
+      display="inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      ref={triggerRef}
+    >
+      {children}
+    </Box>
+  );
 
   if (!isOpen || !triggerRef.current) {
     return trigger;
