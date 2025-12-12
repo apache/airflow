@@ -25,9 +25,9 @@ from asgiref.sync import sync_to_async
 
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.module_loading import import_string
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger

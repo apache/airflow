@@ -1679,6 +1679,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
         for apdr in apdrs:
+            if TYPE_CHECKING:
+                assert apdr.target_dag_id
             partition_dag_ids.add(apdr.target_dag_id)
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
@@ -1829,6 +1831,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # and continue to the next serdag.
                 except Exception:
                     self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
+                    # todo: continuing here does not work because session needs rollback
+                    #  but you need either to make smaller transactions and commit after every dag run
+                    #  or to use savepoints.
+                    #  https://github.com/apache/airflow/issues/59120
                     continue
             if self._should_update_dag_next_dagruns(
                 serdag,

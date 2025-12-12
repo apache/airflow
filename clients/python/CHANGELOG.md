@@ -17,6 +17,13 @@
  under the License.
  -->
 
+# v3.1.4
+
+## Bug Fixes:
+
+ - Update refresh token flow ([#55506](https://github.com/apache/airflow/pull/55506))
+ - Patch pools should have an optional description ([#58066](https://github.com/apache/airflow/pull/58066))
+
 # v3.1.3
 
 ## New Features:

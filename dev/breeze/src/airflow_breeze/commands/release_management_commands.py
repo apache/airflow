@@ -172,6 +172,7 @@ from airflow_breeze.utils.provider_dependencies import (
     get_provider_dependencies,
     get_related_providers,
     load_constraints,
+    regenerate_provider_dependencies_once,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
@@ -254,11 +255,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.16"
+AIRFLOW_UV_VERSION = "0.9.17"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.19"
+PREK_VERSION = "0.2.21"
 HATCH_VERSION = "1.16.2"
 PYYAML_VERSION = "6.0.3"
 
@@ -851,6 +852,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
         update_changelog,
+        update_index_rst,
         update_min_airflow_version_and_build_files,
         update_release_notes,
     )
@@ -923,6 +925,12 @@ def prepare_provider_documentation(
                         only_min_version_update=only_min_version_update,
                         with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
+            update_index_rst(
+                provider_id=provider_id,
+                with_breaking_changes=with_breaking_changes,
+                maybe_with_new_features=maybe_with_new_features,
+            )
+
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
         except PrepareReleaseDocsChangesOnlyException:
@@ -3028,6 +3036,8 @@ def update_providers_next_version():
     """
     from airflow_breeze.utils.packages import update_providers_with_next_version_comment
 
+    # make sure dependencies are regenerated before we start
+    regenerate_provider_dependencies_once()
     get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
 
     updates_made = update_providers_with_next_version_comment()
@@ -3042,6 +3052,9 @@ def update_providers_next_version():
             f"\n[success]Updated {len(updates_made)} provider(s) with "
             f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
         )
+        # Regenerate provider dependencies after some of them changed
+        regenerate_provider_dependencies_once.cache_clear()
+        regenerate_provider_dependencies_once()
     else:
         get_console().print(
             "\n[info]No updates needed. All providers with '# use next version' "

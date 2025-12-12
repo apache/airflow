@@ -33,10 +33,10 @@ from jwt.exceptions import (
     InvalidSignatureError,
 )
 
+from airflow._shared.module_loading import import_string
 from airflow.api_fastapi.auth.tokens import JWTValidator, get_signing_key
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
-from airflow.utils.module_loading import import_string
 
 logger = logging.getLogger(__name__)
 
