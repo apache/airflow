@@ -140,7 +140,11 @@ class AssetManager(LoggingMixin):
             )
         )
         if not asset_model:
-            cls.logger().warning("AssetModel %s not found", asset)
+            msg = f"AssetModel {asset} not found; cannot create asset event."
+            cls.logger().warning(msg)
+            # if there is a task_instance, write to task log
+            if task_instance is not None and hasattr(task_instance, "log"):
+                task_instance.log.warning(msg)
             return None
 
         if not asset_model.active:
