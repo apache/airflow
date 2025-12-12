@@ -77,7 +77,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
-        XComSequenceIndexResult(root="f"),
+        XComSequenceSliceResult(root=["f"]),
         ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
     ]
     assert list(it) == ["f"]
