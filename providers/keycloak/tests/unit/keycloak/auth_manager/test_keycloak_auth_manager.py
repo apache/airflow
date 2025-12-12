@@ -136,12 +136,14 @@ class TestKeycloakAuthManager:
 
     @patch.object(KeycloakAuthManager, "get_keycloak_client")
     @patch.object(KeycloakAuthManager, "_token_expired")
-    def test_refresh_user_expired_with_invalid_token(self, mock_token_expired, mock_get_keycloak_client, auth_manager, user):
+    def test_refresh_user_expired_with_invalid_token(
+        self, mock_token_expired, mock_get_keycloak_client, auth_manager, user
+    ):
         mock_token_expired.return_value = True
         keycloak_client = Mock()
         keycloak_client.refresh_token.side_effect = KeycloakPostError(
             response_code=400,
-            response_body= b'{"error":"invalid_grant","error_description":"Token is not active"}',
+            response_body=b'{"error":"invalid_grant","error_description":"Token is not active"}',
         )
 
         mock_get_keycloak_client.return_value = keycloak_client
