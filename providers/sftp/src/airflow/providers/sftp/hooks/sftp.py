@@ -750,6 +750,15 @@ class SFTPHookAsync(BaseHook):
         elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
+    @classmethod
+    async def get_async_connection(cls, conn_id: str) -> Connection:
+        if hasattr(BaseHook, "aget_connection"):
+            return await BaseHook.aget_connection(conn_id=conn_id)
+
+        from asgiref.sync import sync_to_async
+
+        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
+
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
         """
         Asynchronously connect to the SFTP server as an SSH client.
@@ -761,7 +770,7 @@ class SFTPHookAsync(BaseHook):
         - known_hosts
         - passphrase
         """
-        conn = await sync_to_async(self.get_connection)(self.sftp_conn_id)
+        conn = await self.get_async_connection(conn_id=self.sftp_conn_id)
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
@@ -879,12 +888,12 @@ class SFTPHookAsync(BaseHook):
         """
         async with await self._get_conn() as ssh_conn:
             try:
-                sftp_client = await ssh_conn.start_sftp_client()
-                ftp_mdtm = await sftp_client.stat(path)
-                modified_time = ftp_mdtm.mtime
-                mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
-                self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
-                return mod_time
+                async with ssh_conn.start_sftp_client() as sftp:
+                    ftp_mdtm = await sftp.stat(path)
+                    modified_time = ftp_mdtm.mtime
+                    mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+                    self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
+                    return mod_time
             except asyncssh.SFTPNoSuchFile:
                 raise AirflowException("No files matching")
 
