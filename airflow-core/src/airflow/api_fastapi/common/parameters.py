@@ -32,7 +32,7 @@ from typing import (
     overload,
 )
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
+    from airflow.serialization.serialized_objects import SerializedDAG
 
 T = TypeVar("T")
 
@@ -190,14 +191,14 @@ class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
 
     def __init__(self, dag=None, skip_none: bool = True):
         super().__init__(skip_none=skip_none)
-        self._dag: None | Any = dag
+        self._dag: None | SerializedDAG = dag
 
     @property
-    def dag(self) -> None | Any:
+    def dag(self) -> None | SerializedDAG:
         return self._dag
 
     @dag.setter
-    def dag(self, value: None | Any) -> None:
+    def dag(self, value: None | SerializedDAG) -> None:
         self._dag = value
 
     def to_orm(self, select: Select) -> Select:
@@ -205,20 +206,24 @@ class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
             return select
 
         if not self.dag:
-            raise ValueError("DAG must be set before calling to_orm")
+            raise ValueError("Dag must be set before calling to_orm")
 
         if not hasattr(self.dag, "task_group"):
             return select
 
-        matching_task_ids = []
-
         # Exact matching on group_id
         task_groups = self.dag.task_group.get_task_group_dict()
         task_group = task_groups.get(self.value)
-        if task_group:
-            matching_task_ids = [task.task_id for task in task_group.iter_tasks()]
+        if not task_group:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"Task group {self.value} not found",
+                },
+            )
 
-        return select.where(TaskInstance.task_id.in_(matching_task_ids))
+        return select.where(TaskInstance.task_id.in_(task.task_id for task in task_group.iter_tasks()))
 
     @classmethod
     def depends(
