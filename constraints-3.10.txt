@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-10T23:11:53.393021
+# This constraints file was automatically generated on 2025-12-12T14:26:10.193325
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -31,7 +31,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
 APScheduler==3.11.1
-Authlib==1.6.5
+Authlib==1.6.6
 Deprecated==1.3.1
 Events==0.5
 Flask-AppBuilder==5.0.1
@@ -207,7 +207,7 @@ atlassian-python-api==4.0.7
 attrs==25.4.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.36.0
+azure-core==1.37.0
 azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
@@ -274,7 +274,7 @@ cron_descriptor==2.0.6
 croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
-darabonba-core==1.0.4
+darabonba-core==1.0.5
 databricks-sql-connector==4.2.2
 databricks-sqlalchemy==1.0.2
 dataclasses-json==0.6.7
@@ -360,7 +360,7 @@ google-cloud-os-login==2.18.0
 google-cloud-pubsub==2.33.0
 google-cloud-redis==2.19.0
 google-cloud-resource-manager==1.15.0
-google-cloud-run==0.12.0
+google-cloud-run==0.13.0
 google-cloud-secret-manager==2.25.0
 google-cloud-spanner==3.60.0
 google-cloud-speech==2.34.0
@@ -374,7 +374,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.7.1
-google-genai==1.54.0
+google-genai==1.55.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
@@ -485,12 +485,12 @@ nest-asyncio==1.6.0
 numpy==1.26.4
 oauthlib==3.3.1
 objsize==0.7.1
-openai==2.9.0
+openai==2.11.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.40.1
-openlineage-python==1.40.1
-openlineage_sql==1.40.1
+openlineage-integration-common==1.41.0
+openlineage-python==1.41.0
+openlineage_sql==1.41.0
 openpyxl==3.1.5
 opensearch-py==3.0.0
 opentelemetry-api==1.27.0
@@ -588,7 +588,7 @@ pytokens==0.3.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
-qdrant-client==1.16.1
+qdrant-client==1.16.2
 ray==2.47.1
 reactivex==4.1.0
 redis==5.3.1
@@ -661,7 +661,7 @@ tinycss2==1.4.0
 tokenizers==0.22.1
 tomli==2.3.0
 tomlkit==0.13.3
-tornado==6.5.2
+tornado==6.5.3
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
@@ -678,7 +678,7 @@ tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.6.1
+urllib3==2.6.2
 uuid6==2025.0.1
 uv==0.9.17
 uvicorn==0.38.0
@@ -701,7 +701,7 @@ xmltodict==1.0.2
 yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
-ydb-dbapi==0.1.15
+ydb-dbapi==0.1.16
 ydb==3.22.3
 zeep==4.3.2
 zenpy==2.0.56
