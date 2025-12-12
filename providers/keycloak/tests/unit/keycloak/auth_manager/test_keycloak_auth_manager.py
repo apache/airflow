@@ -20,6 +20,7 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
+from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -132,6 +133,22 @@ class TestKeycloakAuthManager:
         keycloak_client.refresh_token.assert_called_with("refresh_token")
         assert result.access_token == "new_access_token"
         assert result.refresh_token == "new_refresh_token"
+
+    @patch.object(KeycloakAuthManager, "get_keycloak_client")
+    @patch.object(KeycloakAuthManager, "_token_expired")
+    def test_refresh_user_expired_with_invalid_token(self, mock_token_expired, mock_get_keycloak_client, auth_manager, user):
+        mock_token_expired.return_value = True
+        keycloak_client = Mock()
+        keycloak_client.refresh_token.side_effect = KeycloakPostError(
+            response_code=400,
+            response_body= b'{"error":"invalid_grant","error_description":"Token is not active"}',
+        )
+
+        mock_get_keycloak_client.return_value = keycloak_client
+
+        assert auth_manager.refresh_user(user=user) is None
+
+        keycloak_client.refresh_token.assert_called_with("refresh_token")
 
     @pytest.mark.parametrize(
         ("function", "method", "details", "permission", "attributes"),
