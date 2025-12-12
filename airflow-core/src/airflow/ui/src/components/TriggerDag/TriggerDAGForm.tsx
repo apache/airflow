@@ -185,8 +185,7 @@ const TriggerDAGForm = ({
     setParamsDict(updatedParamsDict);
 
     isSyncedRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlConf, urlRunId, urlDate, urlNote, initialParamsDict, reset, setParamsDict]);
+  }, [urlConf, urlRunId, urlDate, urlNote, initialParamsDict, reset, setParamsDict, conf]);
 
   const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
 
