@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``edc4f85a4619`` (head) | ``b12d4f98a91e`` | ``3.2.0``         | Enforce the new ``NOT NULL`` expectations for ``log.event``  |
+| ``c47f2e1ab9d4`` (head) | ``edc4f85a4619`` | ``3.2.0``         | Add ``trigger_queue`` column to ``trigger`` table.           |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``edc4f85a4619``        | ``b12d4f98a91e`` | ``3.2.0``         | Enforce the new ``NOT NULL`` expectations for ``log.event``  |
 |                         |                  |                   | and ``dag.is_stale``.                                        |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``b12d4f98a91e``        | ``665854ef0536`` | ``3.2.0``         | Drop ``id`` column from ``team`` table and make ``name`` the |

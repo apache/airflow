@@ -69,12 +69,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         # when run, they are injected into logger record.
         self.task_instance = None
         self.trigger_id = None
-        if not trigger_queue:
-            self.trigger_queue = conf.get("triggerer", "default_trigger_queue")
-        elif isinstance(trigger_queue, str) and "," not in trigger_queue:
-            self.trigger_queue = trigger_queue
-        else:
-            raise ValueError(f"Invalid trigger_queue value: '{trigger_queue}'")
+        self.trigger_queue = trigger_queue or conf.get("triggerer", "default_trigger_queue")
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
