@@ -24,20 +24,20 @@ import type { ConnectionTestResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 export const useTestConnection = (setConnected: Dispatch<SetStateAction<boolean | undefined>>) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation("admin");
 
   const onSuccess = (res: ConnectionTestResponse) => {
     setConnected(res.status);
     if (res.status) {
       toaster.create({
         description: res.message,
-        title: translate("toaster.test.success.title"),
+        title: translate("connections.testSuccess.title"),
         type: "success",
       });
     } else {
       toaster.create({
         description: res.message,
-        title: translate("toaster.test.error.title"),
+        title: translate("connections.testError.title"),
         type: "error",
       });
     }

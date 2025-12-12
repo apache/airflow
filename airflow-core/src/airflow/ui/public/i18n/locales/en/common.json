@@ -313,14 +313,6 @@
         "title": "Import {{resourceName}} Request Submitted"
       }
     },
-    "test": {
-      "error": {
-        "title": "Test Connection Failed"
-      },
-      "success": {
-        "title": "Test Connection Successful"
-      }
-    },
     "update": {
       "error": "Update {{resourceName}} Request Failed",
       "success": {
