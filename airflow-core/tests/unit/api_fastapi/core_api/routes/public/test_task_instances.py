@@ -1192,6 +1192,24 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 id="test task_display_name_pattern filter",
             ),
             pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_id": "section_1"},
+                3,
+                7,
+                id="test task_group filter with exact match",
+            ),
+            pytest.param(
+                "task_group_test",
+                True,
+                ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"task_group_id": "section_2"},
+                4,  # section_2 has 4 tasks: task_1 + inner_section_2 (task_2, task_3, task_4)
+                7,
+                id="test task_group filter exact match on group_id",
+            ),
+            pytest.param(
                 [
                     {"task_id": "task_match_id_1"},
                     {"task_id": "task_match_id_2"},
@@ -1294,12 +1312,24 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         expected_queries_number,
         session,
     ):
-        self.create_task_instances(
-            session,
-            update_extras=update_extras,
-            task_instances=task_instances,
-        )
-        with mock.patch("airflow.models.dag_version.DagBundlesManager"):
+        # Special handling for dag_id_pattern tests that require multiple DAGs
+        if task_instances == "dag_id_pattern_test":
+            # Create task instances for multiple DAGs like the original test_dag_id_pattern_filter
+            dag1_id = "example_python_operator"
+            dag2_id = "example_skip_dag"
+            self.create_task_instances(session, dag_id=dag1_id)
+            self.create_task_instances(session, dag_id=dag2_id)
+        elif task_instances == "task_group_test":
+            # test with task group expansion
+            self.create_task_instances(session, dag_id="example_task_group")
+        else:
+            self.create_task_instances(
+                session,
+                update_extras=update_extras,
+                task_instances=task_instances,
+            )
+        with mock.patch("airflow.models.dag_version.DagBundlesManager") as dag_bundle_manager_mock:
+            dag_bundle_manager_mock.return_value.view_url.return_value = "some_url"
             # Mock DagBundlesManager to avoid checking if dags-folder bundle is configured
             with assert_queries_count(expected_queries_number):
                 response = test_client.get(url, params=params)
