@@ -24,7 +24,7 @@ import pytest
 import airflow
 from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.exceptions import ErrorType, AirflowRuntimeError
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetXComCount,
