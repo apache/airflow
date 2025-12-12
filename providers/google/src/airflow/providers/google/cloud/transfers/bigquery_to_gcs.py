@@ -275,6 +275,9 @@ class BigQueryToGCSOperator(BaseOperator):
         else:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
 
+            # issue-59344: Returning destination URIs to be persisted in XCom
+            return self.destination_cloud_storage_uris
+
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Return immediately and relies on trigger to throw a success event. Callback for the trigger.
@@ -290,6 +293,9 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         # Save job_id as an attribute to be later used by listeners
         self.job_id = event.get("job_id")
+
+        # issue-59344: Returning destination URIs to be persisted in XCom
+        return self.destination_cloud_storage_uris
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
