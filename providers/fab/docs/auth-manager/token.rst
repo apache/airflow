@@ -144,8 +144,4 @@ This custom logic overrides the default ``create_token`` method from the FAB aut
 
             log.info("User: %s", user)
 
-            # Log user into the session
-            if user is not None:
-                login_user(user, remember=False)
-
             return user
