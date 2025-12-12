@@ -36,9 +36,8 @@ import os
 from pathlib import Path
 from typing import Any
 
-import astroid
 import rich
-from packaging.version import Version, parse as parse_version
+from packaging.version import parse as parse_version
 
 import airflow
 from airflow.configuration import retrieve_configuration_description
@@ -148,17 +147,6 @@ extensions.extend(
         "sphinx_jinja",
     ]
 )
-
-# If astroid>=4, prefer autodoc route for providers to avoid AutoAPI mapping failures
-if Version(astroid.__version__).major >= 4:
-    if "autoapi.extension" in extensions:
-        extensions.remove("autoapi.extension")
-    extensions.extend(
-        [
-            "sphinx.ext.autodoc",
-            "sphinx.ext.napoleon",
-        ]
-    )
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -295,8 +283,8 @@ if PACKAGE_NAME in ["apache-airflow-providers-google"]:
 # the module by other extensions. The default is True.
 viewcode_follow_imported_members = True
 
-# -- Options for sphinx-autoapi / autodoc (conditional) ------------------------
-# We prefer AutoAPI. Under astroid>=4 we switch to sphinx-apidoc+autodoc for providers.
+# -- Options for sphinx-autoapi ------------------------------------------------
+# See: https://sphinx-autoapi.readthedocs.io/en/latest/config.html
 
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
@@ -306,12 +294,9 @@ autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
 
 autoapi_log = logging.getLogger("sphinx.autoapi.mappers.base")
-# Increase verbosity to help diagnose mapping problems under astroid 4
-autoapi_log.setLevel("DEBUG")
 autoapi_log.addFilter(filter_autoapi_ignore_entries)
 
 autoapi_python_use_implicit_namespaces = True
-# Keep default generation behaviour and class content to avoid empty source discovery
 
 autoapi_ignore.extend(
     (
@@ -330,86 +315,9 @@ for p in load_package_data(include_suspended=True):
         continue
     autoapi_ignore.extend((p["package-dir"] + "/*", p["system-tests-dir"] + "/*"))
 
-if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
-    # Astroid 4 has breaking changes in how autoapi-ignore is applied to sibling paths.
-    # To keep provider docs building, avoid adding the parent of system tests to autoapi_dirs
-    # when running under astroid>=4 (we only document code, not tests).
-    if Version(astroid.__version__).major >= 4:
-        rich.print("[yellow]Skipping adding system tests directory to autoapi_dirs under astroid>=4[/yellow]")
-        # Create a placeholder System Tests index so provider index.rst toctree does not warn
-        # under astroid>=4 where we do not include tests in autoapi_dirs.
-        try:
-            tests_placeholder = (
-                Path(__file__).parent
-                / ".."
-                / ".."
-                / ".."
-            ).resolve()  # repo root of devel-common/src/docs
-            # Sphinx srcdir for providers is providers/<id>/docs
-            # Place under that _api/tests/system/<provider-id>/index.rst
-            provider_docs_dir = (AIRFLOW_REPO_ROOT_PATH / "providers" / PACKAGE_ID.replace(".", "/") / "docs").resolve()
-            target_placeholder = (
-                provider_docs_dir / "_api" / "tests" / "system" / PACKAGE_ID.replace(".", "/") / "index.rst"
-            )
-            target_placeholder.parent.mkdir(parents=True, exist_ok=True)
-            if not target_placeholder.exists():
-                target_placeholder.write_text("System Tests\n============\n\nThis page is intentionally left blank during docs build (astroid>=4).\n")
-        except Exception as e:  # best-effort: never fail docs build due to placeholder
-            rich.print(f"[yellow]Failed to create system tests placeholder: {e}[/yellow]")
-    else:
-        test_dir = SYSTEM_TESTS_DIR.parent
-        autoapi_dirs.append(test_dir.as_posix())
-        autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
-
-# For astroid>=4 switch to sphinx-apidoc generation to _api and render via autodoc
-if Version(astroid.__version__).major >= 4:
-    from sphinx.ext import apidoc
-
-    def _generate_provider_api_docs(app):
-        output_dir = Path(app.srcdir) / "_api"
-        pkg_dir = BASE_PROVIDER_SRC_PATH
-        output_dir.mkdir(parents=True, exist_ok=True)
-        # Exclusions roughly mirror our ignore patterns
-        excludes = [
-            str(pkg_dir / "providers" / "**" / "tests" / "**"),
-            str(pkg_dir / "**" / "get_provider_info.py"),
-            str(pkg_dir / "**" / "version_compat.py"),
-        ]
-        args = [
-            "-o",
-            str(output_dir),
-            str(pkg_dir),
-            *excludes,
-            "--force",
-            "--module-first",
-            "--separate",
-        ]
-        apidoc.main(args)
-
-    def setup(app):
-        app.connect("builder-inited", _generate_provider_api_docs)
-
-
-rich.print("[bright_blue]AUTOAPI_IGNORE (provider build):")
+rich.print("[bright_blue]AUTOAPI_IGNORE:")
 rich.print(autoapi_ignore)
 rich.print()
-
-# Temporary branch-local mitigation for astroid>=4: exclude deep provider module trees
-# that astroid fails to parse with AutoAPI, to keep docs building green.
-if Version(astroid.__version__).major >= 4:
-    provider_src_root = BASE_PROVIDER_SRC_PATH.as_posix()
-    extra_ignores = [
-        f"{provider_src_root}/**/hooks/*",
-        f"{provider_src_root}/**/operators/*",
-        f"{provider_src_root}/**/sensors/*",
-        f"{provider_src_root}/**/triggers/*",
-        # Problematic files under astroid 4 that fail to map (keep __init__.py for package discovery)
-        f"{provider_src_root}/**/get_provider_info.py",
-        f"{provider_src_root}/**/version_compat.py",
-    ]
-    autoapi_ignore.extend(extra_ignores)
-    rich.print("[yellow]Astroid 4 detected: applying extra autoapi_ignore patterns[/yellow]")
-    rich.print(extra_ignores)
 
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.

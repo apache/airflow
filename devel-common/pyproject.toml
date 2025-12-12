@@ -70,15 +70,13 @@ dependencies = [
     "twine>=4.0.2",
 ]
 "docs" = [
-    # Astroid 4 released 5 Oct 2025 breaks autoapi https://github.com/apache/airflow/issues/56420
-    "astroid>=3,<4",
     "checksumdir>=1.2.0",
     "rich-click>=1.7.1",
     "click>=8.1.8",
     "docutils>=0.21",
     "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.2.3/sphinx_airflow_theme-0.2.3-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
-    "sphinx-autoapi>=3.5.0",
+    "sphinx-autoapi>=3.6.1",
     "sphinx-autobuild>=2024.10.2",
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.5.0",

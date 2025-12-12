@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/modules>
+    Python API <_api/airflow/providers/airbyte/index>
 
 .. toctree::
     :hidden:
@@ -49,12 +49,6 @@
     :caption: System tests
 
     System Tests <_api/tests/system/airbyte/index>
-
-.. note::
-   System tests live in the source tree under ``providers/airbyte/tests/system``.
-   They are not part of the API reference. When AutoAPI generates system test
-   pages (``_api/tests/system/...``) in environments that support it, they will
-   appear automatically in the left navigation.
 
 .. toctree::
     :hidden:

@@ -326,24 +326,23 @@ def get_google_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
 
 
 BASIC_AUTOAPI_IGNORE_PATTERNS = [
-    "*/airflow/_vendor/*",
-    "*/airflow/executors/*",
-    "*/_internal*",
-    "*/node_modules/*",
-    "*/migrations/*",
-    "*/contrib/*",
-    "*/example_taskflow_api_docker_virtualenv.py",
-    "*/example_dag_decorator.py",
-    "*/conftest.py",
-    "*/tests/__init__.py",
-    "*/tests/system/__init__.py",
-    "*/tests/system/*/tests/*",
-    "*/tests/system/example_empty.py",
-    "*/check_translations_completeness.py",
-    # Files that are not useful for API reference and can trip AutoAPI under astroid>=4
-    "*/airflow/providers/*/__init__.py",
-    "*/airflow/providers/*/get_provider_info.py",
-    "*/airflow/providers/*/version_compat.py",
+    "**/airflow/_vendor/**",
+    "**/airflow/executors/**",
+    "**/_internal*",
+    "**/node_modules/**",
+    "**/migrations/**",
+    "**/contrib/**",
+    "**/example_taskflow_api_docker_virtualenv.py",
+    "**/example_dag_decorator.py",
+    "**/conftest.py",
+    "**/tests/**",
+    "**/*test*.py",
+    "**/test_*.py",
+    "**/*_test.py",
+    "**/check_translations_completeness.py",
+    # Do not ignore __init__.py - Astroid 4 needs it for package discovery
+    "**/airflow/providers/*/get_provider_info.py",
+    "**/airflow/providers/*/version_compat.py",
 ]
 
 IGNORE_PATTERNS_RECOGNITION = re.compile(r"\[AutoAPI\] .* Ignoring \s (?P<path>/[\w/.]*)", re.VERBOSE)
