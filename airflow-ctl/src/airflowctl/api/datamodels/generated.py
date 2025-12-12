@@ -203,6 +203,10 @@ class ConfigSection(BaseModel):
     options: Annotated[list[ConfigOption], Field(title="Options")]
 
 
+class TeamName(RootModel[str]):
+    root: Annotated[str, Field(max_length=50, title="Team Name")]
+
+
 class ConnectionBody(BaseModel):
     """
     Connection Serializer for requests body.
@@ -220,6 +224,7 @@ class ConnectionBody(BaseModel):
     port: Annotated[int | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -236,6 +241,7 @@ class ConnectionResponse(BaseModel):
     port: Annotated[int | None, Field(title="Port")] = None
     password: Annotated[str | None, Field(title="Password")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
 class ConnectionTestResponse(BaseModel):
@@ -912,10 +918,6 @@ class ValidationError(BaseModel):
     loc: Annotated[list[str | int], Field(title="Location")]
     msg: Annotated[str, Field(title="Message")]
     type: Annotated[str, Field(title="Error Type")]
-
-
-class TeamName(RootModel[str]):
-    root: Annotated[str, Field(max_length=50, title="Team Name")]
 
 
 class VariableBody(BaseModel):
