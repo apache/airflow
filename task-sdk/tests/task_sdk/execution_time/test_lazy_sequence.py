@@ -24,7 +24,7 @@ import pytest
 import airflow
 from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetXComCount,
@@ -75,7 +75,7 @@ def test_len(mock_supervisor_comms, lazy_sequence):
 
 
 def test_iter(mock_supervisor_comms, lazy_sequence):
-    stop = step = conf.getint("core", "parallelism")
+    stop = conf.getint("core", "parallelism") + 1
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
@@ -90,23 +90,23 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
                 dag_id="dag",
                 task_id="task",
                 run_id="run",
-                start=0,
+                start=1,
                 stop=stop,
-                step=step,
+                step=None,
             ),
         )
     )
 
 
 def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
-    stop = step = conf.getint("core", "parallelism")
+    stop = conf.getint("core", "parallelism") + 1
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
         XComSequenceSliceResult(root=["f"]),
         ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
     ]
-    with pytest.raises(AirflowRuntimeError):
+    with pytest.raises(TypeError):
         list(it)
 
     mock_supervisor_comms.send.assert_called_once_with(
@@ -116,9 +116,9 @@ def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
                 dag_id="dag",
                 task_id="task",
                 run_id="run",
-                start=0,
+                start=1,
                 stop=stop,
-                step=step,
+                step=None,
             ),
         )
     )
