@@ -70,6 +70,7 @@ dependencies = [
     "twine>=4.0.2",
 ]
 "docs" = [
+    "astroid>=3",
     "checksumdir>=1.2.0",
     "rich-click>=1.7.1",
     "click>=8.1.8",
