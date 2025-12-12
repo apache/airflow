@@ -1227,7 +1227,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "task_group_test",
                 True,
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
-                {"task_group": "section_1"},
+                {"task_group_id": "section_1"},
                 3,
                 7,
                 id="test task_group filter with exact match",
@@ -1236,7 +1236,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 "task_group_test",
                 True,
                 ("/dags/example_task_group/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
-                {"task_group": "section_2"},
+                {"task_group_id": "section_2"},
                 4,  # section_2 has 4 tasks: task_1 + inner_section_2 (task_2, task_3, task_4)
                 7,
                 id="test task_group filter exact match on group_id",

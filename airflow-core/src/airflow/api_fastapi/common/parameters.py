@@ -229,7 +229,7 @@ class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
     def depends(
         cls,
         value: str | None = Query(
-            alias="task_group",
+            alias="task_group_id",
             default=None,
             description="Filter by exact task group ID. Returns all tasks within the specified task group.",
         ),

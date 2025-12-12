@@ -2929,7 +2929,7 @@ export type GetTaskInstancesData = {
     /**
      * Filter by exact task group ID. Returns all tasks within the specified task group.
      */
-    taskGroup?: string | null;
+    taskGroupId?: string | null;
     taskId?: string | null;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;
