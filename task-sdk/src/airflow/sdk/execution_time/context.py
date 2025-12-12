@@ -341,12 +341,29 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger connection lookups.
+        if conn_id.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{conn_id}'")
+
         from airflow.sdk.definitions.connection import Connection
 
         return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
+
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other):
         if not isinstance(other, ConnectionAccessor):
@@ -386,7 +403,24 @@ class VariableAccessor:
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
 
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
+
     def __getattr__(self, key: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger variable lookups.
+        if key.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
+
         return _get_variable(key, self._deserialize_json)
 
     def get(self, key, default: Any = NOTSET) -> Any:
@@ -404,6 +438,12 @@ class MacrosAccessor:
     _macros_module = None
 
     def __getattr__(self, item: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger macro lookups.
+        if item.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+
         # Lazily load Macros module
         if not self._macros_module:
             import airflow.sdk.execution_time.macros
@@ -413,6 +453,17 @@ class MacrosAccessor:
 
     def __repr__(self) -> str:
         return "<MacrosAccessor (dynamic access to macros)>"
+
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MacrosAccessor):
