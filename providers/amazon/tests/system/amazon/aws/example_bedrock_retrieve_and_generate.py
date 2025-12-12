@@ -66,7 +66,7 @@ else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-    from airflow.sdk import Label  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.edgemodifier import Label  # type: ignore[attr-defined,no-redef]
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
