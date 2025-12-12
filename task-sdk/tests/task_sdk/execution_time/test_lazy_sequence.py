@@ -22,8 +22,9 @@ from unittest.mock import Mock, call
 import pytest
 
 import airflow
+from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import ErrorType, AirflowRuntimeError
 from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetXComCount,
@@ -74,34 +75,52 @@ def test_len(mock_supervisor_comms, lazy_sequence):
 
 
 def test_iter(mock_supervisor_comms, lazy_sequence):
+    stop = step = conf.getint("core", "parallelism")
+    it = iter(lazy_sequence)
+
+    mock_supervisor_comms.send.side_effect = [
+        XComSequenceSliceResult(root=["f"]),
+    ]
+    assert list(it) == ["f"]
+
+    mock_supervisor_comms.send.assert_called_once_with(
+        call(
+            msg=GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=step,
+            ),
+        )
+    )
+
+
+def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
+    stop = step = conf.getint("core", "parallelism")
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
         XComSequenceSliceResult(root=["f"]),
         ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
     ]
-    assert list(it) == ["f"]
-    mock_supervisor_comms.send.assert_has_calls(
-        [
-            call(
-                msg=GetXComSequenceItem(
-                    key=BaseXCom.XCOM_RETURN_KEY,
-                    dag_id="dag",
-                    task_id="task",
-                    run_id="run",
-                    offset=0,
-                ),
+    with pytest.raises(AirflowRuntimeError):
+        list(it)
+
+    mock_supervisor_comms.send.assert_called_once_with(
+        call(
+            msg=GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=step,
             ),
-            call(
-                msg=GetXComSequenceItem(
-                    key=BaseXCom.XCOM_RETURN_KEY,
-                    dag_id="dag",
-                    task_id="task",
-                    run_id="run",
-                    offset=1,
-                ),
-            ),
-        ]
+        )
     )
 
 
