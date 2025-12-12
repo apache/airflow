@@ -1,3 +1,3 @@
-Default Airflow image is updated to ``3.1.4``
+Default Airflow image is updated to ``3.1.5``
 
-The default Airflow image that is used with the Chart is now ``3.1.4``, previously it was ``3.0.2``.
+The default Airflow image that is used with the Chart is now ``3.1.5``, previously it was ``3.0.2``.
