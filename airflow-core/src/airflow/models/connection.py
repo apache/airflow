@@ -338,10 +338,10 @@ class Connection(Base, LoggingMixin):
                 extra_dict = self.extra_dejson
                 can_flatten = True
                 for key, value in extra_dict.items():
-                    if not isinstance(value,str):
+                    if not isinstance(value, str):
                         can_flatten = False
                         break
-                
+
                 if can_flatten:
                     query = urlencode(extra_dict)
                     if extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
