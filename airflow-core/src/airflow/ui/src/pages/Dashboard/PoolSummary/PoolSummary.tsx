@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Flex, Skeleton, Link, HStack, Text } from "@chakra-ui/react";
+import { Box, Heading, Flex, Skeleton, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { BiTargetLock } from "react-icons/bi";
 import { Link as RouterLink } from "react-router-dom";
@@ -25,7 +25,6 @@ import { type PoolServiceGetPoolsDefaultResponse, useAuthLinksServiceGetAuthMenu
 import { usePoolServiceGetPools } from "openapi/queries/queries";
 import type { ApiError } from "openapi/requests";
 import { PoolBar } from "src/components/PoolBar";
-import { StateIcon } from "src/components/StateIcon";
 import { useAutoRefresh } from "src/utils";
 import { type Slots, slotKeys } from "src/utils/slots";
 
@@ -104,24 +103,6 @@ export const PoolSummary = () => {
           <PoolBar pool={aggregatePool} poolsWithSlotType={poolsWithSlotType} totalSlots={totalSlots} />
         </Flex>
       )}
-      <HStack gap={4} mt={2}>
-        {aggregatePool.scheduled_slots > 0 && (
-          <HStack>
-            <StateIcon size={12} state="scheduled" />
-            <Text color="fg.muted" fontSize="sm">
-              {translate("dashboard.scheduled")}: {aggregatePool.scheduled_slots}
-            </Text>
-          </HStack>
-        )}
-        {aggregatePool.deferred_slots > 0 && (
-          <HStack>
-            <StateIcon size={12} state="deferred" />
-            <Text color="fg.muted" fontSize="sm">
-              {translate("dashboard.deferred")}: {aggregatePool.deferred_slots}
-            </Text>
-          </HStack>
-        )}
-      </HStack>
     </Box>
   );
 };

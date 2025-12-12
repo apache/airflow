@@ -66,24 +66,6 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
         <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
           <PoolBar pool={pool} totalSlots={pool.slots} />
         </Flex>
-        <HStack gap={4} mt={2}>
-          {pool.scheduled_slots > 0 && (
-            <HStack>
-              <StateIcon size={12} state="scheduled" />
-              <Text color="fg.muted" fontSize="sm">
-                {translate("pools.scheduled")}: {pool.scheduled_slots}
-              </Text>
-            </HStack>
-          )}
-          {pool.deferred_slots > 0 && (
-            <HStack>
-              <StateIcon size={12} state="deferred" />
-              <Text color="fg.muted" fontSize="sm">
-                {translate("pools.deferred")}: {pool.deferred_slots}
-              </Text>
-            </HStack>
-          )}
-        </HStack>
       </Box>
     </Box>
   );
