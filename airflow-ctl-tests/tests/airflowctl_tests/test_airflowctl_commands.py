@@ -60,18 +60,31 @@ def test_airflowctl_commands(login_command, login_output, test_commands):
         else:
             stdout_result = stdout_result.strip()
 
-        # This is a common error message that is thrown by client when something is wrong
+        # Check for non-zero exit code
+        if proc.returncode != 0:
+            console.print(f"[red]❌ Command '{command_from_config}' exited with code {proc.returncode}")
+            console.print(f"[red]Output:\n{stdout_result}\n")
+            raise AssertionError(
+                f"Command exited with non-zero code {proc.returncode}\nOutput:\n{stdout_result}"
+            )
+
+        # Error patterns to detect failures that might otherwise slip through
         # Please ensure it is aligning with airflowctl.api.client.get_json_error
-        airflowctl_client_server_response_error = "Server error"
-        airflowctl_command_error = "command error: argument GROUP_OR_COMMAND: invalid choice"
-        if (
-            airflowctl_client_server_response_error in stdout_result
-            or airflowctl_command_error in stdout_result
-        ):
+        error_patterns = [
+            "Server error",
+            "command error",
+            "unrecognized arguments",
+            "invalid choice",
+            "Traceback (most recent call last):",
+        ]
+        matched_error = next((error for error in error_patterns if error in stdout_result), None)
+        if matched_error:
             console.print(f"[red]❌ Output contained unexpected text for command '{command_from_config}'")
-            console.print(f"[red]Did not expect to find:\n{airflowctl_client_server_response_error}\n")
-            console.print(f"[red]But got:\n{stdout_result}\n")
-            raise AssertionError(f"Output contained unexpected text\nOutput:\n{stdout_result}")
+            console.print(f"[red]Matched error pattern: {matched_error}\n")
+            console.print(f"[red]Output:\n{stdout_result}\n")
+            raise AssertionError(
+                f"Output contained error pattern '{matched_error}'\nOutput:\n{stdout_result}"
+            )
         console.print(f"[green]✅ Output did not contain unexpected text for command '{command_from_config}'")
         console.print(f"[cyan]Result:\n{stdout_result}\n")
         proc.kill()

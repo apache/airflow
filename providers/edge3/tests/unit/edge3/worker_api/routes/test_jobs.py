@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.worker_api.routes.jobs import state
 from airflow.utils.session import create_session
@@ -44,7 +45,7 @@ class TestJobsApiRoutes:
         session.query(EdgeJobModel).delete()
         session.commit()
 
-    @patch("airflow.stats.Stats.incr")
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(

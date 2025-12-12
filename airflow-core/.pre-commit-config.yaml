@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -194,7 +194,9 @@ repos:
         pass_filenames: true
         files: ^src/airflow/migrations/versions/.*\.py$
         exclude:
-          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
+          (?x)
+          ^src/airflow/migrations/versions/0000_2_6_2_squashed_migrations\.py$|
+          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key\.py$
       - id: ts-compile-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files
@@ -375,7 +377,9 @@ repos:
           ^src/airflow/plugins_manager\.py$|
           ^src/airflow/providers_manager\.py$|
           ^src/airflow/secrets/__init__.py$|
-          ^src/airflow/serialization/definitions/[_a-z]+\.py$|
+          ^src/airflow/serialization/decoders\.py$|
+          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
+          ^src/airflow/serialization/encoders\.py$|
           ^src/airflow/serialization/enums\.py$|
           ^src/airflow/serialization/helpers\.py$|
           ^src/airflow/serialization/serialized_objects\.py$|

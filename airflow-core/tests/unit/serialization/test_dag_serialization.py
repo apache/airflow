@@ -46,6 +46,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
@@ -83,7 +84,6 @@ from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _Dow
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
@@ -701,6 +701,8 @@ class TestStringifiedDAGs:
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
         """
+        from airflow.serialization.encoders import _serializer
+
         exclusion_list = {
             # Doesn't implement __eq__ properly. Check manually.
             "timetable",
@@ -733,9 +735,10 @@ class TestStringifiedDAGs:
                         f"{dag.dag_id}.default_args[{k}] does not match"
                     )
 
-        assert serialized_dag.timetable.summary == dag.timetable.summary
-        assert serialized_dag.timetable.serialize() == dag.timetable.serialize()
-        assert serialized_dag.timezone == dag.timezone
+        if (tt_type := type(dag.timetable)) in _serializer.BUILTIN_TIMETABLES:
+            assert _serializer.BUILTIN_TIMETABLES[tt_type] == qualname(serialized_dag.timetable)
+        else:
+            assert qualname(dag.timetable) == qualname(serialized_dag.timetable)
 
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
@@ -1051,7 +1054,7 @@ class TestStringifiedDAGs:
         }
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
-        assert dag.timetable_summary == expected_timetable_summary
+        assert dag.timetable.summary == expected_timetable_summary
 
     def test_deserialization_timetable_unregistered(self):
         serialized = {

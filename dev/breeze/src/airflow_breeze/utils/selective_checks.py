@@ -71,7 +71,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
 )
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
 ALL_VERSIONS_LABEL = "all versions"
@@ -88,6 +88,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
+SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -868,6 +869,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    def run_ui_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -1468,7 +1473,7 @@ class SelectiveChecks:
     @cached_property
     def excluded_providers_as_string(self) -> str:
         providers_to_exclude = defaultdict(list)
-        for provider, provider_info in DEPENDENCIES.items():
+        for provider, provider_info in get_provider_dependencies().items():
             if "excluded-python-versions" in provider_info:
                 for python_version in provider_info["excluded-python-versions"]:
                     providers_to_exclude[python_version].append(provider)
@@ -1520,7 +1525,7 @@ class SelectiveChecks:
             if provider == "Providers":
                 all_providers_affected = True
             elif provider is not None:
-                if provider not in DEPENDENCIES:
+                if provider not in get_provider_dependencies():
                     suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
@@ -1767,3 +1772,93 @@ class SelectiveChecks:
                             )
 
         return violations
+
+    def _has_common_compat_changed(self) -> bool:
+        """Check if any common.compat provider file was changed."""
+        return any(f.startswith("providers/common/compat/") for f in self._files)
+
+    def _get_changed_providers_excluding_common_compat(self) -> set[str]:
+        """Get set of changed providers excluding common.compat itself."""
+        changed_providers: set[str] = set()
+        for changed_file in self._files:
+            provider = find_provider_affected(changed_file, include_docs=False)
+            if provider and provider not in ["common.compat", "Providers"]:
+                changed_providers.add(provider)
+        return changed_providers
+
+    def _uses_next_version_comment(self, provider: str) -> bool:
+        """Check if provider's pyproject.toml has '# use next version' for common-compat dependency."""
+        pyproject_file = f"providers/{provider.replace('.', '/')}/pyproject.toml"
+        result = run_command(
+            ["git", "show", f"{self._commit_ref}:{pyproject_file}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        if result.returncode != 0:
+            return True  # If file doesn't exist, don't flag as violation
+
+        # Check if dependency line contains both the package and the comment
+        for line in result.stdout.splitlines():
+            if "apache-airflow-providers-common-compat" in line.lower():
+                return "# use next version" in line.lower()
+        return True  # If dependency not found, don't flag as violation
+
+    def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:
+        """Print violations and either exit with error or bypass with warning."""
+        console = get_console()
+
+        if SKIP_COMMON_COMPAT_CHECK_LABEL in self._pr_labels:
+            console.print("[warning]The 'skip common compat check' label is set. Bypassing check for:[/]")
+            for provider in violations:
+                console.print(
+                    f"[warning]  - {provider} (providers/{provider.replace('.', '/')}/pyproject.toml)[/]"
+                )
+            console.print()
+            return True
+
+        console.print(
+            "[error]common.compat provider changed but the following providers don't have "
+            "'# use next version' comment for their common-compat dependency![/]"
+        )
+        console.print()
+        for provider in violations:
+            console.print(f"[error]  - {provider} (providers/{provider.replace('.', '/')}/pyproject.toml)[/]")
+        console.print()
+        console.print(
+            "[warning]When common.compat changes with other providers in the same PR, "
+            "add '# use next version' comment where they depend on common-compat.[/]\n"
+            "[warning]Example:[/] "
+            '[info]"apache-airflow-providers-common-compat>=1.8.0",  # use next version[/]\n'
+        )
+        console.print(
+            f"[warning]To bypass this check, add the label: '[info]{SKIP_COMMON_COMPAT_CHECK_LABEL}[/]'\n"
+        )
+        sys.exit(1)
+
+    @cached_property
+    def common_compat_changed_without_next_version(self) -> bool:
+        """
+        Check if common.compat provider changed and other providers changed don't have '# use next version'
+        comment for their common-compat dependency.
+        """
+        if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+
+        if not self._has_common_compat_changed():
+            return False
+
+        changed_providers = self._get_changed_providers_excluding_common_compat()
+        if not changed_providers:
+            return False  # Only common.compat changed
+
+        get_console().print(f"[warning]common.compat changed with providers: {sorted(changed_providers)}[/]")
+
+        # Find providers missing '# use next version' comment
+        violations = [p for p in sorted(changed_providers) if not self._uses_next_version_comment(p)]
+
+        if violations:
+            return self._print_violations_and_exit_or_bypass(violations)
+
+        return False

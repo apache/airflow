@@ -83,7 +83,8 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0",
+    # limited due to changes needed https://github.com/fastapi/fastapi/pull/14434
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, !=0.123.5",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
@@ -222,7 +223,10 @@ exclude = [
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/_shared/configuration"
+"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/_shared/module_loading"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 
@@ -294,6 +298,9 @@ apache-airflow-devel-common = { workspace = true }
 shared_distributions = [
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

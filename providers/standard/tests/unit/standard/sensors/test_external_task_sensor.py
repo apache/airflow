@@ -26,11 +26,16 @@ from unittest import mock
 import pytest
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -1737,8 +1742,9 @@ def run_tasks(
     for dag in dag_bag.dags.values():
         data_interval = DataInterval(coerce_datetime(logical_date), coerce_datetime(logical_date))
         if AIRFLOW_V_3_0_PLUS:
-            runs[dag.dag_id] = dagrun = create_scheduler_dag(dag).create_dagrun(
-                run_id=dag.timetable.generate_run_id(
+            scheduler_dag = create_scheduler_dag(dag)
+            runs[dag.dag_id] = dagrun = scheduler_dag.create_dagrun(
+                run_id=scheduler_dag.timetable.generate_run_id(
                     run_type=DagRunType.MANUAL,
                     run_after=logical_date,
                     data_interval=data_interval,
@@ -1754,7 +1760,7 @@ def run_tasks(
             )
         else:
             runs[dag.dag_id] = dagrun = dag.create_dagrun(  # type: ignore[attr-defined,call-arg]
-                run_id=dag.timetable.generate_run_id(  # type: ignore[call-arg]
+                run_id=dag.timetable.generate_run_id(  # type: ignore[attr-defined,call-arg,union-attr]
                     run_type=DagRunType.MANUAL,
                     logical_date=logical_date,
                     data_interval=data_interval,

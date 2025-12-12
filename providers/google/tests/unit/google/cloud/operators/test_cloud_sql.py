@@ -32,7 +32,6 @@ try:
     BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
@@ -40,6 +39,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCloneInstanceOperator,

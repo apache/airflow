@@ -405,16 +405,30 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_read_events_during_start(self, mock_hook, mock_method, trigger):
-        event1 = mock.AsyncMock()
+        event1 = mock.Mock()
+        event1.metadata.uid = "event-uid-1"
+        event1.metadata.resource_version = "100"
         event1.message = "event 1"
         event1.involved_object.field_path = "object 1"
-        event2 = mock.AsyncMock()
+        event2 = mock.Mock()
+        event2.metadata.uid = "event-uid-2"
+        event2.metadata.resource_version = "101"
         event2.message = "event 2"
         event2.involved_object.field_path = "object 2"
-        events_list = mock.AsyncMock()
-        events_list.items = [event1, event2]
 
-        mock_hook.get_pod_events = mock.AsyncMock(return_value=events_list)
+        call_count = 0
+
+        async def async_event_generator(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call: return events
+                yield event1
+                yield event2
+            # Subsequent calls: return nothing and stop watching
+            trigger.pod_manager.stop_watching_events = True
+
+        mock_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
 
         pod_pending = mock.MagicMock()
         pod_pending.status.phase = PodPhase.PENDING

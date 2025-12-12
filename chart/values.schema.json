@@ -2857,7 +2857,7 @@
                 "podDisruptionBudget": {
                     "description": "Scheduler pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -2867,7 +2867,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
@@ -4282,6 +4282,11 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Whether the create user job should be created.",
+                    "type": "boolean",
+                    "default": true
+                },
                 "command": {
                     "description": "Command to use when running create user job (templated).",
                     "type": [
@@ -5077,7 +5082,7 @@
                     }
                 },
                 "replicas": {
-                    "description": "How many Airflow API server replicas should run.",
+                    "description": "How many Airflow API server replicas should run. This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled",
                     "type": "integer",
                     "default": 1
                 },
@@ -5124,6 +5129,53 @@
                     ],
                     "default": null
                 },
+                "hpa": {
+                    "description": "Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable HPA autoscaling for API server",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of API server replicas created by HPA if HPA is enabled.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of API server replicas created by HPA if HPA is enabled.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "metrics": {
+                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "type": "Resource",
+                                    "resource": {
+                                        "name": "cpu",
+                                        "target": {
+                                            "type": "Utilization",
+                                            "averageUtilization": 50
+                                        }
+                                    }
+                                }
+                            ],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
+                            }
+                        },
+                        "behavior": {
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -5159,7 +5211,7 @@
                 "podDisruptionBudget": {
                     "description": "API server pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5169,7 +5221,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for API server.",
@@ -5963,7 +6015,7 @@
                 "podDisruptionBudget": {
                     "description": "Webserver pod disruption budget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enable pod disruption budget.",
@@ -5973,7 +6025,7 @@
                         "config": {
                             "description": "Disruption budget configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for webserver.",
@@ -7533,7 +7585,7 @@
                 "podDisruptionBudget": {
                     "description": "PgBouncer PodDisruptionBudget.",
                     "type": "object",
-                    "additionalProperties": false,
+                    "additionalProperties": true,
                     "properties": {
                         "enabled": {
                             "description": "Enabled PodDistributionBudget.",
@@ -7543,7 +7595,7 @@
                         "config": {
                             "description": "Pod distribution configuration.",
                             "type": "object",
-                            "additionalProperties": false,
+                            "additionalProperties": true,
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
@@ -8976,7 +9028,8 @@
                 "retentionDays": {
                     "description": "Number of days to retain records in the metadata database.",
                     "type": "integer",
-                    "default": 90
+                    "default": 90,
+                    "minimum": 1
                 },
                 "skipArchive": {
                     "description": "Don't preserve purged records in an archive table.",

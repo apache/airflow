@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-google``
 
-Release: ``19.1.0``
+Release: ``19.2.0``
 
 
 Google services including:
@@ -43,7 +43,7 @@ This is a provider package for ``google`` provider. All classes for this provide
 are in ``airflow.providers.google`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/19.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/19.2.0/>`_.
 
 Installation
 ------------
@@ -61,7 +61,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
@@ -101,7 +101,7 @@ PIP package                                 Version required
 ``google-cloud-monitoring``                 ``>=2.18.0``
 ``google-cloud-orchestration-airflow``      ``>=1.10.0``
 ``google-cloud-os-login``                   ``>=2.9.1``
-``google-cloud-pubsub``                     ``>=2.21.3``
+``google-cloud-pubsub``                     ``>=2.24.0``
 ``google-cloud-redis``                      ``>=2.12.0``
 ``google-cloud-secret-manager``             ``>=2.16.0``
 ``google-cloud-spanner``                    ``>=3.50.0``
@@ -201,4 +201,4 @@ Extra                 Dependencies
 ====================  =========================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/19.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-google/19.2.0/changelog.html>`_.

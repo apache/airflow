@@ -20,7 +20,6 @@ import asyncio
 import contextlib
 import json
 import tempfile
-from collections.abc import Generator
 from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol
@@ -31,10 +30,9 @@ from asgiref.sync import sync_to_async
 from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
-from kubernetes_asyncio import client as async_client, config as async_config
+from kubernetes_asyncio import client as async_client, config as async_config, watch as async_watch
 from urllib3.exceptions import HTTPError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
@@ -43,12 +41,14 @@ from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
 )
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
+
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import CoreV1EventList, V1Job, V1Pod
+    from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -785,6 +785,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
+        self._event_polling_fallback = False
 
     async def _load_config(self):
         """Return Kubernetes API session for use with requests."""
@@ -956,20 +957,104 @@ class AsyncKubernetesHook(KubernetesHook):
                 raise KubernetesApiError from e
 
     @generic_api_retry
-    async def get_pod_events(self, name: str, namespace: str) -> CoreV1EventList:
-        """Get pod's events."""
+    async def get_pod_events(
+        self, name: str, namespace: str, resource_version: str | None = None
+    ) -> CoreV1EventList:
+        """
+        Get pod events.
+
+        :param name: Pod name to get events for
+        :param namespace: Kubernetes namespace
+        :param resource_version: Only return events not older than this resource version
+        """
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
                 events: CoreV1EventList = await v1_api.list_namespaced_event(
                     field_selector=f"involvedObject.name={name}",
                     namespace=namespace,
+                    resource_version=resource_version,
+                    resource_version_match="NotOlderThan" if resource_version else None,
                 )
                 return events
             except HTTPError as e:
                 if hasattr(e, "status") and e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise KubernetesApiError from e
+
+    @generic_api_retry
+    async def watch_pod_events(
+        self,
+        name: str,
+        namespace: str,
+        resource_version: str | None = None,
+        timeout_seconds: int = 30,
+    ) -> AsyncGenerator[CoreV1Event]:
+        """
+        Watch pod events using Kubernetes Watch API.
+
+        :param name: Pod name to watch events for
+        :param namespace: Kubernetes namespace
+        :param resource_version: Only return events not older than this resource version
+        :param timeout_seconds: Timeout in seconds for the watch stream
+        """
+        if self._event_polling_fallback:
+            async for event_polled in self.watch_pod_events_polling_fallback(
+                name, namespace, resource_version, timeout_seconds
+            ):
+                yield event_polled
+
+        try:
+            w = async_watch.Watch()
+            async with self.get_conn() as connection:
+                v1_api = async_client.CoreV1Api(connection)
+
+                async for event_watched in w.stream(
+                    v1_api.list_namespaced_event,
+                    namespace=namespace,
+                    field_selector=f"involvedObject.name={name}",
+                    resource_version=resource_version,
+                    timeout_seconds=timeout_seconds,
+                ):
+                    event: CoreV1Event = event_watched.get("object")
+                    yield event
+
+        except async_client.exceptions.ApiException as e:
+            if hasattr(e, "status") and e.status == 403:
+                self.log.warning(
+                    "Triggerer does not have Kubernetes API permission to 'watch' events: %s Falling back to polling.",
+                    str(e),
+                )
+                self._event_polling_fallback = True
+                async for event_polled in self.watch_pod_events_polling_fallback(
+                    name, namespace, resource_version, timeout_seconds
+                ):
+                    yield event_polled
+
+        finally:
+            w.stop()
+
+    async def watch_pod_events_polling_fallback(
+        self,
+        name: str,
+        namespace: str,
+        resource_version: str | None = None,
+        interval: int = 30,
+    ) -> AsyncGenerator[CoreV1Event]:
+        """
+        Fallback method to poll pod event at regular intervals.
+
+        This is required when the Airflow triggerer does not have permission to watch events.
+
+        :param name: Pod name to watch events for
+        :param namespace: Kubernetes namespace
+        :param resource_version: Only return events not older than this resource version
+        :param interval: Polling interval in seconds
+        """
+        events: CoreV1EventList = await self.get_pod_events(name, namespace, resource_version)
+        for event in events.items:
+            yield event
+        await asyncio.sleep(interval)
 
     @generic_api_retry
     async def get_job_status(self, name: str, namespace: str) -> V1Job:

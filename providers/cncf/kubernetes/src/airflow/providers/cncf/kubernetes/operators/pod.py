@@ -85,7 +85,8 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined, no-redef]
     from airflow.models import BaseOperator
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
@@ -631,14 +632,26 @@ class KubernetesPodOperator(BaseOperator):
         try:
 
             async def _await_pod_start():
-                events_task = self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
-                pod_start_task = self.pod_manager.await_pod_start(
-                    pod=pod,
-                    schedule_timeout=self.schedule_timeout_seconds,
-                    startup_timeout=self.startup_timeout_seconds,
-                    check_interval=self.startup_check_interval_seconds,
+                # Start event stream in background
+                events_task = asyncio.create_task(
+                    self.pod_manager.watch_pod_events(pod, self.startup_check_interval_seconds)
                 )
-                await asyncio.gather(pod_start_task, events_task)
+
+                # Await pod start completion
+                try:
+                    await self.pod_manager.await_pod_start(
+                        pod=pod,
+                        schedule_timeout=self.schedule_timeout_seconds,
+                        startup_timeout=self.startup_timeout_seconds,
+                        check_interval=self.startup_check_interval_seconds,
+                    )
+                finally:
+                    # Stop watching events
+                    events_task.cancel()
+                    try:
+                        await events_task
+                    except asyncio.CancelledError:
+                        pass
 
             asyncio.run(_await_pod_start())
         except PodLaunchFailedException:
@@ -954,8 +967,9 @@ class KubernetesPodOperator(BaseOperator):
             raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
-            if self.do_xcom_push:
-                return xcom_sidecar_output
+
+            if self.do_xcom_push and xcom_sidecar_output:
+                context["ti"].xcom_push(XCOM_RETURN_KEY, xcom_sidecar_output)
 
     def _clean(self, event: dict[str, Any], result: dict | None, context: Context) -> None:
         if self.pod is None:
