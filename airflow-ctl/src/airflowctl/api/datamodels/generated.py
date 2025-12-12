@@ -1092,6 +1092,7 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = {}
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(title="Max Active Runs")] = 10
+    run_on_latest_version: Annotated[bool | None, Field(title="Run On Latest Version")] = True
 
 
 class BackfillResponse(BaseModel):

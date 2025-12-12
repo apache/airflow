@@ -153,10 +153,9 @@ export const AssetsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={namePattern}
           onChange={handleSearchChange}
-          placeHolder={translate("searchPlaceholder")}
+          placeholder={translate("searchPlaceholder")}
         />
 
         <Flex alignItems="center" justifyContent="space-between">
