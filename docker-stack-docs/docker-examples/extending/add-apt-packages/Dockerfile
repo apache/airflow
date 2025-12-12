@@ -15,7 +15,7 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:3.1.4
+FROM apache/airflow:3.1.5
 USER root
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \

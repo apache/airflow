@@ -63,7 +63,7 @@ classifiers = [
 ]
 
 # Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
-version = "3.1.4"
+version = "3.1.5"
 
 dependencies = [
     "a2wsgi>=1.10.8",
@@ -139,7 +139,7 @@ dependencies = [
     # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
     "universal-pathlib>=0.2.6,<0.3.0",
     "uuid6>=2024.7.10",
-    "apache-airflow-task-sdk<1.2.0,==1.1.4",
+    "apache-airflow-task-sdk<1.2.0,==1.1.5",
     # pre-installed providers
     "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",
