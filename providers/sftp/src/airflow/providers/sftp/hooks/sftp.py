@@ -36,7 +36,6 @@ from typing import IO, TYPE_CHECKING, Any, cast
 
 import aiofiles
 import asyncssh
-from asgiref.sync import sync_to_async
 from paramiko.config import SSH_PORT
 
 from airflow.configuration import conf
