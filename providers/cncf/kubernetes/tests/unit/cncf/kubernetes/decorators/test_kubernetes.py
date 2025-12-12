@@ -128,3 +128,49 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
         # Second container is xcom image
         assert containers[1].image == XCOM_IMAGE
         assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("do_xcom_push", "expected_output", "expects_mkdir"),
+        [
+            (False, "/dev/null", False),
+            (True, "/airflow/xcom/return.json", True),
+        ],
+        ids=["without_xcom_push", "with_xcom_push"],
+    )
+    def test_generated_command_respects_do_xcom_push(
+        self, do_xcom_push: bool, expected_output: str, expects_mkdir: bool
+    ):
+        with self.dag_maker:
+
+            @task.kubernetes(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def f():
+                return {"key": "value"}
+
+            k8s_task = f.override(task_id="my_task_id", do_xcom_push=do_xcom_push)()
+
+        if do_xcom_push:
+            self.mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
+            self.mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
+                "requests": {"cpu": "1m", "memory": "10Mi"},
+                "limits": {"cpu": "1m", "memory": "50Mi"},
+            }
+
+        self.execute_task(k8s_task)
+        containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
+        assert len(containers) == (2 if do_xcom_push else 1)
+
+        generated_command = containers[0].command
+        assert generated_command and len(generated_command) >= 3
+
+        bash_command = generated_command[-1]
+        assert expected_output in bash_command
+        assert ("/airflow/xcom" in bash_command) == expects_mkdir
+        if not expects_mkdir:
+            assert " && : && " in bash_command
