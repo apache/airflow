@@ -42,7 +42,7 @@ export class DagsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
+    this.dagsTable = page.locator('div:has([data-testid="dag-id"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
@@ -76,6 +76,24 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Get all Dag links from the list
+   */
+  public async getDagLinks(): Promise<Array<string>> {
+    const links = await this.page.locator('[data-testid="dag-id"]').all();
+    const hrefs: Array<string> = [];
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+
+      if (href !== null && href !== "") {
+        hrefs.push(href);
+      }
+    }
+
+    return hrefs;
+  }
+
+  /**
    * Get all Dag names from the current page
    */
   public async getDagNames(): Promise<Array<string>> {
@@ -84,6 +102,13 @@ export class DagsPage extends BasePage {
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  /**
+   * Get the count of Dags displayed in the list
+   */
+  public async getDagsCount(): Promise<number> {
+    return await this.dagsTable.count();
   }
 
   /**
@@ -149,6 +174,15 @@ export class DagsPage extends BasePage {
     await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
   }
 
+  /**
+   * Verify that a specific Dag exists in the list
+   */
+  public async verifyDagExists(dagId: string): Promise<boolean> {
+    const dagLink = this.page.locator(`[data-testid="dag-id"][href="/dags/${dagId}"]`);
+
+    return await dagLink.isVisible();
+  }
+
   public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (dagRunId === null || dagRunId === undefined || dagRunId === "") {
@@ -183,6 +217,13 @@ export class DagsPage extends BasePage {
     }
 
     throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
+  }
+
+  /**
+   * Verify that the Dags list/table is visible on the page
+   */
+  public async verifyDagsListVisible(): Promise<void> {
+    await this.dagsTable.first().waitFor({ state: "visible", timeout: 10_000 });
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {

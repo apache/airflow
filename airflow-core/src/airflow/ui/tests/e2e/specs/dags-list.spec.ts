@@ -84,3 +84,48 @@ test.describe("Dag Details Tab", () => {
     await dagsPage.verifyDagDetails(testDagId);
   });
 });
+
+/**
+ * Verify Dags List Displays
+ */
+
+test.describe("Dags List Display", () => {
+  let dagsPage: DagsPage;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should display Dags list after successful login", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    const dagsCount = await dagsPage.getDagsCount();
+
+    expect(dagsCount).toBeGreaterThan(0);
+  });
+
+  test("should display Dag links correctly", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    const dagLinks = await dagsPage.getDagLinks();
+
+    expect(dagLinks.length).toBeGreaterThan(0);
+
+    for (const link of dagLinks) {
+      expect(link).toMatch(/\/dags\/.+/);
+    }
+  });
+
+  test("should display test Dag in the list", async () => {
+    const testDagId = testConfig.testDag.id;
+
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    const dagExists = await dagsPage.verifyDagExists(testDagId);
+
+    expect(dagExists).toBe(true);
+  });
+});
