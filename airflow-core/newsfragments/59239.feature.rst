@@ -1,0 +1,1 @@
+Support for Trigger assignment to specific Triggerer nodes via the ``trigger_queue`` and ``consume_trigger_queues`` parameters of the ``Trigger`` and ``Triggerer``, respectively.

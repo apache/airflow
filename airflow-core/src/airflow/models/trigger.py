@@ -189,7 +189,7 @@ class Trigger(Base):
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs)
+        return cls(classpath=classpath, kwargs=kwargs, trigger_queue=trigger.trigger_queue)
 
     @classmethod
     @provide_session

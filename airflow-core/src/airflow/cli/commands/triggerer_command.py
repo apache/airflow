@@ -50,11 +50,13 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
 
 
 def triggerer_run(
-    skip_serve_logs: bool, capacity: int, trigger_queues: list[str], triggerer_heartrate: float
+    skip_serve_logs: bool, capacity: int, consume_trigger_queues: list[str], triggerer_heartrate: float
 ):
     with _serve_logs(skip_serve_logs):
         triggerer_job_runner = TriggererJobRunner(
-            job=Job(heartrate=triggerer_heartrate), capacity=capacity, trigger_queues=set(trigger_queues)
+            job=Job(heartrate=triggerer_heartrate),
+            capacity=capacity,
+            trigger_queues=set(consume_trigger_queues),
         )
         run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
 
@@ -75,7 +77,7 @@ def triggerer(args):
 
         run_with_reloader(
             lambda: triggerer_run(
-                args.skip_serve_logs, args.capacity, args.trigger_queues, triggerer_heartrate
+                args.skip_serve_logs, args.capacity, args.consume_trigger_queues, triggerer_heartrate
             ),
             process_name="triggerer",
         )
@@ -85,7 +87,7 @@ def triggerer(args):
         args=args,
         process_name="triggerer",
         callback=lambda: triggerer_run(
-            args.skip_serve_logs, args.capacity, args.trigger_queues, triggerer_heartrate
+            args.skip_serve_logs, args.capacity, args.consume_trigger_queues, triggerer_heartrate
         ),
         should_setup_logging=True,
     )
