@@ -214,8 +214,8 @@ class TriggererCallback(Callback):
             trigger=CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
+                trigger_queue=self.data.get("default_trigger_queue"),
             ),
-            trigger_queue=self.data.get("default_trigger_queue"),
         )
         super().queue()
 
