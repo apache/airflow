@@ -367,9 +367,15 @@ def connections_test(args) -> None:
         raise SystemExit(1)
 
     print(f"Retrieving connection: {args.conn_id!r}")
+    conn = None
     try:
         conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
+        pass
+    if conn is None:
+        with create_session() as session:
+            conn = session.scalar(select(Connection).where(Connection.conn_id == args.conn_id))
+    if conn is None:
         console.print("[bold yellow]\nConnection not found.\n")
         raise SystemExit(1)
 
