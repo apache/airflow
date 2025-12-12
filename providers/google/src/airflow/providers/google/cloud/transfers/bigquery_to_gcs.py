@@ -87,6 +87,7 @@ class BigQueryToGCSOperator(BaseOperator):
     :param reattach_states: Set of BigQuery job's states in case of which we should reattach
         to the job. Should be other than final states.
     :param deferrable: Run operator in the deferrable mode
+    :return: URIs for the objects created in Google Cloud Storage
     """
 
     template_fields: Sequence[str] = (
@@ -275,7 +276,6 @@ class BigQueryToGCSOperator(BaseOperator):
         else:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
 
-            # issue-59344: Returning destination URIs to be persisted in XCom
             return self.destination_cloud_storage_uris
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
@@ -294,7 +294,6 @@ class BigQueryToGCSOperator(BaseOperator):
         # Save job_id as an attribute to be later used by listeners
         self.job_id = event.get("job_id")
 
-        # issue-59344: Returning destination URIs to be persisted in XCom
         return self.destination_cloud_storage_uris
 
     def get_openlineage_facets_on_complete(self, task_instance):
