@@ -995,7 +995,7 @@ class TestSFTPHookAsync:
         mock_hook_get_conn.return_value = AsyncContextManager(MockSSHClient())
         hook = SFTPHookAsync()
 
-        expected_files = ["..", ".", "file"]
+        expected_files = ["file"]
         files = await hook.list_directory(path="/path/exists/")
         assert sorted(files) == sorted(expected_files)
         mock_hook_get_conn.return_value.__aexit__.assert_called()
