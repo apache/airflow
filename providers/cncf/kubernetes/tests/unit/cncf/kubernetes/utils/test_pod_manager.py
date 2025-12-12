@@ -527,18 +527,27 @@ class TestPodManager:
         ts = "2020-10-08T14:16:17.793417674Z"
         message = "message"
         no_ts_message = "notimestamp"
-        mock_read_pod_logs.return_value = [bytes(f"{ts} {message}", "utf-8"), bytes(no_ts_message, "utf-8")]
+        second_ts = "2020-10-08T15:16:18.793417674Z"
+        second_message = "second message"
+        mock_read_pod_logs.return_value = [bytes(f"{ts} {message}", "utf-8"), bytes(no_ts_message, "utf-8"), bytes(f"{second_ts} {second_message}", "utf-8")]
         mock_container_is_running.return_value = False
 
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        self.pod_manager.fetch_container_logs(mock.MagicMock(), "base", follow=True)
         mock_callbacks.progress_callback.assert_has_calls(
             [
                 mock.call(
                     line=f"{message}\n{no_ts_message}",
                     client=self.pod_manager._client,
                     mode="sync",
-                    container_name=mock.ANY,
+                    container_name="base",
                     timestamp=pendulum.parse(ts),
+                ),
+                mock.call(
+                    line=f"{second_message}",
+                    client=self.pod_manager._client,
+                    mode="sync",
+                    container_name="base",
+                    timestamp=pendulum.parse(second_ts),
                 ),
             ]
         )
