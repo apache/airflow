@@ -26,16 +26,20 @@ import type { BaseGraphResponse } from "openapi/requests/types.gen";
 
 export const useDependencyGraph = (
   nodeId: string,
-  options?: Omit<UseQueryOptions<BaseGraphResponse, unknown>, "queryFn" | "queryKey">,
+  options?: {
+    dependencyType?: "data" | "scheduling";
+  } & Omit<UseQueryOptions<BaseGraphResponse, unknown>, "queryFn" | "queryKey">,
 ) => {
   const queryClient = useQueryClient();
+  const { dependencyType, ...queryOptions } = options ?? {};
 
   const query = useDependenciesServiceGetDependencies(
     {
+      dependencyType,
       nodeId,
     },
     undefined,
-    options,
+    queryOptions,
   );
 
   // Update the queries for all connected assets and dags so we save an API request
