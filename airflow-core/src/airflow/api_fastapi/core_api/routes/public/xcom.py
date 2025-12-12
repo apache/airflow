@@ -341,7 +341,7 @@ def update_xcom_entry(
 
 
 @xcom_router.delete(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
