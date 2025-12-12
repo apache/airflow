@@ -337,7 +337,7 @@ class Connection(Base, LoggingMixin):
             try:
                 extra_dict = self.extra_dejson
                 can_flatten = True
-                for key, value in extra_dict.items():
+                for _, value in extra_dict.items():
                     if not isinstance(value, str):
                         can_flatten = False
                         break
