@@ -167,7 +167,8 @@ class TestKubernetesDecorator(TestKubernetesDecoratorsBase):
         assert len(containers) == (2 if do_xcom_push else 1)
 
         generated_command = containers[0].command
-        assert generated_command and len(generated_command) >= 3
+        assert generated_command
+        assert len(generated_command) >= 3
 
         bash_command = generated_command[-1]
         assert expected_output in bash_command

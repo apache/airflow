@@ -90,7 +90,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
 
         if getattr(self, "do_xcom_push", False):
             output_filename = "/airflow/xcom/return.json"
-            make_xcom_dir_cmd = f"mkdir -p /airflow/xcom"
+            make_xcom_dir_cmd = "mkdir -p /airflow/xcom"
         else:
             output_filename = "/dev/null"
             make_xcom_dir_cmd = ":"  # shell no-op
