@@ -108,8 +108,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``attrs``                                   ``>=22.2``
-``openlineage-integration-common``          ``>=1.40.0``
-``openlineage-python``                      ``>=1.40.0``
+``openlineage-integration-common``          ``>=1.41.0``
+``openlineage-python``                      ``>=1.41.0``
 ==========================================  ==================
 
 Cross provider package dependencies
