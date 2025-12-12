@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import concurrent.futures
 import itertools
+import logging
+from collections import Counter
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -220,7 +222,7 @@ class TestAssetManager:
         assert asset_listener.created[0].uri == asset.uri == asms[0].uri
 
     @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
-    def test_get_or_create_apdr_race_condition(self, session):
+    def test_get_or_create_apdr_race_condition(self, session, caplog):
         asm = AssetModel(uri="test://asset1/", name="parition_asset", group="asset")
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
         session.add_all([asm, testing_dag])
@@ -246,9 +248,15 @@ class TestAssetManager:
                 _session.commit()
                 _session.close()
 
-        # run both workers simultaneously
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
-            ids = pool.map(lambda _: _get_or_create_apdr(), [None, None])
+        thread_count = 100
+        with caplog.at_level(logging.DEBUG):
+            with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as pool:
+                ids = pool.map(lambda _: _get_or_create_apdr(), [None] * thread_count)
+
+        assert Counter(r.msg for r in caplog.records) == {
+            "Existing APDR found for key test_partition_key dag_id testing_dag": thread_count - 1,
+            "No existing APDR found. Create APDR for key test_partition_key dag_id testing_dag": 1,
+        }
 
         assert len(set(ids)) == 1
         assert session.query(AssetPartitionDagRun).count() == 1
