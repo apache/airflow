@@ -278,7 +278,8 @@ export const TaskInstances = () => {
       runIdPattern: filteredRunId ?? undefined,
       startDateGte: startDate ?? undefined,
       state: hasFilteredState ? filteredState : undefined,
-      taskDisplayNamePattern: groupId ?? taskDisplayNamePattern ?? undefined,
+      taskDisplayNamePattern: taskDisplayNamePattern ?? undefined,
+      taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
       tryNumber: tryNumberFilter !== null && tryNumberFilter !== "" ? [Number(tryNumberFilter)] : undefined,
       versionNumber:

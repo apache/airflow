@@ -129,6 +129,15 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 21
+      - name: "Compile UI assets (for image build fallback)"
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd airflow-core/src/airflow/ui
+          pnpm install --frozen-lockfile
+          pnpm build
+          cd ../api_fastapi/auth/managers/simple/ui
+          pnpm install --frozen-lockfile
+          pnpm build
       - name: "Install Playwright browsers and dependencies"
         run: |
           cd airflow-core/src/airflow/ui
