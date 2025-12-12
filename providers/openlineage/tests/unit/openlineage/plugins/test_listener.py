@@ -1183,6 +1183,42 @@ class TestOpenLineageListenerAirflow3:
 
         return listener, task_instance
 
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_on_task_instance_skipped_correctly_calls_openlineage_adapter_run_id_method(self):
+        """Tests the OpenLineageListener's response when a task instance is skipped.
+
+        This test ensures that when an Airflow task instance is skipped via AirflowSkipException,
+        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        parameters derived from the task instance.
+        """
+        listener, task_instance = self._create_listener_and_task_instance()
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+            dag_id="dag_id",
+            task_id="task_id",
+            logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
+            try_number=1,
+            map_index=-1,
+        )
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    def test_listener_on_task_instance_skipped_do_not_call_adapter_when_disabled_operator(
+        self, mock_get_user_provided_run_facets, mock_disabled
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
+        mock_disabled.return_value = True
+
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+        mock_disabled.assert_called_once_with(task_instance.task)
+        listener.adapter.build_dag_run_id.assert_not_called()
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+        listener.extractor_manager.extract_metadata.assert_not_called()
+        listener.adapter.complete_task.assert_not_called()
+
     @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
     @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
     @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")

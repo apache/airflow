@@ -512,6 +512,119 @@ class OpenLineageListener:
 
         self._execute(on_failure, "on_failure", use_fork=True)
 
+    if AIRFLOW_V_3_0_PLUS:
+
+        @hookimpl
+        def on_task_instance_skipped(
+            self,
+            previous_state: TaskInstanceState,
+            task_instance: RuntimeTaskInstance | TaskInstance,
+        ) -> None:
+            self.log.debug("OpenLineage listener got notification about task instance skip")
+
+            if isinstance(task_instance, TaskInstance):
+                self.log.debug("Skipping OpenLineage skip event for manual state change (TaskInstance model)")
+                return
+
+            context = task_instance.get_template_context()
+            task = context["task"]
+            if TYPE_CHECKING:
+                assert task
+            dagrun = context["dag_run"]
+            dag = context["dag"]
+            self._on_task_instance_skipped(task_instance, dag, dagrun, task)
+
+    def _on_task_instance_skipped(self, task_instance: RuntimeTaskInstance, dag, dagrun, task):
+        end_date = timezone.utcnow()
+
+        if is_operator_disabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for operator `%s` "
+                "due to its presence in [openlineage] disabled_for_operators.",
+                task.task_type,
+            )
+            return
+
+        if not is_selective_lineage_enabled(task):
+            self.log.debug(
+                "Skipping OpenLineage event emission for task `%s` "
+                "due to lack of explicit lineage enablement for task or DAG while "
+                "[openlineage] selective_enable is on.",
+                task_instance.task_id,
+            )
+            return
+
+        @print_warning(self.log)
+        def on_skipped():
+            date = dagrun.logical_date
+            if AIRFLOW_V_3_0_PLUS and date is None:
+                date = dagrun.run_after
+
+            parent_run_id = self.adapter.build_dag_run_id(
+                dag_id=task_instance.dag_id,
+                logical_date=date,
+                clear_number=dagrun.clear_number,
+            )
+
+            task_uuid = self.adapter.build_task_instance_run_id(
+                dag_id=task_instance.dag_id,
+                task_id=task_instance.task_id,
+                try_number=task_instance.try_number,
+                logical_date=date,
+                map_index=task_instance.map_index,
+            )
+            event_type = RunState.COMPLETE.value.lower()
+            operator_name = task.task_type.lower()
+
+            data_interval_start = dagrun.data_interval_start
+            if isinstance(data_interval_start, datetime):
+                data_interval_start = data_interval_start.isoformat()
+            data_interval_end = dagrun.data_interval_end
+            if isinstance(data_interval_end, datetime):
+                data_interval_end = data_interval_end.isoformat()
+
+            doc, doc_type = get_task_documentation(task)
+            if not doc:
+                doc, doc_type = get_dag_documentation(dag)
+
+            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun=dagrun,
+                    task=task,
+                    task_instance_state=TaskInstanceState.SKIPPED,
+                    task_instance=task_instance,
+                )
+
+            redacted_event = self.adapter.complete_task(
+                run_id=task_uuid,
+                job_name=get_job_name(task_instance),
+                end_time=end_date.isoformat(),
+                task=task_metadata,
+                # If task owner is default ("airflow"), use DAG owner instead that may have more details
+                owners=[x.strip() for x in (task if task.owner != "airflow" else dag).owner.split(",")],
+                tags=dag.tags,
+                job_description=doc,
+                job_description_type=doc_type,
+                nominal_start_time=data_interval_start,
+                nominal_end_time=data_interval_end,
+                run_facets={
+                    **get_user_provided_run_facets(task_instance, TaskInstanceState.SKIPPED),
+                    **get_task_parent_run_facet(
+                        parent_run_id=parent_run_id,
+                        parent_job_name=dag.dag_id,
+                        dr_conf=getattr(dagrun, "conf", {}),
+                    ),
+                    **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
+                },
+            )
+            Stats.gauge(
+                f"ol.event.size.{event_type}.{operator_name}",
+                len(Serde.to_json(redacted_event).encode("utf-8")),
+            )
+
+        self._execute(on_skipped, "on_skipped", use_fork=True)
+
     def _on_task_instance_manual_state_change(
         self,
         ti: TaskInstance,
