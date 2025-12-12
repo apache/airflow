@@ -27,7 +27,7 @@ import attrs
 import structlog
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
