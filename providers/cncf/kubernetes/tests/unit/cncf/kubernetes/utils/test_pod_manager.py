@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 def pod_factory():
     def _make(
         *,
-        pod_phase: PodPhase = PodPhase.RUNNING,
+        pod_phase: str = PodPhase.RUNNING,
         container_name: str = "base",
         terminated: bool = False,
         waiting_reason: str | None = None,
