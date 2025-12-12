@@ -229,7 +229,7 @@ class TestConnection:
                     host="host",
                     extra={"bool_param": True, "int_param": 123, "float_param": 1.5, "list_param": [1, 2]},
                 ),
-                "type://host/?bool_param=true&int_param=123&float_param=1.5&list_param=%5B1%2C+2%5D",
+                "type://host/?__extra__=%7B%22bool_param%22%3A+true%2C+%22int_param%22%3A+123%2C+%22float_param%22%3A+1.5%2C+%22list_param%22%3A+%5B1%2C+2%5D%7D",
             ),
         ],
     )

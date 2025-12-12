@@ -251,6 +251,11 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
+                for key, value in query.items():
+                    try:
+                        query[key] = json.loads(value)
+                    except (JSONDecodeError, TypeError):
+                        pass
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -330,26 +335,24 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                stringified_extras = {k: self._stringify_extra_value(v) for k, v in self.extra_dejson.items()}
-                query: str | None = urlencode(stringified_extras)
-            except TypeError:
-                query = None
-            if query and stringified_extras == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += ("?" if self.schema else "/?") + query
-            else:
+                extra_dict = self.extra_dejson
+                can_flatten = True
+                for key, value in extra_dict.items():
+                    if not isinstance(value,str):
+                        can_flatten = False
+                        break
+                
+                if can_flatten:
+                    query = urlencode(extra_dict)
+                    if extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
+                        uri += ("?" if self.schema else "/?") + query
+                    else:
+                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                else:
+                    uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+            except (TypeError, AttributeError):
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
         return uri
-
-    @staticmethod
-    def _stringify_extra_value(value: Any) -> str:
-        if isinstance(value, (dict, list)):
-            return json.dumps(value)
-        if isinstance(value, bool):
-            return str(value).lower()
-        if value is None:
-            return "null"
-        return str(value)
 
     def get_password(self) -> str | None:
         """Return encrypted password."""
@@ -468,12 +471,13 @@ class Connection(Base, LoggingMixin):
         if self.extra:
             try:
                 extra = json.loads(self.extra)
-                for key, value in extra.items():
-                    if isinstance(value, str):
-                        try:
-                            extra[key] = json.loads(value)
-                        except (JSONDecodeError, TypeError):
-                            pass
+                if nested:
+                    for key, value in extra.items():
+                        if isinstance(value, str):
+                            try:
+                                extra[key] = json.loads(value)
+                            except (JSONDecodeError, TypeError):
+                                pass
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
