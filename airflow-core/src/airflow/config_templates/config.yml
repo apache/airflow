@@ -2395,25 +2395,6 @@ triggerer:
       type: integer
       example: ~
       default: "50"
-    default_trigger_queue:
-      description: |
-        Default queue to assign triggers to. If using a non-default value, make sure this default is also
-        present in ``[triggerer] consume_trigger_queues`` otherwise triggers created without an explicit
-        ``trigger_queue``.
-        will not run.
-      version_added: 3.2.0
-      type: string
-      example: ~
-      default: "default"
-    consume_trigger_queues:
-      description: |
-        Comma separated string holding the set of ``trigger_queue`` values the triggerer will consume from.
-        If set to a non-default value, make sure the ``[triggerer] default_trigger_queue`` value is a member
-        of this set, otherwise triggers created without an explicit ``trigger_queue`` will not run.
-      version_added: 3.2.0
-      type: string
-      example: ~
-      default: "default"
 kerberos:
   description: ~
   options:

@@ -32,7 +32,6 @@ from pydantic import (
     model_serializer,
 )
 
-from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -69,7 +68,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         # when run, they are injected into logger record.
         self.task_instance = None
         self.trigger_id = None
-        self.trigger_queue = trigger_queue or conf.get("triggerer", "default_trigger_queue")
+        self.trigger_queue = trigger_queue
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
@@ -80,7 +79,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         """
         Return the information needed to reconstruct this Trigger.
 
-        :return: Tuple of (class path, keyword arguments needed to re-instantiate).
+        :return: Tuple of (class path, keyword arguments needed to re-instantiate including possible trigger queue).
         """
         raise NotImplementedError("Triggers must implement serialize()")
 

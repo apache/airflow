@@ -41,7 +41,7 @@ airflow_version = "3.2.0"
 def upgrade():
     """Add ``trigger_queue`` column in trigger table."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.add_column(sa.Column("trigger_queue", sa.String(length=250), nullable=True))
+        batch_op.add_column(sa.Column("trigger_queue", sa.String(length=128), nullable=True))
 
 
 def downgrade():

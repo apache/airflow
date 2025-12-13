@@ -6490,10 +6490,6 @@ export const $TriggerResponse = {
             type: 'string',
             title: 'Classpath'
         },
-        trigger_queue: {
-            type: 'string',
-            title: 'Trigger Queue'
-        },
         kwargs: {
             type: 'string',
             title: 'Kwargs'
@@ -6502,6 +6498,17 @@ export const $TriggerResponse = {
             type: 'string',
             format: 'date-time',
             title: 'Created Date'
+        },
+        trigger_queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Queue'
         },
         triggerer_id: {
             anyOf: [
@@ -6516,7 +6523,7 @@ export const $TriggerResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'classpath', 'trigger_queue', 'kwargs', 'created_date', 'triggerer_id'],
+    required: ['id', 'classpath', 'kwargs', 'created_date', 'trigger_queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
 } as const;

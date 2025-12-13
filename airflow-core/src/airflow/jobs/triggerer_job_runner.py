@@ -116,7 +116,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         capacity=None,
-        trigger_queues: set[str] | None = None,
+        consume_trigger_queues: set[str] | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -125,9 +125,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.capacity = capacity
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
-        self.trigger_queues = trigger_queues or set(
-            conf.get("triggerer", "consume_trigger_queues").split(",")
-        )
+        self.consume_trigger_queues = consume_trigger_queues
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -172,7 +170,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
                 job=self.job,
                 capacity=self.capacity,
                 logger=log,
-                trigger_queues=self.trigger_queues,
+                consume_trigger_queues=self.consume_trigger_queues,
             )
 
             # Run the main DB comms loop in this process
@@ -330,11 +328,6 @@ def in_process_api_server() -> InProcessExecutionAPI:
     return api
 
 
-def _trigger_queues_factory() -> set[str]:
-    """Return the value of the `TriggerRunnerSupervisor`'s `consume_trigger_queues`."""
-    return set(conf.get("triggerer", "consume_trigger_queues").split(","))
-
-
 @attrs.define(kw_only=True)
 class TriggerRunnerSupervisor(WatchedSubprocess):
     """
@@ -346,7 +339,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     job: Job
     capacity: int
-    trigger_queues: set[str] = attrs.field(factory=_trigger_queues_factory)
+    consume_trigger_queues: set[str] | None = None
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
 
@@ -569,9 +562,12 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(
-            self.job.id, self.capacity, self.trigger_queues, self.health_check_threshold
+            self.job.id,
+            self.capacity,
+            self.health_check_threshold,
+            consume_trigger_queues=self.consume_trigger_queues,
         )
-        ids = Trigger.ids_for_triggerer(self.job.id, self.trigger_queues)
+        ids = Trigger.ids_for_triggerer(self.job.id, consume_trigger_queues=self.consume_trigger_queues)
         self.update_triggers(set(ids))
 
     @add_debug_span
