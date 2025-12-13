@@ -170,7 +170,7 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
     return response
 
 .. note::
-  Ensure that the cookie parameter ``httponly`` is set to ``True``. UI no longer manages the token.
+  Ensure that the cookie parameter ``httponly`` is set to ``True``. The UI does not manage the token.
 
 Refreshing JWT Token
 ''''''''''''''''''''
@@ -178,68 +178,18 @@ Refreshing token is optional feature and its availability depends on the specifi
 The auth manager is responsible for refreshing the JWT token when it expires.
 The Airflow API uses middleware that intercepts every request and checks the validity of the JWT token.
 Token communication is handled through ``httponly`` cookies to improve security.
-When the token expires, the middleware calls the auth manager's ``refresh_token`` method to obtain a new token.
+When the token expires, the `JWTRefreshMiddleware <https://github.com/apache/airflow/blob/3.1.5/airflow-core/src/airflow/api_fastapi/auth/middlewares/refresh_token.py>`_ middleware calls the auth manager's ``refresh_user`` method to obtain a new token.
 
-To support token refresh operations, the auth manager must implement the ``refresh_token`` method.
+
+To support token refresh operations, the auth manager must implement the ``refresh_user`` method.
 This method receives an expired token and must return a new valid token.
 User information is extracted from the expired token and used to generate a fresh token.
 
 An example implementation of ``refresh_user`` could be:
-
-.. code-block:: python
-
-    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
-        if self._token_expired(user.access_token):
-            log.debug("Refreshing the token")
-            client = self.get_keycloak_client()
-            tokens = client.refresh_token(user.refresh_token)
-            user.refresh_token = tokens["refresh_token"]
-            user.access_token = tokens["access_token"]
-            return user
-
-        return None
-
-User information is derived from the ``BaseUser`` instance. It is important that the user object contains all the fields required to refresh the token. An example user class that includes all necessary fields is shown below:
-
-.. code-block:: python
-
-    class KeycloakAuthManagerUser(BaseUser):
-        """User model for users managed by the Keycloak auth manager."""
-
-        def __init__(self, *, user_id: str, name: str, access_token: str, refresh_token: str) -> None:
-            self.user_id = user_id
-            self.name = name
-            self.access_token = access_token
-            self.refresh_token = refresh_token
-
-        def get_id(self) -> str:
-            return self.user_id
-
-        def get_name(self) -> str:
-            return self.name
-
-The refresh token endpoint must implement the refresh logic required by the auth manager. An example ``refresh_token`` implementation is shown below:
-
-.. code-block:: python
-
-    def refresh_token(self, expired_token: str) -> str:
-        expired_user_dict = self.deserialize_user(jwt.decode(expired_token, options={"verify_signature": False}))
-        expired_user = cast(KeycloakAuthManagerUser, expired_user_dict)
-
-        new_access_token, new_refresh_token = self._refresh_tokens(
-            expired_user.access_token,
-            expired_user.refresh_token,
-        )
-
-        new_user = KeycloakAuthManagerUser(
-            user_id=expired_user.get_id(),
-            name=expired_user.get_name(),
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
-        )
-
-        new_token = self._create_jwt_token(new_user)
-        return new_token
+`KeycloakAuthManager::refresh_user <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py#L113-L121>`_
+User information is derived from the ``BaseUser`` instance.
+It is important that the user object contains all the fields required to refresh the token. An example user class could be:
+`KeycloakAuthManagerUser(BaseUser) <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/user.pys>`_.
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
