@@ -2707,6 +2707,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        trigger_queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trigger Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -2718,6 +2723,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - trigger_queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.

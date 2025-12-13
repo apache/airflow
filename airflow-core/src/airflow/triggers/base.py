@@ -63,11 +63,12 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, trigger_queue: str | None = None, **kwargs):
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
         self.trigger_id = None
+        self.trigger_queue = trigger_queue
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
@@ -78,7 +79,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         """
         Return the information needed to reconstruct this Trigger.
 
-        :return: Tuple of (class path, keyword arguments needed to re-instantiate).
+        :return: Tuple of (class path, keyword arguments needed to re-instantiate including possible trigger queue).
         """
         raise NotImplementedError("Triggers must implement serialize()")
 

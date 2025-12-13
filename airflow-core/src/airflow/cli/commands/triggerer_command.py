@@ -49,9 +49,18 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
             sub_proc.terminate()
 
 
-def triggerer_run(skip_serve_logs: bool, capacity: int, triggerer_heartrate: float):
+def triggerer_run(
+    skip_serve_logs: bool,
+    capacity: int,
+    triggerer_heartrate: float,
+    consume_trigger_queues: set[str] | None = None,
+):
     with _serve_logs(skip_serve_logs):
-        triggerer_job_runner = TriggererJobRunner(job=Job(heartrate=triggerer_heartrate), capacity=capacity)
+        triggerer_job_runner = TriggererJobRunner(
+            job=Job(heartrate=triggerer_heartrate),
+            capacity=capacity,
+            consume_trigger_queues=consume_trigger_queues,
+        )
         run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
 
 
@@ -64,13 +73,16 @@ def triggerer(args):
     SecretsMasker.enable_log_masking()
 
     print(settings.HEADER)
+    consume_trigger_queues = set(args.consume_trigger_queues) if args.consume_trigger_queues else None
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
     if cli_utils.should_enable_hot_reload(args):
         from airflow.cli.hot_reload import run_with_reloader
 
         run_with_reloader(
-            lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+            lambda: triggerer_run(
+                args.skip_serve_logs, args.capacity, triggerer_heartrate, consume_trigger_queues
+            ),
             process_name="triggerer",
         )
         return
@@ -78,6 +90,8 @@ def triggerer(args):
     run_command_with_daemon_option(
         args=args,
         process_name="triggerer",
-        callback=lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+        callback=lambda: triggerer_run(
+            args.skip_serve_logs, args.capacity, triggerer_heartrate, consume_trigger_queues
+        ),
         should_setup_logging=True,
     )
