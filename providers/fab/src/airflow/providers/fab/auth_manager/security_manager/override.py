@@ -2019,7 +2019,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if _provider["name"] == provider:
                 return _provider.get("token_secret", "oauth_token_secret")
 
-    def auth_user_oauth(self, userinfo):
+    def auth_user_oauth(self, userinfo, rotate_session_id=True):
         """
         Authenticate user with OAuth.
 
@@ -2073,7 +2073,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # LOGIN SUCCESS (only if user is now registered)
         if user:
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
         return None

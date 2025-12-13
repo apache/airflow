@@ -144,16 +144,12 @@ This custom logic overrides the default ``create_token`` method from the FAB aut
                     "role_keys": groups,
                 }
 
-                user = self.security_manager.auth_user_oauth(userinfo)
+                user = self.security_manager.auth_user_oauth(userinfo, rotate_session_id=False)
 
             # Fall back to the default implementation
             else:
                 user = super().create_token(headers=headers, body=body)
 
             log.info("User: %s", user)
-
-            # Log user into the session
-            if user is not None:
-                login_user(user, remember=False)
 
             return user
