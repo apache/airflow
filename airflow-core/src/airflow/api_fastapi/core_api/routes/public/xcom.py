@@ -374,7 +374,7 @@ def delete_xcom_entry(
         )
     )
 
-    if result.rowcount == 0:
+    if getattr(result, "rowcount", 0) == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
