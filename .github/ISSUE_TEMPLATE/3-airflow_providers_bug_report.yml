@@ -16,8 +16,9 @@ body:
 
         You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
 
-        Please note that reporting a bug does not guarantee it will be fixed, as prioritization and implementation depend on impact, severity, and community availability.
-        Therefore, please do not request or expect specific timelines or ETAs. Remember that the fastest way to fix bugs is to submit a PR yourself.
+        Please note that reporting a bug does not guarantee it will be fixed, as the implementation depends
+        on community interest and availability.
+        Therefore, please do not request or expect specific timelines or ETAs. The fastest way to fix bugs is to submit a PR yourself.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: dropdown
@@ -138,11 +139,13 @@ body:
     attributes:
       label: Apache Airflow version
       description: >
-        What Apache Airflow version are you using?
-        **Please note:** Apache Airflow 2.x is currently in limited support and will reach its end of life
-        (EOL) on April 22, 2026. Until then, if you are using Airflow 2.x, please test your issue with the
-        latest Airflow 2.11.x release before reporting it.
-        You are strongly encouraged to also test with the latest Airflow 3 release or the `main` branch.
+        Enter your Airflow version.
+        **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
+        EOL on April 22, 2026 - see the
+        [Airflow 2 EOL page]
+        (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
+        for more information.
+        When using 2.x, please test with the latest 2.11.x; also consider testing with Airflow 3 or `main`.
     validations:
       required: true
   - type: input

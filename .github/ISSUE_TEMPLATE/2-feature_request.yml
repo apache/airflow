@@ -17,7 +17,7 @@ body:
         and can instead open a [Pull Request](https://github.com/apache/airflow/pulls) directly.
         However, if you don't have the time or the knowledge to implement the feature yourself, this form is the right place to suggest it.
         Please note that suggesting a feature does not guarantee it will be implemented, and any implementation depends on community interest and availability.
-        Therefore, please do not request or expect specific timelines or ETAs. Remember that the fastest way to get new features is to submit a PR yourself.
+        Therefore, please do not request or expect specific timelines or ETAs. The fastest way to get new features is to submit a PR yourself.
 
         For bigger features, those that are impacting Airflow's architecture, security assumptions,
         backwards compatibility etc. should be discussed in the [airflow devlist](https://lists.apache.org/list.html?dev@airflow.apache.org).
@@ -27,9 +27,9 @@ body:
         among the community and eventually conduct a successful
         [vote](https://www.apache.org/foundation/voting.html) in the community.
 
-        **Please note:** Apache Airflow 2.x is currently in limited support and will reach its end of life (EOL) on April 22, 2026,
-        so new features should be targeted for Airflow 3.x - we do not accept new features for Airflow 2.x anymore.
-        For reporting security issues in any version, please **do not** use this form and refer to the [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md).
+        **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
+        EOL on April 22, 2026.
+        For reporting security issues in any version, please **do not** use this form and refer to the [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md) instead.
 
         If unsure about the impact of your feature or how to formulate it - please open a [discussion](https://github.com/apache/airflow/discussions) first to gather
         an initial feedback on your idea, or ask in the other [communication channels](https://airflow.apache.org/community/).

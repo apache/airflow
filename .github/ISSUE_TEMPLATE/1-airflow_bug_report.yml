@@ -16,23 +16,26 @@ body:
 
         You can open a [pull request](https://github.com/apache/airflow/pulls) immediately instead.
 
-        Please note that reporting a bug does not guarantee it will be fixed, as prioritization and implementation depend on impact, severity, and community availability.
-        Therefore, please do not request or expect specific timelines or ETAs. Remember that the fastest way to fix bugs is to submit a PR yourself.
+        Please note that reporting a bug does not guarantee it will be fixed, as the implementation depends
+        on community interest and availability.
+        Therefore, please do not request or expect specific timelines or ETAs. The fastest way to fix bugs is
+        to submit a PR yourself.
+
+        For reporting security issues in any version, please **do not** use this form and refer to the
+        [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
+        instead.
         <br clear='left'/>"
       # yamllint enable rule:line-length
   - type: dropdown
     attributes:
       label: Apache Airflow version
       description: >
-        What Apache Airflow version are you using? If you do not see your version listed, please (ideally)
-        test on the latest release or `main` to verify whether the issue has already been fixed before
-        reporting it.
-        **Please note:** Apache Airflow 2.X is currently in limited support and will reach its end of life
-        (EOL) by April 22, 2026. Until that date, this form should be used only to report critical bugs
-        affecting Airflow 2.11.X that **do not impose a security risk**.
-        For reporting security issues in any version, please **do not** use this form and refer to the
-        [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md)
-        instead.
+        Select your Airflow version.
+        **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
+        EOL on April 22, 2026 - see the
+        [Airflow 2 EOL page]
+        (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
+        for more information.
       multiple: false
       options:
         - "3.1.5"
@@ -47,7 +50,7 @@ body:
       # yamllint disable rule:line-length
       description: >
         On what 3.X version of Airflow are you currently experiencing the issue? Remember, you are encouraged to
-        test with the latest release or on the main branch to verify your issue still exists, especially if
+        test with the latest release or on the `main` branch to verify your issue still exists, especially if
         your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
       # yamllint enable rule:line-length
   - type: textarea
