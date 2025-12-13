@@ -3,6 +3,7 @@
   "asset_many": "アセット",
   "asset_one": "アセット",
   "consumingDags": "Consuming Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "イベントを作成",
     "manual": {
@@ -24,6 +25,7 @@
     },
     "title": "{{name}} 用のアセットイベントを作成"
   },
+  "extra": "追加情報",
   "group": "グループ",
   "lastAssetEvent": "最終アセットイベント",
   "name": "名前",

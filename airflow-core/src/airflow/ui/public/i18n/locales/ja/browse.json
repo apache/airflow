@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "追加情報の JSON を閉じる",
-      "expandAllExtra": "追加情報の JSON を展開"
-    },
     "columns": {
       "event": "イベント",
       "extra": "追加情報",

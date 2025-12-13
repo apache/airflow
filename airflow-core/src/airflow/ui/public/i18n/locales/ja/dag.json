@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "グラフの向き"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "アクティブフィルタ",
+      "clearFilter": "フィルタのリセット",
+      "clickTask": "フィルタルートとして選択するにはタスクを選択します",
+      "label": "フィルタ",
+      "options": {
+        "both": "上流と下流の両方",
+        "downstream": "下流",
+        "upstream": "上流"
+      },
+      "selectedTask": "選択したタスク"
     }
   },
   "paramsFailed": "パラメータのロードに失敗しました",

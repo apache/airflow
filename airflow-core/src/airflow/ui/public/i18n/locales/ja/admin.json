@@ -35,7 +35,7 @@
       "connectionTypeRequired": "接続タイプは必須です",
       "extraFields": "追加項目",
       "extraFieldsJson": "追加項目 (JSON 形式)",
-      "helperText": "接続タイプが見つかりませんか？対応する Airflow Provider パッケージがインストールされていることを確認してください",
+      "helperText": "接続タイプが見つかりませんか？対応する Airflow Providers パッケージがインストールされていることを確認してください",
       "helperTextForRedactedFields": "非表示の項目 ('***') は、編集しなければ以前の値がそのまま使われます",
       "selectConnectionType": "接続タイプを選ぶ",
       "standardFields": "標準項目"
@@ -128,8 +128,6 @@
       "tooltip": "選択された変数を削除"
     },
     "edit": "変数を編集",
-    "export": "エクスポート",
-    "exportTooltip": "選択された変数をエクスポート",
     "form": {
       "invalidJson": "不正な形式の JSON",
       "keyMaxLength": "キーの最大長は 250 文字です",

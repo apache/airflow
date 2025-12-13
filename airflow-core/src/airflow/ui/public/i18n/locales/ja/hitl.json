@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "本文",
-    "createdAtFrom": "次の日時以降に作成",
-    "createdAtTo": "次の日時以前に作成",
+    "createdAt": "作成時刻",
     "response": {
       "all": "すべての",
       "pending": "保留中",

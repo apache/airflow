@@ -4,7 +4,7 @@
     "Connections": "接続",
     "Plugins": "プラグイン",
     "Pools": "プール",
-    "Providers": "プロバイダ",
+    "Providers": "Providers",
     "Variables": "変数"
   },
   "allOperators": "全オペレータ",
@@ -25,6 +25,7 @@
     "requiredActions": "要対応項目",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "追加情報の JSON を閉じる",
   "collapseDetailsPanel": "詳細パネルを閉じる",
   "createdAssetEvent_one": "作成したアセットイベント",
   "createdAssetEvent_other": "作成したアセットイベント",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "データ期間の終了",
     "dataIntervalStart": "データ期間の開始",
     "lastSchedulingDecision": "最終スケジューリング決定時刻",
+    "partitionKey": "パーティションキー",
     "queuedAt": "キュー登録時刻",
     "runAfter": "最早実行可能時間",
     "runType": "実行タイプ",
@@ -72,6 +74,9 @@
   "dagWarnings": "Dag 実行警告/エラー",
   "defaultToGraphView": "グラフ表示を既定にします",
   "defaultToGridView": "グリッド表示を既定にします",
+  "diff": "差分",
+  "diffCompareWith": "比較する",
+  "diffExit": "差分表示終了",
   "direction": "方向",
   "docs": {
     "documentation": "ドキュメント",
@@ -89,6 +94,7 @@
     "back": "戻る",
     "defaultMessage": "予期せぬエラーが発生しました",
     "home": "ホーム",
+    "invalidUrl": "ページが見つかりません。URLを確認して再度お試しください",
     "notFound": "ページが見つかりません",
     "title": "エラー"
   },
@@ -98,6 +104,7 @@
     "hotkey": "e",
     "tooltip": "切り替えるには {{hotkey}} を押してください"
   },
+  "expandAllExtra": "追加情報の JSON を展開",
   "expression": {
     "all": "すべて",
     "and": "かつ",
@@ -108,10 +115,13 @@
   "filters": {
     "durationFrom": "開始時刻",
     "durationTo": "終了時刻",
+    "endTime": "終了時刻",
     "logicalDateFrom": "論理開始日",
     "logicalDateTo": "論理終了日",
     "runAfterFrom": "実行開始日時の指定",
-    "runAfterTo": "実行終了日時の指定"
+    "runAfterTo": "実行終了日時の指定",
+    "selectDateRange": "日付範囲を選択",
+    "startTime": "開始時刻"
   },
   "logicalDate": "論理日付",
   "logout": "ログアウト",
@@ -177,6 +187,7 @@
   },
   "selectLanguage": "言語を選択",
   "showDetailsPanel": "詳細パネル表示",
+  "signedInAs": "サインインしているユーザ",
   "source": {
     "hide": "ソースを隠す",
     "hotkey": "s",
@@ -244,12 +255,12 @@
     "queuedWhen": "キューイング時刻",
     "scheduledWhen": "スケジュールされた時刻",
     "triggerer": {
-      "assigned": "割り当てられたトリガー",
+      "assigned": "割り当てられたTriggerer",
       "class": "トリガーカテゴリ",
       "createdAt": "トリガー作成時刻",
       "id": "トリガー ID",
-      "latestHeartbeat": "最新のトリガーハートビート",
-      "title": "トリガー情報"
+      "latestHeartbeat": "最新のTriggererハートビート",
+      "title": "Triggerer情報"
     },
     "unixname": "Unix 名"
   },

@@ -49,6 +49,13 @@
     "warning_one": "1 件の警告",
     "warning_other": "{{count}} 件の警告"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "無効な日付形式",
+      "invalidTimeFormat": "無効な時刻形式",
+      "startBeforeEnd": "開始日時が終了日時より前である必要があります"
+    }
+  },
   "durationChart": {
     "duration": "期間（秒）",
     "lastDagRun_one": "最新の Dag 実行",
@@ -114,6 +121,9 @@
     "selectLabel": "単体での実行",
     "title": "Dag のトリガー",
     "toaster": {
+      "error": {
+        "title": "Dag のトリガーに失敗しました"
+      },
       "success": {
         "description": "Dag の実行が正常にトリガーされました。",
         "title": "Dag の実行がトリガーされました"
