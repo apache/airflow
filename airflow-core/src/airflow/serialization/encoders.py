@@ -41,6 +41,7 @@ from airflow.sdk import (
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
+from airflow.sdk.definitions.callback import AsyncCallback, Callback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -52,9 +53,36 @@ if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
 
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
+
+
+@functools.singledispatch
+def _encode_callback(var: Callback) -> dict[str, Any]:
+    raise NotImplementedError(f"can not serialize timetable {type(var).__name__}")
+
+
+@_encode_callback.register
+def _(var: AsyncCallback) -> dict[str, Any]:
+    return {"type": "async", "path": var.path, "kwargs": var.kwargs}
+
+
+@_encode_callback.register
+def _(var: SyncCallback) -> dict[str, Any]:
+    data = {"type": "sync", "path": var.path, "kwargs": var.kwargs}
+    if executor := var.executor:
+        data["executor"] = executor
+    return executor
+
+
+def encode_deadline_alert(var: DeadlineAlert) -> dict[str, Any]:
+    return {
+        "reference": var.reference.serialize_reference(),
+        "interval": encode_interval(var.interval),
+        "callback": _encode_callback(var.callback),
+    }
 
 
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:

@@ -56,7 +56,6 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset
-from airflow.sdk.definitions.deadline import DeadlineAlert
 from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -464,28 +463,34 @@ class DagModel(Base):
         else:
             self.next_dagrun_data_interval_start, self.next_dagrun_data_interval_end = value
 
+    # TODO: Remove this function.
     @property
     def deadline(self):
         """Get the deserialized deadline alert."""
+        from airflow.serialization.decoders import decode_deadline_alert
+
         if self._deadline is None:
             return None
         if isinstance(self._deadline, list):
-            return [DeadlineAlert.deserialize_deadline_alert(item) for item in self._deadline]
-        return DeadlineAlert.deserialize_deadline_alert(self._deadline)
+            return [decode_deadline_alert(item) for item in self._deadline]
+        return decode_deadline_alert(self._deadline)
 
+    # TODO: Remove this function.
     @deadline.setter
     def deadline(self, value):
         """Set and serialize the deadline alert."""
+        from airflow.serialization.encoders import encode_deadline_alert
+
         if value is None:
             self._deadline = None
         elif isinstance(value, list):
             self._deadline = [
-                item if isinstance(item, dict) else item.serialize_deadline_alert() for item in value
+                item if isinstance(item, dict) else encode_deadline_alert(item) for item in value
             ]
         elif isinstance(value, dict):
             self._deadline = value
         else:
-            self._deadline = value.serialize_deadline_alert()
+            self._deadline = encode_deadline_alert(value)
 
     @property
     def timezone(self):
