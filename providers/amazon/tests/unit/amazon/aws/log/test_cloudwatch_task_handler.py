@@ -173,16 +173,12 @@ class TestCloudwatchTaskHandler:
             clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
-    def setup(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
+    def setup(self, tmp_path_factory, session, testing_dag_bundle):
         # self.clear_db()
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_group = "log_group_name"
             self.region_name = "us-west-2"
             self.local_log_location = str(tmp_path_factory.mktemp("local-cloudwatch-log-location"))
-            if AIRFLOW_V_3_0_PLUS:
-                create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
-            else:
-                create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
             self.cloudwatch_task_handler = CloudwatchTaskHandler(
                 self.local_log_location,
                 f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",

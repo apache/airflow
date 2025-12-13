@@ -243,8 +243,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if isinstance(ti, TaskInstanceKey):
                 ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
-            if USE_PER_RUN_LOG_ID:
+            if USE_PER_RUN_LOG_ID and AIRFLOW_V_3_0_PLUS:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+            else:
+                log_id_template = conf.get("elasticsearch", "log_id_template")
 
         if self.json_format:
             data_interval_start = self._clean_date(dag_run.data_interval_start)
