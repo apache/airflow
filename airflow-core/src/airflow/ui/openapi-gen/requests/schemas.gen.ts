@@ -458,6 +458,11 @@ export const $BackfillPostBody = {
             type: 'integer',
             title: 'Max Active Runs',
             default: 10
+        },
+        run_on_latest_version: {
+            type: 'boolean',
+            title: 'Run On Latest Version',
+            default: true
         }
     },
     additionalProperties: false,
@@ -1540,6 +1545,18 @@ export const $ConnectionBody = {
                 }
             ],
             title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     additionalProperties: false,
@@ -1655,10 +1672,21 @@ export const $ConnectionResponse = {
                 }
             ],
             title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
         }
     },
     type: 'object',
-    required: ['connection_id', 'conn_type', 'description', 'host', 'login', 'schema', 'port', 'password', 'extra'],
+    required: ['connection_id', 'conn_type', 'description', 'host', 'login', 'schema', 'port', 'password', 'extra', 'team_name'],
     title: 'ConnectionResponse',
     description: 'Connection serializer for responses.'
 } as const;
@@ -7102,10 +7130,13 @@ export const $ConfigResponse = {
                 }
             ],
             title: 'External Log Name'
+        },
+        theme: {
+            '$ref': '#/components/schemas/Theme'
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;
@@ -8068,6 +8099,10 @@ export const $NodeResponse = {
     description: 'Node serializer for responses.'
 } as const;
 
+export const $OklchColor = {
+    type: 'string'
+} as const;
+
 export const $StandardHookFields = {
     properties: {
         description: {
@@ -8252,6 +8287,43 @@ export const $TeamResponse = {
     required: ['name'],
     title: 'TeamResponse',
     description: 'Base serializer for Team.'
+} as const;
+
+export const $Theme = {
+    properties: {
+        tokens: {
+            additionalProperties: {
+                additionalProperties: {
+                    additionalProperties: {
+                        additionalProperties: {
+                            '$ref': '#/components/schemas/OklchColor'
+                        },
+                        propertyNames: {
+                            const: 'value'
+                        },
+                        type: 'object'
+                    },
+                    propertyNames: {
+                        enum: ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+                    },
+                    type: 'object'
+                },
+                propertyNames: {
+                    const: 'brand'
+                },
+                type: 'object'
+            },
+            propertyNames: {
+                const: 'colors'
+            },
+            type: 'object',
+            title: 'Tokens'
+        }
+    },
+    type: 'object',
+    required: ['tokens'],
+    title: 'Theme',
+    description: "JSON to modify Chakra's theme."
 } as const;
 
 export const $UIAlert = {

@@ -35,6 +35,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLogsConsumer,
     PodManager,
     PodPhase,
+    log_pod_event,
     parse_log_line,
 )
 from airflow.providers.common.compat.sdk import AirflowException
@@ -56,6 +57,65 @@ def test_parse_log_line():
     timestamp, line = parse_log_line(f"{real_timestamp} {log_message}")
     assert timestamp == pendulum.parse(real_timestamp)
     assert line == log_message
+
+
+def test_log_pod_event():
+    """Test logging a pod event."""
+    mock_pod_manager = mock.Mock()
+    mock_event = mock.Mock()
+    mock_event.metadata.uid = "event-uid-1"
+    mock_event.message = "Test event message"
+    mock_event.involved_object.field_path = "Test field path"
+
+    seen_events = set()
+
+    log_pod_event(mock_pod_manager, mock_event, seen_events)
+
+    assert "event-uid-1" in seen_events
+    mock_pod_manager.log.info.assert_called_once_with(
+        "The Pod has an Event: %s from %s", "Test event message", "Test field path"
+    )
+
+
+def test_log_pod_event_skips_duplicate():
+    """Test that duplicate events are skipped."""
+    mock_pod_manager = mock.Mock()
+    mock_event = mock.Mock()
+    mock_event.metadata.uid = "event-uid-1"
+    mock_event.message = "Test event message"
+
+    seen_events = {"event-uid-1"}  # Event already seen
+
+    log_pod_event(mock_pod_manager, mock_event, seen_events)
+
+    assert "event-uid-1" in seen_events
+    mock_pod_manager.log.info.assert_not_called()
+
+
+def test_log_pod_event_multiple_events():
+    """Test logging multiple different events."""
+    mock_pod_manager = mock.Mock()
+    seen_events = set()
+
+    # First event
+    mock_event1 = mock.Mock()
+    mock_event1.metadata.uid = "event-uid-1"
+    mock_event1.message = "First message"
+    mock_event1.involved_object.field_path = "Test field path 1"
+
+    log_pod_event(mock_pod_manager, mock_event1, seen_events)
+    assert "event-uid-1" in seen_events
+
+    # Second event
+    mock_event2 = mock.Mock()
+    mock_event2.metadata.uid = "event-uid-2"
+    mock_event2.message = "Second message"
+    mock_event2.involved_object.field_path = "Test field path 2"
+
+    log_pod_event(mock_pod_manager, mock_event2, seen_events)
+    assert "event-uid-2" in seen_events
+    assert len(seen_events) == 2
+    assert mock_pod_manager.log.info.call_count == 2
 
 
 class TestPodManager:
@@ -183,7 +243,7 @@ class TestPodManager:
             events.items.append(event)
         startup_check_interval = 10
 
-        def mock_read_pod_events(pod):
+        def mock_read_pod_events(*_, **__):
             self.pod_manager.stop_watching_events = True
             return events
 
@@ -210,6 +270,130 @@ class TestPodManager:
         events = self.pod_manager.read_pod_events(mock.sentinel)
         assert mock.sentinel.events == events
 
+    def test_read_pod_events_with_resource_version(self):
+        """Test reading pod events with resource_version parameter."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_events = mock.Mock()
+        self.mock_kube_client.list_namespaced_event.return_value = mock_events
+
+        events = self.pod_manager.read_pod_events(mock_pod, resource_version="12345")
+
+        assert events == mock_events
+        self.mock_kube_client.list_namespaced_event.assert_called_once_with(
+            namespace="test-namespace",
+            field_selector="involvedObject.name=test-pod",
+            resource_version="12345",
+            resource_version_match="NotOlderThan",
+        )
+
+    def test_read_pod_events_without_resource_version(self):
+        """Test reading pod events without resource_version parameter."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_events = mock.Mock()
+        self.mock_kube_client.list_namespaced_event.return_value = mock_events
+
+        events = self.pod_manager.read_pod_events(mock_pod)
+
+        assert events == mock_events
+        self.mock_kube_client.list_namespaced_event.assert_called_once_with(
+            namespace="test-namespace",
+            field_selector="involvedObject.name=test-pod",
+            resource_version=None,
+            resource_version_match=None,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events_tracks_resource_version(self, mock_sleep):
+        """Test that watch_pod_events tracks resource version."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        mock_event_1 = mock.Mock()
+        mock_event_1.metadata.uid = "event-uid-1"
+        mock_event_1.metadata.resource_version = "100"
+        mock_event_1.message = "Event 1"
+        mock_event_1.involved_object.field_path = "spec"
+
+        mock_events_1 = mock.Mock()
+        mock_events_1.items = [mock_event_1]
+
+        mock_event_2 = mock.Mock()
+        mock_event_2.metadata.uid = "event-uid-2"
+        mock_event_2.metadata.resource_version = "101"
+        mock_event_2.message = "Event 2"
+        mock_event_2.involved_object.field_path = "spec"
+
+        mock_events_2 = mock.Mock()
+        mock_events_2.items = [mock_event_2]
+
+        self.mock_kube_client.list_namespaced_event.side_effect = [mock_events_1, mock_events_2]
+        self.pod_manager.stop_watching_events = False
+
+        call_count = 0
+
+        async def side_effect_sleep(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                self.pod_manager.stop_watching_events = True
+
+        mock_sleep.side_effect = side_effect_sleep
+
+        await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+
+        # Check that resource_version was passed in second call
+        calls = self.mock_kube_client.list_namespaced_event.call_args_list
+        assert len(calls) == 2
+        # First call should have no resource_version
+        assert calls[0][1]["resource_version"] is None
+        # Second call should use resource_version from first event
+        assert calls[1][1]["resource_version"] == "100"
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_watch_pod_events_deduplicates_events(self, mock_sleep):
+        """Test that watch_pod_events deduplicates events."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        mock_event = mock.Mock()
+        mock_event.metadata.uid = "event-uid-1"
+        mock_event.metadata.resource_version = "100"
+        mock_event.message = "Duplicate event"
+        mock_event.involved_object.field_path = "spec"
+
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event]
+
+        # Will return the same event on each invocation
+        self.mock_kube_client.list_namespaced_event.return_value = mock_events
+        self.pod_manager.stop_watching_events = False
+
+        call_count = 0
+
+        async def side_effect_sleep(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                # Stop after 2 iterations -> same event is returned 2 times
+                self.pod_manager.stop_watching_events = True
+
+        mock_sleep.side_effect = side_effect_sleep
+
+        with mock.patch.object(self.pod_manager.log, "info") as mock_log_info:
+            await self.pod_manager.watch_pod_events(mock_pod, check_interval=1)
+
+            # Event should only be logged once despite being returned twice
+            assert mock_log_info.call_count == 1
+            mock_log_info.assert_called_with("The Pod has an Event: %s from %s", "Duplicate event", "spec")
+
     def test_read_pod_events_retries_successfully(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.list_namespaced_event.side_effect = [
@@ -223,10 +407,14 @@ class TestPodManager:
                 mock.call(
                     namespace=mock.sentinel.metadata.namespace,
                     field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
+                    resource_version=None,
+                    resource_version_match=None,
                 ),
                 mock.call(
                     namespace=mock.sentinel.metadata.namespace,
                     field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
+                    resource_version=None,
+                    resource_version_match=None,
                 ),
             ]
         )
@@ -731,6 +919,178 @@ class TestAsyncPodManager:
         )
 
     @pytest.mark.asyncio
+    async def test_read_pod_events_with_resource_version(self):
+        """Test async read_pod_events with resource_version parameter."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_events = mock.Mock()
+
+        self.mock_async_hook.get_pod_events.return_value = mock_events
+
+        result = await self.async_pod_manager.read_pod_events(mock_pod, resource_version="12345")
+
+        assert result == mock_events
+        self.mock_async_hook.get_pod_events.assert_called_once_with(
+            "test-pod", "test-namespace", resource_version="12345"
+        )
+
+    @pytest.mark.asyncio
+    async def test_read_pod_events_without_resource_version(self):
+        """Test async read_pod_events without resource_version parameter."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_events = mock.Mock()
+
+        self.mock_async_hook.get_pod_events.return_value = mock_events
+
+        result = await self.async_pod_manager.read_pod_events(mock_pod)
+
+        assert result == mock_events
+        self.mock_async_hook.get_pod_events.assert_called_once_with(
+            "test-pod", "test-namespace", resource_version=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_watch_pod_events_uses_hook_watch(self):
+        """Test that watch_pod_events uses hook's watch_pod_events method."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        mock_event1 = mock.Mock()
+        mock_event1.metadata.uid = "event-uid-1"
+        mock_event1.metadata.resource_version = "100"
+        mock_event1.message = "Event 1"
+        mock_event1.involved_object.field_path = "spec"
+
+        mock_event2 = mock.Mock()
+        mock_event2.metadata.uid = "event-uid-2"
+        mock_event2.metadata.resource_version = "101"
+        mock_event2.message = "Event 2"
+        mock_event2.involved_object.field_path = "spec"
+
+        async def async_event_generator(*_, **__):
+            yield mock_event1
+            yield mock_event2
+            self.async_pod_manager.stop_watching_events = True
+
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
+
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
+            await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
+
+            # Both events should be logged
+            assert mock_log_info.call_count == 2
+            calls = mock_log_info.call_args_list
+            assert calls[0][0] == ("The Pod has an Event: %s from %s", "Event 1", "spec")
+            assert calls[1][0] == ("The Pod has an Event: %s from %s", "Event 2", "spec")
+
+        # Verify hook was called
+        self.mock_async_hook.watch_pod_events.assert_called()
+
+    @pytest.mark.asyncio
+    async def test_watch_pod_events_tracks_resource_version(self):
+        """Test that watch_pod_events tracks and updates resource version."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        # Create events for two iterations
+        mock_event1 = mock.Mock()
+        mock_event1.metadata.uid = "event-uid-1"
+        mock_event1.metadata.resource_version = "100"
+        mock_event1.message = "Event 1"
+        mock_event1.involved_object.field_path = "spec"
+
+        mock_event2 = mock.Mock()
+        mock_event2.metadata.uid = "event-uid-2"
+        mock_event2.metadata.resource_version = "101"
+        mock_event2.message = "Event 2"
+        mock_event2.involved_object.field_path = "spec"
+
+        call_count = 0
+
+        async def async_event_generator(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First iteration
+                yield mock_event1
+            else:
+                # Second iteration
+                yield mock_event2
+                self.async_pod_manager.stop_watching_events = True
+
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
+        self.async_pod_manager.stop_watching_events = False
+
+        await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
+
+        # Verify hook was called twice with updated resource_version
+        assert self.mock_async_hook.watch_pod_events.call_count == 2
+        calls = self.mock_async_hook.watch_pod_events.call_args_list
+
+        # First call should have no resource_version
+        assert calls[0][1]["resource_version"] is None
+        # Second call should use resource_version from first event
+        assert calls[1][1]["resource_version"] == "100"
+
+    @pytest.mark.asyncio
+    async def test_watch_pod_events_deduplicates_events(self):
+        """Test that watch_pod_events deduplicates events across iterations."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        # Same event returned in two iterations
+        mock_event = mock.Mock()
+        mock_event.metadata.uid = "event-uid-1"
+        mock_event.metadata.resource_version = "100"
+        mock_event.message = "Duplicate event"
+        mock_event.involved_object.field_path = "spec"
+
+        call_count = 0
+
+        async def async_event_generator(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            yield mock_event  # Return same event
+            if call_count >= 2:
+                self.async_pod_manager.stop_watching_events = True
+
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
+        self.async_pod_manager.stop_watching_events = False
+
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
+            await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
+
+            # Event should only be logged once despite being returned twice
+            assert mock_log_info.call_count == 1
+            mock_log_info.assert_called_with("The Pod has an Event: %s from %s", "Duplicate event", "spec")
+
+    @pytest.mark.asyncio
+    async def test_watch_pod_events_handles_none_event(self):
+        """Test that watch_pod_events handles None events gracefully."""
+        mock_pod = mock.Mock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+
+        async def async_event_generator(*_, **__):
+            yield None  # None event should be skipped
+            self.async_pod_manager.stop_watching_events = True
+
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
+        self.async_pod_manager.stop_watching_events = False
+
+        with mock.patch.object(self.async_pod_manager.log, "info") as mock_log_info:
+            await self.async_pod_manager.watch_pod_events(mock_pod, startup_check_interval=30)
+
+            # No events should be logged for None
+            mock_log_info.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_start_pod_raises_informative_error_on_scheduled_timeout(self):
         pod_response = mock.MagicMock()
         pod_response.status.phase = "Pending"
@@ -844,16 +1204,18 @@ class TestAsyncPodManager:
             events.items.append(event)
         startup_check_interval = 10
 
-        def get_pod_events_side_effect(name, namespace):
+        async def watch_events_generator(*_, **__):
+            for event in events.items:
+                yield event
             self.async_pod_manager.stop_watching_events = True
-            return events
 
-        self.mock_async_hook.get_pod_events.side_effect = get_pod_events_side_effect
+        self.mock_async_hook.watch_pod_events = mock.Mock(side_effect=watch_events_generator)
 
-        await self.async_pod_manager.watch_pod_events(pod=mock_pod, check_interval=startup_check_interval)
+        await self.async_pod_manager.watch_pod_events(
+            pod=mock_pod, startup_check_interval=startup_check_interval
+        )
         mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "test event 1", "object event 1")
         mock_log_info.assert_any_call("The Pod has an Event: %s from %s", "test event 2", "object event 2")
-        mock_time_sleep.assert_called_once_with(startup_check_interval)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

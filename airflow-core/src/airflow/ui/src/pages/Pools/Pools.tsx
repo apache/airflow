@@ -93,10 +93,9 @@ export const Pools = () => {
     <>
       <ErrorAlert error={error} />
       <SearchBar
-        buttonProps={{ disabled: true }}
         defaultValue={poolNamePattern ?? ""}
         onChange={handleSearchChange}
-        placeHolder={translate("pools.searchPlaceholder")}
+        placeholder={translate("pools.searchPlaceholder")}
       />
       <HStack gap={4} mt={4}>
         <Select.Root
