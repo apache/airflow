@@ -90,6 +90,24 @@ class TestLoginRouter:
         )
         mock_keycloak_client.refresh_token.assert_called_once_with("refresh_token")
 
+    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
+    def test_logout_when_keycloak_client_raises_keycloak_post_error(self, mock_get_keycloak_client, client):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.well_known.return_value = {"end_session_endpoint": "logout_url"}
+        mock_keycloak_client.refresh_token.side_effect = KeycloakPostError(
+            response_code=400,
+            response_body=b'{"error":"invalid_grant","error_description":"Token is not active"}',
+        )
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        response = client.get(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/logout", follow_redirects=False)
+        assert response.status_code == 307
+        assert "location" in response.headers
+        assert (
+            response.headers["location"]
+            == "logout_url?post_logout_redirect_uri=http://testserver/auth/logout_callback"
+        )
+        mock_keycloak_client.refresh_token.assert_called_once_with("refresh_token")
+
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
     def test_refresh_token(self, mock_get_keycloak_client, mock_get_auth_manager, client):
