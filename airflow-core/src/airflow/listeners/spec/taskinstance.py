@@ -48,3 +48,20 @@ def on_task_instance_failed(
     error: None | str | BaseException,
 ):
     """Execute when task state changes to FAIL. previous_state can be None."""
+
+
+@hookspec
+def on_task_instance_skipped(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+):
+    """
+    Execute when task instance is skipped.
+
+    This is called when a task raises AirflowSkipException, indicating
+    the task intentionally skipped its execution.
+
+    :param previous_state: Previous state of the task instance (can be None)
+    :param task_instance: The task instance object (RuntimeTaskInstance when called
+        from task execution context, TaskInstance when called from API server)
+    """
