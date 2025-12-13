@@ -904,4 +904,4 @@ def test_resetdb(
     if skip_init:
         mock_init.assert_not_called()
     else:
-        mock_init.assert_called_once_with(session=session_mock)
+        mock_init.assert_called_once()
