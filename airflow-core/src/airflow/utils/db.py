@@ -1331,14 +1331,16 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             fab_version,
         )
         return
-    connection = settings.get_engine().connect()
-    insp = inspect(connection)
-    if not fab_version and insp.has_table("ab_user"):
-        log.info(
-            "FAB migration version not found, but FAB tables exist. "
-            "FAB provider is not required for downgrade.",
-        )
-        return
+
+    # Use context manager to ensure connection is closed
+    with settings.get_engine().connect() as connection:
+        insp = inspect(connection)
+        if not fab_version and insp.has_table("ab_user"):
+            log.info(
+                "FAB migration version not found, but FAB tables exist. "
+                "FAB provider is not required for downgrade.",
+            )
+            return
 
     # FAB db version is different or not found - require the FAB provider
     try:
@@ -1348,6 +1350,8 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
             "downgrade to <3.0.0."
         )
+
+    session.close()  # Release all locks by closing the session
     dbm = FABDBManager(session)
     if hasattr(dbm, "reset_to_2_x"):
         dbm.reset_to_2_x()
