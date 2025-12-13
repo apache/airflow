@@ -112,6 +112,56 @@ class TestVaultSecrets:
         assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_connection_without_conn_uri_key(self, mock_hvac):
+        """
+        If a connection is found but the 'conn_uri' is missing,
+        a warning should be logged and the returned connection should be None
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        mock_client.secrets.kv.v2.read_secret_version.return_value = {
+            "request_id": "94011e25-f8dc-ec29-221b-1f9c1d9ad2ae",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 0,
+            "data": {
+                "data": {
+                    "conn_type": "postgresql",
+                    "login": "airflow",
+                    "password": "airflow",
+                    "host": "host",
+                    "port": "5432",
+                    "schema": "airflow",
+                    "extra": '{"foo":"bar","baz":"taz"}',
+                },
+                "metadata": {
+                    "created_time": "2020-03-16T21:01:43.331126Z",
+                    "deletion_time": "",
+                    "destroyed": False,
+                    "version": 1,
+                },
+            },
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        kwargs = {
+            "connections_path": "connections",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+
+        test_client = VaultBackend(**kwargs)
+        response = {"test_key": "data"}
+        test_client.vault_client.get_response = mock.MagicMock(return_value=response)
+        connection = test_client.get_connection(conn_id="test_postgres")
+        # How to test the KeyError branch of get_connection?
+        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -262,6 +312,52 @@ class TestVaultSecrets:
             mount_point="airflow", path="variables/hello", version=None, raise_on_deleted_version=True
         )
         assert test_client.get_variable("hello") is None
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_variable_does_not_contain_value_key(self, mock_hvac):
+        """
+        Test that if the 'value' key is not present in Vault, _VaultClient.get_variable
+        should log a warning and return None
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+        test_client = VaultBackend(**kwargs)
+        response = {"test_key": "data"}
+        test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
+
+        result = test_client.get_variable("hello")
+        assert result is None
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_config_does_not_contain_value_key(self, mock_hvac):
+        """
+        Test that if the 'value' key is not present in Vault, _VaultClient.get_config
+        should log a warning and return None
+        """
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        kwargs = {
+            "variables_path": "variables",
+            "mount_point": "airflow",
+            "auth_type": "token",
+            "url": "http://127.0.0.1:8200",
+            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+        }
+        test_client = VaultBackend(**kwargs)
+        response = {"test_key": "data"}
+        test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
+
+        returned_uri = test_client.get_config("sql_alchemy_conn")
+        assert returned_uri is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):

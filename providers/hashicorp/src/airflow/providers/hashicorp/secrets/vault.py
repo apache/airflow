@@ -199,14 +199,15 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         from airflow.models.connection import Connection
 
         response = self.get_response(conn_id)
-        if response is None:
+        if not response:
             return None
+        try:
+            uri = response["conn_uri"]
+        except KeyError:
+            self.log.warning('Vault connection %s fetched but does not have required key "conn_uri"', conn_id)
+            return Connection(conn_id, **response)
 
-        uri = response.get("conn_uri")
-        if uri:
-            return Connection(conn_id, uri=uri)
-
-        return Connection(conn_id, **response)
+        return Connection(conn_id, uri=uri)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -226,7 +227,13 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault secret %s fetched but does not have required key "value"', key)
+            return None
 
     def get_config(self, key: str) -> str | None:
         """
@@ -245,4 +252,10 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         response = self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
-        return response.get("value") if response else None
+        if not response:
+            return None
+        try:
+            return response["value"]
+        except KeyError:
+            self.log.warning('Vault config %s fetched but does not have required key "value"', key)
+            return None
