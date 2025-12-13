@@ -88,7 +88,7 @@ def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(ge
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
     # Use the refresh flow to get the id token, it avoids us to save the id token
-    auth_manager = cast(KeycloakAuthManager, get_auth_manager())
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
     tokens = auth_manager.refresh_token(user.refresh_token)
     post_logout_redirect_uri = request.url_for("logout_callback")
 
@@ -123,9 +123,9 @@ def refresh(
     request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
 ) -> RedirectResponse:
     """Refresh the token."""
-
-    user = get_auth_manager().refresh_token(user.refresh_token)
-    token = get_auth_manager().generate_jwt(user)
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    user = auth_manager.refresh_token(user.refresh_token)
+    token = auth_manager.generate_jwt(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
     response = RedirectResponse(url=redirect_url, status_code=303)
