@@ -1018,6 +1018,9 @@ def run(
         # If a sensor in reschedule mode reaches timeout, task should not retry.
         log.exception("Task failed with exception")
         ti.end_date = datetime.now(tz=timezone.utc)
+
+        _record_task_failure_metrics(ti)
+
         msg = TaskState(
             state=TaskInstanceState.FAILED,
             end_date=ti.end_date,
@@ -1061,6 +1064,15 @@ def run(
     return state, msg, error
 
 
+def _record_task_failure_metrics(ti: RuntimeTaskInstance) -> None:
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_failures_{operator}", tags=stats_tags)
+    Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_failures", tags=stats_tags)
+
+
 def _handle_current_task_success(
     context: Context,
     ti: RuntimeTaskInstance,
@@ -1093,6 +1105,9 @@ def _handle_current_task_failed(
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    _record_task_failure_metrics(ti)
+
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
     return (
