@@ -19,17 +19,12 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
-from typing import Any
 
 import structlog
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.parameters import state_priority
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
-from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
 from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -54,43 +49,6 @@ def _get_node_by_id(nodes, node_id):
         if node["id"] == node_id:
             return node
     return {}
-
-
-def collect_historical_tasks(
-    nodes: list[dict[str, Any]], dag_id: str, run_ids: list[Any], session: Session
-) -> list[dict[str, Any]]:
-    historical_nodes = []
-    existing_ids = _collect_ids(nodes)
-    historical_tasks = session.execute(
-        select(TaskInstance.task_id, TaskInstance.task_display_name)
-        .join(TaskInstance.dag_run)
-        .where(TaskInstance.dag_id == dag_id, DagRun.id.in_(run_ids))
-        .distinct()
-    )
-    for task_id, task_display_name in historical_tasks:
-        if task_id not in existing_ids:
-            historical_nodes.append(
-                {
-                    "id": task_id,
-                    "label": task_display_name,
-                    "is_mapped": None,
-                    "children": None,
-                }
-            )
-
-    return historical_nodes
-
-
-def _collect_ids(nodes: list[dict[str, Any]]) -> set[str]:
-    ids: set[str] = set()
-    for n in nodes:
-        nid = n.get("id")
-        if nid:
-            ids.add(nid)
-        children = n.get("children")
-        if children:
-            ids |= _collect_ids(children)  # recurse
-    return ids
 
 
 def agg_state(states):

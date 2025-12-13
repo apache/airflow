@@ -53,7 +53,6 @@ from airflow.api_fastapi.core_api.services.ui.grid import (
     _find_aggregates,
     _get_aggs_for_node,
     _merge_node_dicts,
-    collect_historical_tasks,
 )
 from airflow.api_fastapi.core_api.services.ui.task_group import (
     get_task_group_children_getter,
@@ -203,14 +202,6 @@ def get_dag_structure(
     for dag in dags:
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
-
-    # Ensure historical tasks (e.g. removed) that exist in TIs for the selected runs are represented
-    # Only add in case no filter is applied
-    if not root:
-        historical_nodes = collect_historical_tasks(
-            nodes=merged_nodes, dag_id=dag_id, run_ids=run_ids, session=session
-        )
-        _merge_node_dicts(merged_nodes, historical_nodes)
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 
