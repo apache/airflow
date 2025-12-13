@@ -1211,6 +1211,9 @@ class TestTIUpdateState:
         assert trs[0].task_instance.map_index == -1
         assert trs[0].duration == 129600
 
+    @pytest.mark.skip(
+        reason="This test is incompatible with SQLA2 and causes local test runs as well as CI jobs to hang indefinitely."
+    )
     @pytest.mark.backend("mysql")
     def test_ti_update_state_reschedule_mysql_limit(
         self, client, session, create_task_instance, time_machine
