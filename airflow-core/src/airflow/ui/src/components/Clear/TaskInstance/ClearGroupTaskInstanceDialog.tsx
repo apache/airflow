@@ -23,12 +23,13 @@ import { CgRedo } from "react-icons/cg";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { Button, Dialog, Checkbox } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   readonly onClose: () => void;
@@ -47,7 +48,7 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
     onSuccessConfirm: onClose,
   });
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
@@ -76,10 +77,16 @@ export const ClearGroupTaskInstanceDialog = ({ onClose, open, taskInstance }: Pr
 
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
       enabled: open && groupTaskIds.length > 0,
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+          ? refetchInterval
+          : false,
       refetchOnMount: "always",
     },
     requestBody: {
