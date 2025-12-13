@@ -58,6 +58,8 @@ If you do not work in a remote development environment, you will need these prer
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
 It might be slightly different on different machines.
 
+For Windows, from Start button, type WSL and press enter to get into Linux OS (instead of Windows OS).
+
 Docker Community Edition
 ------------------------
 
@@ -465,7 +467,7 @@ see in CI in your local environment.
       breeze --python 3.10 --backend postgres
 
 
-5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.10.19] root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
