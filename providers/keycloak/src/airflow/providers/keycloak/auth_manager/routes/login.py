@@ -124,7 +124,7 @@ def refresh(
 ) -> RedirectResponse:
     """Refresh the token."""
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    user = auth_manager.refresh_token(user=user)
+    user = auth_manager.refresh_user(user=user)
     token = auth_manager.generate_jwt(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
