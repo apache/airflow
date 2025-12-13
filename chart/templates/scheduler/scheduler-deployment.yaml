@@ -137,6 +137,9 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.scheduler.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "scheduler.serviceAccountName" . }}
+      {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) }}
+      automountServiceAccountToken: false
+      {{- end }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.scheduler.hostAliases }}
@@ -256,6 +259,11 @@ spec:
             {{- if .Values.scheduler.extraVolumeMounts }}
               {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
+            {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) .Values.scheduler.serviceAccount.serviceAccountTokenVolume.enabled }}
+            - name: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.volumeName }}
+              mountPath: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.mountPath }}
+              readOnly: true
+            {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
@@ -334,6 +342,29 @@ spec:
         {{- end }}
         {{- if .Values.scheduler.extraVolumes }}
           {{- tpl (toYaml .Values.scheduler.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if and (eq (include "airflow.podLaunchingExecutor" .) "true") (not .Values.scheduler.serviceAccount.automountServiceAccountToken) .Values.scheduler.serviceAccount.serviceAccountTokenVolume.enabled }}
+        - name: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.volumeName }}
+          projected:
+            defaultMode: 420
+            sources:
+            - serviceAccountToken:
+                {{- if .Values.scheduler.serviceAccount.serviceAccountTokenVolume.audience }}
+                audience: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.audience }}
+                {{- end }}
+                expirationSeconds: {{ .Values.scheduler.serviceAccount.serviceAccountTokenVolume.expirationSeconds }}
+                path: token
+            - configMap:
+                items:
+                - key: ca.crt
+                  path: ca.crt
+                name: kube-root-ca.crt
+            - downwardAPI:
+                items:
+                - fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
+                  path: namespace
         {{- end }}
   {{- if .Values.logs.persistence.enabled }}
         - name: logs
