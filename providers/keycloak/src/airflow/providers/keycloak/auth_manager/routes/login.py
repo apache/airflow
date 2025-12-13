@@ -124,12 +124,13 @@ def refresh(
 ) -> RedirectResponse:
     """Refresh the token."""
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    user = auth_manager.refresh_user(user=user)
-    token = auth_manager.generate_jwt(user)
-
+    refreshed_user = auth_manager.refresh_user(user=user)
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
     response = RedirectResponse(url=redirect_url, status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
 
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    if refreshed_user:
+        token = auth_manager.generate_jwt(refreshed_user)
+        secure = bool(conf.get("api", "ssl_cert", fallback=""))
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
     return response
