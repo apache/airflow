@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import copy
 import logging
 import os
@@ -2406,6 +2407,16 @@ class TestShortCircuitWithTeardown:
         else:
             assert isinstance(actual_skipped, Generator)
         assert set(actual_skipped) == {op3}
+
+
+class TestPythonAsyncOperator(TestPythonOperator):
+    def test_run_async_task(self):
+        async def say_hello(name: str) -> str:
+            await asyncio.sleep(1)
+            return f"Hello {name}!"
+
+        ti = self.run_as_task(say_hello, return_ti=True, op_kwargs={"name": "world"})
+        assert ti.xcom_pull() == "Hello world!"
 
 
 @pytest.mark.parametrize(

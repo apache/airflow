@@ -243,6 +243,10 @@ class DecoratedOperator(BaseOperator):
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
 
+    @property
+    def is_async(self) -> bool:
+        return is_async_callable(self.python_callable)
+
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
@@ -634,6 +638,28 @@ class TaskDecorator(Protocol):
         """For the decorator factory ``@task()`` case."""
 
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
+
+
+def unwrap_callable(func):
+    from airflow.sdk.bases.decorator import _TaskDecorator
+    from airflow.sdk.definitions.mappedoperator import OperatorPartial
+
+    if isinstance(func, (_TaskDecorator, OperatorPartial)):
+        # unwrap to the real underlying callable
+        return getattr(func, "function", getattr(func, "_func", func))
+    return func
+
+
+def is_async_callable(func):
+    """Detect if a callable (possibly an Airflow TaskDecorator) wraps an async function."""
+    # unwrap to the real underlying callable
+    func = unwrap_callable(func)
+
+    # If it's not callable, bail out early
+    if not callable(func):
+        return False
+
+    return inspect.iscoroutinefunction(func)
 
 
 def task_decorator_factory(
