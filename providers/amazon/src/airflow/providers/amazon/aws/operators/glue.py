@@ -139,6 +139,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         job_poll_interval: int | float = 6,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
+        resume_glue_job_on_retry: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -168,6 +169,7 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         self.s3_script_location: str | None = None
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.resume_glue_job_on_retry = resume_glue_job_on_retry
 
     @property
     def _hook_parameters(self):
@@ -217,13 +219,33 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
 
         :return: the current Glue job ID.
         """
-        self.log.info(
-            "Initializing AWS Glue Job: %s. Wait for completion: %s",
-            self.job_name,
-            self.wait_for_completion,
-        )
-        glue_job_run = self.hook.initialize_job(self.script_args, self.run_job_kwargs)
-        self._job_run_id = glue_job_run["JobRunId"]
+        previous_job_run_id = None
+        if self.resume_glue_job_on_retry:
+            ti = context.get("ti")
+            if ti:
+                previous_job_run_id = ti.xcom_pull(key="glue_job_run_id", task_ids=ti.task_id)
+                if previous_job_run_id:
+                    try:
+                        job_run = self.hook.conn.get_job_run(JobName=self.job_name, RunId=previous_job_run_id)
+                        state = job_run.get("JobRun", {}).get("JobRunState")
+                        self.log.info("Previous Glue job_run_id: %s, state: %s", previous_job_run_id, state)
+                        if state in ("RUNNING", "STARTING", "STOPPING"):
+                            self._job_run_id = previous_job_run_id
+                    except Exception as e:
+                        self.log.warning("Failed to get previous Glue job run state: %s", e)
+
+        if not self._job_run_id:
+            self.log.info(
+                "Initializing AWS Glue Job: %s. Wait for completion: %s",
+                self.job_name,
+                self.wait_for_completion,
+            )
+            glue_job_run = self.hook.initialize_job(self.script_args, self.run_job_kwargs)
+            self._job_run_id = glue_job_run["JobRunId"]
+            ti = context.get("ti")
+            if ti:
+                ti.xcom_push(key="glue_job_run_id", value=self._job_run_id)
+
         glue_job_run_url = GlueJobRunDetailsLink.format_str.format(
             aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.hook.conn_partition),
             region_name=self.hook.conn_region_name,
