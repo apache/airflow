@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -88,9 +88,14 @@ def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(ge
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
     # Use the refresh flow to get the id token, it avoids us to save the id token
-    tokens = client.refresh_token(user.refresh_token)
+    auth_manager = cast(KeycloakAuthManager, get_auth_manager())
+    tokens = auth_manager.refresh_token(user.refresh_token)
     post_logout_redirect_uri = request.url_for("logout_callback")
-    logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={tokens['id_token']}"
+
+    if tokens:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={tokens['id_token']}"
+    else:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
 
     return RedirectResponse(logout_url)
 
@@ -118,11 +123,8 @@ def refresh(
     request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
 ) -> RedirectResponse:
     """Refresh the token."""
-    client = KeycloakAuthManager.get_keycloak_client()
 
-    tokens = client.refresh_token(user.refresh_token)
-    user.refresh_token = tokens["refresh_token"]
-    user.access_token = tokens["access_token"]
+    user = get_auth_manager().refresh_token(user.refresh_token)
     token = get_auth_manager().generate_jwt(user)
 
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
