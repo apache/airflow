@@ -21,8 +21,8 @@ Airflow Ctl (airflowctl) Tests
 This document describes how to run tests for the Airflow Ctl (airflowctl) command-line tool.
 
 Similar to other integration tests, the Airflow Ctl tests are run in the Breeze environment.
-The tests are using the `DockerCompose <../airflow-core/doc/howto/docker-compose/docker-compose.yaml>`__ and running a full working Airflow environment.
-These tests are running in a scheduled manner in CI as well as can be run locally using Breeze.
+The tests are using the `Docker Compose <../airflow-core/doc/howto/docker-compose/docker-compose.yaml>`__ and running a full working Airflow environment.
+These tests run on a scheduled basis in CI and can also be run locally using Breeze.
 We have them to ensure the ``airflowctl`` tool is working as expected and interacting with Airflow instances correctly.
 Airflow Ctl integration tests are located in the root directory of Apache Airflow project.
 
@@ -34,7 +34,7 @@ Airflow Ctl integration tests are located in the root directory of Apache Airflo
 Running Airflow Ctl Tests with Breeze
 -------------------------------------
 
-Firstly, checkout the ``tag/branch`` you want to run the tests on.
+Firstly, checkout the tag or branch you want to run the tests on.
 Then, you can run the tests using the following command:
 
 .. code-block:: bash
