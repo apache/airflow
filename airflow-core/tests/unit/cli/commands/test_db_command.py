@@ -911,7 +911,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
+        ("extra_args", "expected"), [(["--dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
     )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_dag_ids(self, run_cleanup_mock, extra_args, expected):
@@ -942,7 +942,7 @@ class TestCLIDBClean:
         )
 
     @pytest.mark.parametrize(
-        "extra_args, expected", [(["--exclude-dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
+        ("extra_args", "expected"), [(["--exclude-dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
     )
     @patch("airflow.cli.commands.db_command.run_cleanup")
     def test_exclude_dag_ids(self, run_cleanup_mock, extra_args, expected):
