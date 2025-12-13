@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack, Flex } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PiNoteBlankLight, PiNoteLight } from "react-icons/pi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import EditableMarkdownArea from "./EditableMarkdownArea";
