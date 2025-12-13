@@ -171,21 +171,34 @@ async def await_pod_start(
                     f"Pod took too long to be scheduled on the cluster, giving up. More than {schedule_timeout}s. Check the pod events in kubernetes."
                 )
 
-        # Check for general problems to terminate early - ErrImagePull
-        if pod_status.container_statuses:
-            for container_status in pod_status.container_statuses:
-                container_state: V1ContainerState = container_status.state
-                container_waiting: V1ContainerStateWaiting | None = container_state.waiting
-                if container_waiting:
-                    if container_waiting.reason in ["ErrImagePull", "InvalidImageName"]:
-                        pod_manager.stop_watching_events = True
-                        pod_manager.log.info("::endgroup::")
-                        raise PodLaunchFailedException(
-                            f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
-                            f"\n{container_waiting.message}"
-                        )
+        # Check for general problems to terminate early
+        error_message = detect_pod_terminate_early_issues(remote_pod)
+        if error_message:
+            pod_manager.log.info("::endgroup::")
+            raise PodLaunchFailedException(error_message)
 
         await asyncio.sleep(check_interval)
+
+
+def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
+    """
+    Identify issues that justify terminating the pod early.
+
+    :param pod: The pod object to check.
+    :return: An error message if an issue is detected; otherwise, None.
+    """
+    pod_status = pod.status
+    if pod_status.container_statuses:
+        for container_status in pod_status.container_statuses:
+            container_state: V1ContainerState = container_status.state
+            container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+            if container_waiting:
+                if container_waiting.reason in ["ErrImagePull", "ImagePullBackOff", "InvalidImageName"]:
+                    return (
+                        f"Pod docker image cannot be pulled, unable to start: {container_waiting.reason}"
+                        f"\n{container_waiting.message}"
+                    )
+    return None
 
 
 class PodLaunchTimeoutException(AirflowException):
@@ -690,6 +703,9 @@ class PodManager(LoggingMixin):
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
             if istio_enabled and container_is_completed(remote_pod, container_name):
+                break
+            # abort waiting if defined issues are detected
+            if detect_pod_terminate_early_issues(remote_pod):
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
