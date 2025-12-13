@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 
 import click
+from packaging.version import InvalidVersion, Version
 
 from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
 from airflow_breeze.commands.release_management_group import release_management_group
@@ -26,6 +28,70 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
+
+
+def _parse_rc_version_or_raise(version: str, *, option_label: str) -> Version:
+    try:
+        parsed = Version(version)
+    except InvalidVersion as e:
+        raise click.ClickException(f"Invalid {option_label} version {version!r}: {e}") from e
+    if not parsed.pre or parsed.pre[0] != "rc":
+        raise click.ClickException(
+            f"{option_label} must be an RC version (like '3.1.4rc2'), got {version!r}."
+        )
+    return parsed
+
+
+def _list_release_candidates_for_base_version(
+    *, svn_dev_dir: str, base_version: str, option_label: str
+) -> list[Version]:
+    try:
+        entries: Iterable[str] = os.listdir(svn_dev_dir)
+    except FileNotFoundError as e:
+        raise click.ClickException(
+            f"Cannot find SVN dev directory {svn_dev_dir!r} needed to verify latest {option_label}."
+        ) from e
+
+    prefix = f"{base_version}rc"
+    candidates: list[Version] = []
+    for entry in entries:
+        name = entry.strip().rstrip("/")
+        if not name.startswith(prefix):
+            continue
+        try:
+            parsed = Version(name)
+        except InvalidVersion:
+            continue
+        if parsed.base_version == base_version and parsed.pre and parsed.pre[0] == "rc":
+            candidates.append(parsed)
+    return candidates
+
+
+def verify_is_latest_release_candidate_or_raise(
+    *,
+    release_candidate: str,
+    svn_dev_repo: str,
+    option_label: str,
+    option_name: str,
+    svn_subdir: str | None = None,
+) -> None:
+    parsed = _parse_rc_version_or_raise(release_candidate, option_label=option_label)
+    base_version = parsed.base_version
+    svn_dev_dir = os.path.join(svn_dev_repo, svn_subdir) if svn_subdir else svn_dev_repo
+    candidates = _list_release_candidates_for_base_version(
+        svn_dev_dir=svn_dev_dir, base_version=base_version, option_label=option_label
+    )
+    if not candidates:
+        raise click.ClickException(
+            f"Could not find any {option_label} RC directories matching {base_version}rc* under {svn_dev_dir!r}. "
+            "Make sure the ASF dist SVN working copy is up to date."
+        )
+    latest = max(candidates)
+    if parsed != latest:
+        raise click.ClickException(
+            f"{option_label} {release_candidate} is not the latest RC for {base_version}. "
+            f"Latest is {latest}. Please re-run with {option_name} {latest}."
+        )
 
 
 def clone_asf_repo(working_dir):
@@ -55,6 +121,12 @@ def create_version_dir(version, task_sdk_version=None):
 
 
 def copy_artifacts_to_svn(rc, task_sdk_rc, svn_dev_repo, svn_release_repo):
+    verify_is_latest_release_candidate_or_raise(
+        release_candidate=rc,
+        svn_dev_repo=svn_dev_repo,
+        option_label="Airflow release candidate",
+        option_name="--release-candidate",
+    )
     if confirm_action(f"Copy Airflow artifacts to SVN for {rc}?"):
         bash_command = f"""
         for f in {svn_dev_repo}/{rc}/*; do
@@ -73,11 +145,22 @@ def copy_artifacts_to_svn(rc, task_sdk_rc, svn_dev_repo, svn_release_repo):
         console_print("Airflow artifacts copied to SVN:")
         run_command(["ls"])
 
+    if task_sdk_rc:
+        verify_is_latest_release_candidate_or_raise(
+            release_candidate=task_sdk_rc,
+            svn_dev_repo=svn_dev_repo,
+            svn_subdir="task-sdk",
+            option_label="Task SDK release candidate",
+            option_name="--task-sdk-release-candidate",
+        )
+
     if task_sdk_rc and confirm_action(f"Copy Task SDK artifacts to SVN for {task_sdk_rc}?"):
         # Save current directory
         current_dir = os.getcwd()
         # Change to task-sdk release directory
-        task_sdk_version = task_sdk_rc[:-3]
+        task_sdk_version = _parse_rc_version_or_raise(
+            task_sdk_rc, option_label="Task SDK release candidate"
+        ).base_version
         os.chdir(f"{svn_release_repo}/task-sdk/{task_sdk_version}")
 
         bash_command = f"""
@@ -283,12 +366,16 @@ def airflow_release(release_candidate, previous_release, task_sdk_release_candid
     if "rc" in previous_release:
         exit("Previous release must not contain 'rc'")
 
-    version = release_candidate[:-3]
+    version = _parse_rc_version_or_raise(
+        release_candidate, option_label="Airflow release candidate"
+    ).base_version
     task_sdk_version = None
     if task_sdk_release_candidate:
         if "rc" not in task_sdk_release_candidate:
             exit("Task SDK release candidate must contain 'rc'")
-        task_sdk_version = task_sdk_release_candidate[:-3]
+        task_sdk_version = _parse_rc_version_or_raise(
+            task_sdk_release_candidate, option_label="Task SDK release candidate"
+        ).base_version
 
     os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
