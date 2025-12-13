@@ -42,7 +42,10 @@ from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.providers.common.compat.sdk import DagRunTriggerException
+    from airflow.exceptions import DagRunTriggerException
+else:
+    DagRunTriggerException = Exception  # type: ignore[assignment,misc]
+
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
@@ -92,6 +95,11 @@ class TestDagRunOperator:
             else:
                 session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
             session.commit()
+
+    def test_trigger_dagrun_operator_note_initialization(self):
+        """Ensure that note is correctly stored in the operator."""
+        op = TriggerDagRunOperator(task_id="test_task", trigger_dag_id="target_dag", note="Test note")
+        assert op.note == "Test note"
 
     def teardown_method(self):
         """Cleanup state after testing in DB."""
@@ -190,6 +198,21 @@ class TestDagRunOperator:
             task.execute(context={})
 
         assert exc_info.value.logical_date == timezone.datetime(2021, 1, 2, 3, 4, 5)
+
+    def test_trigger_dagrun_operator_passes_note(self, mocker):
+        """
+        Ensure that for Airflow 3.x the operator logs the note (since it is not passed into DagRunTriggerException for backward compatibility).
+        """
+        mock_log = mocker.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator.log"
+        )
+        operator = TriggerDagRunOperator(
+            task_id="test_trigger", trigger_dag_id=TRIGGERED_DAG_ID, note="Test note"
+        )
+        with pytest.raises(DagRunTriggerException):
+            operator.execute(context={"ti": mocker.Mock()})
+
+        mock_log.info.assert_called_once_with("Triggered DAG with note: %s", "Test note")
 
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""
