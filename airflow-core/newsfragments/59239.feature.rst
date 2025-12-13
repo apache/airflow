@@ -1,1 +1,1 @@
-Support for Trigger assignment to specific Triggerer nodes via the ``trigger_queue`` and ``consume_trigger_queues`` parameters of the ``Trigger`` and ``Triggerer``, respectively.
+Support for Trigger assignment to specific Triggerer hosts via the ``trigger_queue`` and ``--consume-trigger-queues`` parameters of the ``Trigger`` class and ``Triggerer`` CLI, respectively.

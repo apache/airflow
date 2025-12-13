@@ -469,26 +469,28 @@ According to `benchmarks <https://github.com/apache/airflow/pull/58803#pullreque
 You can determine a suitable value for your deployment by creating a large number of triggers (for example, by triggering a Dag with many deferrable tasks) and observing both how the load is distributed across Triggerers in your environment and how long it takes for all Triggerers to pick up the triggers.
 
 
-Controlling Triggerer Assignment Per Trigger Via Trigger Queues
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Controlling Triggerer Host Assignment Per Trigger
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. versionadded:: 3.2.0
 
 Under some circumstances, it may be desirable to assign a Trigger to a specific subset of ``triggerer`` hosts. Some examples of when this might be desirable are:
 
-* In a multi-tenant Airflow system where you run one set of ``triggerers`` for one team, and another set of ``triggerers`` for another team.
-* Running separate sets of ``triggerers``, where each set of ``triggerers`` are configured for different ``trigger`` operations (e.g. each set of ``triggerers`` may have different cloud permissions).
+* In a multi-tenant Airflow system where you run a distinct set of ``triggerers`` per team.
+* Running distinct sets of ``triggerers`` hosts, where each set of hosts are configured for different ``trigger`` operations (e.g. each set of ``triggerers`` may have different cloud permissions).
 
-To achieve ``trigger`` assignment, you may use trigger queues.
+To achieve ``trigger`` assignment, you may use the optional trigger queues feature.
 
 To use trigger queues, do the following:
-1. For a given group of ``triggerer`` hosts, set the ``triggerer.consume_trigger_queues`` to a comma-separated string containing the set of ``trigger_queue`` values which the triggerer host(s) should listen to.
-2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, you may set the ``trigger_queue`` keyword argument in the ``__init__`` method of ``trigger`` to any value present in ``triggerer.consume_trigger_queues``.
+1. For a given group of ``triggerer`` hosts, add ``--consume-trigger-queues=<comma-separated string of queue names to consume from>`` in the Triggerers' startup CLI command. This option ensures the triggerer will only run ``trigger`` instances with a ``trigger_queue`` value in the provided list.
+2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, set the ``trigger_queue`` keyword argument in the ``__init__`` method of ``trigger`` to any value present in the value you set ``--consume-trigger-queues`` to in the Trigger's startup command.
 
-If the ``trigger_queue`` value is left unset in both ``trigger`` instances and the ``triggerer`` configs, then there is no assignment constraint.
+If your trigger instances' ``trigger_queue`` value is left unset (default behavior), the ``--consume-trigger-queue`` option is not provided in your trigger startup command, then there is no trigger assignment constraint.
 
 .. note::
-    If you set the ``trigger_queue`` value of a trigger instance to some value which is not present in the ``triggerer.consume_trigger_queues`` config, the trigger will never run.
+    To enable this feature, you must set the ``--consume-trigger-queues`` option on the triggerers' startup command.
+    If you set the ``trigger_queue`` value of a trigger instance to some value which is not present in the ``--consume-trigger-queues`` option, that trigger will never run.
+    Similarly, all ``triggerer`` instances running without the ``--consume-trigger-queues`` option will ignore all Trigger instances with an assigned ``trigger_queue`` value.
 
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors

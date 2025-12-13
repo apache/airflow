@@ -50,7 +50,7 @@ class TestTriggererCommand:
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
         mock_triggerer_job_runner.assert_called_once_with(
-            job=mock.ANY, capacity=42, trigger_queues=set(["default"])
+            job=mock.ANY, capacity=42, consume_trigger_queues=None
         )
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
@@ -69,7 +69,7 @@ class TestTriggererCommand:
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
         mock_triggerer_job_runner.assert_called_once_with(
-            job=mock.ANY, capacity=4, trigger_queues=set(["my_queue", "other_queue"])
+            job=mock.ANY, capacity=4, consume_trigger_queues=set(["my_queue", "other_queue"])
         )
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
@@ -78,7 +78,7 @@ class TestTriggererCommand:
     def test_trigger_run_serve_logs(self, mock_process, mock_run_job, mock_trigger_job_runner):
         """Ensure that trigger runner and server log functions execute as intended"""
         triggerer_command.triggerer_run(
-            skip_serve_logs=False, capacity=1, consume_trigger_queues=["default"], triggerer_heartrate=10.3
+            skip_serve_logs=False, capacity=1, triggerer_heartrate=10.3, consume_trigger_queues=None
         )
 
         mock_process.assert_called_once()
