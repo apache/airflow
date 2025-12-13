@@ -21,6 +21,7 @@ from unittest.mock import ANY, Mock, patch
 from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
 
 class TestLoginRouter:
@@ -111,7 +112,7 @@ class TestLoginRouter:
         mock_keycloak_client.refresh_token.assert_called_once_with("refresh_token")
 
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
-    def test_refresh_token(self, mmock_get_auth_manager, client):
+    def test_refresh_token(self, mock_get_auth_manager, client):
         mock_auth_manager = Mock()
         mock_auth_manager.refresh_token.return_value = KeycloakAuthManagerUser(
             user_id="user_id",
