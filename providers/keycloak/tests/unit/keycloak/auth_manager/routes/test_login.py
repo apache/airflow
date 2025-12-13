@@ -114,7 +114,7 @@ class TestLoginRouter:
     @patch("airflow.providers.keycloak.auth_manager.routes.login.get_auth_manager")
     def test_refresh_token(self, mock_get_auth_manager, client):
         mock_auth_manager = Mock()
-        mock_auth_manager.refresh_token.return_value = KeycloakAuthManagerUser(
+        mock_auth_manager.refresh_user.return_value = KeycloakAuthManagerUser(
             user_id="user_id",
             name="name",
             access_token="new_access_token",
@@ -129,5 +129,5 @@ class TestLoginRouter:
         assert response.headers["location"] == "/"
         assert "_token" in response.cookies
         assert response.cookies["_token"] == "token"
-        mock_auth_manager.refresh_token.assert_called_once_with("refresh_token")
+        mock_auth_manager.refresh_user.assert_called_once_with("refresh_token")
         mock_auth_manager.generate_jwt.assert_called_once()
