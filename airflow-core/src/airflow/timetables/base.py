@@ -206,6 +206,34 @@ class Timetable(Protocol):
         """
         return type(self).__name__
 
+    @property
+    def type_name(self) -> str:
+        """
+        This is primarily intended for filtering dags based on timetable type.
+
+        For built-in timetables (defined in airflow.timetables or
+        airflow.sdk.definitions.timetables), this returns the class name only.
+        For custom timetables (user-defined via plugins), this returns the full
+        import path to avoid confusion between multiple implementations with the
+        same class name.
+
+        For example, built-in timetables return:
+        ``"NullTimetable"`` or ``"CronDataIntervalTimetable"``
+        while custom timetables return the full path:
+        ``"my_company.timetables.CustomTimetable"``
+        """
+        module = self.__class__.__module__
+        class_name = self.__class__.__name__
+
+        # Built-in timetables from Core or SDK use class name only
+        if module.startswith("airflow.timetables.") or module.startswith(
+            "airflow.sdk.definitions.timetables."
+        ):
+            return class_name
+
+        # Custom timetables use full import path
+        return f"{module}.{class_name}"
+
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """
         When a DAG run is manually triggered, infer a data interval for it.
