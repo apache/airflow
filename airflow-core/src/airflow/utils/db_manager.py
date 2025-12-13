@@ -27,6 +27,7 @@ from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.sqlalchemy import get_dialect_name
 
 if TYPE_CHECKING:
     from alembic.script import ScriptDirectory
@@ -50,7 +51,7 @@ class BaseDBManager(LoggingMixin):
 
     def _is_mysql(self) -> bool:
         """Check if the database is MySQL."""
-        return self.session.get_bind().dialect.name == "mysql"
+        return get_dialect_name(self.session) == "mysql"
 
     def _release_metadata_locks(self) -> None:
         """
