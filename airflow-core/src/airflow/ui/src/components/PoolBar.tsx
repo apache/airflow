@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link, Box } from "@chakra-ui/react";
+import { Box, Flex, Text, VStack, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import type { PoolResponse } from "openapi/requests/types.gen";
+import type { PoolResponse, TaskInstanceState } from "openapi/requests/types.gen";
+import { StateIcon } from "src/components/StateIcon";
 import { Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { type Slots, slotConfigs } from "src/utils/slots";
@@ -35,53 +36,101 @@ export const PoolBar = ({
   readonly totalSlots: number;
 }) => {
   const { t: translate } = useTranslation("common");
+  const activeSlots = ["running", "queued", "open"];
+
+  if ("include_deferred" in pool && pool.include_deferred) {
+    activeSlots.push("deferred");
+  }
 
   return (
-    <>
-      {slotConfigs.map(({ color, icon, key }) => {
-        const slotValue = pool[key];
-        const flexValue = slotValue / totalSlots || 0;
+    <Tooltip
+      content={
+        <VStack align="start" gap={1} p={1}>
+          {slotConfigs.map(({ key }) => {
+            const slotValue = pool[key];
+            const slotType = key.replace("_slots", "");
 
-        if (flexValue === 0) {
-          return undefined;
-        }
+            if (slotValue === 0) {
+              return undefined;
+            }
 
-        const slotType = key.replace("_slots", "");
-        const poolCount = poolsWithSlotType ? poolsWithSlotType[key] : 0;
-        const tooltipContent = `${translate(`pools.${slotType}`)}: ${slotValue} (${poolCount} ${translate("pools.pools", { count: poolCount })})`;
-        const poolContent = (
-          <Tooltip content={tooltipContent} key={key}>
-            <Flex
-              alignItems="center"
-              bg={`${color}.solid`}
-              color={`${color}.contrast`}
-              gap={1}
-              h="100%"
-              justifyContent="center"
-              px={1}
-              textAlign="center"
-              w="100%"
-            >
-              {icon}
-              {slotValue}
-            </Flex>
-          </Tooltip>
-        );
+            return (
+              <Flex align="center" gap={2} key={key}>
+                <StateIcon size={12} state={slotType as TaskInstanceState} />
+                <Text fontSize="xs">
+                  {translate(`common:state.${slotType}`)}: {slotValue}
+                </Text>
+              </Flex>
+            );
+          })}
+          {"include_deferred" in pool && (
+            <Text color="fg.muted" fontSize="xs" mt={1}>
+              {translate("pools.includeDeferred")}: {pool.include_deferred ? "True" : "False"}
+            </Text>
+          )}
+          {poolsWithSlotType ? (
+            <Text color="fg.muted" fontSize="xs" mt={1}>
+              {translate("pools.totalPools")}:{" "}
+              {Object.values(poolsWithSlotType).reduce((total, count) => total + count, 0)}
+            </Text>
+          ) : undefined}
+        </VStack>
+      }
+    >
+      <Flex bg="bg.muted" borderRadius="md" h="100%" overflow="hidden" w="100%">
+        {slotConfigs
+          .filter((config) => {
+            const slotType = config.key.replace("_slots", "");
 
-        return color !== "success" && "name" in pool ? (
-          <Link asChild display="flex" flex={flexValue} key={key}>
-            <RouterLink
-              to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
-            >
-              {poolContent}
-            </RouterLink>
-          </Link>
-        ) : (
-          <Box display="flex" flex={flexValue} key={key}>
-            {poolContent}
-          </Box>
-        );
-      })}
-    </>
+            return activeSlots.includes(slotType);
+          })
+          .map(({ color, icon, key }) => {
+            const slotValue = pool[key];
+            const flexValue = totalSlots > 0 ? (slotValue / totalSlots) * 100 : 0;
+
+            if (flexValue === 0) {
+              return undefined;
+            }
+
+            const slotType = key.replace("_slots", "");
+
+            const poolContent = (
+              <Flex
+                alignItems="center"
+                bg={`${color}.solid`}
+                color={`${color}.contrast`}
+                gap={1}
+                h="100%"
+                justifyContent="center"
+                px={1}
+                textAlign="center"
+                title={`${slotType}: ${slotValue}`}
+                w="100%"
+              >
+                {icon}
+                {flexValue > 5 && (
+                  <Text fontSize="xs" fontWeight="bold">
+                    {slotValue}
+                  </Text>
+                )}
+              </Flex>
+            );
+
+            return color !== "success" && "name" in pool ? (
+              <Link asChild key={key} w={`${flexValue}%`}>
+                <RouterLink
+                  to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
+                >
+                  {poolContent}
+                </RouterLink>
+              </Link>
+            ) : (
+              <Box key={key} w={`${flexValue}%`}>
+                {poolContent}
+              </Box>
+            );
+          })}
+      </Flex>
+    </Tooltip>
   );
 };
