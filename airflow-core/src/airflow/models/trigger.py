@@ -126,7 +126,7 @@ class Trigger(Base):
         super().__init__()
         self.classpath = classpath
         self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
-        self.trigger_queue = trigger_queue or conf.get("triggerer", "default_trigger_queue")
+        self.trigger_queue = trigger_queue
         self.created_date = created_date or timezone.utcnow()
 
     @property
@@ -189,7 +189,7 @@ class Trigger(Base):
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
-        return cls(classpath=classpath, kwargs=kwargs, trigger_queue=trigger.trigger_queue)
+        return cls(classpath=classpath, kwargs=kwargs, trigger_queue=kwargs.get("trigger_queue"))
 
     @classmethod
     @provide_session
@@ -324,14 +324,15 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def ids_for_triggerer(
-        cls, triggerer_id, trigger_queues: set[str], session: Session = NEW_SESSION
+        cls, triggerer_id, consume_trigger_queues: set[str] | None = None, session: Session = NEW_SESSION
     ) -> list[int]:
         """Retrieve a list of trigger ids."""
-        return list(
-            session.scalars(
-                select(cls.id).where(cls.triggerer_id == triggerer_id, cls.trigger_queue.in_(trigger_queues))
-            ).all()
-        )
+        query = select(cls.id).where(cls.triggerer_id == triggerer_id)
+        # By default, there is no trigger queue assignment. Only filter by queue when explicitly set in the triggerer CLI.
+        if consume_trigger_queues:
+            query.filter(cls.trigger_queue.in_(consume_trigger_queues))
+
+        return list(session.scalars(query).all())
 
     @classmethod
     @provide_session
@@ -339,16 +340,16 @@ class Trigger(Base):
         cls,
         triggerer_id,
         capacity,
-        trigger_queues: set[str],
         health_check_threshold,
+        consume_trigger_queues: set[str] | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Assign unassigned triggers based on a number of conditions.
 
-        Takes a triggerer_id, the capacity for that triggerer, the trigger_queues, and the Triggerer job heartrate
-        health check threshold, and assigns unassigned triggers until that capacity is reached,
-        or there are no more unassigned triggers.
+        Takes a triggerer_id, the capacity for that triggerer, the Triggerer job heartrate
+        health check threshold, and the consume_trigger_queues and assigns unassigned triggers until that
+        capacity is reached, or there are no more unassigned triggers.
         """
         from airflow.jobs.job import Job  # To avoid circular import
 
@@ -373,8 +374,8 @@ class Trigger(Base):
         # up to `capacity` of those to us.
         trigger_ids_query = cls.get_sorted_triggers(
             capacity=capacity,
-            trigger_queues=trigger_queues,
             alive_triggerer_ids=alive_triggerer_ids,
+            consume_trigger_queues=consume_trigger_queues,
             session=session,
         )
         if trigger_ids_query:
@@ -391,16 +392,16 @@ class Trigger(Base):
     def get_sorted_triggers(
         cls,
         capacity: int,
-        trigger_queues: set[str],
         alive_triggerer_ids: list[int] | Select,
+        consume_trigger_queues: set[str] | None,
         session: Session,
     ):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
 
         :param capacity: The capacity of the triggerer.
-        :param trigger_queues: The set of trigger queues to filter triggers by.
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
+        :param consume_trigger_queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         """
         result: list[Row[Any]] = []
@@ -416,10 +417,7 @@ class Trigger(Base):
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
-            .where(
-                cls.trigger_queue.in_(trigger_queues),
-                or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
-            )
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date),
             # Asset triggers
             select(cls.id).where(cls.assets.any()).order_by(cls.created_date),
@@ -435,7 +433,15 @@ class Trigger(Base):
             # picking up too many triggers and starving other triggerers for HA setup.
             remaining_capacity = min(remaining_capacity, cls.max_trigger_to_select_per_loop)
 
-            locked_query = with_row_locks(query.limit(remaining_capacity), session, skip_locked=True)
+            # Filter by trigger_queues if the triggerer explicitly was called with `--consume-trigger-queues`,
+            # otherwise, filter out Triggers which have an explicit `trigger_queue` value since there may be other
+            # triggerer hosts explicitly assigned to that queue.
+            if consume_trigger_queues:
+                filtered_query = query.filter(cls.trigger_queue.in_(consume_trigger_queues))
+            else:
+                filtered_query = query.filter(cls.trigger_queue.is_(None))
+
+            locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
 
         return result

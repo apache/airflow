@@ -907,9 +907,8 @@ ARG_CAPACITY = Arg(
 )
 ARG_TRIGGER_QUEUES = Arg(
     ("--consume-trigger-queues",),
-    default=conf.get("triggerer", "consume_trigger_queues"),
     type=string_list_type,
-    help="Comma-separated list of trigger queues for which the triggerer should consume from",
+    help="Optional comma-separated list of trigger queues which the triggerer should consume from.",
 )
 
 ARG_DAG_LIST_COLUMNS = Arg(
