@@ -92,7 +92,7 @@ The Airflow configuration system works in a way, that for test environments spec
 are enforced to avoid accidentally loading configuration of valid Airflow installations. There are pytest fixtures
 available for Airflow Unit tests, however those are not possible to be used for Airflow System tests.
 
-An option to load a custom configuration file for your System Tests may be to add something similar to `conftest.py`, to
+An option to load a custom configuration file for your System Tests may be to add something similar to ``conftest.py``, to
 an early stage of pytest session initialization (for example in the ``pytest_configure`` function):
 
 .. code-block:: python
@@ -101,7 +101,7 @@ an early stage of pytest session initialization (for example in the ``pytest_con
 
   conf.read_file(open(f"{YOUR_TEST_CONFIG_FILE}"))
 
-Custom configuraion allows an easy way to load numerous custom options at once (typically ones that may correspond
+Custom configuration allows an easy way to load numerous custom options at once (typically ones that may correspond
 to custom providers).
 
 
@@ -178,9 +178,9 @@ Running manually via Pytest outside of the Airflow codebase
   In case you want to run tests agasint an Airflow Executor, you will need to have the Airflow API server available.
 
   NOTE: You have to make sure that the API server is sharing certain configuration as the test environment. This is
-  paricularly important so that the Airflow Task SDK may be able to communicate to the API Server.
+  particularly important so that the Airflow Task SDK may be able to communicate to the API Server.
 
-  (For example, the same JWT secret must be used on both sides for token encryption/decription. By default the Airflow
+  (For example, the same JWT secret must be used on both sides for token encryption/description. By default the Airflow
   test environment is using temporary JWT secrets generated on-the-fly. If you want to keep control over these settings,
   the best solution is to follow instructions from the :ref:`Custom configuration file` section.
 
