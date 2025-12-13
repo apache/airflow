@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest.mock import ANY, Mock, patch
+
 from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
