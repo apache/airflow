@@ -22,7 +22,6 @@ import logging
 import re
 import sys
 import warnings
-from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -252,6 +251,11 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
+                for key, value in query.items():
+                    try:
+                        query[key] = json.loads(value)
+                    except (JSONDecodeError, TypeError):
+                        pass
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -331,14 +335,23 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query: str | None = urlencode(self.extra_dejson)
-            except TypeError:
-                query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += ("?" if self.schema else "/?") + query
-            else:
-                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                extra_dict = self.extra_dejson
+                can_flatten = True
+                for _, value in extra_dict.items():
+                    if not isinstance(value, str):
+                        can_flatten = False
+                        break
 
+                if can_flatten:
+                    query = urlencode(extra_dict)
+                    if extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
+                        uri += ("?" if self.schema else "/?") + query
+                    else:
+                        uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                else:
+                    uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+            except (TypeError, AttributeError):
+                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
         return uri
 
     def get_password(self) -> str | None:
@@ -457,14 +470,14 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
+                extra = json.loads(self.extra)
                 if nested:
-                    for key, value in json.loads(self.extra).items():
-                        extra[key] = value
+                    for key, value in extra.items():
                         if isinstance(value, str):
-                            with suppress(JSONDecodeError):
+                            try:
                                 extra[key] = json.loads(value)
-                else:
-                    extra = json.loads(self.extra)
+                            except (JSONDecodeError, TypeError):
+                                pass
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
