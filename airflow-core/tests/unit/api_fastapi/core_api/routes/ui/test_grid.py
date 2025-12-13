@@ -257,19 +257,20 @@ def setup(dag_maker, session=None):
         end_date = start_date.add(seconds=2)
 
     # DAG 5 for testing root, include_upstream, include_downstream parameters
+    # Also includes a Historical task
     with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
         task_a = EmptyOperator(task_id="task_a")
         task_b = EmptyOperator(task_id="task_b")
         task_c = EmptyOperator(task_id="task_c")
         task_d = EmptyOperator(task_id="task_d")
-        task_e = EmptyOperator(task_id="task_e")
-        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_e
-        task_a >> task_b >> task_c >> task_d >> task_e
+        task_f = EmptyOperator(task_id="task_f")
+        task_a >> task_b >> task_c >> task_d >> task_f
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_f (HISTORICAL_TASK)
 
     logical_date = timezone.datetime(2024, 11, 30)
     data_interval = dag_5.timetable.infer_manual_data_interval(run_after=logical_date)
-    run_5 = dag_maker.create_dagrun(
-        run_id="run_5-1",
+    run_5_1 = dag_maker.create_dagrun(
+        run_id="run_5_1",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
         start_date=logical_date,
@@ -277,8 +278,31 @@ def setup(dag_maker, session=None):
         data_interval=data_interval,
         **triggered_by_kwargs,
     )
-    for ti in run_5.task_instances:
+
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_e = EmptyOperator(task_id="task_e")
+        task_a >> task_b >> task_c >> task_d >> task_e
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_e
+
+    run_5_2 = dag_maker.create_dagrun(
+        run_id="run_5_2",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date + timedelta(days=1),
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_5_1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
+    for ti in run_5_2.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
 
     # DAG 6 for testing root, include_upstream, include_downstream with non-linear dependencies
     # Structure: start >> [branch_a, branch_b] >> merge >> end
@@ -852,14 +876,14 @@ class TestGetGridDataEndpoint:
         # Should return task_c and all upstream tasks (task_a, task_b)
         assert task_ids == ["task_a", "task_b", "task_c"]
 
-    def test_structure_with_root_and_include_downstream(self, test_client):
+    def test_structure_with_root_and_include_downstream_and_historical(self, test_client):
         """Test that root + include_downstream returns the root task and all downstream tasks."""
         response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return task_c and all downstream tasks (task_d, task_e)
-        assert task_ids == ["task_c", "task_d", "task_e"]
+        # Should return task_c and all downstream tasks, including the historical (task_d, task_e, task_f (HISTORICAL))
+        assert task_ids == ["task_c", "task_d", "task_e", "task_f"]
 
     # Tests for non-linear DAG structure
     def test_nonlinear_structure_with_root_downstream_from_branch(self, test_client):
