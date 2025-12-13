@@ -89,11 +89,11 @@ def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(ge
 
     # Use the refresh flow to get the id token, it avoids us to save the id token
     auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    tokens = auth_manager.refresh_token(user=user)
+    token_id = auth_manager.refresh_token(user=user).get("id_token")
     post_logout_redirect_uri = request.url_for("logout_callback")
 
-    if tokens:
-        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={tokens['id_token']}"
+    if token_id:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={token_id}"
     else:
         logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
 
