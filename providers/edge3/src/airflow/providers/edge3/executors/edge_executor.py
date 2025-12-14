@@ -142,12 +142,12 @@ class EdgeExecutor(BaseExecutor):
         # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
         existing_job = session.execute(
             select(EdgeJobModel)
-            .filter_by(
-                dag_id=key.dag_id,
-                task_id=key.task_id,
-                run_id=key.run_id,
-                map_index=key.map_index,
-                try_number=key.try_number,
+            .where(
+                EdgeJobModel.dag_id == key.dag_id,
+                EdgeJobModel.task_id == key.task_id,
+                EdgeJobModel.run_id == key.run_id,
+                EdgeJobModel.map_index == key.map_index,
+                EdgeJobModel.try_number == key.try_number,
             )
             .first()
         )

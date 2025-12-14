@@ -140,7 +140,7 @@ class TestWorkerApiRoutes:
             register("test_worker", body, session)
             session.commit()
             worker = session.execute(
-                select(EdgeWorkerModel).filter_by(worker_name="test_worker")
+                select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == "test_worker")
             ).scalar_one_or_none()
             assert worker is not None
             # State should be updated (or redefined based on redefine_state logic)
