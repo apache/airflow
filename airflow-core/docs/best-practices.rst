@@ -699,7 +699,7 @@ and runs it directly.
 Example 2: Testing using ``dag.create_dagrun()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This pattern creates a full DAG run and then runs the TaskInstance
+This pattern creates a full Dag run and then runs the TaskInstance
 associated with that Dag run.
 
 .. code-block:: python
