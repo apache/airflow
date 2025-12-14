@@ -69,6 +69,7 @@ if TYPE_CHECKING:
         DagAccessEntity,
     )
     from airflow.cli.cli_config import CLICommand
+    from airflow.models.hitl import HITLUser
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
@@ -345,6 +346,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
 
         :param menu_items: list of all menu items
         :param user: the user
+        """
+
+    @abstractmethod
+    def is_allowed(self, user_id: str, assigned_users: Sequence[HITLUser]) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        :param user_id: the user id to check
+        :param assigned_users: list of users assigned to the task
         """
 
     def batch_is_authorized_connection(
