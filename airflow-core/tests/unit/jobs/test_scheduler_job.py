@@ -4465,7 +4465,7 @@ class TestSchedulerJob:
             data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
         )
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
 
         event1 = AssetEvent(
             asset_id=asset1_id,
@@ -5045,13 +5045,12 @@ class TestSchedulerJob:
         """
 
         def complete_one_dagrun():
-            ti = (
-                session.query(TaskInstance)
+            ti = session.scalars(
+                select(TaskInstance)
                 .join(TaskInstance.dag_run)
-                .filter(TaskInstance.state != State.SUCCESS)
+                .where(TaskInstance.state != State.SUCCESS)
                 .order_by(DagRun.logical_date)
-                .first()
-            )
+            ).first()
             if ti:
                 ti.state = State.SUCCESS
                 session.flush()
@@ -5093,7 +5092,7 @@ class TestSchedulerJob:
 
         expected_logical_dates = [datetime.datetime(2016, 1, d, tzinfo=timezone.utc) for d in range(1, 6)]
         dagrun_logical_dates = [
-            dr.logical_date for dr in session.query(DagRun).order_by(DagRun.logical_date).all()
+            dr.logical_date for dr in session.scalars(select(DagRun).order_by(DagRun.logical_date)).all()
         ]
         assert dagrun_logical_dates == expected_logical_dates
 
