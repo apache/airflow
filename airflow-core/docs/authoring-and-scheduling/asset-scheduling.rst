@@ -147,6 +147,30 @@ If one asset is updated multiple times before all consumed assets update, the do
 
     }
 
+Gate scheduled runs on asset updates
+------------------------------------
+
+Use ``AssetAndTimeSchedule`` when you want a Dag to follow a normal time-based timetable but only start after specific assets have been updated. Airflow creates the DagRun at the scheduled time and keeps it queued until every required asset has queued an event. When the DagRun starts, those asset events are consumed so the next scheduled run waits for new updates. This does not create additional asset-triggered runs.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, Asset
+    from airflow.timetables.assets import AssetAndTimeSchedule
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+    example_asset = Asset("s3://asset/example.csv")
+
+    with DAG(
+        dag_id="gated_hourly_dag",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("0 * * * *", timezone="UTC"),
+            assets=[example_asset],
+        ),
+        ...,
+    ):
+        ...
+
+
 Fetching information from a triggering asset event
 ----------------------------------------------------
 
@@ -408,6 +432,9 @@ Combining asset and time-based schedules
 
 AssetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-You can schedule Dags based on both asset events and time-based schedules using ``AssetOrTimeSchedule``. This allows you to create workflows when a Dag needs both to be triggered by data updates and run periodically according to a fixed timetable.
+Asset-aware timetables combine asset expressions with a time-based schedule:
 
-For more detailed information on ``AssetOrTimeSchedule``, refer to the corresponding section in :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
+* Use ``AssetOrTimeSchedule`` to create runs both on a timetable and when assets update, producing scheduled runs and asset-triggered runs independently.
+* Use ``AssetAndTimeSchedule`` to keep a Dag on a timetable but only start those scheduled runs once the referenced assets have been updated.
+
+For more detailed information on asset-aware timetables, refer to :ref:`AssetOrTimeSchedule <asset-timetable-section>`.
