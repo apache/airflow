@@ -330,7 +330,7 @@ class Trigger(Base):
         query = select(cls.id).where(cls.triggerer_id == triggerer_id)
         # By default, there is no trigger queue assignment. Only filter by queue when explicitly set in the triggerer CLI.
         if consume_trigger_queues:
-            query.filter(cls.trigger_queue.in_(consume_trigger_queues))
+            query = query.filter(cls.trigger_queue.in_(consume_trigger_queues))
 
         return list(session.scalars(query).all())
 

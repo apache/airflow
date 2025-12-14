@@ -354,7 +354,7 @@ def test_assign_unassigned(session, create_triggerer, create_trigger, use_trigge
     """Tests that unassigned triggers of all appropriate states are assigned."""
     time_now = timezone.utcnow()
     trigger_queue = "custom_trigger_q_name" if use_trigger_queues else None
-    consume_trigger_queues = {trigger_queue} if isinstance(use_trigger_queues, str) else None
+    consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
     finished_triggerer = create_triggerer(
         session,
         State.SUCCESS,
@@ -474,7 +474,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
     )
     # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
-    consume_trigger_queues = {trigger_queue} if isinstance(use_trigger_queues, str) else None
+    consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
@@ -537,7 +537,9 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
     asset.add_trigger(trigger_asset, "test_asset_watcher")
     session.add(asset)
     # Create callback with trigger
-    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+    callback = TriggererCallback(
+        callback_def=AsyncCallback("classpath.callback"), trigger_queue=trigger_queue
+    )
     callback.trigger = trigger_callback
     session.add(callback)
     session.commit()
@@ -565,7 +567,7 @@ def test_get_sorted_triggers_different_priority_weights(
     """
     # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
-    consume_trigger_queues = {trigger_queue} if isinstance(use_trigger_queues, str) else None
+    consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
     callback_triggers = [
         Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue),
         Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue),
@@ -647,7 +649,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
     """
     # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
-    consume_trigger_queues = {trigger_queue} if isinstance(use_trigger_queues, str) else None
+    consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
     # Create 20 callback triggers with different priorities
     callback_triggers = []
     for i in range(20):

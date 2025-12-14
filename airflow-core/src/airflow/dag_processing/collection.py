@@ -1006,6 +1006,7 @@ class AssetModelOperation(NamedTuple):
                     Trigger(
                         classpath=triggers[trigger_hash]["classpath"],
                         kwargs=triggers[trigger_hash]["kwargs"],
+                        trigger_queue=triggers[trigger_hash]["kwargs"].get("trigger_queue"),
                     )
                     for trigger_hash in all_trigger_hashes
                     if trigger_hash not in orm_triggers
