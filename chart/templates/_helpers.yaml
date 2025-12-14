@@ -1162,3 +1162,13 @@ Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an intege
       {{- int (ceil (float64 $v)) -}}
     {{- end -}}
 {{- end }}
+
+{{/*
+Check if the current executor launches pods
+This helper function returns true if the executor can launch pods (Kubernetes-based executors)
+*/}}
+{{- define "airflow.podLaunchingExecutor" -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+    {{- print "true" -}}
+  {{- end -}}
+{{- end -}}
