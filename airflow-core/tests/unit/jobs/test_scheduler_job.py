@@ -5227,12 +5227,10 @@ class TestSchedulerJob:
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
-            .scalar()
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
         )
-        running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        running_count = session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
         assert dag1_running_count == 1
         assert running_count == 11
 
@@ -5247,14 +5245,12 @@ class TestSchedulerJob:
             triggering_user_name="test_user",
             dag_run_conf={},
         )
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
-            .scalar()
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
         )
         assert dag1_running_count == 1
-        total_running_count = (
-            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        total_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING)
         )
         assert total_running_count == 11
 
@@ -5356,18 +5352,16 @@ class TestSchedulerJob:
         # scheduler will now mark backfill runs as running
         self.job_runner._start_queued_dagruns(session)
         session.flush()
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(
                 DagRun.dag_id == dag1_dag_id,
                 DagRun.state == State.RUNNING,
             )
-            .scalar()
         )
         # Even with catchup=False, backfill runs should start
         assert dag1_running_count == 4
-        total_running_count = (
-            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        total_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING)
         )
         assert (
             total_running_count == 5
