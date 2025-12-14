@@ -412,6 +412,38 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/api/.*\.py$|
+            ^airflow-core/src/airflow/api_fastapi/.*\.py$|
+            ^airflow-core/src/airflow/assets/.*\.py$|
+            ^airflow-core/src/airflow/callbacks/.*\.py$|
+            ^airflow-core/src/airflow/cli/.*\.py$|
+            ^airflow-core/src/airflow/config_templates/.*\.py$|
+            ^airflow-core/src/airflow/dag_processing/.*\.py$|
+            ^airflow-core/src/airflow/datasets/.*\.py$|
+            ^airflow-core/src/airflow/decorators/.*\.py$|
+            ^airflow-core/src/airflow/example_dags/.*\.py$|
+            ^airflow-core/src/airflow/executors/.*\.py$|
+            ^airflow-core/src/airflow/hooks/.*\.py$|
+            ^airflow-core/src/airflow/io/.*\.py$|
+            ^airflow-core/src/airflow/jobs/.*\.py$|
+            ^airflow-core/src/airflow/lineage/.*\.py$|
+            ^airflow-core/src/airflow/listeners/.*\.py$|
+            ^airflow-core/src/airflow/logging/.*\.py$|
+            ^airflow-core/src/airflow/macros/.*\.py$|
+            ^airflow-core/src/airflow/migrations/.*\.py$|
+            ^airflow-core/src/airflow/notifications/.*\.py$|
+            ^airflow-core/src/airflow/observability/.*\.py$|
+            ^airflow-core/src/airflow/operators/.*\.py$|
+            ^airflow-core/src/airflow/secrets/.*\.py$|
+            ^airflow-core/src/airflow/security/.*\.py$|
+            ^airflow-core/src/airflow/sensors/.*\.py$|
+            ^airflow-core/src/airflow/serialization/.*\.py$|
+            ^airflow-core/src/airflow/task/.*\.py$|
+            ^airflow-core/src/airflow/ti_deps/.*\.py$|
+            ^airflow-core/src/airflow/timetables/.*\.py$|
+            ^airflow-core/src/airflow/triggers/.*\.py$|
+            ^airflow-core/src/airflow/ui/.*\.py$|
+            ^airflow-core/src/airflow/utils/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
