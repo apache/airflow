@@ -155,8 +155,60 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/token/client-credentials:
+    post:
+      tags:
+      - KeycloakAuthManagerToken
+      summary: Create Token Client Credentials
+      operationId: create_token_client_credentials
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientCredentialsTokenBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    ClientCredentialsTokenBody:
+      properties:
+        client_id:
+          type: string
+          title: Client Id
+        client_secret:
+          type: string
+          title: Client Secret
+      additionalProperties: false
+      type: object
+      required:
+      - client_id
+      - client_secret
+      title: ClientCredentialsTokenBody
+      description: Client Credentials Token serializer for post bodies.
     HTTPExceptionResponse:
       properties:
         detail:

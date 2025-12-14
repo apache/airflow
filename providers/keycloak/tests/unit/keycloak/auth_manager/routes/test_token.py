@@ -59,3 +59,21 @@ class TestTokenRouter:
 
         assert response.status_code == 201
         assert response.json() == {"access_token": self.token}
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for_client_credentials")
+    def test_create_token_client_credentials(self, mock_create_token_for_client_credentials, client):
+        mock_create_token_for_client_credentials.return_value = self.token
+        client_credentials_body = {"client_id": "test_client", "client_secret": "test_secret"}
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/client-credentials",
+            json=client_credentials_body,
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_create_token_for_client_credentials.assert_called_once_with("test_client", "test_secret")

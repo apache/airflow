@@ -33,3 +33,10 @@ class TokenBody(StrictBaseModel):
 
     username: str = Field()
     password: str = Field()
+
+
+class ClientCredentialsTokenBody(StrictBaseModel):
+    """Client Credentials Token serializer for post bodies."""
+
+    client_id: str = Field()
+    client_secret: str = Field()

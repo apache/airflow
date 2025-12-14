@@ -39,6 +39,7 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
@@ -57,6 +58,7 @@ def auth_manager():
     with conf_vars(
         {
             (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
+            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "client_secret",
             (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
             (CONF_SECTION_NAME, CONF_SERVER_URL_KEY): "server_url",
         }
@@ -113,6 +115,16 @@ class TestKeycloakAuthManager:
         mock_token_expired.return_value = False
 
         result = auth_manager.refresh_user(user=Mock())
+
+        assert result is None
+
+    def test_refresh_user_no_refresh_token(self, auth_manager):
+        """Test that refresh_user returns None when refresh_token is empty (client_credentials case)."""
+        user_without_refresh = Mock()
+        user_without_refresh.refresh_token = ""
+        user_without_refresh.access_token = "access_token"
+
+        result = auth_manager.refresh_user(user=user_without_refresh)
 
         assert result is None
 
@@ -497,3 +509,43 @@ class TestKeycloakAuthManager:
         token = auth_manager._get_token_signer(expiration_time_in_seconds=expiration).generate({})
 
         assert KeycloakAuthManager._token_expired(token) is expected
+
+    @pytest.mark.parametrize(
+        ("client_id", "client_secret"),
+        [
+            ("test_client", None),
+            (None, "test_secret"),
+        ],
+    )
+    def test_get_keycloak_client_with_partial_credentials_raises_error(
+        self, auth_manager, client_id, client_secret
+    ):
+        """Test that providing only client_id or only client_secret raises ValueError."""
+        with pytest.raises(ValueError, match="Both client_id and client_secret must be provided together"):
+            auth_manager.get_keycloak_client(client_id=client_id, client_secret=client_secret)
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
+    def test_get_keycloak_client_with_both_credentials(self, mock_keycloak_openid, auth_manager):
+        """Test that providing both client_id and client_secret works correctly."""
+        client = auth_manager.get_keycloak_client(client_id="test_client", client_secret="test_secret")
+
+        mock_keycloak_openid.assert_called_once_with(
+            server_url="server_url",
+            realm_name="realm",
+            client_id="test_client",
+            client_secret_key="test_secret",
+        )
+        assert client == mock_keycloak_openid.return_value
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
+    def test_get_keycloak_client_with_no_credentials(self, mock_keycloak_openid, auth_manager):
+        """Test that providing neither credential uses config defaults."""
+        client = auth_manager.get_keycloak_client()
+
+        mock_keycloak_openid.assert_called_once_with(
+            server_url="server_url",
+            realm_name="realm",
+            client_id="client_id",
+            client_secret_key="client_secret",
+        )
+        assert client == mock_keycloak_openid.return_value
