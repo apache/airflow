@@ -411,6 +411,8 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/jobs/.*\.py$|
+            ^airflow-core/tests/unit/jobs/test_scheduler_job\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions

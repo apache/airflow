@@ -2424,7 +2424,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(1)
         )
 
-        query = session.query(Log).where(
+        stmt = select(func.count()).select_from(Log).where(
             Log.task_id == ti.task_id,
             Log.dag_id == ti.dag_id,
             Log.run_id == ti.run_id,
@@ -2434,26 +2434,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         if last_running_time is not None:
-            query = query.where(Log.dttm > last_running_time)
+            stmt = stmt.where(Log.dttm > last_running_time)
 
-        count_result: int | None = query.count()
+        count_result: int | None = session.scalar(stmt)
         return count_result if count_result is not None else 0
 
     previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
 
     @provide_session
     def _emit_running_ti_metrics(self, session: Session = NEW_SESSION) -> None:
-        running = (
-            session.query(
+        stmt = (
+            select(
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.queue,
                 func.count(TaskInstance.task_id).label("running_count"),
             )
-            .filter(TaskInstance.state == State.RUNNING)
+            .where(TaskInstance.state == State.RUNNING)
             .group_by(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
-            .all()
         )
+        running = session.execute(stmt).all()
 
         ti_running_metrics = {(row.dag_id, row.task_id, row.queue): row.running_count for row in running}
 
