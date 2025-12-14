@@ -5184,12 +5184,10 @@ class TestSchedulerJob:
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
-            .scalar()
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
         )
-        running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        running_count = session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
         assert dag1_running_count == 1
         assert running_count == 11
 
@@ -5257,34 +5255,30 @@ class TestSchedulerJob:
         # scheduler will now mark backfill runs as running
         self.job_runner._start_queued_dagruns(session)
         session.flush()
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(
                 DagRun.dag_id == dag1_dag_id,
                 DagRun.state == State.RUNNING,
             )
-            .scalar()
         )
         assert dag1_running_count == 4
         total_running_count = (
-            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+            session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
         )
         assert total_running_count == 14
 
         # and doing it again does not change anything
         self.job_runner._start_queued_dagruns(session)
         session.flush()
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(
                 DagRun.dag_id == dag1_dag_id,
                 DagRun.state == State.RUNNING,
             )
-            .scalar()
         )
         assert dag1_running_count == 4
-        total_running_count = (
-            session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        total_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING)
         )
         assert total_running_count == 14
 
@@ -5324,12 +5318,10 @@ class TestSchedulerJob:
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
-        dag1_running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
-            .scalar()
+        dag1_running_count = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.dag_id == "test_dag1", DagRun.state == State.RUNNING)
         )
-        running_count = session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+        running_count = session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
         assert dag1_running_count == 1
         # With catchup=False, only the most recent interval is scheduled for each DAG
         assert (
@@ -5386,25 +5378,25 @@ class TestSchedulerJob:
 
         def _running_counts():
             dag1_non_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             dag1_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             total_running_count = (
-                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+                session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
@@ -5444,7 +5436,7 @@ class TestSchedulerJob:
         assert dag1_non_b_running == 0
         assert dag1_b_running == 0
         assert total_running == 0
-        assert session.query(func.count(DagRun.id)).scalar() == 46
+        assert session.scalar(select(func.count(DagRun.id))) == 46
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
         # now let's run it once
@@ -5502,25 +5494,25 @@ class TestSchedulerJob:
 
         def _running_counts():
             dag1_non_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             dag1_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             total_running_count = (
-                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+                session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
@@ -5564,7 +5556,7 @@ class TestSchedulerJob:
         assert dag1_b_running == 0
         assert total_running == 0
         # Total 14 runs: 5 for dag1 + 3 for dag2 + 6 backfill runs (Jan 1-6 inclusive)
-        assert session.query(func.count(DagRun.id)).scalar() == 14
+        assert session.scalar(select(func.count(DagRun.id))) == 14
 
         # now let's run it once
         self.job_runner._start_queued_dagruns(session)
@@ -5593,7 +5585,7 @@ class TestSchedulerJob:
         assert total_running == 5
 
         # Total runs remain the same
-        assert session.query(func.count(DagRun.id)).scalar() == 14
+        assert session.scalar(select(func.count(DagRun.id))) == 14
 
     def test_backfill_maxed_out_no_prevent_non_backfill_max_out(self, dag_maker):
         session = settings.Session()
@@ -5609,25 +5601,25 @@ class TestSchedulerJob:
 
         def _running_counts():
             dag1_non_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             dag1_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             total_running_count = (
-                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+                session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
@@ -5649,7 +5641,7 @@ class TestSchedulerJob:
         assert dag1_non_b_running == 0
         assert dag1_b_running == 0
         assert total_running == 0
-        assert session.query(func.count(DagRun.id)).scalar() == 6
+        assert session.scalar(select(func.count(DagRun.id))) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
         # scheduler will now mark backfill runs as running
@@ -5758,25 +5750,25 @@ class TestSchedulerJob:
 
         def _running_counts():
             dag1_non_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             dag1_b_running = (
-                session.query(func.count(DagRun.id))
-                .filter(
+                session.scalar(
+                select(func.count(DagRun.id)).where(
                     DagRun.dag_id == dag1_dag_id,
                     DagRun.state == State.RUNNING,
                     DagRun.run_type == DagRunType.BACKFILL_JOB,
                 )
-                .scalar()
+            )
             )
             total_running_count = (
-                session.query(func.count(DagRun.id)).filter(DagRun.state == State.RUNNING).scalar()
+                session.scalar(select(func.count(DagRun.id)).where(DagRun.state == State.RUNNING))
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
@@ -5800,7 +5792,7 @@ class TestSchedulerJob:
         assert dag1_non_b_running == 0
         assert dag1_b_running == 0
         assert total_running == 0
-        assert session.query(func.count(DagRun.id)).scalar() == 6
+        assert session.scalar(select(func.count(DagRun.id))) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
         if pause_it:
@@ -5849,13 +5841,13 @@ class TestSchedulerJob:
         )
 
         queued_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
-                DagRun.dag_id == dag_id,
-                DagRun.state == State.QUEUED,
+            session.scalar(
+                select(func.count(DagRun.id)).where(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == State.QUEUED,
                 DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
             )
-            .scalar()
         )
         assert queued_count == 5
 
@@ -5869,13 +5861,13 @@ class TestSchedulerJob:
 
         # No runs should be started because we couldn't acquire the lock
         running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
-                DagRun.dag_id == dag_id,
-                DagRun.state == State.RUNNING,
+            session.scalar(
+                select(func.count(DagRun.id)).where(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == State.RUNNING,
                 DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
             )
-            .scalar()
         )
         assert running_count == 0, f"Expected 0 running when lock not acquired, but got {running_count}. "
         # no locks now:
@@ -5883,23 +5875,23 @@ class TestSchedulerJob:
         session.flush()
 
         running_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
-                DagRun.dag_id == dag_id,
-                DagRun.state == State.RUNNING,
+            session.scalar(
+                select(func.count(DagRun.id)).where(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == State.RUNNING,
                 DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
             )
-            .scalar()
         )
         assert running_count == backfill_max_active_runs
         queued_count = (
-            session.query(func.count(DagRun.id))
-            .filter(
-                DagRun.dag_id == dag_id,
-                DagRun.state == State.QUEUED,
+            session.scalar(
+                select(func.count(DagRun.id)).where(
+                    DagRun.dag_id == dag_id,
+                    DagRun.state == State.QUEUED,
                 DagRun.run_type == DagRunType.BACKFILL_JOB,
+                )
             )
-            .scalar()
         )
         # 2 runs are still queued
         assert queued_count == 2
@@ -5935,7 +5927,7 @@ class TestSchedulerJob:
         self.job_runner._start_queued_dagruns(session)
         session.flush()
         dr = DagRun.find(run_id="dagrun_1")
-        assert len(session.query(DagRun).filter(DagRun.state == State.RUNNING).all()) == 1
+        assert len(session.scalars(select(DagRun).where(DagRun.state == State.RUNNING)).all()) == 1
 
         assert dr[0].state == State.RUNNING
 
@@ -6059,7 +6051,7 @@ class TestSchedulerJob:
             ti.end_date = end_date
 
             self.job_runner._schedule_dag_run(dr, session)
-            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 1
+            assert session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)) == 1
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -6105,7 +6097,7 @@ class TestSchedulerJob:
             ti.end_date = end_date
 
             self.job_runner._schedule_dag_run(dr, session)
-            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 1
+            assert session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)) == 1
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -6151,7 +6143,7 @@ class TestSchedulerJob:
             ti.end_date = end_date
 
             self.job_runner._schedule_dag_run(dr, session)
-            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 1
+            assert session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)) == 1
 
             session.refresh(ti)
             assert ti.state == State.SCHEDULED
@@ -6204,7 +6196,7 @@ class TestSchedulerJob:
                 ti.end_date = end_date
 
             self.job_runner._schedule_dag_run(dr, session)
-            assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 2
+            assert session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)) == 2
 
             session.refresh(tis[0])
             session.refresh(tis[1])
@@ -6230,11 +6222,10 @@ class TestSchedulerJob:
 
         self.job_runner._create_dag_runs([orm_dag], session)
 
-        drs = (
-            session.query(DagRun)
+        drs = session.scalars(
+            select(DagRun)
             .options(joinedload(DagRun.task_instances).joinedload(TaskInstance.dag_version))
-            .all()
-        )
+        ).all()
         assert len(drs) == 1
         dr = drs[0]
 
@@ -6246,7 +6237,7 @@ class TestSchedulerJob:
         session.commit()
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
-        assert session.query(TaskInstance).filter_by(state=State.SCHEDULED).count() == 2
+        assert session.scalar(select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)) == 2
         session.flush()
 
         drs = DagRun.find(dag_id=dag.dag_id, session=session)
@@ -6489,7 +6480,7 @@ class TestSchedulerJob:
         dagbag = DagBag(dagfile)
         dag = dagbag.get_dag("example_branch_operator")
         scheduler_dag = sync_dag_to_db(dag, session=session)
-        session.query(Job).delete()
+        session.execute(delete(Job))
 
         data_interval = infer_automated_data_interval(scheduler_dag.timetable, DEFAULT_LOGICAL_DATE)
         dag_run = create_dagrun(
@@ -6661,7 +6652,7 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
         with create_session() as session:
-            tis = session.query(TaskInstance).all()
+            tis = session.scalars(select(TaskInstance)).all()
 
         dags = self.job_runner.scheduler_dag_bag._dags.values()
         assert [dag.dag_id for dag in dags] == ["test_only_empty_tasks"]
@@ -6689,7 +6680,7 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
         with create_session() as session:
-            tis = session.query(TaskInstance).all()
+            tis = session.scalars(select(TaskInstance)).all()
 
         assert len(tis) == 6
         assert {
@@ -6755,9 +6746,10 @@ class TestSchedulerJob:
         # Check catchup worked correctly by ensuring logical_date is quite new
         # Our dag is a daily dag
         assert (
-            session.query(DagRun.logical_date)
-            .filter(DagRun.logical_date != DEFAULT_DATE)  # exclude the first run
-            .scalar()
+            session.scalar(
+                select(DagRun.logical_date)
+                .where(DagRun.logical_date != DEFAULT_DATE)  # exclude the first run
+            )
         ) > (timezone.utcnow() - timedelta(days=2))
 
     def test_update_dagrun_state_for_paused_dag(self, dag_maker, session):
@@ -6994,7 +6986,7 @@ class TestSchedulerJob:
         assert DagRun.find(dag_id="testdag2", session=session)
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
-        dag_warnings = session.query(DagWarning).all()
+        dag_warnings = session.scalars(select(DagWarning)).all()
         assert dag_warnings == []
 
         dag_id1 = "test_asset_dag1"
@@ -7888,7 +7880,7 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
 
         # Verify SerializedDAG has max_active_runs=1
         dag_run_1 = (
-            session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).first()
+            session.scalars(select(DagRun).where(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date)).first()
         )
         assert dag_run_1 is not None
         serialized_dag = self.job_runner.scheduler_dag_bag.get_dag_for_run(dag_run_1, session=session)
@@ -7919,15 +7911,11 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
         session.refresh(dag_run_2)
 
         # Verify we have 1 running and 1 queued
-        running_count = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
-            .count()
+        running_count = session.scalar(
+            select(func.count()).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
-        queued_count = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
-            .count()
+        queued_count = session.scalar(
+            select(func.count()).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
         )
         assert running_count == 1
         assert queued_count == 1
@@ -7952,10 +7940,8 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
         )
 
         # Verify we now have 2 running dag runs
-        running_count = (
-            session.query(DagRun)
-            .filter(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
-            .count()
+        running_count = session.scalar(
+            select(func.count()).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
         assert running_count == 2
 
