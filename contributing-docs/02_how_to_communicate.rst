@@ -159,7 +159,7 @@ Here are a few rules that are important to keep in mind when you enter our commu
   (#contributors channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
-* You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
+* You can apply to more structured `Apache Mentoring Program <https://community.apache.org/mentoring/>`_
 * It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
 * It's your responsibility as an author to ping maintainers to review your PR - be mildly annoying sometimes,
