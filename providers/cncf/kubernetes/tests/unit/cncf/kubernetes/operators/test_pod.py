@@ -1042,7 +1042,7 @@ class TestKubernetesPodOperator:
         [
             pytest.param({}, True, id="default"),  # default values
             pytest.param({"on_finish_action": "delete_pod"}, True, id="delete-pod"),
-            pytest.param({"on_finish_action": "delete_succeeded_pod"}, False, id="delete-succeeded-pod"),
+            pytest.param({"on_finish_action": "delete_succeeded_pod"}, True, id="delete-succeeded-pod"),
             pytest.param({"on_finish_action": "keep_pod"}, False, id="keep-pod"),
             pytest.param({"on_finish_action": "delete_active_pod"}, False, id="delete-active-pod"),
         ],
