@@ -119,6 +119,8 @@ RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{
 
 log = structlog.get_logger(__name__)
 
+# Create a set without None for the IN clause
+NON_NULL_SCHEDULABLE_STATES = SCHEDULEABLE_STATES - {None}
 
 class TISchedulingDecision(NamedTuple):
     """Type of return for DagRun.task_instance_scheduling_decisions."""
@@ -2081,7 +2083,12 @@ class DagRun(Base, LoggingMixin):
                 result = session.execute(
                     update(TI)
                     .where(TI.id.in_(id_chunk))
-                    .where(TI.state != TaskInstanceState.SCHEDULED)
+                    .where(
+                        or_(
+                            TI.state.is_(None),
+                            TI.state.in_(NON_NULL_SCHEDULABLE_STATES)
+                        )
+                    )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
