@@ -740,7 +740,7 @@ associated with that Dag run.
 Notes
 ~~~~~
 
-* ``dag.test()`` should not be used inside pytest for Airflow 3.x because DAG
+* ``dag.test()`` should not be used inside pytest for Airflow 3.x because Dag
   serialization is inactive.
 * Both examples above run completely inside pytest without requiring
   any Dag serialization or scheduler.
