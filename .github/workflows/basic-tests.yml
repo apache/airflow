@@ -272,7 +272,7 @@ jobs:
           platform: ${{ inputs.platform }}
           save-cache: false
       - name: "Autoupdate all prek hooks"
-        run: prek autoupdate --freeze
+        run: prek autoupdate --cooldown-days 4 --freeze
       - name: "Autoupdate Lucas-C hooks to bleeding edge"
         run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Autoupdate Octopin to bleeding edge"
