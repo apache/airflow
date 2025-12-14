@@ -22,7 +22,7 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 /**
- * DAGs Page Object
+ * Dags Page Object
  */
 export class DagsPage extends BasePage {
   // Page URLs
@@ -88,21 +88,21 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Navigate to DAGs list page
+   * Navigate to Dags list page
    */
   public async navigate(): Promise<void> {
     await this.navigateTo(DagsPage.dagsListUrl);
   }
 
   /**
-   * Navigate to DAG detail page
+   * Navigate to Dag detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
   /**
-   * Trigger a DAG run
+   * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
@@ -136,7 +136,7 @@ export class DagsPage extends BasePage {
       if (currentStatus === "success") {
         return;
       } else if (currentStatus === "failed") {
-        throw new Error(`DAG run failed: ${dagRunId}`);
+        throw new Error(`Dag run failed: ${dagRunId}`);
       }
 
       await this.page.waitForTimeout(checkInterval);
@@ -146,7 +146,7 @@ export class DagsPage extends BasePage {
       await this.page.waitForTimeout(2000);
     }
 
-    throw new Error(`DAG run did not complete within 5 minutes: ${dagRunId}`);
+    throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {
