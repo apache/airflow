@@ -2827,9 +2827,46 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods. When false, you can use `serviceAccountTokenVolume` to manually configure service account token volume for pod-launching executors.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "serviceAccountTokenVolume": {
+                            "description": "Configuration for manual service account token volume. Only used when automountServiceAccountToken is false and for pod-launching executors. (CeleryExecutor, CeleryKubernetesExecutor, KubernetesExecutor, LocalKubernetesExecutor)",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable manual service account token volume configuration.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "mountPath": {
+                                    "description": "Path where the service account token volume will be mounted.",
+                                    "type": "string",
+                                    "default": "/var/run/secrets/kubernetes.io/serviceaccount"
+                                },
+                                "volumeName": {
+                                    "description": "Name of the service account token volume.",
+                                    "type": "string",
+                                    "default": "kube-api-access"
+                                },
+                                "expirationSeconds": {
+                                    "description": "Token expiration time in seconds.",
+                                    "type": "integer",
+                                    "minimum": 600,
+                                    "maximum": 7776000,
+                                    "default": 3600
+                                },
+                                "audience": {
+                                    "description": "Intended audience of the token. Optional - defaults to the identifier of the Kubernetes API server.",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                }
+                            }
                         },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
@@ -3348,7 +3385,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -3925,7 +3962,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -4364,7 +4401,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -4712,7 +4749,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -5181,7 +5218,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -5985,7 +6022,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -6874,7 +6911,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -7208,7 +7245,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
@@ -7861,7 +7898,7 @@
                     "type": "object",
                     "properties": {
                         "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
                             "type": "boolean",
                             "default": true
                         },
