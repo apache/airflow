@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import Stats
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -42,7 +43,7 @@ QUEUE = "test"
 class TestJobsApiRoutes:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, dag_maker, session: Session):
-        session.query(EdgeJobModel).delete()
+        session.execute(delete(EdgeJobModel))
         session.commit()
 
     @patch(f"{Stats.__module__}.Stats.incr")
@@ -94,4 +95,4 @@ class TestJobsApiRoutes:
             )
             mock_stats_incr.call_count == 2
 
-            assert session.query(EdgeJobModel).scalar().state == TaskInstanceState.SUCCESS
+            assert session.scalars(select(EdgeJobModel)).state == TaskInstanceState.SUCCESS

@@ -23,7 +23,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import delete, inspect, text
+from sqlalchemy import delete, inspect, select, text
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 
@@ -140,8 +140,8 @@ class EdgeExecutor(BaseExecutor):
         key = task_instance.key
 
         # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
-        existing_job = (
-            session.query(EdgeJobModel)
+        existing_job = session.execute(
+            select(EdgeJobModel)
             .filter_by(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
@@ -176,8 +176,8 @@ class EdgeExecutor(BaseExecutor):
         """Reset worker state if heartbeat timed out."""
         changed = False
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
-        lifeless_workers: list[EdgeWorkerModel] = (
-            session.query(EdgeWorkerModel)
+        lifeless_workers: list[EdgeWorkerModel] = session.execute(
+            select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
             .filter(
                 EdgeWorkerModel.state.not_in(
@@ -212,8 +212,8 @@ class EdgeExecutor(BaseExecutor):
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
         heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
-        lifeless_jobs: list[EdgeJobModel] = (
-            session.query(EdgeJobModel)
+        lifeless_jobs: list[EdgeJobModel] = session.execute(
+            select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
@@ -254,8 +254,8 @@ class EdgeExecutor(BaseExecutor):
         purged_marker = False
         job_success_purge = conf.getint("edge", "job_success_purge")
         job_fail_purge = conf.getint("edge", "job_fail_purge")
-        jobs: list[EdgeJobModel] = (
-            session.query(EdgeJobModel)
+        jobs: list[EdgeJobModel] = session.execute(
+            select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .filter(
                 EdgeJobModel.state.in_(
