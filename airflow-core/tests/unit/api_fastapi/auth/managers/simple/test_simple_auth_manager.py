@@ -271,3 +271,24 @@ class TestSimpleAuthManager:
             items, user=SimpleAuthManagerUser(username="test", role=None)
         )
         assert results == items
+
+    @pytest.mark.parametrize(
+        ("all_admins", "user_id", "assigned_users", "expected"),
+        [
+            # When simple_auth_manager_all_admins=True, any user should be allowed
+            (True, "user1", [{"id": "user2", "name": "User 2"}], True),
+            (True, "user2", [{"id": "user2", "name": "User 2"}], True),
+            (True, "admin", [{"id": "test_user", "name": "Test User"}], True),
+            # When simple_auth_manager_all_admins=False, user must be in assigned_users
+            (False, "user1", [{"id": "user1", "name": "User 1"}], True),
+            (False, "user2", [{"id": "user1", "name": "User 1"}], False),
+            (False, "admin", [{"id": "test_user", "name": "Test User"}], False),
+            # When no assigned_users, allow access
+            (False, "user1", [], True),
+        ],
+    )
+    def test_is_allowed(self, auth_manager, all_admins, user_id, assigned_users, expected):
+        """Test is_allowed method with different configurations."""
+        with conf_vars({("core", "simple_auth_manager_all_admins"): str(all_admins)}):
+            result = auth_manager.is_allowed(user_id, assigned_users)
+            assert result is expected
