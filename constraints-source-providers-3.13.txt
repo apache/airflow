@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-11T09:50:42.287243
+# This constraints file was automatically generated on 2025-12-14T21:45:46.954726
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -10,7 +10,7 @@
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 APScheduler==3.11.1
-Authlib==1.6.5
+Authlib==1.6.6
 Deprecated==1.3.1
 Events==0.5
 Flask-Limiter==3.12
@@ -32,7 +32,7 @@ PyYAML-ft==8.0.0
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
-SQLAlchemy-Utils==0.42.0
+SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 SecretStorage==3.5.0
 Sphinx==8.2.3
@@ -90,7 +90,7 @@ aws-sam-translator==1.105.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.36.0
+azure-core==1.37.0
 azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
@@ -126,7 +126,7 @@ blinker==1.9.0
 boto3==1.41.5
 botocore==1.41.5
 build==1.3.0
-cachetools==6.2.2
+cachetools==6.2.3
 cadwyn==5.6.1
 cassandra-driver==3.29.3
 cattrs==25.3.0
@@ -189,7 +189,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.16
-fastapi==0.124.2
+fastapi==0.124.4
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -245,7 +245,7 @@ google-cloud-os-login==2.18.0
 google-cloud-pubsub==2.33.0
 google-cloud-redis==2.19.0
 google-cloud-resource-manager==1.15.0
-google-cloud-run==0.12.0
+google-cloud-run==0.13.0
 google-cloud-secret-manager==2.25.0
 google-cloud-spanner==3.60.0
 google-cloud-speech==2.34.0
@@ -286,7 +286,7 @@ httplib2==0.31.0
 httptools==0.7.1
 httpx-sse==0.4.0
 httpx==0.28.1
-huggingface_hub==1.2.2
+huggingface_hub==1.2.3
 humanize==4.14.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -321,7 +321,7 @@ jeepney==0.9.0
 jiter==0.12.0
 jmespath==0.10.0
 joblib==1.5.2
-joserfc==1.5.0
+joserfc==1.6.0
 jpype1==1.6.0
 jsonpatch==1.33
 jsonpath-ng==1.7.0
@@ -337,7 +337,7 @@ jwcrypto==1.5.6
 kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
-kgb==7.2
+kgb==7.3
 kombu==5.6.1
 krb5==0.9.0
 kubernetes==33.1.0
@@ -399,25 +399,25 @@ nh3==0.3.2
 nodeenv==1.9.1
 numpy==2.3.5
 oauthlib==3.3.1
-openai==2.9.0
+openai==2.11.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
-openlineage-integration-common==1.40.1
-openlineage-python==1.40.1
-openlineage_sql==1.40.1
+openlineage-integration-common==1.41.0
+openlineage-python==1.41.0
+openlineage_sql==1.41.0
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
-opentelemetry-api==1.39.0
-opentelemetry-exporter-otlp-proto-common==1.39.0
-opentelemetry-exporter-otlp-proto-grpc==1.39.0
-opentelemetry-exporter-otlp-proto-http==1.39.0
-opentelemetry-exporter-otlp==1.39.0
-opentelemetry-exporter-prometheus==0.60b0
-opentelemetry-proto==1.39.0
+opentelemetry-api==1.39.1
+opentelemetry-exporter-otlp-proto-common==1.39.1
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
+opentelemetry-exporter-otlp-proto-http==1.39.1
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-exporter-prometheus==0.60b1
+opentelemetry-proto==1.39.1
 opentelemetry-resourcedetector-gcp==1.11.0a0
-opentelemetry-sdk==1.39.0
-opentelemetry-semantic-conventions==0.60b0
+opentelemetry-sdk==1.39.1
+opentelemetry-semantic-conventions==0.60b1
 opsgenie-sdk==2.1.5
 oracledb==3.4.1
 ordered-set==4.1.0
@@ -453,7 +453,7 @@ polars==1.36.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.0
-prek==0.2.21
+prek==0.2.22
 presto-python-client==0.8.4
 prometheus_client==0.23.1
 prompt_toolkit==3.0.52
@@ -524,7 +524,7 @@ pytokens==0.3.0
 pytz==2025.2
 pywinrm==0.5.0
 pyzmq==27.1.0
-qdrant-client==1.16.1
+qdrant-client==1.16.2
 reactivex==4.1.0
 readme_renderer==44.0
 redis==6.4.0
@@ -552,7 +552,7 @@ rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml.clib==0.2.15
 ruamel.yaml==0.18.16
-ruff==0.14.8
+ruff==0.14.9
 s3fs==2025.12.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.23
@@ -662,15 +662,15 @@ types-toml==0.10.8.20240310
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-tzdata==2025.2
+tzdata==2025.3
 tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.6.1
+urllib3==2.6.2
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.16
+uv==0.9.17
 uvicorn==0.38.0
 uvloop==0.22.1
 validators==0.35.0

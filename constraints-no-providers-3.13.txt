@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-11T09:50:49.358441
+# This constraints file was automatically generated on 2025-12-14T21:45:54.278177
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -17,7 +17,7 @@ PyYAML-ft==8.0.0
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
-SQLAlchemy-Utils==0.42.0
+SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 a2wsgi==1.10.10
 aiosmtplib==5.0.0
@@ -43,7 +43,7 @@ dill==0.4.0
 dnspython==2.8.0
 email-validator==2.3.0
 fastapi-cli==0.0.16
-fastapi==0.124.2
+fastapi==0.124.4
 fsspec==2025.12.0
 googleapis-common-protos==1.72.0
 greenback==1.2.1
@@ -68,14 +68,14 @@ methodtools==0.4.7
 more-itertools==10.8.0
 msgspec==0.20.0
 natsort==8.4.0
-opentelemetry-api==1.39.0
-opentelemetry-exporter-otlp-proto-common==1.39.0
-opentelemetry-exporter-otlp-proto-grpc==1.39.0
-opentelemetry-exporter-otlp-proto-http==1.39.0
-opentelemetry-exporter-otlp==1.39.0
-opentelemetry-proto==1.39.0
-opentelemetry-sdk==1.39.0
-opentelemetry-semantic-conventions==0.60b0
+opentelemetry-api==1.39.1
+opentelemetry-exporter-otlp-proto-common==1.39.1
+opentelemetry-exporter-otlp-proto-grpc==1.39.1
+opentelemetry-exporter-otlp-proto-http==1.39.1
+opentelemetry-exporter-otlp==1.39.1
+opentelemetry-proto==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-semantic-conventions==0.60b1
 outcome==1.3.0.post0
 packaging==25.0
 pathspec==0.12.1
@@ -114,12 +114,12 @@ text-unidecode==1.3
 typer==0.20.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-tzdata==2025.2
+tzdata==2025.3
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
-urllib3==2.6.1
+urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.16
+uv==0.9.17
 uvicorn==0.38.0
 uvloop==0.22.1
 watchfiles==1.1.1
