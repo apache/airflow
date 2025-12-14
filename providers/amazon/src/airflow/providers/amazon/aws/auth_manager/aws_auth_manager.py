@@ -62,7 +62,6 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.api_fastapi.common.types import MenuItem
-    from airflow.models.hitl import HITLUser
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -247,14 +246,6 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
             return result["decision"] == "ALLOW"
 
         return [menu_item for menu_item in menu_items if _has_access_to_menu_item(requests[menu_item.value])]
-
-    def is_allowed(self, user_id: str, assigned_users: Sequence[HITLUser]) -> bool:
-        """
-        Check if a user is allowed to approve/reject a HITL task.
-
-        User must be in assigned_users list.
-        """
-        return any(user["id"] == user_id for user in assigned_users)
 
     def batch_is_authorized_connection(
         self,
