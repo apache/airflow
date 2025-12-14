@@ -112,10 +112,13 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.cli.cli_config import (
         CLICommand,
     )
+    from airflow.models.hitl import HITLUser
     from airflow.providers.common.compat.assets import AssetAliasDetails, AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import (
         FabAirflowSecurityManagerOverride,
@@ -466,6 +469,14 @@ class FabAuthManager(BaseAuthManager[User]):
                 user=user,
             )
         ]
+
+    def is_allowed(self, user_id: str, assigned_users: Sequence[HITLUser]) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        User must be in assigned_users list.
+        """
+        return any(user["id"] == user_id for user in assigned_users)
 
     @provide_session
     def get_authorized_connections(
