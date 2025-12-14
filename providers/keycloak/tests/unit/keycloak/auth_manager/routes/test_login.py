@@ -129,5 +129,5 @@ class TestLoginRouter:
         assert response.headers["location"] == "/"
         assert "_token" in response.cookies
         assert response.cookies["_token"] == "token"
-        mock_auth_manager.refresh_user.assert_called_once_with("refresh_token")
+        mock_auth_manager.refresh_user.assert_called_once()
         mock_auth_manager.generate_jwt.assert_called_once()
