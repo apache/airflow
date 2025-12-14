@@ -964,7 +964,7 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "keep_pod"}, False, False),
             ({"on_finish_action": "keep_pod"}, True, False),
             ({"on_finish_action": "delete_succeeded_pod"}, False, True),
-            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, True),
             ({"on_finish_action": "delete_active_pod"}, True, True),
             ({"on_finish_action": "delete_active_pod"}, False, True),
         ],
