@@ -95,4 +95,4 @@ class TestJobsApiRoutes:
             )
             mock_stats_incr.call_count == 2
 
-            assert session.scalars(select(EdgeJobModel)).state == TaskInstanceState.SUCCESS
+            assert session.scalars(select(EdgeJobModel)).first().state == TaskInstanceState.SUCCESS
