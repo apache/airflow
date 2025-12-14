@@ -440,6 +440,7 @@ repos:
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
             ^providers/databricks/.*\.py$|
+            ^providers/edge3/.*\.py$|
             ^providers/mysql/.*\.py$|
             ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
