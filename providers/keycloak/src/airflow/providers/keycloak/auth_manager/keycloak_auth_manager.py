@@ -57,8 +57,6 @@ from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -72,7 +70,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.models.hitl import HITLUser
 
 log = logging.getLogger(__name__)
 
@@ -290,14 +287,6 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             user=user,
         )
         return [MenuItem(menu[1]) for menu in authorized_menus]
-
-    def is_allowed(self, user_id: str, assigned_users: Sequence[HITLUser]) -> bool:
-        """
-        Check if a user is allowed to approve/reject a HITL task.
-
-        User must be in assigned_users list.
-        """
-        return any(user["id"] == user_id for user in assigned_users)
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.keycloak.auth_manager.routes.login import login_router

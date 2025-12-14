@@ -877,27 +877,6 @@ class TestFabAuthManager:
         result = auth_manager.get_db_manager()
         assert result == "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 
-    @pytest.mark.parametrize(
-        ("user_id", "assigned_users", "expected"),
-        [
-            # User in assigned_users list
-            ("user1", [{"id": "user1", "name": "User 1"}], True),
-            # User not in assigned_users list
-            ("user2", [{"id": "user1", "name": "User 1"}], False),
-            # Multiple users - user1 in list
-            ("user1", [{"id": "user1", "name": "User 1"}, {"id": "user2", "name": "User 2"}], True),
-            # Multiple users - user2 in list
-            ("user2", [{"id": "user1", "name": "User 1"}, {"id": "user2", "name": "User 2"}], True),
-            # Multiple users - user3 not in list
-            ("user3", [{"id": "user1", "name": "User 1"}, {"id": "user2", "name": "User 2"}], False),
-            # Empty assigned_users list
-            ("user1", [], False),
-        ],
-    )
-    def test_is_allowed(self, user_id, assigned_users, expected, auth_manager):
-        result = auth_manager.is_allowed(user_id, assigned_users)
-        assert result is expected
-
 
 @pytest.mark.db_test
 @pytest.mark.parametrize("skip_init", [False, True])
