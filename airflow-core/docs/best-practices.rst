@@ -700,7 +700,7 @@ Example 2: Testing using ``dag.create_dagrun()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This pattern creates a full DAG run and then runs the TaskInstance
-associated with that DAG run.
+associated with that Dag run.
 
 .. code-block:: python
 
