@@ -669,7 +669,7 @@ Example: Using ``EmptyOperator``
 Example 1: Testing using ``TaskInstance.run()``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This pattern constructs a DAG, creates a ``TaskInstance`` manually,
+This pattern constructs a Dag, creates a ``TaskInstance`` manually,
 and runs it directly.
 
 .. code-block:: python
