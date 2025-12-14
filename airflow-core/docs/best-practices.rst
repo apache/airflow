@@ -743,7 +743,7 @@ Notes
 * ``dag.test()`` should not be used inside pytest for Airflow 3.x because DAG
   serialization is inactive.
 * Both examples above run completely inside pytest without requiring
-  any DAG serialization or scheduler.
+  any Dag serialization or scheduler.
 * Use mocking for external services when needed.
 
 
