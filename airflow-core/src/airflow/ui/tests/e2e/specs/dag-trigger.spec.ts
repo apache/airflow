@@ -22,10 +22,10 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 /**
- * DAG Trigger E2E Tests
+ * Dag Trigger E2E Tests
  */
 
-test.describe("DAG Trigger Workflow", () => {
+test.describe("Dag Trigger Workflow", () => {
   let loginPage: LoginPage;
   let dagsPage: DagsPage;
 
@@ -40,7 +40,7 @@ test.describe("DAG Trigger Workflow", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should successfully trigger a DAG run", async () => {
+  test("should successfully trigger a Dag run", async () => {
     test.setTimeout(7 * 60 * 1000);
 
     await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
