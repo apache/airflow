@@ -693,7 +693,7 @@ and runs it directly.
         ti = TaskInstance(task=task, run_id="test_run")
         ti.run(ignore_ti_state=True)
 
-        assert ti.state == TaskInstanceState.SUCCESS  
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 Example 2: Testing using ``dag.create_dagrun()``
@@ -734,7 +734,7 @@ associated with that DAG run.
         ti = dagrun.get_task_instance("empty_task")
         ti.run(ignore_ti_state=True)
 
-        assert ti.state == TaskInstanceState.SUCCESS 
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 Notes
