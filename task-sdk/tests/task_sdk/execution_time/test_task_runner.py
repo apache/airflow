@@ -2997,6 +2997,10 @@ class TestTaskRunnerCallsListeners:
             self.error = error
 
         @hookimpl
+        def on_task_instance_skipped(self, previous_state, task_instance):
+            self.state.append(TaskInstanceState.SKIPPED)
+
+        @hookimpl
         def before_stopping(self, component):
             self.component = component
 
@@ -3145,6 +3149,37 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
+
+    def test_task_runner_calls_listeners_skipped(self, mocked_parse, mock_supervisor_comms):
+        listener = self.CustomListener()
+        get_listener_manager().add_listener(listener)
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                raise AirflowSkipException("Task intentionally skipped")
+
+        task = CustomOperator(
+            task_id="test_task_runner_calls_listeners_skipped", do_xcom_push=True, multiple_outputs=True
+        )
+        dag = get_inline_dag(dag_id="test_dag", task=task)
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id=task.task_id,
+            dag_id=dag.dag_id,
+            run_id="test_run",
+            try_number=1,
+            dag_version_id=uuid7(),
+        )
+
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            **ti.model_dump(exclude_unset=True), task=task, start_date=timezone.utcnow()
+        )
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, _ = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log)
+
+        assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
 
     def test_listener_access_outlet_event_on_running_and_success(self, mocked_parse, mock_supervisor_comms):
         """Test listener can access outlet events through invoking get_template_context() while task running and success"""
