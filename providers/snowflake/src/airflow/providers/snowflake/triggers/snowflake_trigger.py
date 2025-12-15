@@ -68,11 +68,6 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait for the query the snowflake query to complete."""
-        SnowflakeSqlApiHook(
-            self.snowflake_conn_id,
-            self.token_life_time,
-            self.token_renewal_delta,
-        )
         try:
             for query_id in self.query_ids:
                 while True:
