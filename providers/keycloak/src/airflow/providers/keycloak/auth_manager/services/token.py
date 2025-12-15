@@ -53,7 +53,7 @@ def create_token_for(
     return get_auth_manager().generate_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
-def create_token_for_client_credentials(
+def create_client_credentials_token(
     client_id: str,
     client_secret: str,
     expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
