@@ -333,7 +333,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         """
         if (client_id is None) != (client_secret is None):
             raise ValueError(
-                "Both client_id and client_secret must be provided together, or both must be None"
+                "Both `client_id` and `client_secret` must be provided together, or both must be None"
             )
 
         if client_id is None:
