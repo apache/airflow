@@ -158,7 +158,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return None
 
-    def refresh_token(self, *, user: KeycloakAuthManagerUser) -> dict:
+    def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
         try:
             log.debug("Refreshing the token")
             client = self.get_keycloak_client()
