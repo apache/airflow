@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
@@ -97,9 +98,9 @@ def dagrun(session, dag_maker):
         dag_maker.create_dagrun(state=DagRunState.QUEUED, logical_date=DEFAULT_DATE)
 
         session.commit()
-        assert session.query(DagRun).count() == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
 
-        return session.query(DagRun).one()
+        return session.scalars(select(DagRun)).one()
 
 
 @pytest.fixture
