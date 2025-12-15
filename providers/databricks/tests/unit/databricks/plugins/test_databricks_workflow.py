@@ -168,7 +168,7 @@ def test_get_task_instance_airflow2():
         dttm = "2022-01-01T00:00:00Z"
         session = Mock()
         dag_run = Mock()
-        session.query().filter().one_or_none.return_value = dag_run
+        session.scalars().one_or_none.return_value = dag_run
 
         with patch(
             "airflow.providers.databricks.plugins.databricks_workflow.DagRun.find", return_value=[dag_run]
