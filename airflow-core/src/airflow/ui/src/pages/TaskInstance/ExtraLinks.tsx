@@ -21,17 +21,33 @@ import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
+import { useAutoRefresh } from "src/utils";
 
 export const ExtraLinks = () => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const { data } = useTaskInstanceServiceGetExtraLinks({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data } = useTaskInstanceServiceGetExtraLinks(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parseInt(mapIndex, 10),
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => {
+        // If we have extra links, stop polling to reduce server load
+        const hasLinks =
+          query.state.data?.extra_links && Object.keys(query.state.data.extra_links).length > 0;
+
+        // Continue polling if auto-refresh is enabled and we don't have links yet
+        return !hasLinks && refetchInterval ? refetchInterval : false;
+      },
+    },
+  );
 
   return data && Object.keys(data.extra_links).length > 0 ? (
     <Box py={1}>
