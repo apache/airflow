@@ -531,7 +531,7 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-        from sqlalchemy import exists
+        from sqlalchemy import exists, select
 
         if not isinstance(ti.task, BaseSensorOperator):
             return False
@@ -540,21 +540,27 @@ if not AIRFLOW_V_3_0_PLUS:
             return False
         if AIRFLOW_V_3_0_PLUS:
             return (
-                session.query(
-                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
-                ).scalar()
+                session.scalar(
+                    select(
+                        exists().where(
+                            TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number
+                        )
+                    )
+                )
                 is True
             )
         return (
-            session.query(
-                exists().where(
-                    TaskReschedule.dag_id == ti.dag_id,
-                    TaskReschedule.task_id == ti.task_id,
-                    TaskReschedule.run_id == ti.run_id,
-                    TaskReschedule.map_index == ti.map_index,
-                    TaskReschedule.try_number == ti.try_number,
+            session.scalar(
+                select(
+                    exists().where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == ti.try_number,
+                    )
                 )
-            ).scalar()
+            )
             is True
         )
 
