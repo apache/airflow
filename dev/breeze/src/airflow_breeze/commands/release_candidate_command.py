@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 from datetime import date
@@ -48,6 +49,8 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -586,8 +589,6 @@ def push_release_candidate_tag_to_github(version, remote_name):
 
 
 def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
-        return
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
@@ -598,11 +599,12 @@ def remove_old_releases(version, repo_root):
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and entry.name.startswith("2."):
+        if entry.is_dir() and RC_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
-
+    console_print(f"The following old releases should be removed: {old_releases}")
     for old_release in old_releases:
+        console_print(f"Removing old release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
             run_command(["svn", "rm", old_release], check=True)
             run_command(
