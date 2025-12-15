@@ -63,6 +63,7 @@ dependencies = [
     "apache-airflow-providers-common-compat>=1.10.1",
     # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079 is handled
     "paramiko>=2.9.0,<4.0.0",
+    "aiofiles>=23.2.0",
     "asyncssh>=2.12.0",
 ]
 
