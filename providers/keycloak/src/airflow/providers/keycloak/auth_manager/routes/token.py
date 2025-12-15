@@ -30,8 +30,8 @@ from airflow.providers.keycloak.auth_manager.datamodels.token import (
     TokenResponse,
 )
 from airflow.providers.keycloak.auth_manager.services.token import (
+    create_client_credentials_token,
     create_token_for,
-    create_token_for_client_credentials,
 )
 
 log = logging.getLogger(__name__)
@@ -68,5 +68,5 @@ def create_token_cli(body: TokenBody) -> TokenResponse:
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
 def create_token_client_credentials(body: ClientCredentialsTokenBody) -> TokenResponse:
-    token = create_token_for_client_credentials(body.client_id, body.client_secret)
+    token = create_client_credentials_token(body.client_id, body.client_secret)
     return TokenResponse(access_token=token)
