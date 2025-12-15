@@ -234,7 +234,8 @@ class KubernetesPodOperator(BaseOperator):
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
-        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod. "delete_active_pod" deletes
+        pods that are still active (Pending or Running).
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
@@ -1041,7 +1042,11 @@ class KubernetesPodOperator(BaseOperator):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
         # if the pod fails or success, but we don't want to delete it
-        if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
+        if (
+            pod_phase != PodPhase.SUCCEEDED
+            or self.on_finish_action == OnFinishAction.KEEP_POD
+            or self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
+        ):
             self.patch_already_checked(remote_pod, reraise=False)
 
         failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
@@ -1177,13 +1182,21 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
-                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                    and (
-                        pod.status.phase == PodPhase.SUCCEEDED
-                        or container_is_succeeded(pod, self.base_container_name)
+                should_delete_pod = (
+                    (self.on_finish_action == OnFinishAction.DELETE_POD)
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and (
+                            pod.status.phase == PodPhase.SUCCEEDED
+                            or container_is_succeeded(pod, self.base_container_name)
+                        )
+                    )
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_ACTIVE_POD
+                        and (pod.status.phase == PodPhase.RUNNING or pod.status.phase == PodPhase.PENDING)
                     )
                 )
+
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)

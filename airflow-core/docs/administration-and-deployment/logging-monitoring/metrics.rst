@@ -263,8 +263,17 @@ Name                                                 Description
 ``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
 ``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
                                                      Metric with hostname tagging.
+``ti.scheduled.<queue>.<dag_id>.<task_id>``          Number of scheduled tasks in a given Dag.
+``ti.scheduled``                                     Number of scheduled tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.queued.<queue>.<dag_id>.<task_id>``             Number of queued tasks in a given Dag.
+``ti.queued``                                        Number of queued tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
 ``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
 ``ti.running``                                       Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.deferred.<queue>.<dag_id>.<task_id>``           Number of deferred tasks in a given Dag.
+``ti.deferred``                                      Number of deferred tasks in a given Dag.
                                                      Metric with queue, dag_id and task_id tagging.
 ==================================================== ========================================================================
 

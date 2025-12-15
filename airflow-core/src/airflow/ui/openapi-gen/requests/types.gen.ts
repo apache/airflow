@@ -468,6 +468,7 @@ export type ConnectionBody = {
     port?: number | null;
     password?: string | null;
     extra?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -491,6 +492,7 @@ export type ConnectionResponse = {
     port: number | null;
     password: string | null;
     extra: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -2926,6 +2928,10 @@ export type GetTaskInstancesData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskDisplayNamePattern?: string | null;
+    /**
+     * Filter by exact task group ID. Returns all tasks within the specified task group.
+     */
+    taskGroupId?: string | null;
     taskId?: string | null;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;
