@@ -25,6 +25,7 @@
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
@@ -73,6 +74,9 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -100,6 +104,7 @@
     "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
+  "expandAllExtra": "Expand all extra JSON",
   "expression": {
     "all": "All",
     "and": "AND",
@@ -182,6 +187,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",

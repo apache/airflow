@@ -46,6 +46,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import (
@@ -83,7 +84,6 @@ from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _Dow
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main

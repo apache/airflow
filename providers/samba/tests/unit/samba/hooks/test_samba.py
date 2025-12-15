@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.samba.hooks.samba import SambaHook
 
 try:

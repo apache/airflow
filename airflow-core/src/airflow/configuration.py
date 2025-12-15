@@ -43,11 +43,11 @@ from airflow._shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     ValueNotFound,
 )
+from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -296,6 +296,9 @@ class AirflowConfigParser(_SharedAirflowConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
+        # uvicorn and gunicorn logging levels for web servers
+        ("logging", "uvicorn_logging_level"): _available_logging_levels,
+        ("logging", "gunicorn_logging_level"): _available_logging_levels,
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", "matomo", ""],
         ("api", "grid_view_sorting_order"): ["topological", "hierarchical_alphabetical"],
     }

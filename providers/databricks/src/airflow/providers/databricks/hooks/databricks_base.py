@@ -51,7 +51,8 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers_manager import ProvidersManager
 
 try:

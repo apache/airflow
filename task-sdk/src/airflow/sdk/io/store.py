@@ -78,7 +78,7 @@ class ObjectStore:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
     def serialize(self):
-        from airflow.sdk.module_loading import qualname
+        from airflow.sdk._shared.module_loading import qualname
 
         return {
             "protocol": self.protocol,

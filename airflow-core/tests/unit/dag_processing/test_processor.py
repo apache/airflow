@@ -1844,6 +1844,7 @@ class TestDagProcessingMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetDagRunState",
             "GetDRCount",
             "GetTaskBreadcrumbs",
@@ -1869,6 +1870,7 @@ class TestDagProcessingMessageTypes:
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "DagRunStateResult",
             "DRCount",
             "SentFDs",
