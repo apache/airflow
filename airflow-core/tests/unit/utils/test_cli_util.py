@@ -27,6 +27,7 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 import airflow
 from airflow import settings
@@ -175,7 +176,7 @@ class TestCliUtil:
             mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
             cli_action_loggers.default_action_log(**metrics)
 
-            log = session.query(Log).order_by(Log.dttm.desc()).first()
+            log = session.execute(select(Log).order_by(Log.dttm.desc())).scalars().first()
 
         assert metrics.get("start_datetime") <= timezone.utcnow()
 
@@ -234,7 +235,7 @@ class TestCliUtil:
             mock_create_session.return_value.bulk_insert_mappings = session.bulk_insert_mappings
             cli_action_loggers.default_action_log(**metrics)
 
-            log = session.query(Log).order_by(Log.dttm.desc()).first()
+            log = session.execute(select(Log).order_by(Log.dttm.desc())).scalars().first()
 
         assert metrics.get("start_datetime") <= timezone.utcnow()
 
