@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_er
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.static_checker import check_dag_file_static, get_warning_dag_format_dict
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -198,6 +199,7 @@ def _parse_file_entrypoint():
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)
+
     if result is not None:
         comms_decoder.send(result)
 
@@ -205,12 +207,15 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
+    warning_statement = check_dag_file_static(os.fspath(msg.file))
+
     bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
         load_op_links=False,
     )
+
     if msg.callback_requests:
         # If the request is for callback, we shouldn't serialize the DAGs
         _execute_callbacks(bag, msg.callback_requests, log)
@@ -222,8 +227,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        # TODO: Make `bag.dag_warnings` not return SQLA model objects
-        warnings=[],
+        warnings=get_warning_dag_format_dict(warning_statement, dag_ids=bag.dag_ids),
     )
     return result
 
@@ -506,10 +510,6 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
-        logger = kwargs["logger"]
-
-        _pre_import_airflow_modules(os.fspath(path), logger)
-
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
