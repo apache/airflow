@@ -67,7 +67,9 @@ version = "3.1.5"
 
 dependencies = [
     "a2wsgi>=1.10.8",
-    "aiosqlite>=0.20.0",
+    # aiosqlite 0.22.0 has a problem with hanging pytest sessions and we excluded it
+    # See https://github.com/omnilib/aiosqlite/issues/369
+    "aiosqlite>=0.20.0,!=0.22.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
