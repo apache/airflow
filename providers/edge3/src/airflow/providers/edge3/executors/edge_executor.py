@@ -179,7 +179,7 @@ class EdgeExecutor(BaseExecutor):
         lifeless_workers: list[EdgeWorkerModel] = session.scalars(
             select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeWorkerModel.state.not_in(
                     [
                         EdgeWorkerState.UNKNOWN,
@@ -214,7 +214,7 @@ class EdgeExecutor(BaseExecutor):
         lifeless_jobs: list[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeJobModel.state == TaskInstanceState.RUNNING,
                 EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
             )
@@ -255,7 +255,7 @@ class EdgeExecutor(BaseExecutor):
         jobs: list[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
-            .filter(
+            .where(
                 EdgeJobModel.state.in_(
                     [
                         TaskInstanceState.RUNNING,
