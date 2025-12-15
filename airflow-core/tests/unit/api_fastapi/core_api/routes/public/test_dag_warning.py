@@ -113,5 +113,9 @@ class TestGetDagWarnings:
     def test_get_dag_warnings_bad_request(self, test_client):
         response = test_client.get("/dagWarnings", params={"warning_type": "invalid"})
         response_json = response.json()
+        print(response_json)
         assert response.status_code == 422
-        assert response_json["detail"][0]["msg"] == "Input should be 'asset conflict' or 'non-existent pool'"
+        assert (
+            response_json["detail"][0]["msg"]
+            == "Input should be 'asset conflict', 'non-existent pool' or 'parsing error'"
+        )
