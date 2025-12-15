@@ -453,11 +453,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
         retry_number: int = 0
 
         while retry_number <= self.discover_pods_retry_number:
-            if len(pod_list) != self.parallelism:
-                pod_list = self.client.list_namespaced_pod(
-                    namespace=pod_request_obj.metadata.namespace,
-                    label_selector=label_selector,
-                ).items
+            if len(pod_list) == self.parallelism:
+                break
+            pod_list = self.client.list_namespaced_pod(
+                namespace=pod_request_obj.metadata.namespace,
+                label_selector=label_selector,
+            ).items
             retry_number += 1
 
         if len(pod_list) == 0:
