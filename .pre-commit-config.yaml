@@ -412,6 +412,7 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
