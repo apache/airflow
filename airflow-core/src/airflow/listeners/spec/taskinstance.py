@@ -56,10 +56,19 @@ def on_task_instance_skipped(
     task_instance: RuntimeTaskInstance | TaskInstance,
 ):
     """
-    Execute when task instance is skipped.
+    Execute when a task instance skips itself by raising AirflowSkipException.
 
-    This is called when a task raises AirflowSkipException, indicating
-    the task intentionally skipped its execution.
+    This hook is called only when a task has started execution and then
+    intentionally skips itself by raising AirflowSkipException.
+
+    Note: This does NOT cover tasks skipped by:
+        - Trigger rules (e.g., upstream failures)
+        - BranchPythonOperator (tasks not in selected branch)
+        - ShortCircuitOperator
+        - Scheduler-level decisions
+
+    For comprehensive skip tracking, use DAG-level listeners
+    (on_dag_run_success/on_dag_run_failed) which provide complete task state.
 
     :param previous_state: Previous state of the task instance (can be None)
     :param task_instance: The task instance object (RuntimeTaskInstance when called
