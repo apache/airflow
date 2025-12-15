@@ -170,8 +170,26 @@ cookie named ``_token`` before redirecting to the Airflow UI. The Airflow UI wil
     return response
 
 .. note::
-    Do not set the cookie parameter ``httponly`` to ``True``. Airflow UI needs to access the JWT token from the cookie.
+  Ensure that the cookie parameter ``httponly`` is set to ``True``. The UI does not manage the token.
 
+Refreshing JWT Token
+''''''''''''''''''''
+Refreshing token is optional feature and its availability depends on the specific implementation of the auth manager.
+The auth manager is responsible for refreshing the JWT token when it expires.
+The Airflow API uses middleware that intercepts every request and checks the validity of the JWT token.
+Token communication is handled through ``httponly`` cookies to improve security.
+When the token expires, the `JWTRefreshMiddleware <https://github.com/apache/airflow/blob/3.1.5/airflow-core/src/airflow/api_fastapi/auth/middlewares/refresh_token.py>`_ middleware calls the auth manager's ``refresh_user`` method to obtain a new token.
+
+
+To support token refresh operations, the auth manager must implement the ``refresh_user`` method.
+This method receives an expired token and must return a new valid token.
+User information is extracted from the expired token and used to generate a fresh token.
+
+An example implementation of ``refresh_user`` could be:
+`KeycloakAuthManager::refresh_user <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py#L113-L121>`_
+User information is derived from the ``BaseUser`` instance.
+It is important that the user object contains all the fields required to refresh the token. An example user class could be:
+`KeycloakAuthManagerUser(BaseUser) <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/user.pys>`_.
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
