@@ -43,8 +43,6 @@ from airflow.api_fastapi.common.types import MenuItem
 from airflow.configuration import AIRFLOW_HOME, conf
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.resource_details import (
         AccessView,
@@ -57,7 +55,6 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.models.hitl import HITLUser
 
 log = logging.getLogger(__name__)
 
@@ -286,12 +283,12 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     ) -> list[MenuItem]:
         return menu_items
 
-    def is_allowed(self, user_id: str, assigned_users: Sequence[HITLUser]) -> bool:
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: SimpleAuthManagerUser) -> bool:
         """
         Check if a user is allowed to approve/reject a HITL task.
 
         When simple_auth_manager_all_admins=True, all authenticated users are allowed
-        to approve/reject any task. Otherwise, the user must be in the assigned_users list.
+        to approve/reject any task. Otherwise, the user must be in the assigned_users set.
         """
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
 
@@ -303,9 +300,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         if not assigned_users:
             return True
 
-        # Check if user is in the assigned_users list
-        allowed = any(user["id"] == user_id for user in assigned_users)
-        return allowed
+        # Delegate to parent class for the actual authorization check
+        return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
     def get_fastapi_app(self) -> FastAPI | None:
         """

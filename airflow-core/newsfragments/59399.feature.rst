@@ -1,0 +1,1 @@
+Add ``is_authorized_hitl_task()`` method to fix ApprovalOperator authorization with SimpleAuthManager
