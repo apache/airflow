@@ -156,7 +156,7 @@ def clear_db():
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db, session):
     def _get_bundle_names_and_active():
-        return session.scalars(
+        return session.execute(
             select(DagBundleModel.name, DagBundleModel.active).order_by(DagBundleModel.name)
         ).all()
 
