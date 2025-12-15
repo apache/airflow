@@ -24,8 +24,8 @@ from keycloak import KeycloakAuthenticationError
 
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.services.token import (
+    create_client_credentials_token,
     create_token_for,
-    create_token_for_client_credentials,
 )
 
 from tests_common.test_utils.config import conf_vars
@@ -105,9 +105,7 @@ class TestTokenService:
         mock_get_auth_manager.return_value = mock_auth_manager
         mock_auth_manager.generate_jwt.return_value = self.token
 
-        result = create_token_for_client_credentials(
-            client_id=test_client_id, client_secret=test_client_secret
-        )
+        result = create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 
         assert result == self.token
         mock_get_keycloak_client.assert_called_once_with(
@@ -131,7 +129,7 @@ class TestTokenService:
         mock_get_keycloak_client.return_value = mock_keycloak_client
 
         with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
-            create_token_for_client_credentials(client_id=test_client_id, client_secret=test_client_secret)
+            create_client_credentials_token(client_id=test_client_id, client_secret=test_client_secret)
 
         assert exc_info.value.status_code == 401
         assert "Client credentials authentication failed" in exc_info.value.detail
