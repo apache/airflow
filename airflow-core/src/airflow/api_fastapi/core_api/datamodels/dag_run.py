@@ -127,9 +127,8 @@ class TriggerDAGRunPostBody(StrictBaseModel):
                 )
             else:
                 data_interval = dag.timetable.infer_manual_data_interval(
-                    run_after=coerced_logical_date or timezone.coerce_datetime(run_after)
+                    run_after=coerced_logical_date
                 )
-                run_after = data_interval.end
 
         run_id = self.dag_run_id or dag.timetable.generate_run_id(
             run_type=DagRunType.MANUAL,
