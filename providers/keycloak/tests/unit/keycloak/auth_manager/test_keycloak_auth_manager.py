@@ -121,7 +121,7 @@ class TestKeycloakAuthManager:
     def test_refresh_user_no_refresh_token(self, auth_manager):
         """Test that refresh_user returns None when refresh_token is empty (client_credentials case)."""
         user_without_refresh = Mock()
-        user_without_refresh.refresh_token = ""
+        user_without_refresh.refresh_token = None
         user_without_refresh.access_token = "access_token"
 
         result = auth_manager.refresh_user(user=user_without_refresh)
@@ -521,7 +521,9 @@ class TestKeycloakAuthManager:
         self, auth_manager, client_id, client_secret
     ):
         """Test that providing only client_id or only client_secret raises ValueError."""
-        with pytest.raises(ValueError, match="Both client_id and client_secret must be provided together"):
+        with pytest.raises(
+            ValueError, match="Both `client_id` and `client_secret` must be provided together"
+        ):
             auth_manager.get_keycloak_client(client_id=client_id, client_secret=client_secret)
 
     @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
