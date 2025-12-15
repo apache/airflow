@@ -83,13 +83,12 @@ def login_callback(request: Request):
 @login_router.get("/logout")
 def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
     """Log out the user from Keycloak."""
-    client = KeycloakAuthManager.get_keycloak_client()
-    keycloak_config = client.well_known()
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    keycloak_config = auth_manager.get_keycloak_client().well_known()
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
     # Use the refresh flow to get the id token, it avoids us to save the id token
-    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-    token_id = auth_manager.refresh_token(user=user).get("id_token")
+    token_id = auth_manager.refresh_tokens(user=user).get("id_token")
     post_logout_redirect_uri = request.url_for("logout_callback")
 
     if token_id:
