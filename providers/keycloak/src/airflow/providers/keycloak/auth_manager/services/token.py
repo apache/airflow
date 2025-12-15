@@ -90,7 +90,7 @@ def create_client_credentials_token(
         name=userinfo.get("preferred_username", userinfo.get("clientId", "service-account")),
         access_token=tokens["access_token"],
         refresh_token=tokens.get(
-            "refresh_token", ""
+            "refresh_token"
         ),  # client_credentials may not return refresh_token (RFC6749 section 4.4.3)
     )
 
