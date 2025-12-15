@@ -529,7 +529,11 @@ class TestPodManager:
         no_ts_message = "notimestamp"
         second_ts = "2020-10-08T15:16:18.793417674Z"
         second_message = "second message"
-        mock_read_pod_logs.return_value = [bytes(f"{ts} {message}", "utf-8"), bytes(no_ts_message, "utf-8"), bytes(f"{second_ts} {second_message}", "utf-8")]
+        mock_read_pod_logs.return_value = [
+            bytes(f"{ts} {message}", "utf-8"),
+            bytes(no_ts_message, "utf-8"),
+            bytes(f"{second_ts} {second_message}", "utf-8"),
+        ]
         mock_container_is_running.return_value = False
 
         self.pod_manager.fetch_container_logs(mock.MagicMock(), "base", follow=True)
