@@ -457,7 +457,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management start-release": [
         {
             "name": "Start release flags",
-            "options": ["--release-candidate", "--previous-release", "--task-sdk-release-candidate"],
+            "options": ["--version", "--previous-release", "--task-sdk-version"],
         }
     ],
     "breeze release-management update-constraints": [
