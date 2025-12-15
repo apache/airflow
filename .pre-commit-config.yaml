@@ -733,7 +733,7 @@ repos:
         files: ^airflow-core/src/airflow/ui/|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ./scripts/ci/prek/compile_ui_assets.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         language: node
@@ -742,7 +742,7 @@ repos:
         files: ^airflow-core/src/airflow/ui/|^airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ./scripts/ci/prek/compile_ui_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
       - id: check-integrations-list-consistent
         name: Sync integrations list with docs
         entry: ./scripts/ci/prek/check_integrations_list.py
@@ -1007,7 +1007,7 @@ repos:
           ^airflow-core/src/airflow/ui/node-modules/.*|
           ^airflow-core/src/airflow/ui/.pnpm-store
         entry: ./scripts/ci/prek/ts_compile_lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
       - id: ts-compile-lint-simple-auth-manager-ui
@@ -1024,7 +1024,7 @@ repos:
           ^airflow-core/src/airflow/api_fastapi/node-modules/.*|
           ^airflow-core/src/airflow/api_fastapi/.pnpm-store
         entry: ./scripts/ci/prek/ts_compile_lint_simple_auth_manager_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
