@@ -82,7 +82,7 @@ def test_get_dagrun_airflow2():
 
     session = MagicMock()
     dag = MagicMock(dag_id=DAG_ID)
-    session.query.return_value.filter.return_value.one.return_value = DagRun()
+    session.scalars.return_value.one.return_value = DagRun()
 
     result = _get_dagrun(dag, RUN_ID, session=session)
 
