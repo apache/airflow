@@ -104,14 +104,14 @@ def test_remove_old_releases_returns_early_when_user_declines(monkeypatch, rc_cm
 
 
 def test_remove_old_releases_removes_confirmed_old_releases(monkeypatch, rc_cmd):
-    version = "2.10.0rc3"
+    version = "3.1.5rc3"
     repo_root = "/repo/root"
 
     # Unsorted on purpose to verify sorting before prompting/removing.
     entries = [
-        FakeDirEntry("2.10.0rc2", is_dir=True),
+        FakeDirEntry("3.1.5rc2", is_dir=True),
         FakeDirEntry(version, is_dir=True),
-        FakeDirEntry("2.10.0rc1", is_dir=True),
+        FakeDirEntry("3.1.0rc1", is_dir=True),
     ]
 
     chdir_calls: list[str] = []
@@ -123,9 +123,9 @@ def test_remove_old_releases_removes_confirmed_old_releases(monkeypatch, rc_cmd)
         confirm_prompts.append(prompt)
         if prompt == "Do you want to look for old RCs to remove?":
             return True
-        if prompt == "Remove old RC 2.10.0rc1?":
+        if prompt == "Remove old RC 3.1.0rc1?":
             return True
-        if prompt == "Remove old RC 2.10.0rc2?":
+        if prompt == "Remove old RC 3.1.5rc2?":
             return False
         raise AssertionError(f"Unexpected confirm prompt: {prompt}")
 
@@ -144,16 +144,16 @@ def test_remove_old_releases_removes_confirmed_old_releases(monkeypatch, rc_cmd)
     assert chdir_calls == [f"{repo_root}/asf-dist/dev/airflow", repo_root]
     assert confirm_prompts == [
         "Do you want to look for old RCs to remove?",
-        "Remove old RC 2.10.0rc1?",
-        "Remove old RC 2.10.0rc2?",
+        "Remove old RC 3.1.0rc1?",
+        "Remove old RC 3.1.5rc2?",
     ]
-    assert "The following old releases should be removed: ['2.10.0rc1', '2.10.0rc2']" in console_messages
-    assert "Removing old release 2.10.0rc1" in console_messages
-    assert "Removing old release 2.10.0rc2" in console_messages
+    assert "The following old releases should be removed: ['3.1.0rc1', '3.1.5rc2']" in console_messages
+    assert "Removing old release 3.1.0rc1" in console_messages
+    assert "Removing old release 3.1.5rc2" in console_messages
     assert "[success]Old releases removed" in console_messages
 
     # Only rc1 was confirmed, so we should run rm+commit for rc1 only.
     assert run_command_calls == [
-        (["svn", "rm", "2.10.0rc1"], {"check": True}),
-        (["svn", "commit", "-m", "Remove old release: 2.10.0rc1"], {"check": True}),
+        (["svn", "rm", "3.1.0rc1"], {"check": True}),
+        (["svn", "commit", "-m", "Remove old release: 3.1.0rc1"], {"check": True}),
     ]
