@@ -153,10 +153,9 @@ export const AssetsList = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={namePattern}
           onChange={handleSearchChange}
-          placeHolder={translate("searchPlaceholder")}
+          placeholder={translate("searchPlaceholder")}
         />
 
         <Flex alignItems="center" justifyContent="space-between">
@@ -165,8 +164,8 @@ export const AssetsList = () => {
           </Heading>
 
           <ExpandCollapseButtons
-            collapseLabel={translate("collapseAllExtra")}
-            expandLabel={translate("expandAllExtra")}
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
             onCollapse={onClose}
             onExpand={onOpen}
           />

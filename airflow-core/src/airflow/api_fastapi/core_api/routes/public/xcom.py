@@ -61,7 +61,7 @@ xcom_router = AirflowRouter(
 
 
 @xcom_router.get(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -292,7 +292,7 @@ def create_xcom_entry(
 
 
 @xcom_router.patch(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [

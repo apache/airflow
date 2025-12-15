@@ -2335,6 +2335,7 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
@@ -2389,6 +2390,7 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                task_group_id: data.taskGroupId,
                 dag_id_pattern: data.dagIdPattern,
                 run_id_pattern: data.runIdPattern,
                 state: data.state,
@@ -4046,7 +4048,7 @@ export class TeamsService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      * @returns TeamCollectionResponse Successful Response
      * @throws ApiError
      */
