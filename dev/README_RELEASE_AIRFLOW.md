@@ -1003,25 +1003,19 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 
 ```shell script
 export VERSION=3.1.3
-export VERSION_SUFFIX=rc1
-export VERSION_RC=${VERSION}${VERSION_SUFFIX}
 export TASK_SDK_VERSION=1.1.3
-export TASK_SDK_VERSION_RC=${TASK_SDK_VERSION}${VERSION_SUFFIX}
 export PREVIOUS_RELEASE=3.1.2
 # cd to the airflow repo directory and set the environment variable below
 export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
-    --release-candidate ${VERSION_RC} \
+    --version ${VERSION} \
     --previous-release ${PREVIOUS_RELEASE} \
-    --task-sdk-release-candidate ${TASK_SDK_VERSION_RC}
+    --task-sdk-version ${TASK_SDK_VERSION}
 ```
 
-Note: The `--task-sdk-release-candidate` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
+Note: The `--task-sdk-version` parameter is optional. If you are releasing Airflow without a corresponding Task SDK release, you can omit this parameter.
 
-```Dockerfile
-ARG AIRFLOW_EXTRAS=".....,<provider>,...."
-```
 
 4. Make sure to update Airflow version in ``v3-*-test`` branch after cherry-picking to X.Y.1 in
    ``airflow/__init__.py``
