@@ -69,7 +69,6 @@ if TYPE_CHECKING:
         DagAccessEntity,
     )
     from airflow.cli.cli_config import CLICommand
-    from airflow.models.hitl import HITLUser
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
