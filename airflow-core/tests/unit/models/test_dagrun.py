@@ -1404,7 +1404,7 @@ def test_expand_mapped_task_instance_at_create(is_noop, dag_maker, session):
             .where(TI.task_id == mapped.task_id, TI.dag_id == mapped.dag_id, TI.run_id == dr.run_id)
             .order_by(TI.map_index)
         ).all()
-        assert indices == [(0,), (1,), (2,), (3,)]
+        assert indices == [0, 1, 2, 3]
 
 
 @pytest.mark.parametrize("is_noop", [True, False])
@@ -1426,7 +1426,7 @@ def test_expand_mapped_task_instance_task_decorator(is_noop, dag_maker, session)
             .where(TI.task_id == "mynameis", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
             .order_by(TI.map_index)
         ).all()
-        assert indices == [(0,), (1,), (2,), (3,)]
+        assert indices == [0, 1, 2, 3]
 
 
 def test_mapped_literal_verify_integrity(dag_maker, session):
@@ -1788,12 +1788,12 @@ def test_mapped_mixed_literal_not_expanded_at_create(dag_maker, session):
         .order_by(TI.map_index)
     )
 
-    assert query.all() == [(-1, None)]
+    assert session.execute(query).all() == [(-1, None)]
 
     # Verify_integrity shouldn't change the result now that the TIs exist
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
-    assert query.all() == [(-1, None)]
+    assert session.execute(query).all() == [(-1, None)]
 
 
 def test_mapped_task_group_expands_at_create(dag_maker, session):
@@ -1824,7 +1824,7 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
         .where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.task_id, TI.map_index)
     )
-    assert query.all() == [
+    assert session.execute(query).all() == [
         ("tg.t1", 0, None),
         ("tg.t1", 1, None),
         # ("tg.t2", 0, None),
