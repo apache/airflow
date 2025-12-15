@@ -453,6 +453,7 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
+    PARSING_ERROR = "parsing error"
 
 
 class DryRunBackfillResponse(BaseModel):
