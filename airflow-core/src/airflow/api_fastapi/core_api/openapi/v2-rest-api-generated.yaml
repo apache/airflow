@@ -9744,6 +9744,12 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -9810,6 +9816,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - connection_id
@@ -9821,6 +9832,7 @@ components:
       - port
       - password
       - extra
+      - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
     ConnectionTestResponse:
