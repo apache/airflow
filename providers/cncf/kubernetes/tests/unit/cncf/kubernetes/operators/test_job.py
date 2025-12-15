@@ -870,7 +870,7 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_not_called()
         mock_serialize.assert_not_called()
 
-    @pytest.mark.parametrize("parallelism", [None, 2])
+    @pytest.mark.parametrize("parallelism", [1, 2])
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.extract_xcom"))
@@ -928,7 +928,7 @@ class TestKubernetesJobOperator:
             mocked_fetch_logs.assert_not_called()
 
     @pytest.mark.parametrize("retries", [3, 0])
-    @pytest.mark.parametrize("parallelism", [None, 2])
+    @pytest.mark.parametrize("parallelism", [1, 2])
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.log_matching_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._build_find_pod_label_selector"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"), new_callable=mock.PropertyMock)

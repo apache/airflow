@@ -81,7 +81,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param completion_mode: CompletionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.
     :param completions: Specifies the desired number of successfully finished pods the job should be run with.
     :param manual_selector: manualSelector controls generation of pod labels and pod selectors.
-    :param parallelism: Specifies the maximum desired number of pods the job should run at any given time.
+    :param parallelism: Specifies the maximum desired number of pods the job should run at any given time. Defaults to 1
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
@@ -115,7 +115,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         completion_mode: str | None = None,
         completions: int | None = None,
         manual_selector: bool | None = None,
-        parallelism: int | None = None,
+        parallelism: int = 1,
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
@@ -451,13 +451,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list: Sequence[k8s.V1Pod] = []
         retry_number: int = 0
-        parallelism = self.parallelism or 1  # Default to using single pod parallelism
 
-        while len(pod_list) != parallelism or retry_number <= self.discover_pods_retry_number:
-            pod_list = self.client.list_namespaced_pod(
-                namespace=pod_request_obj.metadata.namespace,
-                label_selector=label_selector,
-            ).items
+        while retry_number <= self.discover_pods_retry_number:
+            if len(pod_list) != self.parallelism:
+                pod_list = self.client.list_namespaced_pod(
+                    namespace=pod_request_obj.metadata.namespace,
+                    label_selector=label_selector,
+                ).items
             retry_number += 1
 
         if len(pod_list) == 0:
