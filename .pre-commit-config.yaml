@@ -32,7 +32,7 @@ repos:
         name: Check if all hooks apply to the repository
   - repo: https://github.com/eclipse-csi/octopin
     # We need this commit because if supports two spaces before comments (yamllint compatibility)
-    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
+    rev: 74fd075c7b326c771cd95ca86c59cbe65f0dda37
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)
@@ -412,6 +412,8 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
