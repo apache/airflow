@@ -416,6 +416,7 @@ repos:
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
             ^airflow-core/tests/unit/models/test_timestamp.py$|
             ^airflow-core/tests/unit/utils/test_cli_util.py$|
+            ^airflow-core/tests/unit/timetables/test_assets_timetable.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions

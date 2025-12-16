@@ -274,7 +274,7 @@ class TestAssetConditionWithTimetable:
         from airflow.assets.evaluation import AssetEvaluator
 
         assets = create_test_assets
-        asset_models = session.query(AssetModel).all()
+        asset_models = session.scalars(select(AssetModel)).all()
         evaluator = AssetEvaluator(session)
 
         with dag_maker(schedule=AssetAny(*assets)) as dag:
