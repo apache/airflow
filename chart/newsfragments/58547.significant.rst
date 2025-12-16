@@ -1,0 +1,8 @@
+Support for Multiple Celery Worker Sets in the Helm Chart
+
+Helm chart behavior related to Celery worker configuration has changed.
+Multiple worker sets can now be configured, which affects how worker sets are rendered and scaled.
+Users upgrading the chart should review their Helm values if they relied on the previous
+single worker behavior.
+
+See `Helm PR #58547 <https://github.com/apache/airflow/pull/58547>`_ for details.
