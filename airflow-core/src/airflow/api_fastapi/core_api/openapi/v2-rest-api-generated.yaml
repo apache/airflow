@@ -6499,6 +6499,18 @@ paths:
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: task_group_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by exact task group ID. Returns all tasks within the
+            specified task group.
+          title: Task Group Id
+        description: Filter by exact task group ID. Returns all tasks within the specified
+          task group.
       - name: state
         in: query
         required: false

@@ -2315,6 +2315,7 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
      * @param data.state
      * @param data.pool
      * @param data.queue
@@ -2364,6 +2365,7 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                task_group_id: data.taskGroupId,
                 state: data.state,
                 pool: data.pool,
                 queue: data.queue,
