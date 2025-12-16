@@ -421,6 +421,7 @@ repos:
             ^airflow-core/tests/unit/assets/test_manager.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py$|
             ^airflow-core/tests/integration/otel/test_otel.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
