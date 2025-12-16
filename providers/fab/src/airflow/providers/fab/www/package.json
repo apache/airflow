@@ -71,6 +71,9 @@
     "jquery-ui": "^1.14.1",
     "moment-timezone": "^0.6.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  },
   "resolutions": {
     "moment-timezone": ">=0.5.35"
   }
