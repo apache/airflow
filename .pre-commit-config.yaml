@@ -180,6 +180,18 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: check-version-consistency
+        name: Check version consistency
+        entry: ./scripts/ci/prek/check_version_consistency.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/__init__\.py$|
+          ^airflow-core/pyproject\.toml$|
+          ^task-sdk/src/airflow/sdk/__init__\.py$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
