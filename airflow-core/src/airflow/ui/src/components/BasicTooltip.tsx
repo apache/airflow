@@ -18,7 +18,7 @@
  */
 import { Box, Portal } from "@chakra-ui/react";
 import type { ReactElement, ReactNode } from "react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type Props = {
   readonly children: ReactNode;
@@ -34,23 +34,23 @@ export const BasicTooltip = ({ children, content }: Props): ReactElement => {
   const [showOnTop, setShowOnTop] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleMouseEnter = useCallback(() => {
+  const handleMouseEnter = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
       setIsOpen(true);
     }, 500);
-  }, []);
+  };
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave = () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       // eslint-disable-next-line unicorn/no-null
       timeoutRef.current = null;
     }
     setIsOpen(false);
-  }, []);
+  };
 
   // Calculate position based on actual tooltip height before paint
   useLayoutEffect(() => {

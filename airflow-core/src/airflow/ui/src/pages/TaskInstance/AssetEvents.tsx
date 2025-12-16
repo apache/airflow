@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -57,33 +57,27 @@ export const AssetEvents = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setAssetNameSearch(value);
-      // Reset pagination when searching
-      setTableURLState({
-        ...tableURLState,
-        pagination: { ...pagination, pageIndex: 0 },
-      });
-      if (value) {
-        searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
-      } else {
-        searchParams.delete(SearchParamsKeys.NAME_PATTERN);
-      }
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, tableURLState],
-  );
+  const handleSearchChange = (value: string) => {
+    setAssetNameSearch(value);
+    // Reset pagination when searching
+    setTableURLState({
+      ...tableURLState,
+      pagination: { ...pagination, pageIndex: 0 },
+    });
+    if (value) {
+      searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
+    } else {
+      searchParams.delete(SearchParamsKeys.NAME_PATTERN);
+    }
+    setSearchParams(searchParams);
+  };
 
-  const handleOrderByChange = useCallback(
-    (order: string) => {
-      setTableURLState({
-        ...tableURLState,
-        sorting: [{ desc: order.startsWith("-"), id: order.startsWith("-") ? order.slice(1) : order }],
-      });
-    },
-    [setTableURLState, tableURLState],
-  );
+  const handleOrderByChange = (order: string) => {
+    setTableURLState({
+      ...tableURLState,
+      sorting: [{ desc: order.startsWith("-"), id: order.startsWith("-") ? order.slice(1) : order }],
+    });
+  };
 
   const orderBy =
     sorting.length > 0 && sorting[0] ? [`${sorting[0].desc ? "-" : ""}${sorting[0].id}`] : ["-timestamp"];
