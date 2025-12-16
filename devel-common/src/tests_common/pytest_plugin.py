@@ -35,7 +35,15 @@ from unittest import mock
 
 import pytest
 import time_machine
-from _pytest.config.findpaths import ConfigValue
+try:
+    from _pytest.config.findpaths import ConfigValue
+except ImportError:
+    # Fallback for newer pytest where ConfigValue might be removed or private
+    class ConfigValue:
+        def __init__(self, value, origin, mode):
+            self.value = value
+            self.origin = origin
+            self.mode = mode
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -790,8 +798,8 @@ def frozen_sleep(monkeypatch):
         traveller.stop()
 
 
-@pytest.fixture
-def time_machine():
+@pytest.fixture(name="time_machine")
+def time_machine_fixture():
     """
     Provide a time_machine fixture for controlling time in tests.
 
@@ -805,11 +813,9 @@ def time_machine():
             time_machine.shift(10)  # Move forward 10 seconds
     """
     import time_machine as tm_module
-    
-    coordinator = tm_module.travel(datetime.now(tz=timezone.utc), tick=False)
-    coordinator.start()
 
-    yield coordinator
+    coordinator = tm_module.travel(datetime.now(tz=timezone.utc), tick=False)
+    yield coordinator.start()
 
     coordinator.stop()
 
