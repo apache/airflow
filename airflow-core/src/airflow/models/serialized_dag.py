@@ -435,53 +435,6 @@ class SerializedDagModel(Base):
             serialized_dag.deadline_alerts.append(alert)
 
     @classmethod
-    def _get_existing_deadline_uuids(
-        cls,
-        dag_version_id: str,
-        session: Session,
-    ) -> list[str] | None:
-        """
-        Extract deadline UUIDs from an existing serialized_dag without loading the full serialized_dag.
-
-        :param dag_version_id: The dag_version ID to fetch deadline UUIDs for
-        :param session: Database session
-        """
-        dialect = get_dialect_name(session)
-
-        if COMPRESS_SERIALIZED_DAGS:
-            compressed_data = session.scalar(
-                select(cls._data_compressed).where(cls.dag_version_id == dag_version_id)
-            )
-            if compressed_data:
-                full_data = json.loads(zlib.decompress(compressed_data))
-                return full_data.get("dag", {}).get("deadline")
-        else:
-            if dialect == "postgresql":
-                deadline_uuids = session.scalar(
-                    select(cls._data.op("#>")(literal('{"dag","deadline"}'))).where(
-                        cls.dag_version_id == dag_version_id
-                    )
-                )
-                return deadline_uuids
-            if dialect in ["sqlite", "mysql"]:
-                deadline_json = session.scalar(
-                    select(func.json_extract(cls._data, "$.dag.deadline")).where(
-                        cls.dag_version_id == dag_version_id
-                    )
-                )
-                if deadline_json:
-                    return json.loads(deadline_json) if isinstance(deadline_json, str) else deadline_json
-            else:
-                deadline_json = session.scalar(
-                    select(func.json_extract_path(cls._data, "dag", "deadline")).where(
-                        cls.dag_version_id == dag_version_id
-                    )
-                )
-                return deadline_json
-
-        return None
-
-    @classmethod
     @provide_session
     def write_dag(
         cls,
