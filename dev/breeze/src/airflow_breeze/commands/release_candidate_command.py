@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 from datetime import date
@@ -48,6 +49,8 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -585,30 +588,53 @@ def push_release_candidate_tag_to_github(version, remote_name):
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
-def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
-        return
+def remove_old_releases(version, task_sdk_version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
     os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
+    # Remove old Airflow releases
     old_releases = []
     for entry in os.scandir():
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and entry.name.startswith("2."):
+        if entry.is_dir() and RC_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
-
+    console_print(f"The following old Airflow releases should be removed: {old_releases}")
     for old_release in old_releases:
+        console_print(f"Removing old Airflow release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
             run_command(["svn", "rm", old_release], check=True)
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
                 check=True,
             )
+
+    # Remove old Task SDK releases
+    task_sdk_path = f"{repo_root}/asf-dist/dev/airflow/task-sdk"
+    if os.path.exists(task_sdk_path):
+        os.chdir(task_sdk_path)
+        old_task_sdk_releases = []
+        for entry in os.scandir():
+            if entry.name == task_sdk_version:
+                # Don't remove the current RC
+                continue
+            if entry.is_dir() and RC_PATTERN.match(entry.name):
+                old_task_sdk_releases.append(entry.name)
+        old_task_sdk_releases.sort()
+        console_print(f"The following old Task SDK releases should be removed: {old_task_sdk_releases}")
+        for old_release in old_task_sdk_releases:
+            console_print(f"Removing old Task SDK release {old_release}")
+            if confirm_action(f"Remove old Task SDK RC {old_release}?"):
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
+                    check=True,
+                )
+
     console_print("[success]Old releases removed")
     os.chdir(repo_root)
 
@@ -756,7 +782,7 @@ def publish_release_candidate(
     push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
 
     # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
+    remove_old_releases(version, task_sdk_version, airflow_repo_root)
 
     # Delete asf-dist directory
     delete_asf_repo(airflow_repo_root)
