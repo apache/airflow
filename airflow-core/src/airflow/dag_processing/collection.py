@@ -94,22 +94,24 @@ def _create_orm_dags(
 
 def _get_latest_runs_stmt(dag_id: str) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
+    max_logical_date = (
+        select(func.max(DagRun.logical_date))
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_type.in_(
+                (
+                    DagRunType.BACKFILL_JOB,
+                    DagRunType.SCHEDULED,
+                )
+            ),
+        )
+        .scalar_subquery()
+    )
     return (
         select(DagRun)
         .where(
             DagRun.dag_id == dag_id,
-            (
-                DagRun.logical_date
-                == select(func.max(DagRun.logical_date)).where(
-                    DagRun.dag_id == dag_id,
-                    DagRun.run_type.in_(
-                        (
-                            DagRunType.BACKFILL_JOB,
-                            DagRunType.SCHEDULED,
-                        )
-                    ),
-                )
-            ),
+            DagRun.logical_date == max_logical_date,
         )
         .options(
             load_only(
