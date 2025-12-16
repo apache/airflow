@@ -230,7 +230,7 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
-def check_container_engine(quiet: bool = False):
+def check_container_engine_is_docker(quiet: bool = False) -> bool:
     """Checks if the container engine is Docker or podman."""
     response = run_command(
         ["docker", "version"],
@@ -253,11 +253,15 @@ def check_container_engine(quiet: bool = False):
         "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
     )
     if podman_engine_enabled:
-        get_console().print(
-            "[error]Podman is not yet supported as a container engine in breeze.[/]\n"
-            "[warning]Please switch to Docker.[/]"
-        )
-        sys.exit(1)
+        if not quiet:
+            get_console().print(
+                "[warning]Podman container engine detected. Using Podman compatibility mode.[/]\n"
+                "[warning]Some features may be limited or disabled.[/]"
+            )
+        return False
+    if not quiet:
+        get_console().print("[success]Docker container engine detected.[/]")
+    return True
 
 
 def check_remote_ghcr_io_commands():
@@ -404,25 +408,26 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
     :return: command to use as docker build command
     """
     build_command_param = []
-    is_buildx_available = check_if_buildx_plugin_installed()
-    if is_buildx_available:
-        build_command_param.extend(
-            [
-                "buildx",
-                "build",
-                "--push" if image_params.push else "--load",
-            ]
-        )
-        if not image_params.docker_host:
-            builder = get_and_use_docker_context(image_params.builder)
+    if check_container_engine_is_docker():
+        is_buildx_available = check_if_buildx_plugin_installed()
+        if is_buildx_available:
             build_command_param.extend(
                 [
-                    "--builder",
-                    builder,
+                    "buildx",
+                    "build",
+                    "--push" if image_params.push else "--load",
                 ]
             )
-            if builder != "default":
-                build_command_param.append("--load")
+            if not image_params.docker_host:
+                builder = get_and_use_docker_context(image_params.builder)
+                build_command_param.extend(
+                    [
+                        "--builder",
+                        builder,
+                    ]
+                )
+                if builder != "default":
+                    build_command_param.append("--load")
     else:
         build_command_param.append("build")
     return build_command_param
@@ -538,9 +543,9 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    check_container_engine(quiet)
-    check_docker_version(quiet)
-    check_docker_compose_version(quiet)
+    if check_container_engine_is_docker(quiet):
+        check_docker_version(quiet)
+        check_docker_compose_version(quiet)
     check_executable_entrypoint_permissions(quiet)
     if not quiet:
         get_console().print(f"[success]Host python version is {sys.version}[/]")
