@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.2.22'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -40,7 +40,7 @@ repos:
         language: python
         language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
+    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -200,7 +200,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
+    rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
