@@ -868,7 +868,7 @@ class TriggerRunner:
     events: PartitionedQueue[int, tuple[int, events.TriggerEvent]]
 
     # Outbound queue of failed triggers
-    failed_triggers: KeyedHeadQueue[int, tuple[int, BaseTrigger | None, BaseException | None]]
+    failed_triggers: KeyedHeadQueue[int, tuple[int, dict[str, Any] | None, BaseException | None]]
 
     # Should-we-stop flag
     # TODO: set this in a sig-int handler
