@@ -1165,4 +1165,7 @@ def test_python_task():
     decorator = python_task(dummy_task)
 
     assert isinstance(decorator, _TaskDecorator)
+    assert decorator.function == dummy_task
     assert decorator.operator_class == _PythonDecoratedOperator
+    assert not decorator.multiple_outputs
+    assert not decorator.kwargs
