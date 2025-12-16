@@ -880,8 +880,8 @@ class FileTaskHandler(logging.Handler):
             if response.status_code == 403:
                 sources.append(
                     "!!!! Please make sure that all your Airflow components (e.g. "
-                    "schedulers, webservers, workers and triggerer) have "
-                    "the same 'secret_key' configured in 'webserver' section and "
+                    "schedulers, api-servers, dag-processors, workers and triggerer) have "
+                    "the same 'secret_key' configured in '[api]' section and "
                     "time is synchronized on all your machines (for example with ntpd)\n"
                     "See more at https://airflow.apache.org/docs/apache-airflow/"
                     "stable/configurations-ref.html#secret-key"
