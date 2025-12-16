@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -340,11 +340,9 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == total_entries
         for each in body["dag_runs"]:
-            run = (
-                session.query(DagRun)
-                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
-                .one()
-            )
+            run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
+            ).one()
             assert each == get_dag_run_dict(run)
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -821,7 +819,7 @@ class TestListDagRunsBatch:
         body = response.json()
         assert body["total_entries"] == 4
         for each in body["dag_runs"]:
-            run = session.query(DagRun).where(DagRun.run_id == each["dag_run_id"]).one()
+            run = session.scalars(select(DagRun).where(DagRun.run_id == each["dag_run_id"])).one()
             expected = get_dag_run_dict(run)
             assert each == expected
 
@@ -1344,7 +1342,7 @@ class TestGetDagRunAssetTriggerEvents:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).filter_by(uri=asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
             source_task_id=ti.task_id,
@@ -1476,10 +1474,10 @@ class TestClearDagRun:
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
         assert dag_run.state == DAG1_RUN1_STATE
 
-        logs = (
-            session.query(Log)
-            .filter(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
-            .count()
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
         )
         assert logs == 0
 
@@ -1572,9 +1570,9 @@ class TestTriggerDagRun:
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
         expected_logical_date = fixed_now.replace("+00:00", "Z")
 
-        run = (
-            session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
-        )
+        run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id)
+        ).one()
 
         expected_response_json = {
             "bundle_version": None,
@@ -1907,7 +1905,7 @@ class TestTriggerDagRun:
         run_id_with_logical_date = response.json()["dag_run_id"]
         assert run_id_with_logical_date.startswith("custom_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_with_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_with_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
         response = test_client.post(
@@ -1918,7 +1916,7 @@ class TestTriggerDagRun:
         run_id_without_logical_date = response.json()["dag_run_id"]
         assert run_id_without_logical_date.startswith("custom_manual_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_without_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
 
