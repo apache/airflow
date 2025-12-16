@@ -692,6 +692,16 @@ workers:
   # Airflow Celery workers and pods created with pod-template-file
   containerLifecycleHooks: {}
 
+  # Worker pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
     # default value is true
@@ -1933,6 +1943,16 @@ triggerer:
     fixPermissions: false
     # Annotations to add to triggerer volumes
     annotations: {}
+
+  # Triggerer pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
 
   resources: {}
   #  limits:
