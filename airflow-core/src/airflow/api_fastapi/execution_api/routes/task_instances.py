@@ -482,7 +482,7 @@ def _create_ti_state_update_query_and_update_state(
             if ti is not None:
                 TI.register_asset_changes_in_db(
                     ti,
-                    ti_patch_payload.task_outlets,  # type: ignore
+                    ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
                     session,
                 )
