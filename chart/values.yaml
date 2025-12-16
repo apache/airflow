@@ -637,30 +637,6 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # List of worker sets. Each item can override values from the parent 'workers' section.
-  sets: []
-  # sets:
-  #   - name: highcpu
-  #     replicas: 2
-  #     queue: "highcpu"
-  #     resources:
-  #       requests:
-  #         memory: "2Gi"
-  #         cpu: "4000m"
-  #       limits:
-  #         memory: "4Gi"
-  #         cpu: "8000m"
-  #   - name: highmem
-  #     replicas: 2
-  #     queue: "highmem"
-  #     resources:
-  #       requests:
-  #         memory: "4Gi"
-  #         cpu: "2000m"
-  #       limits:
-  #         memory: "8Gi"
-  #         cpu: "4000m"
-
   # Enable the default worker defined by the root 'workers' configuration.
   # If false, only workers defined in 'sets' will be created.
   enableDefault: true
@@ -1095,6 +1071,29 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+    # List of worker sets. Each item can override values from the parent 'workers' section.
+    sets: []
+    # sets:
+    #   - name: highcpu
+    #     replicas: 2
+    #     queue: "highcpu"
+    #     resources:
+    #       requests:
+    #         memory: "2Gi"
+    #         cpu: "4000m"
+    #       limits:
+    #         memory: "4Gi"
+    #         cpu: "8000m"
+    #   - name: highmem
+    #     replicas: 2
+    #     queue: "highmem"
+    #     resources:
+    #       requests:
+    #         memory: "4Gi"
+    #         cpu: "2000m"
+    #       limits:
+    #         memory: "8Gi"
+    #         cpu: "4000m"
 
     # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
     updateStrategy: ~

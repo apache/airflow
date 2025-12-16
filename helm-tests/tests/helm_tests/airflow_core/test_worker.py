@@ -2085,10 +2085,12 @@ class TestWorkerSets:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "sets": [
-                        {"name": "set1"},
-                        {"name": "set2"},
-                    ]
+                    "celery": {
+                        "sets": [
+                            {"name": "set1"},
+                            {"name": "set2"},
+                        ]
+                    }
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2107,14 +2109,16 @@ class TestWorkerSets:
                 "workers": {
                     "replicas": 1,
                     "resources": {"requests": {"cpu": "100m"}},
-                    "sets": [
-                        {
-                            "name": "high-cpu",
-                            "replicas": 3,
-                            "resources": {"requests": {"cpu": "2"}},
-                            "queue": "high-cpu-queue",
-                        }
-                    ],
+                    "celery": {
+                        "sets": [
+                            {
+                                "name": "high-cpu",
+                                "replicas": 3,
+                                "resources": {"requests": {"cpu": "2"}},
+                                "queue": "high-cpu-queue",
+                            }
+                        ]
+                    },
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2138,7 +2142,7 @@ class TestWorkerSets:
                 "workers": {
                     "replicas": 2,
                     "resources": {"requests": {"cpu": "500m"}},
-                    "sets": [{"name": "default-set"}],
+                    "celery": {"sets": [{"name": "default-set"}]},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2159,7 +2163,7 @@ class TestWorkerSets:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "persistence": {"enabled": False},
-                    "sets": [{"name": "stateful-set", "persistence": {"enabled": True}}],
+                    "celery": {"sets": [{"name": "stateful-set", "persistence": {"enabled": True}}]},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2181,7 +2185,7 @@ class TestWorkerSets:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "keda": {"enabled": True},
-                    "sets": [{"name": "keda-set", "keda": {"enabled": True}}],
+                    "celery": {"sets": [{"name": "keda-set", "keda": {"enabled": True}}]},
                 },
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -2198,7 +2202,7 @@ class TestWorkerSets:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "hpa": {"enabled": True},
-                    "sets": [{"name": "hpa-set", "hpa": {"enabled": True}}],
+                    "celery": {"sets": [{"name": "hpa-set", "hpa": {"enabled": True}}]},
                 },
             },
             show_only=["templates/workers/worker-hpa.yaml"],
@@ -2215,9 +2219,11 @@ class TestWorkerSets:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "enableDefault": False,
-                    "sets": [
-                        {"name": "set1"},
-                    ],
+                    "celery": {
+                        "sets": [
+                            {"name": "set1"},
+                        ]
+                    },
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2234,7 +2240,7 @@ class TestWorkerSets:
                 "executor": "CeleryExecutor",
                 "workers": {
                     "enableDefault": False,
-                    "sets": [],
+                    "celery": {"sets": []},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],

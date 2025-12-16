@@ -1634,15 +1634,6 @@
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
-                "sets": {
-                    "description": "List of worker sets. Each item can override values from the parent 'workers' section.",
-                    "type": "array",
-                    "default": [],
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": {}
-                    }
-                },
                 "enableDefault": {
                     "description": "Enable the default worker defined by the root 'workers' configuration.",
                     "type": "boolean",
@@ -2712,6 +2703,15 @@
                                 "OrderedReady",
                                 "Parallel"
                             ]
+                        },
+                        "sets": {
+                            "description": "List of worker sets. Each item can override values from the parent 'workers' section.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
                         },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
