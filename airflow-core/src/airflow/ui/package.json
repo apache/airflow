@@ -113,7 +113,10 @@
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.2.4",
     "web-worker": "^1.5.0",
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
