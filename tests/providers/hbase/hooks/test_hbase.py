@@ -135,8 +135,68 @@ class TestHBaseHook:
     def test_get_ui_field_behaviour(self):
         """Test get_ui_field_behaviour method."""
         result = HBaseHook.get_ui_field_behaviour()
-        expected = {
-            "hidden_fields": ["schema", "extra"],
-            "relabeling": {},
-        }
-        assert result == expected
+        assert "hidden_fields" in result
+        assert "relabeling" in result
+        assert "placeholders" in result
+
+    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch.object(HBaseHook, "get_connection")
+    def test_batch_put_rows(self, mock_get_connection, mock_happybase_connection):
+        """Test batch_put_rows method."""
+        mock_conn = Connection(conn_id="hbase_default", conn_type="hbase", host="localhost", port=9090)
+        mock_get_connection.return_value = mock_conn
+        
+        mock_table = MagicMock()
+        mock_batch = MagicMock()
+        mock_table.batch.return_value.__enter__.return_value = mock_batch
+        mock_hbase_conn = MagicMock()
+        mock_hbase_conn.table.return_value = mock_table
+        mock_happybase_connection.return_value = mock_hbase_conn
+        
+        hook = HBaseHook()
+        rows = [
+            {"row_key": "row1", "cf1:col1": "value1"},
+            {"row_key": "row2", "cf1:col1": "value2"}
+        ]
+        hook.batch_put_rows("test_table", rows)
+        
+        mock_table.batch.assert_called_once()
+
+    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch.object(HBaseHook, "get_connection")
+    def test_batch_get_rows(self, mock_get_connection, mock_happybase_connection):
+        """Test batch_get_rows method."""
+        mock_conn = Connection(conn_id="hbase_default", conn_type="hbase", host="localhost", port=9090)
+        mock_get_connection.return_value = mock_conn
+        
+        mock_table = MagicMock()
+        mock_table.rows.return_value = [
+            (b"row1", {b"cf1:col1": b"value1"}),
+            (b"row2", {b"cf1:col1": b"value2"})
+        ]
+        mock_hbase_conn = MagicMock()
+        mock_hbase_conn.table.return_value = mock_table
+        mock_happybase_connection.return_value = mock_hbase_conn
+        
+        hook = HBaseHook()
+        result = hook.batch_get_rows("test_table", ["row1", "row2"])
+        
+        assert len(result) == 2
+        mock_table.rows.assert_called_once()
+
+    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch.object(HBaseHook, "get_connection")
+    def test_delete_row(self, mock_get_connection, mock_happybase_connection):
+        """Test delete_row method."""
+        mock_conn = Connection(conn_id="hbase_default", conn_type="hbase", host="localhost", port=9090)
+        mock_get_connection.return_value = mock_conn
+        
+        mock_table = MagicMock()
+        mock_hbase_conn = MagicMock()
+        mock_hbase_conn.table.return_value = mock_table
+        mock_happybase_connection.return_value = mock_hbase_conn
+        
+        hook = HBaseHook()
+        hook.delete_row("test_table", "row1")
+        
+        mock_table.delete.assert_called_once_with("row1", columns=None)

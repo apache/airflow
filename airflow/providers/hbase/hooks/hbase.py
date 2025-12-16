@@ -162,12 +162,79 @@ class HBaseHook(BaseHook):
             limit=limit
         ))
 
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
+        """
+        Insert multiple rows in batch.
+        
+        :param table_name: Name of the table.
+        :param rows: List of dictionaries with 'row_key' and data columns.
+        """
+        table = self.get_table(table_name)
+        with table.batch() as batch:
+            for row in rows:
+                row_key = row.pop('row_key')
+                batch.put(row_key, row)
+        self.log.info("Batch put %d rows into table %s", len(rows), table_name)
+
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """
+        Get multiple rows in batch.
+        
+        :param table_name: Name of the table.
+        :param row_keys: List of row keys to retrieve.
+        :param columns: List of columns to retrieve.
+        :return: List of row data dictionaries.
+        """
+        table = self.get_table(table_name)
+        return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
+
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """
+        Delete row or specific columns from HBase table.
+        
+        :param table_name: Name of the table.
+        :param row_key: Row key to delete.
+        :param columns: List of columns to delete (if None, deletes entire row).
+        """
+        table = self.get_table(table_name)
+        table.delete(row_key, columns=columns)
+        self.log.info("Deleted row %s from table %s", row_key, table_name)
+
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """
+        Get column families for a table.
+        
+        :param table_name: Name of the table.
+        :return: Dictionary of column families and their properties.
+        """
+        table = self.get_table(table_name)
+        return table.families()
+
+    def get_openlineage_database_info(self, connection):
+        """Return HBase specific information for OpenLineage."""
+        try:
+            from airflow.providers.openlineage.sqlparser import DatabaseInfo
+            return DatabaseInfo(
+                scheme="hbase",
+                authority=f"{connection.host}:{connection.port or 9090}",
+                database="default",
+            )
+        except ImportError:
+            return None
+
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for HBase connection."""
         return {
             "hidden_fields": ["schema", "extra"],
-            "relabeling": {},
+            "relabeling": {
+                "host": "HBase Thrift Server Host",
+                "port": "HBase Thrift Server Port",
+            },
+            "placeholders": {
+                "host": "localhost",
+                "port": "9090",
+            },
         }
 
     def close(self) -> None:

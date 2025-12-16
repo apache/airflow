@@ -48,7 +48,7 @@ dag = DAG(
     tags=["example", "hbase"],
 )
 
-# Create table
+# [START howto_operator_hbase_create_table]
 create_table = HBaseCreateTableOperator(
     task_id="create_table",
     table_name="test_table",
@@ -58,8 +58,9 @@ create_table = HBaseCreateTableOperator(
     },
     dag=dag,
 )
+# [END howto_operator_hbase_create_table]
 
-# Check if table exists
+# [START howto_sensor_hbase_table]
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
     table_name="test_table",
@@ -67,8 +68,9 @@ check_table = HBaseTableSensor(
     poke_interval=10,
     dag=dag,
 )
+# [END howto_sensor_hbase_table]
 
-# Put data
+# [START howto_operator_hbase_put]
 put_data = HBasePutOperator(
     task_id="put_data",
     table_name="test_table",
@@ -80,8 +82,9 @@ put_data = HBasePutOperator(
     },
     dag=dag,
 )
+# [END howto_operator_hbase_put]
 
-# Check if row exists
+# [START howto_sensor_hbase_row]
 check_row = HBaseRowSensor(
     task_id="check_row_exists",
     table_name="test_table",
@@ -90,13 +93,15 @@ check_row = HBaseRowSensor(
     poke_interval=10,
     dag=dag,
 )
+# [END howto_sensor_hbase_row]
 
-# Clean up - delete table
+# [START howto_operator_hbase_delete_table]
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="test_table",
     dag=dag,
 )
+# [END howto_operator_hbase_delete_table]
 
 # Set dependencies
 create_table >> check_table >> put_data >> check_row >> delete_table

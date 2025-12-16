@@ -90,3 +90,91 @@ class HBaseRowSensor(BaseSensorOperator):
         except Exception as e:
             self.log.error("Error checking row existence: %s", e)
             return False
+
+
+class HBaseRowCountSensor(BaseSensorOperator):
+    """
+    Sensor to check if table has minimum number of rows.
+    
+    :param table_name: Name of the table to check.
+    :param min_row_count: Minimum number of rows required.
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    """
+
+    template_fields: Sequence[str] = ("table_name", "min_row_count")
+
+    def __init__(
+        self,
+        table_name: str,
+        min_row_count: int,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_name = table_name
+        self.min_row_count = min_row_count
+        self.hbase_conn_id = hbase_conn_id
+
+    def poke(self, context: Context) -> bool:
+        """Check if table has minimum number of rows."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        try:
+            rows = hook.scan_table(self.table_name, limit=self.min_row_count + 1)
+            row_count = len(rows)
+            self.log.info("Table %s has %d rows, minimum required: %d", self.table_name, row_count, self.min_row_count)
+            return row_count >= self.min_row_count
+        except Exception as e:
+            self.log.error("Error checking row count: %s", e)
+            return False
+
+
+class HBaseColumnValueSensor(BaseSensorOperator):
+    """
+    Sensor to check if column has expected value.
+    
+    :param table_name: Name of the table to check.
+    :param row_key: Row key to check.
+    :param column: Column to check.
+    :param expected_value: Expected value for the column.
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    """
+
+    template_fields: Sequence[str] = ("table_name", "row_key", "column", "expected_value")
+
+    def __init__(
+        self,
+        table_name: str,
+        row_key: str,
+        column: str,
+        expected_value: str,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.table_name = table_name
+        self.row_key = row_key
+        self.column = column
+        self.expected_value = expected_value
+        self.hbase_conn_id = hbase_conn_id
+
+    def poke(self, context: Context) -> bool:
+        """Check if column has expected value."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        try:
+            row_data = hook.get_row(self.table_name, self.row_key, columns=[self.column])
+            
+            if not row_data:
+                self.log.info("Row %s not found in table %s", self.row_key, self.table_name)
+                return False
+                
+            actual_value = row_data.get(self.column.encode('utf-8'), b'').decode('utf-8')
+            matches = actual_value == self.expected_value
+            
+            self.log.info(
+                "Column %s in row %s: expected '%s', actual '%s'", 
+                self.column, self.row_key, self.expected_value, actual_value
+            )
+            return matches
+        except Exception as e:
+            self.log.error("Error checking column value: %s", e)
+            return False
