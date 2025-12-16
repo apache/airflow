@@ -1342,7 +1342,7 @@ class TestGetDagRunAssetTriggerEvents:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.scalar(select(AssetModel.id).filter_by(uri=asset1.uri))
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
             source_task_id=ti.task_id,
@@ -1471,7 +1471,9 @@ class TestClearDagRun:
         assert body["total_entries"] == len(expected_state)
         for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
             assert each["state"] == expected_state[index]
-        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
         assert dag_run.state == DAG1_RUN1_STATE
 
         logs = session.scalar(
