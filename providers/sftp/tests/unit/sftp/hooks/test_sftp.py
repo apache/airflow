@@ -22,7 +22,7 @@ import json
 import os
 import shutil
 from io import BytesIO, StringIO
-from unittest.mock import AsyncMock, DEFAULT, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import paramiko
 import pytest
@@ -747,12 +747,8 @@ class MockAirflowConnectionWithPrivate:
 
 class TestSFTPHookAsync:
     @patch("asyncssh.connect", new_callable=AsyncMock)
-    @patch.multiple(
-        "airflow.providers.sftp.hooks.sftp.SFTPHookAsync",
-        get_connection=DEFAULT,
-        aget_connection=DEFAULT,
-        create=True,
-    )
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.aget_connection", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
     @pytest.mark.asyncio
     async def test_extra_dejson_fields_for_connection_building_known_hosts_none(
         self, mock_connect, get_connection, aget_connection, caplog
