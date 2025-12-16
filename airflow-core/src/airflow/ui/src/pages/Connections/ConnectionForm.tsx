@@ -97,17 +97,15 @@ const ConnectionForm = ({
   };
 
   // Check if extra fields have changed by comparing with initial connection
-  const isExtraFieldsDirty = (() => {
-    try {
-      const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
-      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
-
-      return JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
-    } catch {
-      // If parsing fails, fall back to string comparison
-      return extra !== initialConnection.extra;
-    }
-  })();
+  let isExtraFieldsDirty: boolean;
+  try {
+    const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+    const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+    isExtraFieldsDirty = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+  } catch {
+    // If parsing fails, fall back to string comparison
+    isExtraFieldsDirty = extra !== initialConnection.extra;
+  }
 
   const validateAndPrettifyJson = (value: string) => {
     try {

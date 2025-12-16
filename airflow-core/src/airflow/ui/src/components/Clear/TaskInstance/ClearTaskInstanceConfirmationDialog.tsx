@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, Icon, Spinner, Text, VStack } from "@chakra-ui/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GoAlertFill } from "react-icons/go";
 
@@ -73,12 +73,12 @@ const ClearTaskInstanceConfirmationDialog = ({
 
   const [isReady, setIsReady] = useState(false);
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = () => {
     if (onConfirm) {
       onConfirm();
     }
     onClose();
-  }, [onConfirm, onClose]);
+  };
 
   const taskInstances = data?.task_instances ?? [];
   const [firstInstance] = taskInstances;
@@ -94,7 +94,7 @@ const ClearTaskInstanceConfirmationDialog = ({
         setIsReady(true);
       }
     }
-  }, [isFetching, data, open, handleConfirm, taskCurrentState, preventRunningTask]);
+  }, [isFetching, data, open, taskCurrentState, preventRunningTask]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>

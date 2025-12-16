@@ -17,7 +17,6 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -28,7 +27,7 @@ type DagRunsFiltersProps = {
 };
 
 export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
+  const searchParamKeys = ((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
       SearchParamsKeys.RUN_ID_PATTERN,
       SearchParamsKeys.STATE,
@@ -47,7 +46,7 @@ export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
     }
 
     return keys;
-  }, [dagId]);
+  })();
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 

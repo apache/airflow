@@ -19,7 +19,7 @@
 import { Box, HStack, Text, IconButton, Button, ButtonGroup } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -47,25 +47,24 @@ export const Calendar = () => {
 
   const currentDate = dayjs();
 
-  const dateRange = useMemo(() => {
-    if (granularity === "daily") {
-      const yearStart = selectedDate.startOf("year");
-      const yearEnd = selectedDate.endOf("year");
+  let dateRange: { logicalDateGte: string; logicalDateLte: string };
+  if (granularity === "daily") {
+    const yearStart = selectedDate.startOf("year");
+    const yearEnd = selectedDate.endOf("year");
 
-      return {
-        logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    } else {
-      const monthStart = selectedDate.startOf("month");
-      const monthEnd = selectedDate.endOf("month");
+    dateRange = {
+      logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  } else {
+    const monthStart = selectedDate.startOf("month");
+    const monthEnd = selectedDate.endOf("month");
 
-      return {
-        logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    }
-  }, [granularity, selectedDate]);
+    dateRange = {
+      logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  }
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
@@ -77,10 +76,7 @@ export const Calendar = () => {
     { enabled: Boolean(dagId) },
   );
 
-  const scale = useMemo(
-    () => createCalendarScale(data?.dag_runs ?? [], viewMode, granularity),
-    [data?.dag_runs, viewMode, granularity],
-  );
+  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity);
 
   if (!data && !isLoading) {
     return (

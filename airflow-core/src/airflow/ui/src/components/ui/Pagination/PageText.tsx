@@ -18,7 +18,7 @@
  */
 import type { TextProps } from "@chakra-ui/react";
 import { Text, usePaginationContext } from "@chakra-ui/react";
-import { forwardRef, useMemo } from "react";
+import { forwardRef } from "react";
 
 type PageTextProps = {
   readonly format?: "compact" | "long" | "short";
@@ -27,7 +27,8 @@ type PageTextProps = {
 export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, ref) => {
   const { format = "compact", ...rest } = props;
   const { count, page, pageRange, pages } = usePaginationContext();
-  const content = useMemo(() => {
+
+  const getContent = () => {
     if (format === "short") {
       return `${page} / ${pages.length}`;
     }
@@ -36,11 +37,11 @@ export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, 
     }
 
     return `${pageRange.start + 1} - ${pageRange.end} of ${count}`;
-  }, [format, page, pages.length, pageRange, count]);
+  };
 
   return (
     <Text fontWeight="medium" ref={ref} {...rest}>
-      {content}
+      {getContent()}
     </Text>
   );
 });

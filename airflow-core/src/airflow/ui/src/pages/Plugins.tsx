@@ -19,7 +19,6 @@
 import { Box, Heading, HStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
@@ -46,7 +45,7 @@ export const Plugins = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { data, error } = usePluginServiceGetPlugins();
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   return (
     <Box p={2}>

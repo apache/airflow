@@ -29,7 +29,7 @@ import {
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useCallback, useRef, useState } from "react";
+import React, { type ReactNode, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
@@ -80,24 +80,23 @@ export const DataTable = <TData,>({
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
-  const handleStateChange = useCallback<OnChangeFn<ReactTableState>>(
-    (updater: Updater<ReactTableState>) => {
-      if (ref.current.tableRef && onStateChange) {
-        const current = ref.current.tableRef.getState();
-        const next = typeof updater === "function" ? updater(current) : updater;
 
-        // Only use the controlled state
-        const nextState = {
-          columnVisibility: next.columnVisibility,
-          pagination: next.pagination,
-          sorting: next.sorting,
-        };
+  const handleStateChange: OnChangeFn<ReactTableState> = (updater: Updater<ReactTableState>) => {
+    if (ref.current.tableRef && onStateChange) {
+      const current = ref.current.tableRef.getState();
+      const next = typeof updater === "function" ? updater(current) : updater;
 
-        onStateChange(nextState);
-      }
-    },
-    [onStateChange],
-  );
+      // Only use the controlled state
+      const nextState = {
+        columnVisibility: next.columnVisibility,
+        pagination: next.pagination,
+        sorting: next.sorting,
+      };
+
+      onStateChange(nextState);
+    }
+  };
+
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialState?.columnVisibility ?? {},
   );

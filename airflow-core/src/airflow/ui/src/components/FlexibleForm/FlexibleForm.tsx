@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Icon, Stack, StackSeparator, Text } from "@chakra-ui/react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MdError } from "react-icons/md";
 
 import type { ParamsSpec } from "src/queries/useDagParams";
@@ -54,7 +54,7 @@ export const FlexibleForm = ({
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
 
-  const recheckSection = useCallback(() => {
+  const recheckSection = () => {
     sectionError.clear();
     Object.entries(params).forEach(([, element]) => {
       if (
@@ -65,7 +65,7 @@ export const FlexibleForm = ({
         setSectionError(sectionError);
       }
     });
-  }, [flexibleFormDefaultSection, params, sectionError]);
+  };
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -93,7 +93,7 @@ export const FlexibleForm = ({
     } else {
       setError(true);
     }
-  }, [params, setError, recheckSection, sectionError]);
+  }, [params, setError, sectionError]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);

@@ -18,7 +18,6 @@
  */
 import { Box, Flex, Heading, Link, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -181,14 +180,10 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
-  const memoizedColumns = useMemo(
-    () =>
-      columns({
-        open,
-        translate,
-      }),
-    [open, translate],
-  );
+  const memoizedColumns = columns({
+    open,
+    translate,
+  });
 
   const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 

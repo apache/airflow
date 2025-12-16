@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import type { ArrowKey, NavigationDirection } from "./types";
@@ -45,17 +44,14 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
 };
 
 export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGroup }: Props) => {
-  const createKeyHandler = useCallback(
-    () => (event: KeyboardEvent) => {
-      const direction = mapKeyToDirection(event.key as ArrowKey);
+  const createKeyHandler = () => (event: KeyboardEvent) => {
+    const direction = mapKeyToDirection(event.key as ArrowKey);
 
-      event.preventDefault();
-      event.stopPropagation();
+    event.preventDefault();
+    event.stopPropagation();
 
-      onNavigate(direction);
-    },
-    [onNavigate],
-  );
+    onNavigate(direction);
+  };
 
   const handleNormalKeyPress = createKeyHandler();
 
