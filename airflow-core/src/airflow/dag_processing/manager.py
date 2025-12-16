@@ -246,7 +246,7 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Current Stacktrace is: %s", "\n".join(map(str, inspect.stack())))
         self.terminate()
         self.end()
-        self.log.debug("Finished terminating DAG processors.")
+        self.log.debug("Finished terminating Dag processors.")
         sys.exit(os.EX_OK)
 
     def run(self):
