@@ -149,21 +149,28 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         if self._token_expired(user.access_token):
-            try:
-                log.debug("Refreshing the token")
-                client = self.get_keycloak_client()
-                tokens = client.refresh_token(user.refresh_token)
+            tokens = self.refresh_tokens(user=user)
+
+            if tokens:
                 user.refresh_token = tokens["refresh_token"]
                 user.access_token = tokens["access_token"]
                 return user
-            except KeycloakPostError as exc:
-                log.warning(
-                    "KeycloakPostError encountered during token refresh. "
-                    "Suppressing the exception and returning None.",
-                    exc_info=exc,
-                )
 
         return None
+
+    def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        try:
+            log.debug("Refreshing the token")
+            client = self.get_keycloak_client()
+            return client.refresh_token(user.refresh_token)
+        except KeycloakPostError as exc:
+            log.warning(
+                "KeycloakPostError encountered during token refresh. "
+                "Suppressing the exception and returning None.",
+                exc_info=exc,
+            )
+
+        return {}
 
     def is_authorized_configuration(
         self,
