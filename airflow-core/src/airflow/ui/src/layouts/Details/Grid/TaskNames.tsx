@@ -17,16 +17,14 @@
  * under the License.
  */
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
-import { type HoverContextType, useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
-import type { GridTask } from "./utils";
+import { CELL_HEIGHT, type GridTask } from "./utils";
 
 type Props = {
   depth?: number;
@@ -36,33 +34,8 @@ type Props = {
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-const onMouseEnter = (
-  event: MouseEvent<HTMLDivElement>,
-  nodeId: string,
-  setHoveredTaskId: HoverContextType["setHoveredTaskId"],
-) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-  });
-
-  setHoveredTaskId(nodeId);
-};
-
-const onMouseLeave = (nodeId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${nodeId.replaceAll(".", "-")}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-
-  setHoveredTaskId(undefined);
-};
-
 export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
@@ -74,11 +47,10 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
       borderColor={node.isGroup ? "border.emphasized" : "border"}
       borderTopWidth={index === 0 ? 1 : 0}
       cursor="pointer"
+      data-task-id={node.id}
       id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
-      maxHeight="20px"
-      onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId)}
-      onMouseLeave={() => onMouseLeave(node.id, setHoveredTaskId)}
+      maxHeight={`${CELL_HEIGHT}px`}
       transition="background-color 0.2s"
     >
       {node.isGroup ? (

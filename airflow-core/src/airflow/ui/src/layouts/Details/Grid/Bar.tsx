@@ -25,11 +25,10 @@ import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
 import { GridButton } from "./GridButton";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
-import type { GridTask } from "./utils";
-
-const BAR_HEIGHT = 100;
+import { CELL_WIDTH, BAR_HEADER_HEIGHT, type GridTask } from "./utils";
 
 type Props = {
+  readonly colIndex: number;
   readonly max: number;
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
@@ -37,30 +36,29 @@ type Props = {
   readonly run: GridRunsResponse;
 };
 
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
+export const Bar = ({ colIndex: _colIndex, max, nodes, onCellClick, onColumnClick, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
 
   const isSelected = runId === run.run_id;
-
   const search = searchParams.toString();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
 
   return (
     <Box
-      _hover={{ bg: "brand.subtle" }}
       bg={isSelected ? "brand.muted" : undefined}
+      data-run-id={run.run_id}
       position="relative"
       transition="background-color 0.2s"
     >
       <Flex
         alignItems="flex-end"
-        height={BAR_HEIGHT}
+        height={BAR_HEADER_HEIGHT}
         justifyContent="center"
         onClick={onColumnClick}
         pb="2px"
         px="5px"
-        width="18px"
+        width={`${CELL_WIDTH}px`}
         zIndex={1}
       >
         <GridButton
@@ -68,7 +66,7 @@ export const Bar = ({ max, nodes, onCellClick, onColumnClick, run }: Props) => {
           color="fg"
           dagId={dagId}
           flexDir="column"
-          height={`${(run.duration / max) * BAR_HEIGHT}px`}
+          height={`${(run.duration / max) * BAR_HEADER_HEIGHT}px`}
           justifyContent="flex-end"
           label={run.run_after}
           minHeight="14px"

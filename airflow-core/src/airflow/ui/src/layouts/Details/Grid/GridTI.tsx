@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Badge, Flex } from "@chakra-ui/react";
-import type { MouseEvent } from "react";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
@@ -26,29 +25,9 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
-import { type HoverContextType, useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-const handleMouseEnter =
-  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
-    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-    });
-
-    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
-  };
-
-const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${taskId.replaceAll(".", "-")}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-
-  setHoveredTaskId(undefined);
-};
+import { CELL_HEIGHT } from "./utils";
 
 type Props = {
   readonly dagId: string;
@@ -62,15 +41,10 @@ type Props = {
 };
 
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
-  const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
-
   const [searchParams] = useSearchParams();
-
-  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
-  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
   const getTaskUrl = useCallback(
     () =>
@@ -95,12 +69,10 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     <Flex
       alignItems="center"
       bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
-      height="20px"
+      height={`${CELL_HEIGHT}px`}
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
       position="relative"
       px="2px"
       py={0}

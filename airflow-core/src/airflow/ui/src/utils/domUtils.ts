@@ -16,16 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useContext } from "react";
+import type { RefObject } from "react";
 
-import { HoverContext } from "./Context";
+export const setRef = <T extends HTMLElement | null>(
+  ref: RefObject<T> | null | undefined,
+  styles: Record<string, string>,
+): void => {
+  if (ref?.current && ref.current instanceof HTMLElement) {
+    const element = ref.current;
 
-export const useHover = () => {
-  const context = useContext(HoverContext);
-
-  if (context === undefined) {
-    throw new Error("useHover must be used within a HoverProvider");
+    Object.entries(styles).forEach(([property, value]) => {
+      element.style.setProperty(property, value);
+    });
   }
-
-  return context;
 };
