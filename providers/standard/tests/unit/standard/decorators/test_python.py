@@ -1159,10 +1159,10 @@ def test_is_async_callable():
 
 
 def test_python_task():
-    from airflow.providers.standard.decorators.python import _PythonDecoratedAsyncOperator, python_task
+    from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
     from airflow.sdk.bases.decorator import _TaskDecorator
 
     decorator = python_task(dummy_task)
 
     assert isinstance(decorator, _TaskDecorator)
-    assert decorator.operator_class == _PythonDecoratedAsyncOperator
+    assert decorator.operator_class == _PythonDecoratedOperator
