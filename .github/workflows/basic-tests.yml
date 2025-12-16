@@ -377,7 +377,7 @@ jobs:
       - name: "Check Airflow release process command"
         run: >
           breeze release-management start-release --release-candidate 3.1.0rc1
-          --previous-release 3.0.0 --answer yes --dry-run
+          --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
           git remote add apache https://github.com/apache/airflow.git
