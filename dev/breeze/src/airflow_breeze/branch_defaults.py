@@ -38,6 +38,22 @@ Examples:
 
 from __future__ import annotations
 
-AIRFLOW_BRANCH = "ado-330"
+import subprocess
+
+def _get_current_branch() -> str:
+    """Get current git branch dynamically."""
+    try:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Fallback to v2-10-test if git is not available or fails
+        return "v2-10-test"
+
+AIRFLOW_BRANCH = _get_current_branch()
 DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-10"
 DEBIAN_VERSION = "bookworm"
