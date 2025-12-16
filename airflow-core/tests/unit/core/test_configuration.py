@@ -188,6 +188,104 @@ result_backend = BAR
             assert test_conf.get("celery", "result_backend") == "FOO"
             assert test_conf.get("celery", "result_backend", team_name="unit_test_team") == "BAR"
 
+    def test_getsection_with_team_name(self):
+        """Test getsection with team_name parameter."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+            worker_concurrency = 16
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            worker_concurrency = 32
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        # To prevent the real environment variables from overriding the config
+        with patch("os.environ", {}):
+            default_section = test_conf.getsection("celery")
+            assert default_section["result_backend"] == "FOO"
+            assert default_section["worker_concurrency"] == 16
+
+            team_section = test_conf.getsection("celery", team_name="unit_test_team")
+            assert team_section["result_backend"] == "BAR"
+            assert team_section["worker_concurrency"] == 32
+
+    def test_getsection_with_team_name_env_var(self):
+        """Test getsection with team_name parameter respects environment variables."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__WORKER_CONCURRENCY": "99",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__WORKER_CONCURRENCY": "88",
+            },
+        ):
+            default_section = test_conf.getsection("celery")
+            # TODO: here and below, should we also assert the expected result_backend? To ensure the values were merged together? Do we even expect that?
+            assert default_section["worker_concurrency"] == 99
+
+            team_section = test_conf.getsection("celery", team_name="unit_test_team")
+            assert team_section["worker_concurrency"] == 88
+
+    def test_has_option_with_team_name(self):
+        """Test has_option with team_name parameter."""
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
+
+            [unit_test_team=celery]
+            result_backend = BAR
+            team_specific_option = VALUE
+            """
+        )
+
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+
+        # To prevent the real environment variables from overriding the config
+        with patch("os.environ", {}):
+            assert test_conf.has_option("celery", "result_backend")
+            assert test_conf.has_option("celery", "result_backend", team_name="unit_test_team")
+
+            # team_specific_option only exists in team config
+            assert not test_conf.has_option("celery", "team_specific_option")
+            assert test_conf.has_option("celery", "team_specific_option", team_name="unit_test_team")
+
+    def test_has_option_with_team_name_env_var(self):
+        """Test has_option with team_name parameter respects environment variables."""
+        test_conf = AirflowConfigParser()
+
+        with patch(
+            "os.environ",
+            {
+                "AIRFLOW__CELERY__ENV_OPTION": "default_value",
+                "AIRFLOW__UNIT_TEST_TEAM___CELERY__ENV_OPTION": "team_value",
+            },
+        ):
+            # Without team_name, should find the default env var
+            assert test_conf.has_option("celery", "env_option")
+
+            # With team_name, should find the team-specific env var
+            assert test_conf.has_option("celery", "env_option", team_name="unit_test_team")
+
     @conf_vars({("core", "percent"): "with%%inside"})
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()
