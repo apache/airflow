@@ -380,3 +380,32 @@ config:
         sensitive: true
         example: '{"password": "password_for_redis_server"}'
         default: ~
+  celery_result_backend_transport_options:
+    description: |
+      This section is for specifying options which can be passed to the
+      underlying celery result backend transport. This is particularly useful when using
+      Redis Sentinel as the result backend. See:
+      https://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-result_backend_transport_options
+    options:
+      master_name:
+        description: |
+          The name of the Redis Sentinel master to connect to.
+          Required when using Redis Sentinel as the result backend.
+        version_added: ~
+        type: string
+        example: "mymaster"
+        default: ~
+      sentinel_kwargs:
+        description: |
+          The sentinel_kwargs parameter allows passing additional options to the Sentinel client
+          for the result backend. In a typical scenario where Redis Sentinel is used as the
+          result backend and Redis servers are password-protected, the password needs to be
+          passed through this parameter. Although its type is string, it is required to pass
+          a string that conforms to the dictionary format.
+          See:
+          https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
+        version_added: ~
+        type: string
+        sensitive: true
+        example: '{"password": "password_for_redis_server"}'
+        default: ~
