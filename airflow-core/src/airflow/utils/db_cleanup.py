@@ -147,7 +147,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(
         table_name="dag_version",
         recency_column_name="created_at",
-        dependent_tables=["task_instance", "dag_run"],
+        dependent_tables=["dag_run"],
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]

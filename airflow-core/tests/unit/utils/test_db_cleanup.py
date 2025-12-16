@@ -309,6 +309,78 @@ class TestDBCleanup:
             else:
                 raise Exception("unexpected")
 
+    def test_dag_version_not_deleted_when_task_instance_references_it(self):
+        """
+        Test that dag_version rows are not deleted when they are still referenced
+        by task_instance rows that don't meet the deletion criteria.
+
+        This reproduces the issue where:
+        - A dag_version row is old (based on created_at)
+        - A task_instance row is recent (based on start_date) but references the old dag_version
+        - The cleanup should NOT delete the dag_version due to the FK constraint
+        """
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            dag_id = f"test-dag_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+            # Update dag_version to have an old created_at date
+            dag_version.created_at = base_date
+            dag_version.last_updated = base_date
+            session.flush()
+
+            # Create a recent dag run and task instance
+            recent_date = base_date.add(days=30)
+            dag_run = DagRun(
+                dag.dag_id,
+                run_id="recent_run",
+                run_type=DagRunType.SCHEDULED,
+                start_date=recent_date,
+            )
+            ti = TaskInstance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag.dag_id
+            ti.start_date = recent_date
+            session.add(dag_run)
+            session.add(ti)
+            session.commit()
+
+            # Try to clean up data older than 15 days
+            # This should try to delete the dag_version (created_at is 30 days old)
+            # but NOT the task_instance (start_date is recent)
+            clean_before_date = base_date.add(days=15)
+
+            # This should NOT raise an IntegrityError
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # Verify the dag_version was NOT deleted (because task_instance still references it)
+            remaining_dag_versions = session.query(DagVersion).filter(DagVersion.id == dag_version.id).all()
+            assert len(remaining_dag_versions) == 1, (
+                "dag_version should not be deleted when task_instance references it"
+            )
+
+            # Verify the task_instance still exists
+            remaining_tis = session.query(TaskInstance).all()
+            assert len(remaining_tis) == 1
+
     @pytest.mark.parametrize(
         ("table_name", "expected_archived"),
         [
