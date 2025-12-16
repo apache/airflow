@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker Service
 #################################
-{{- $workerSets := .Values.workers.sets | default list -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
