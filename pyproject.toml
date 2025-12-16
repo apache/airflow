@@ -61,7 +61,7 @@ classifiers = [
 version = "3.2.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.1.0",
+    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     "apache-airflow-core==3.2.0",
 ]
 
@@ -538,7 +538,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.16",
+    "uv>=0.9.17",
 ]
 
 [project.urls]

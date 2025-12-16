@@ -22,7 +22,6 @@ export * from "./Pagination";
 export * from "./Select";
 export * from "./Alert";
 export * from "./CloseButton";
-export * from "./InputGroup";
 export * from "./Switch";
 export * from "./Tooltip";
 export * from "./ProgressBar";
