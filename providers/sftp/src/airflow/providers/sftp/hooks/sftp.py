@@ -19,31 +19,27 @@
 
 from __future__ import annotations
 
-import asyncio
 import concurrent.futures
 import datetime
 import functools
 import os
-import posixpath
 import stat
 import warnings
-from collections.abc import AsyncIterator, Callable, Generator, Sequence
-from contextlib import asynccontextmanager, contextmanager, suppress
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from fnmatch import fnmatch
 from io import BytesIO
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any, cast
 
-import aiofiles
 import asyncssh
+from asgiref.sync import sync_to_async
 from paramiko.config import SSH_PORT
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection
 from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from paramiko import SSHClient
@@ -749,15 +745,6 @@ class SFTPHookAsync(BaseHook):
         elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
-    @classmethod
-    async def get_async_connection(cls, conn_id: str) -> Connection:
-        if hasattr(BaseHook, "aget_connection"):
-            return await BaseHook.aget_connection(conn_id=conn_id)
-
-        from asgiref.sync import sync_to_async
-
-        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
-
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
         """
         Asynchronously connect to the SFTP server as an SSH client.
@@ -769,7 +756,7 @@ class SFTPHookAsync(BaseHook):
         - known_hosts
         - passphrase
         """
-        conn = await self.get_async_connection(conn_id=self.sftp_conn_id)
+        conn = await sync_to_async(self.get_connection)(self.sftp_conn_id)
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
@@ -802,65 +789,24 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
-    async def list_directory(self, path: str) -> list[str] | None:
+    async def list_directory(self, path: str = "") -> list[str] | None:  # type: ignore[return]
         """Return a list of files on the SFTP server at the provided path."""
-        files = await self.read_directory(path)
-        return [str(file.filename) for file in files] if files is not None else None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                files = await sftp_client.listdir(path)
+                return sorted(files)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
-        async def walk(dir_path: str) -> list[asyncssh.sftp.SFTPName]:
-            results = []
-            files = await sftp_client.readdir(dir_path)
-
-            for file in files:
-                if file.filename not in {".", ".."}:
-                    if file.attrs.permissions and stat.S_ISDIR(file.attrs.permissions):
-                        filename = (
-                            file.filename.decode() if isinstance(file.filename, bytes) else file.filename
-                        )
-                        file_path = posixpath.join(dir_path, filename)
-                        results.extend(await walk(file_path))
-                    else:
-                        results.append(file)
-
-            return results
-
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
         async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp_client:
-                with suppress(asyncssh.SFTPNoSuchFile):
-                    return await walk(path)
-        return None
-
-    async def retrieve_file(
-        self,
-        remote_full_path: str,
-        local_full_path: str | BytesIO,
-        encoding: str = "utf-8",
-        prefetch: bool = True,
-    ) -> None:
-        """
-        Asynchronously transfer the remote file to a local location.
-
-        If local_full_path is a string path, the file will be written there.
-        If it's a BytesIO buffer, the remote content will be written into it.
-
-        :param remote_full_path: full path to the remote file
-        :param local_full_path: full path to the local file or a file-like buffer
-        :param encoding: encoding of the remote file
-        :param prefetch: retained for API compatibility (no effect in asyncssh)
-        """
-        async with await self._get_conn() as ssh_conn:
-            async with ssh_conn.start_sftp_client() as sftp:
-                async with sftp.open(remote_full_path, encoding=encoding) as remote_file:
-                    if isinstance(local_full_path, BytesIO):
-                        data = await remote_file.read()
-                        local_full_path.write(data.encode(encoding))
-                        local_full_path.seek(0)
-                    else:
-                        async with aiofiles.open(local_full_path, "wb") as file:
-                            data = await remote_file.read()
-                            await file.write(data.encode(encoding))
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                return await sftp_client.readdir(path)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
@@ -887,103 +833,11 @@ class SFTPHookAsync(BaseHook):
         """
         async with await self._get_conn() as ssh_conn:
             try:
-                async with ssh_conn.start_sftp_client() as sftp:
-                    ftp_mdtm = await sftp.stat(path)
-                    modified_time = ftp_mdtm.mtime
-                    mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
-                    self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
-                    return mod_time
+                sftp_client = await ssh_conn.start_sftp_client()
+                ftp_mdtm = await sftp_client.stat(path)
+                modified_time = ftp_mdtm.mtime
+                mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
+                self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
+                return mod_time
             except asyncssh.SFTPNoSuchFile:
                 raise AirflowException("No files matching")
-
-
-class SFTPClientPool(LoggingMixin):
-    """Lazy async pool that keeps SSH and SFTP clients alive until exit, and limits concurrent usage to pool_size."""
-
-    def __init__(self, sftp_conn_id: str, pool_size: int | None = None):
-        super().__init__()
-        self.sftp_conn_id = sftp_conn_id
-        self.pool_size = pool_size or conf.getint("core", "parallelism")
-        self._pool: asyncio.Queue[tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]] = asyncio.Queue(
-            maxsize=self.pool_size
-        )
-        self._lock = asyncio.Lock()
-        self._semaphore = asyncio.Semaphore(self.pool_size)
-
-    async def __aenter__(self):
-        self.log.info(
-            "Entering SFTPClientPool for '%s' (pool_size=%s)",
-            self.sftp_conn_id,
-            self.pool_size,
-        )
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        self.log.info("Closing all SFTP connections for '%s'", self.sftp_conn_id)
-        while not self._pool.empty():
-            ssh_conn, sftp = await self._pool.get()
-            try:
-                sftp.exit()
-            except Exception as e:
-                self.log.warning("Error closing SFTP client for '%s': %s", self.sftp_conn_id, e)
-            ssh_conn.close()
-        self.log.info("SFTPClientPool for '%s' closed", self.sftp_conn_id)
-
-    async def _create_connection(self) -> tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]:
-        hook = SFTPHookAsync(sftp_conn_id=self.sftp_conn_id)
-        ssh_conn = await hook._get_conn()
-        sftp = await ssh_conn.start_sftp_client()
-        self.log.info("Created new SFTP connection for sftp_conn_id '%s'", self.sftp_conn_id)
-        return ssh_conn, sftp
-
-    async def acquire(self) -> tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]:
-        self.log.debug("Acquiring SFTP connection for '%s'", self.sftp_conn_id)
-        async with self._lock:
-            # Create a new connection only if the pool is not full and currently empty
-            if self._pool.empty() and self._pool.qsize() < self.pool_size:
-                return await self._create_connection()
-        return await self._pool.get()
-
-    async def release(self, pair: tuple[asyncssh.SSHClientConnection, asyncssh.SFTPClient]):
-        self.log.debug("Releasing SFTP connection for '%s'", self.sftp_conn_id)
-        await self._pool.put(pair)
-
-    @asynccontextmanager
-    async def get_sftp_client(self) -> AsyncIterator[asyncssh.SFTPClient]:
-        async with self._semaphore:
-            self.log.debug(
-                "Semaphore acquired for '%s' (available=%s)",
-                self.sftp_conn_id,
-                self._semaphore._value,
-            )
-            ssh_conn: asyncssh.SSHClientConnection | None
-            sftp: asyncssh.SFTPClient | None
-            ssh_conn, sftp = await self.acquire()
-
-            try:
-                yield sftp
-            except asyncssh.SFTPError as e:
-                # Mark connection as bad
-                self.log.warning(
-                    "SFTPError detected for '%s'. Dropping connection from pool: %s",
-                    self.sftp_conn_id,
-                    e,
-                )
-                # Close both ends
-                with suppress(Exception):
-                    sftp.exit()
-                with suppress(Exception):
-                    ssh_conn.close()
-                sftp = ssh_conn = None
-                raise e
-            finally:
-                # Only return connection to pool if still valid
-                if ssh_conn and sftp:
-                    await self.release((ssh_conn, sftp))
-                    self.log.debug(
-                        "SFTP connection returned to pool for '%s' (available=%s)",
-                        self.sftp_conn_id,
-                        self._semaphore._value,
-                    )
-                else:
-                    self.log.debug("Bad SFTP connection removed from pool for '%s'", self.sftp_conn_id)
