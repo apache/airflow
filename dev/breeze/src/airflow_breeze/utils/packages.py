@@ -35,7 +35,6 @@ from rich.syntax import Syntax
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    PROVIDER_DEPENDENCIES,
     PROVIDER_RUNTIME_DATA_SCHEMA_PATH,
     REGULAR_DOC_PACKAGES,
 )
@@ -47,7 +46,6 @@ from airflow_breeze.utils.path_utils import (
     BREEZE_SOURCES_PATH,
     DOCS_ROOT,
     PREVIOUS_AIRFLOW_PROVIDERS_NS_PACKAGE_PATH,
-    PROVIDER_DEPENDENCIES_JSON_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
     PROVIDER_DATA_SCHEMA_PATH,
@@ -317,7 +315,10 @@ def get_available_distributions(
     :param include_all_providers: whether "all-providers" should be included ni the list.
 
     """
-    provider_dependencies = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
+    provider_dependencies = get_provider_dependencies()
 
     valid_states = set()
     if include_not_ready:
@@ -657,7 +658,11 @@ def convert_optional_dependencies_to_table(
 def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     if provider_id in get_removed_provider_ids():
         return []
-    return PROVIDER_DEPENDENCIES[provider_id]["cross-providers-deps"]
+
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
+    return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
 def get_license_files(provider_id: str) -> str:
@@ -859,6 +864,9 @@ def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
 def regenerate_pyproject_toml(
     context: dict[str, Any], provider_details: ProviderPackageDetails, version_suffix: str | None
 ):
+    # Need lazy import to prevent circular dependencies
+    from airflow_breeze.utils.provider_dependencies import get_provider_dependencies
+
     get_pyproject_toml_path = provider_details.root_provider_path / "pyproject.toml"
     # we want to preserve comments in dependencies - both required and additional,
     # so we should not really parse the toml file but extract dependencies "as is" in text form and pass
@@ -919,7 +927,9 @@ def regenerate_pyproject_toml(
     context["AIRFLOW_DOC_URL"] = (
         "https://airflow.staged.apache.org" if version_suffix else "https://airflow.apache.org"
     )
-    cross_provider_ids = set(PROVIDER_DEPENDENCIES.get(provider_details.provider_id)["cross-providers-deps"])
+    cross_provider_ids = set(
+        get_provider_dependencies()[provider_details.provider_id]["cross-providers-deps"]
+    )
     cross_provider_dependencies = []
     # Add cross-provider dependencies to the optional dependencies if they are missing
     for provider_id in sorted(cross_provider_ids):
@@ -1231,8 +1241,8 @@ def _update_dependency_line_with_new_version(
     new_constraint = f'"{provider_package_name}>={new_version}"'
     updated_line = line.replace(old_constraint, new_constraint)
 
-    # Remove the "# use next version" comment after upgrading
-    updated_line = updated_line.replace(" # use next version", "")
+    # remove the comment starting with '# use next version' (and anything after it) and rstrip spaces
+    updated_line = re.sub(r"#\s*use next version.*$", "", updated_line).rstrip()
 
     # Track the update
     provider_id_short = pyproject_file.parent.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)

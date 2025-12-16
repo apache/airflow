@@ -24,7 +24,6 @@ from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    Discriminator,
     Field,
     JsonValue,
     Tag,
@@ -140,7 +139,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     trigger_timeout: timedelta | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
@@ -227,7 +226,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Discriminator(ti_state_discriminator),
+    Field(discriminator=ti_state_discriminator),
 ]
 
 

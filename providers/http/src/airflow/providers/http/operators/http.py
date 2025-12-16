@@ -26,8 +26,7 @@ from aiohttp import BasicAuth
 from requests import Response
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
@@ -57,7 +56,7 @@ class HttpOperator(BaseOperator):
     :param method: The HTTP method to use, default = "POST"
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
-    :param headers: The HTTP headers to be added to the GET request
+    :param headers: The HTTP headers to be added to the request
     :param pagination_function: A callable that generates the parameters used to call the API again,
         based on the previous response. Typically used when the API is paginated and returns for e.g a
         cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API

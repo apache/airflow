@@ -24,7 +24,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
     PubSubCreateTopicOperator,
@@ -348,6 +348,49 @@ class TestPubSubPublishOperator:
         )
 
         operator.execute(None)
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_open_telemetry_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=False,
+            enable_open_telemetry_tracing=True,
+        )
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_ordering_and_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES_ORDERING_KEY,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
         mock_hook.return_value.publish.assert_called_once_with(
             project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
         )

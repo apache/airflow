@@ -1147,3 +1147,28 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{/*
+Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
+*/}}
+{{- define "cpu_count" -}}
+  {{- $v := toString . -}}
+    {{- if hasSuffix "m" $v -}}
+      {{- /* millicores path: e.g. 500m, 1500m */ -}}
+      {{- $m := float64 (trimSuffix "m" $v) -}}
+      {{- int (ceil (divf $m 1000)) -}}
+    {{- else -}}
+      {{- /* plain cores: e.g. 0.5, 1, 1.5 */ -}}
+      {{- int (ceil (float64 $v)) -}}
+    {{- end -}}
+{{- end }}
+
+{{/*
+Check if the current executor launches pods
+This helper function returns true if the executor can launch pods (Kubernetes-based executors)
+*/}}
+{{- define "airflow.podLaunchingExecutor" -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+    {{- print "true" -}}
+  {{- end -}}
+{{- end -}}

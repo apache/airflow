@@ -20,6 +20,54 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create 'create_token' method in FAB auth manager (#59245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Permit 'airflow db migrate -r' with an empty database (#59205)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Remove global statement from Fab provider (#59018)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#58954)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+* ``Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead of 'HTTP_422_UNPROCESSABLE_ENTITY' (#58828)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: adjust misleading docs (#59228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+3.0.3
+.....
+
+Misc
+~~~~
+
+* ``Bump stylelint from 16.25.0 to 16.26.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58678)``
+* ``Remove deprecation warning in Fab provider (#58686)``
+* ``Fix mypy errors in providers (#58644)``
+* ``Bump webpack from 5.102.1 to 5.103.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58634)``
+* ``Upgrade js-yaml to 4.1.1 in FAB (#58501)``
+* ``Migrate FAB PATCH /roles/{name} to FastAPI (#58023)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
 3.0.2
 .....
 

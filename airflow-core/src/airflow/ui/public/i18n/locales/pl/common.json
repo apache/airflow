@@ -31,6 +31,7 @@
     "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
+  "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
@@ -102,6 +103,7 @@
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
@@ -111,6 +113,7 @@
     "hotkey": "e",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
+  "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON",
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
@@ -195,6 +198,7 @@
   },
   "selectLanguage": "Wybierz język",
   "showDetailsPanel": "Pokaż panel szczegółów",
+  "signedInAs": "Zalogowano jako",
   "source": {
     "hide": "Ukryj źródła",
     "hotkey": "s",

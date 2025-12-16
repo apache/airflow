@@ -49,4 +49,5 @@ Reference
 ---------
 
 For further information, look at:
+
 * `Google Cloud Storage Documentation <https://cloud.google.com/storage/>`__

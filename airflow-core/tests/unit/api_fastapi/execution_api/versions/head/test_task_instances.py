@@ -98,7 +98,6 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
             raise RuntimeError("Fake auth denied")
         return claims
 
-    # validator.avalidated_claims.side_effect = [{}, RuntimeError("fail for tests"), claims, claims]
     validator.avalidated_claims.side_effect = side_effect
 
     lifespan.registry.register_value(JWTValidator, validator)
@@ -113,7 +112,7 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
     resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
     assert resp.status_code == 403
-    validator.avalidated_claims.assert_called_with(
+    assert validator.avalidated_claims.call_args_list[1] == mock.call(
         mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
     )
     validator.avalidated_claims.reset_mock()

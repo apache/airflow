@@ -26,6 +26,51 @@
 Changelog
 ---------
 
+2.9.1
+.....
+
+Misc
+~~~~
+
+* ``chore: Adjust AirflowRunFacet and docs after moving OL methods to BaseSQLOperator (#58903)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Implement timetables in SDK (#58669)``
+* ``Remove global from openlineage provider (#58868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OL system tests for deferrable TriggerDagRunOperator (#58933)``
+
+2.9.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OL root macros should reflect root from dagrun conf parent (#58428)``
+* ``Fix root in parentRunFacet is not always sourced from dag run (#58407)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Remove global from lineage.hook (#58285)``
+
 2.8.0
 .....
 

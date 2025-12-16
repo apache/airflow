@@ -36,6 +36,7 @@ from airflow import __version__ as AIRFLOW_VERSION
 from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -57,7 +58,6 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.module_loading import import_string
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
@@ -531,7 +531,7 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-        from sqlalchemy import exists
+        from sqlalchemy import exists, select
 
         if not isinstance(ti.task, BaseSensorOperator):
             return False
@@ -540,21 +540,27 @@ if not AIRFLOW_V_3_0_PLUS:
             return False
         if AIRFLOW_V_3_0_PLUS:
             return (
-                session.query(
-                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
-                ).scalar()
+                session.scalar(
+                    select(
+                        exists().where(
+                            TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number
+                        )
+                    )
+                )
                 is True
             )
         return (
-            session.query(
-                exists().where(
-                    TaskReschedule.dag_id == ti.dag_id,
-                    TaskReschedule.task_id == ti.task_id,
-                    TaskReschedule.run_id == ti.run_id,
-                    TaskReschedule.map_index == ti.map_index,
-                    TaskReschedule.try_number == ti.try_number,
+            session.scalar(
+                select(
+                    exists().where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == ti.try_number,
+                    )
                 )
-            ).scalar()
+            )
             is True
         )
 
@@ -662,18 +668,29 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: DAG) -> str | None:
+    def timetable_summary(cls, dag: DAG | SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
-        if getattr(dag, "timetable_summary", None):
-            return dag.timetable_summary
-        if getattr(dag, "timetable", None):
-            return dag.timetable.summary
+        if summary := getattr(dag, "timetable_summary", None):
+            return summary
+        if (timetable := getattr(dag, "timetable", None)) is None:
+            return None
+        if summary := getattr(timetable, "summary", None):
+            return summary
+        with suppress(ImportError):
+            from airflow.serialization.encoders import coerce_to_core_timetable
+
+            return coerce_to_core_timetable(timetable).summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: DAG | SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
-        serialized = dag.timetable.serialize() or {}
+        try:
+            serialized = dag.timetable.serialize() or {}  # type: ignore[union-attr]
+        except AttributeError:
+            from airflow.serialization.encoders import encode_timetable
+
+            serialized = encode_timetable(dag.timetable)["__var"]
 
         # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
         # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
@@ -712,6 +729,7 @@ class DagRunInfo(InfoJsonEncodable):
         "data_interval_start",
         "data_interval_end",
         "external_trigger",  # Removed in Airflow 3, use run_type instead
+        "execution_date",  # Airflow 2
         "logical_date",  # Airflow 3
         "run_after",  # Airflow 3
         "run_id",
@@ -802,13 +820,37 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
-        "trigger_dag_id",
-        "external_dag_id",
-        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
+        # Operator-specific useful attributes
+        "trigger_dag_id",  # TriggerDagRunOperator
+        "trigger_run_id",  # TriggerDagRunOperator
+        "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_ids",  # ExternalTaskSensor
+        "external_task_group_id",  # ExternalTaskSensor
+        "external_dates_filter",  # ExternalTaskSensor
+        "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "database",  # BaseSQlOperator
+        "parameters",  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+        "column_mapping",  # SQLColumnCheckOperator
+        "pass_value",  # SQLValueCheckOperator
+        "tol",  # SQLValueCheckOperator
+        "metrics_thresholds",  # SQLIntervalCheckOperator
+        "ratio_formula",  # SQLIntervalCheckOperator
+        "ignore_zero",  # SQLIntervalCheckOperator
+        "min_threshold",  # SQLThresholdCheckOperator
+        "max_threshold",  # SQLThresholdCheckOperator
+        "follow_task_ids_if_true",  # BranchSQLOperator
+        "follow_task_ids_if_false",  # BranchSQLOperator
+        "follow_branch",  # BranchSQLOperator
+        "preoperator",  # SQLInsertRowsOperator
+        "postoperator",  # SQLInsertRowsOperator
+        "table_name_with_schema",  # SQLInsertRowsOperator
+        "column_names",  # SQLInsertRowsOperator
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -906,7 +948,7 @@ def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
 
 def get_airflow_run_facet(
     dag_run: DagRun,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,

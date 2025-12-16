@@ -23,10 +23,9 @@ from urllib.parse import urlparse
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.sdk import Connection
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse
 from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
@@ -40,7 +39,7 @@ class TestConnections:
         with mock.patch("airflow.providers_manager.ProvidersManager") as mock_manager:
             yield mock_manager
 
-    @mock.patch("airflow.sdk.module_loading.import_string")
+    @mock.patch("airflow.sdk._shared.module_loading.import_string")
     def test_get_hook(self, mock_import_string, mock_providers_manager):
         """Test that get_hook returns the correct hook instance."""
 

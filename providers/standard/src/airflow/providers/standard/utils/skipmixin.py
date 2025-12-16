@@ -21,7 +21,7 @@ from collections.abc import Iterable, Sequence
 from types import GeneratorType
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class SkipMixin(LoggingMixin):
         """
         # Import is internal for backward compatibility when importing PythonOperator
         # from airflow.providers.common.compat.standard.operators
-        from airflow.exceptions import DownstreamTasksSkipped
+        from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
         #  The following could be applied only for non-mapped tasks,
         #  as future mapped tasks have not been expanded yet. Such tasks

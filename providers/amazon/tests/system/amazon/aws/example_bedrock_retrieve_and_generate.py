@@ -55,8 +55,8 @@ from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
 )
 from airflow.providers.amazon.aws.utils import get_botocore_version
-from airflow.providers.standard.operators.empty import EmptyOperator
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -66,7 +66,7 @@ else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-    from airflow.sdk import Label  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.edgemodifier import Label  # type: ignore[attr-defined,no-redef]
 try:
     from airflow.sdk import TriggerRule
 except ImportError:
@@ -449,7 +449,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

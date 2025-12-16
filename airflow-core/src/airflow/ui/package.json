@@ -16,13 +16,20 @@
     "preview": "vite preview",
     "codegen": "openapi-merge-cli && openapi-rq -i openapi.merged.json -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report",
+    "test:e2e:install": "playwright install"
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.3.4",
     "@chakra-ui/react": "^3.20.0",
     "@codemirror/lang-json": "^6.0.1",
     "@emotion/react": "^11.14.0",
+    "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.75.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.8",
@@ -105,7 +112,11 @@
     "vite": "^7.1.11",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.2.4",
-    "web-worker": "^1.5.0"
+    "web-worker": "^1.5.0",
+    "@playwright/test": "^1.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
