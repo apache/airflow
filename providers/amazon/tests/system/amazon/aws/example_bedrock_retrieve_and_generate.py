@@ -81,6 +81,7 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 #######################################################################
 
 TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
