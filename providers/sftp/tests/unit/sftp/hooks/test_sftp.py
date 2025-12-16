@@ -751,7 +751,7 @@ class TestSFTPHookAsync:
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
     @pytest.mark.asyncio
     async def test_extra_dejson_fields_for_connection_building_known_hosts_none(
-        self, mock_connect, get_connection, aget_connection, caplog
+        self, get_connection, aget_connection, mock_connect, caplog
     ):
         """
         Assert that connection details passed through the extra field in the Airflow connection
