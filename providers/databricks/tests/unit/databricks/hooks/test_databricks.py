@@ -57,7 +57,7 @@ TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
 NOTEBOOK_TASK = {"notebook_path": "/test"}
 SPARK_PYTHON_TASK = {"python_file": "test.py", "parameters": ["--param", "123"]}
-NEW_CLUSTER = {"spark_version": "2.0.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
+NEW_CLUSTER = {"spark_version": "2.2.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
 CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
@@ -216,42 +216,42 @@ def get_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/get"
+    return f"https://{host}/api/2.2/clusters/get"
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/start"
+    return f"https://{host}/api/2.2/clusters/start"
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/restart"
+    return f"https://{host}/api/2.2/clusters/restart"
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/delete"
+    return f"https://{host}/api/2.2/clusters/delete"
 
 
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
-    return f"https://{host}/api/2.0/libraries/install"
+    return f"https://{host}/api/2.2/libraries/install"
 
 
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
-    return f"https://{host}/api/2.0/libraries/uninstall"
+    return f"https://{host}/api/2.2/libraries/uninstall"
 
 
 def list_jobs_endpoint(host):
@@ -265,19 +265,19 @@ def list_pipelines_endpoint(host):
     """
     Utility function to generate the list jobs endpoint given the host
     """
-    return f"https://{host}/api/2.0/pipelines"
+    return f"https://{host}/api/2.2/pipelines"
 
 
 def list_spark_versions_endpoint(host):
     """Utility function to generate the list spark versions endpoint given the host"""
-    return f"https://{host}/api/2.0/clusters/spark-versions"
+    return f"https://{host}/api/2.2/clusters/spark-versions"
 
 
 def permissions_endpoint(host, job_id):
     """
     Utility function to generate the permissions endpoint given the host
     """
-    return f"https://{host}/api/2.0/permissions/jobs/{job_id}"
+    return f"https://{host}/api/2.2/permissions/jobs/{job_id}"
 
 
 def create_valid_response_mock(content):
@@ -289,7 +289,7 @@ def create_valid_response_mock(content):
 
 def sql_statements_endpoint(host):
     """Utility function to generate the sql statements endpoint given the host."""
-    return f"https://{host}/api/2.0/sql/statements"
+    return f"https://{host}/api/2.2/sql/statements"
 
 
 def create_successful_response_mock(content):
@@ -1302,7 +1302,7 @@ class TestDatabricksHook:
         self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
 
         mock_requests.patch.assert_called_once_with(
-            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            f"https://{HOST}/api/2.2/permissions/jobs/1",
             json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
