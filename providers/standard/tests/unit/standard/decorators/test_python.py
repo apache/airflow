@@ -30,6 +30,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     XCOM_RETURN_KEY,
 )
 from unit.standard.operators.test_python import BasePythonTest
@@ -1152,12 +1153,14 @@ async def dummy_task():
     pass
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
 def test_is_async_callable():
     from airflow.sdk.bases.decorator import is_async_callable
 
     assert is_async_callable(dummy_task)
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
 def test_python_task():
     from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
     from airflow.sdk.bases.decorator import _TaskDecorator
@@ -1168,4 +1171,4 @@ def test_python_task():
     assert decorator.function == dummy_task
     assert decorator.operator_class == _PythonDecoratedOperator
     assert not decorator.multiple_outputs
-    assert not decorator.kwargs
+    assert decorator.kwargs == {'task_id': 'dummy_task'}
