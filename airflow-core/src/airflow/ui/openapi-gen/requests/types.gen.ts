@@ -115,6 +115,7 @@ export type BackfillPostBody = {
     };
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
+    run_on_latest_version?: boolean;
 };
 
 /**
