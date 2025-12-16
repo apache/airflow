@@ -81,6 +81,10 @@ class TestCliTeams:
         with pytest.raises(SystemExit, match="Team name cannot be empty"):
             team_command.team_create(self.parser.parse_args(["teams", "create", ""]))
 
+    def test_team_create_invalid_name(self):
+        with pytest.raises(SystemExit, match="Invalid team name"):
+            team_command.team_create(self.parser.parse_args(["teams", "create", "test with space"]))
+
     def test_team_create_whitespace_name(self):
         """Test team creation with whitespace-only name."""
         with pytest.raises(SystemExit, match="Team name cannot be empty"):

@@ -4744,7 +4744,10 @@ class TestSchedulerJob:
         ):
             self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
-            assert caplog.messages == [
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.ERROR
+            ]
+            assert scheduler_messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
 

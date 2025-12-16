@@ -24,7 +24,6 @@ from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    Discriminator,
     Field,
     JsonValue,
     Tag,
@@ -227,7 +226,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Discriminator(ti_state_discriminator),
+    Field(discriminator=ti_state_discriminator),
 ]
 
 

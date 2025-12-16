@@ -2207,6 +2207,85 @@ class TestRuntimeTaskInstance:
 
             mock_delete.assert_not_called()
 
+    def test_xcom_push_pull_with_slash_in_key(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        Ensure that XCom keys containing slashes are correctly quoted/unquoted
+        and do not break API routes (no 400/404).
+        """
+
+        class PushOperator(BaseOperator):
+            def execute(self, context):
+                context["ti"].xcom_push(key="some/key/with/slash", value="slash_value")
+
+        task = PushOperator(task_id="push_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_dag")
+
+        # Run the task (which should trigger xcom_push)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        # Verify supervisor received a SetXCom with quoted key
+        called_args = [
+            call.kwargs.get("msg") or call.args[0] for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert any(getattr(arg, "key", None) == "some/key/with/slash" for arg in called_args)
+
+        ser_value = BaseXCom.serialize_value("slash_value")
+        mock_supervisor_comms.send.reset_mock()
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(
+            key="some/key/with/slash",
+            root=[ser_value],
+        )
+
+        pulled_value = runtime_ti.xcom_pull(key="some/key/with/slash", task_ids="push_task")
+        assert pulled_value == "slash_value"
+
+        # Key should NOT be quoted here - client API will handle encoding
+        mock_supervisor_comms.send.assert_any_call(
+            GetXComSequenceSlice(
+                key="some/key/with/slash",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="push_task",
+                map_index=0,
+                include_prior_dates=False,
+                start=None,
+                stop=None,
+                step=None,
+                type="GetXComSequenceSlice",
+            )
+        )
+
+    def test_taskflow_dict_return_with_slash_key(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        High-level: Ensure TaskFlow returning dict with slash in key doesn't 404 during XCom push.
+        """
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_slash_key():
+            @task_decorator
+            def dict_task():
+                return {"key with slash /": "Some Value"}
+
+            return dict_task()  # returns XComArg
+
+        dag_obj = dag_with_slash_key()
+        task_op = dag_obj.get_task("dict_task")
+        runtime_ti = create_runtime_ti(task=task_op, dag_id=dag_obj.dag_id)
+
+        # Run task instance → should trigger TaskFlow dict expansion + XCom push
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        # Mock supervisor response to simulate retrieval
+        ser_value = BaseXCom.serialize_value("Some Value")
+        mock_supervisor_comms.send.reset_mock()
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(
+            key="key/slash",
+            root=[ser_value],
+        )
+
+        pulled = runtime_ti.xcom_pull(key="key/slash", task_ids="dict_task")
+        assert pulled == "Some Value"
+
 
 class TestXComAfterTaskExecution:
     @pytest.mark.parametrize(

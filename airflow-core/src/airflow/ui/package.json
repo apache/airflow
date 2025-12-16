@@ -29,6 +29,7 @@
     "@chakra-ui/react": "^3.20.0",
     "@codemirror/lang-json": "^6.0.1",
     "@emotion/react": "^11.14.0",
+    "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-query": "^5.75.1",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.13.8",
@@ -112,7 +113,10 @@
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vitest": "^3.2.4",
     "web-worker": "^1.5.0",
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.56.1",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

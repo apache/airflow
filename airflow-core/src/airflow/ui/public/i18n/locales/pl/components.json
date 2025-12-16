@@ -141,6 +141,9 @@
     "selectLabel": "Pojedyncze wykonanie",
     "title": "Uruchom Daga",
     "toaster": {
+      "error": {
+        "title": "Nie udało się uruchomić Daga"
+      },
       "success": {
         "description": "Dag został pomyślnie uruchomiony.",
         "title": "Uruchomienie Daga"

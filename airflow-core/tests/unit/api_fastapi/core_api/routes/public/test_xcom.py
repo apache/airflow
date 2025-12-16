@@ -161,6 +161,18 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 404
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
+    def test_should_respond_200_native_with_slash_key(self, test_client):
+        slash_key = "folder/sub/value"
+        self._create_xcom(slash_key, TEST_XCOM_VALUE)
+        # Use raw slash_key directly - FastAPI with :path converter handles it
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
+        )
+        assert response.status_code == 200
+        current_data = response.json()
+        assert current_data["key"] == slash_key
+        assert current_data["value"] == json.dumps(TEST_XCOM_VALUE)
+
     @pytest.mark.parametrize(
         ("params", "expected_value"),
         [
@@ -646,6 +658,23 @@ class TestCreateXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 403
 
+    def test_create_xcom_entry_with_slash_key(self, test_client):
+        slash_key = "a/b/c"
+        body = XComCreateBody(key=slash_key, value=TEST_XCOM_VALUE)
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json=body.dict(),
+        )
+        assert response.status_code == 201
+        assert response.json()["key"] == slash_key
+        # Verify retrieval via encoded path
+        get_resp = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["key"] == slash_key
+        assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+
 
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
@@ -673,7 +702,8 @@ class TestPatchXComEntry(TestXComEndpoint):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-            new_value = XComModel.serialize_value(patch_body["value"])
+            # The value is double-serialized: first json.dumps(patch_body["value"]), then json.dumps() again
+            new_value = json.dumps(json.dumps(patch_body["value"]))
 
         response = test_client.patch(
             f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
@@ -683,7 +713,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == XComModel.serialize_value(new_value)
+            assert response.json()["value"] == new_value
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -701,3 +731,17 @@ class TestPatchXComEntry(TestXComEndpoint):
             json={},
         )
         assert response.status_code == 403
+
+    def test_patch_xcom_entry_with_slash_key(self, test_client, session):
+        slash_key = "x/y"
+        self._create_xcom(slash_key, TEST_XCOM_VALUE)
+        new_value = {"updated": True}
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}",
+            json={"value": new_value},
+        )
+        assert response.status_code == 200
+        assert response.json()["key"] == slash_key
+        # The value is double-serialized: first json.dumps(new_value), then json.dumps() again
+        assert response.json()["value"] == json.dumps(json.dumps(new_value))
+        check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)

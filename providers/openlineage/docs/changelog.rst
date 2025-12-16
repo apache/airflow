@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+2.9.1
+.....
+
+Misc
+~~~~
+
+* ``chore: Adjust AirflowRunFacet and docs after moving OL methods to BaseSQLOperator (#58903)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Implement timetables in SDK (#58669)``
+* ``Remove global from openlineage provider (#58868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OL system tests for deferrable TriggerDagRunOperator (#58933)``
+
 2.9.0
 .....
 

@@ -44,11 +44,12 @@ class BaseSecretsBackend(ABC):
         """
         raise NotImplementedError
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Return value for Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         raise NotImplementedError()

@@ -126,6 +126,7 @@ export type BackfillPostBody = {
     };
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
+    run_on_latest_version?: boolean;
 };
 
 /**
@@ -331,6 +332,8 @@ export type BulkTaskInstanceBody = {
     include_past?: boolean;
     task_id: string;
     map_index?: number | null;
+    dag_id?: string | null;
+    dag_run_id?: string | null;
 };
 
 export type BulkUpdateAction_BulkTaskInstanceBody_ = {
@@ -465,6 +468,7 @@ export type ConnectionBody = {
     port?: number | null;
     password?: string | null;
     extra?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -488,6 +492,7 @@ export type ConnectionResponse = {
     port: number | null;
     password: string | null;
     extra: string | null;
+    team_name: string | null;
 };
 
 /**
@@ -1765,6 +1770,7 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
+    theme: Theme;
 };
 
 /**
@@ -1997,6 +2003,8 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
 };
 
+export type OklchColor = string;
+
 /**
  * Standard fields of a Hook that a form will render.
  */
@@ -2049,6 +2057,21 @@ export type TeamCollectionResponse = {
  */
 export type TeamResponse = {
     name: string;
+};
+
+/**
+ * JSON to modify Chakra's theme.
+ */
+export type Theme = {
+    tokens: {
+        [key: string]: {
+            [key: string]: {
+                [key: string]: {
+                    [key: string]: OklchColor;
+                };
+            };
+        };
+    };
 };
 
 /**
@@ -2905,6 +2928,10 @@ export type GetTaskInstancesData = {
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      */
     taskDisplayNamePattern?: string | null;
+    /**
+     * Filter by exact task group ID. Returns all tasks within the specified task group.
+     */
+    taskGroupId?: string | null;
     taskId?: string | null;
     tryNumber?: Array<(number)>;
     updatedAtGt?: string | null;

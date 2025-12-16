@@ -24,11 +24,13 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 from flask import g
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 
-from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.fab.www.app import create_app
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
@@ -170,7 +172,7 @@ def flask_app():
 
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
-    return get_auth_manager()
+    return get_fab_auth_manager()
 
 
 @pytest.mark.db_test
@@ -221,6 +223,45 @@ class TestFabAuthManager:
         mock_get_user.return_value = user
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
+
+    @pytest.mark.parametrize(
+        ("auth_type", "method"),
+        [
+            [AUTH_DB, "auth_user_db"],
+            [AUTH_LDAP, "auth_user_ldap"],
+        ],
+    )
+    def test_create_token(self, auth_type, method, auth_manager_with_appbuilder):
+        user = Mock()
+        security_manager = Mock()
+        security_manager.auth_type = auth_type
+        getattr(security_manager, method).return_value = user
+
+        username = "username"
+        password = "password"
+
+        auth_manager_with_appbuilder.security_manager = security_manager
+
+        result = auth_manager_with_appbuilder.create_token(
+            headers={}, body={"username": username, "password": password}
+        )
+
+        assert result == user
+        getattr(security_manager, method).assert_called_once_with(username, password, rotate_session_id=False)
+
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            ["", ""],
+            ["test", ""],
+            ["", "test"],
+        ],
+    )
+    def test_create_token_wrong_values(self, username, password, auth_manager_with_appbuilder):
+        with pytest.raises(ValueError, match="Username and password must be provided"):
+            auth_manager_with_appbuilder.create_token(
+                headers={}, body={"username": username, "password": password}
+            )
 
     @pytest.mark.parametrize(
         ("api_name", "method", "user_permissions", "expected_result"),

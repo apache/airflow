@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-sftp"
-version = "5.5.0"
+version = "5.5.1"
 description = "Provider package apache-airflow-providers-sftp for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-ssh>=4.0.0",
-    "apache-airflow-providers-common-compat>=1.8.0",  # use next version
+    "apache-airflow-providers-common-compat>=1.10.1",
     # TODO: Bump to >= 4.0.0 once https://github.com/apache/airflow/issues/54079 is handled
     "paramiko>=2.9.0,<4.0.0",
     "asyncssh>=2.12.0",
@@ -113,8 +113,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+import re
+
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -50,6 +52,8 @@ def _extract_team_name(args):
     team_name = args.name.strip()
     if not team_name:
         raise SystemExit("Team name cannot be empty")
+    if not re.match(r"^[a-zA-Z0-9_-]{3,50}$", team_name):
+        raise SystemExit("Invalid team name: must match regex ^[a-zA-Z0-9_-]{3,50}$")
     return team_name
 
 

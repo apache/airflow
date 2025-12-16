@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "כווץ את כל ה-JSON הנוסף",
-      "expandAllExtra": "הרחב את כל ה-JSON הנוסף"
-    },
     "columns": {
       "event": "אירוע",
       "extra": "תוכן",

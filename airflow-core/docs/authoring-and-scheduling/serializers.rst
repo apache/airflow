@@ -87,7 +87,7 @@ Registered
 
     from typing import TYPE_CHECKING
 
-    from airflow.utils.module_loading import qualname
+    from airflow.sdk.module_loading import qualname
 
     if TYPE_CHECKING:
         import decimal

@@ -464,10 +464,9 @@ export const PanelButtons = ({
                           </Text>
                           <SearchBar
                             defaultValue={triggeringUserFilter ?? ""}
-                            hideAdvanced
                             hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeHolder={translate("common:dagRun.triggeringUser")}
+                            placeholder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (

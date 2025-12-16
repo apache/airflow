@@ -47,7 +47,7 @@
     "clean-webpack-plugin": "^4.0.0",
     "copy-webpack-plugin": "^13.0.1",
     "css-loader": "7.1.2",
-    "css-minimizer-webpack-plugin": "^7.0.2",
+    "css-minimizer-webpack-plugin": "^7.0.3",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-html": "^8.1.3",
@@ -58,7 +58,7 @@
     "mini-css-extract-plugin": "^2.9.4",
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
-    "prettier": "^3.7.1",
+    "prettier": "^3.7.4",
     "stylelint": "^16.26.1",
     "terser-webpack-plugin": "<6.0.0",
     "url-loader": "4.1.1",
@@ -70,6 +70,9 @@
   "dependencies": {
     "jquery-ui": "^1.14.1",
     "moment-timezone": "^0.6.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
   },
   "resolutions": {
     "moment-timezone": ">=0.5.35"

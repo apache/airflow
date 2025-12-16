@@ -31,10 +31,10 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 import attr
 
 import airflow.serialization.serializers
+from airflow._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.configuration import conf
 from airflow.observability.stats import Stats
 from airflow.serialization.typing import is_pydantic_model
-from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 if TYPE_CHECKING:
     from types import ModuleType

@@ -29,12 +29,12 @@ from typing import NamedTuple
 
 import lazy_object_proxy
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
-from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -346,10 +346,11 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
 ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
-        "(Experimental) If set, the backfill will run tasks using the latest bundle version instead of "
-        "the version that was active when the original Dag run was created."
+        "(Experimental) The backfill will run tasks using the latest bundle version instead of "
+        "the version that was active when the original Dag run was created. Defaults to True."
     ),
     action="store_true",
+    default=True,
 )
 
 

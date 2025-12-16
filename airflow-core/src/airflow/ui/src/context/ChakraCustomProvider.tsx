@@ -16,20 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { FileUpload as ChakraFileUpload } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { ChakraProvider } from "@chakra-ui/react";
+import { useMemo, type PropsWithChildren } from "react";
 
-export type FileUploadRootProps = {
-  readonly inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
-} & ChakraFileUpload.RootProps;
+import type { Theme } from "openapi/requests/types.gen";
+import { useConfig } from "src/queries/useConfig";
+import { createTheme } from "src/theme";
 
-export const Root = forwardRef<HTMLInputElement, FileUploadRootProps>((props, ref) => {
-  const { children, inputProps, ...rest } = props;
+export const ChakraCustomProvider = ({ children }: PropsWithChildren) => {
+  const theme = useConfig("theme");
 
-  return (
-    <ChakraFileUpload.Root {...rest}>
-      <ChakraFileUpload.HiddenInput ref={ref} {...inputProps} />
-      {children}
-    </ChakraFileUpload.Root>
-  );
-});
+  const system = useMemo(() => {
+    if (typeof theme === "undefined") {
+      return undefined;
+    }
+
+    return createTheme(theme as Theme);
+  }, [theme]);
+
+  return system && <ChakraProvider value={system}>{children}</ChakraProvider>;
+};

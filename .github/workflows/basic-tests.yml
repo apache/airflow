@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.16"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.9.17"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -272,7 +272,7 @@ jobs:
           platform: ${{ inputs.platform }}
           save-cache: false
       - name: "Autoupdate all prek hooks"
-        run: prek autoupdate --freeze
+        run: prek autoupdate --cooldown-days 4 --freeze
       - name: "Autoupdate Lucas-C hooks to bleeding edge"
         run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
       - name: "Autoupdate Octopin to bleeding edge"
@@ -380,8 +380,8 @@ jobs:
           --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --release-candidate 3.1.0rc1
-          --previous-release 3.0.0 --answer yes --dry-run
+          breeze release-management start-release --version 3.1.0
+          --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
           git remote add apache https://github.com/apache/airflow.git

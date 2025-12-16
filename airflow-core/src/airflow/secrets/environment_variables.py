@@ -33,11 +33,18 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     def get_conn_value(self, conn_id: str) -> str | None:
         return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable from Environment Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
+        if team_name and (
+            team_var := os.environ.get(f"{VAR_ENV_PREFIX}_{team_name.upper()}___" + key.upper())
+        ):
+            # Format to set a team specific variable: AIRFLOW_VAR__<TEAM_ID>___<VAR_KEY>
+            return team_var
+
         return os.environ.get(VAR_ENV_PREFIX + key.upper())

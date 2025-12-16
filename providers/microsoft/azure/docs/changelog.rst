@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+12.10.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Added paginated_run method to KiotaRequestAdapterHook in MSGraph (#57536)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update logging documentation for Azure Blob Storage (#59016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.9.0
 ......
 

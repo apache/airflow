@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Center, HStack, Spinner } from "@chakra-ui/react";
+import { Box, Center, FileUpload, HStack, Spinner } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -25,9 +25,7 @@ import { LuFileUp } from "react-icons/lu";
 
 import type { BulkBody_VariableBody_ } from "openapi/requests/types.gen";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button, CloseButton, InputGroup } from "src/components/ui";
-import { FileUpload } from "src/components/ui/FileUpload";
-import { FileInput } from "src/components/ui/FileUpload/FileInput";
+import { Button, CloseButton } from "src/components/ui";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { useImportVariables } from "src/queries/useImportVariables";
 
@@ -126,32 +124,36 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
         }}
         required
       >
+        <FileUpload.HiddenInput />
         <FileUpload.Label fontSize="md" mb={3}>
           {translate("variables.import.upload")}
         </FileUpload.Label>
-        <InputGroup
-          endElement={
-            <FileUpload.ClearTrigger asChild>
-              <CloseButton
-                color="fg.subtle"
-                focusRingWidth="2px"
-                focusVisibleRing="inside"
-                me="-1"
-                onClick={() => {
-                  setError(undefined);
-                  setFileContent(undefined);
-                }}
-                pointerEvents="auto"
-                size="xs"
-                variant="plain"
-              />
-            </FileUpload.ClearTrigger>
-          }
-          startElement={<LuFileUp />}
-          w="full"
-        >
-          <FileInput placeholder={translate("variables.import.uploadPlaceholder")} />
-        </InputGroup>
+        <FileUpload.Trigger asChild>
+          <Button variant="outline">
+            <LuFileUp /> {translate("variables.import.uploadPlaceholder")}
+          </Button>
+        </FileUpload.Trigger>
+        <FileUpload.ItemGroup>
+          <FileUpload.Context>
+            {({ acceptedFiles }) =>
+              acceptedFiles.map((file) => (
+                <FileUpload.Item file={file} key={file.name}>
+                  <FileUpload.ItemName />
+                  <FileUpload.ItemSizeText />
+                  <FileUpload.ItemDeleteTrigger
+                    asChild
+                    onClick={() => {
+                      setError(undefined);
+                      setFileContent(undefined);
+                    }}
+                  >
+                    <CloseButton size="xs" variant="ghost" />
+                  </FileUpload.ItemDeleteTrigger>
+                </FileUpload.Item>
+              ))
+            }
+          </FileUpload.Context>
+        </FileUpload.ItemGroup>
         {isParsing ? (
           <Center mt={2}>
             <Spinner color="brand.solid" marginRight={2} size="sm" /> Parsing file...

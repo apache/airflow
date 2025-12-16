@@ -104,6 +104,24 @@ class TestVariable:
             assert test_var.val == test_value
             assert Fernet(key2).decrypt(test_var._val.encode()) == test_value.encode()
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_get_variable_with_team(self, testing_team, session):
+        Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
+        result = Variable.get(key="key", team_name=testing_team.name)
+        assert result == "value"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_get_global_variable_with_team(self, testing_team, session):
+        Variable.set(key="key", value="value", session=session)
+        result = Variable.get(key="key", team_name=testing_team.name)
+        assert result == "value"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_get_team_variable_without_team(self, testing_team, session):
+        Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
+        with pytest.raises(KeyError):
+            Variable.get(key="key")
+
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
         assert Variable.get("tested_var_set_id") == "Monday morning breakfast"
@@ -192,6 +210,24 @@ class TestVariable:
         assert test_var.val == "value2"
         assert test_var.description == "a test variable"
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_update_with_team(self, testing_team, session):
+        Variable.set(key="test_key", value="value1", team_name=testing_team.name, session=session)
+        Variable.update(key="test_key", value="value2", team_name=testing_team.name, session=session)
+        assert Variable.get("test_key", team_name=testing_team.name) == "value2"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_update_with_team_global(self, testing_team, session):
+        Variable.set(key="test_key", value="value1", session=session)
+        Variable.update(key="test_key", value="value2", team_name=testing_team.name, session=session)
+        assert Variable.get("test_key", team_name=testing_team.name) == "value2"
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_update_with_wrong_team(self, testing_team, session):
+        Variable.set(key="test_key", value="value1", team_name=testing_team.name, session=session)
+        with pytest.raises(KeyError):
+            Variable.update(key="test_key", value="value2", session=session)
+
     def test_set_variable_sets_description(self, session):
         Variable.set(key="key", value="value", description="a test variable", session=session)
         test_var = session.query(Variable).filter(Variable.key == "key").one()
@@ -275,6 +311,32 @@ class TestVariable:
         Variable.delete(key=key, session=session)
         with pytest.raises(KeyError):
             Variable.get(key)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_variable_delete_with_team(self, testing_team, session):
+        key = "tested_var_delete"
+        value = "to be deleted"
+
+        # No-op if the variable doesn't exist
+        Variable.delete(key=key, team_name=testing_team.name, session=session)
+        with pytest.raises(KeyError):
+            Variable.get(key)
+
+        # Delete same team variable
+        Variable.set(key=key, value=value, team_name=testing_team.name, session=session)
+        Variable.delete(key=key, team_name=testing_team.name, session=session)
+        with pytest.raises(KeyError):
+            Variable.get(key)
+
+        # Delete global variable
+        Variable.set(key=key, value=value, session=session)
+        Variable.delete(key=key, team_name=testing_team.name, session=session)
+        with pytest.raises(KeyError):
+            Variable.get(key)
+
+        # Attempt to delete a team variable from another one
+        Variable.set(key=key, value=value, team_name=testing_team.name, session=session)
+        assert Variable.delete(key=key, session=session) == 0
 
     def test_masking_from_db(self, session):
         """Test secrets are masked when loaded directly from the DB"""

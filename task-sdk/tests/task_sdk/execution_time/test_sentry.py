@@ -27,11 +27,11 @@ import pytest
 import uuid6
 
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.timezones import timezone
 from airflow.sdk.api.datamodels._generated import DagRun, DagRunState, DagRunType, TaskInstanceState
 from airflow.sdk.execution_time.comms import GetTaskBreadcrumbs, TaskBreadcrumbsResult
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-from airflow.sdk.module_loading import import_string
 
 from tests_common.test_utils.config import conf_vars
 

@@ -118,6 +118,7 @@ jobs:
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       selected-providers-list-as-string: >-
@@ -790,6 +791,7 @@ jobs:
       run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
