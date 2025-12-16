@@ -16,7 +16,7 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.2.0'
+minimum_prek_version: '0.2.22'
 default_language_version:
   python: python3
   node: 22.19.0
@@ -32,7 +32,7 @@ repos:
         name: Check if all hooks apply to the repository
   - repo: https://github.com/eclipse-csi/octopin
     # We need this commit because if supports two spaces before comments (yamllint compatibility)
-    rev: 21360742e352e87450f99e180fdfc2cf774a72a3
+    rev: 74fd075c7b326c771cd95ca86c59cbe65f0dda37
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)
@@ -40,7 +40,7 @@ repos:
         language: python
         language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
+    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -193,7 +193,7 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
+    rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -344,7 +344,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.8']
+        additional_dependencies: ['ruff==0.14.9']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -412,6 +412,9 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
+            ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions

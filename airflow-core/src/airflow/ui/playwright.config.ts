@@ -50,7 +50,6 @@ export default defineConfig({
             "--window-size=1920,1080",
             "--window-position=0,0",
           ],
-          channel: "chrome",
           ignoreDefaultArgs: ["--enable-automation"],
         },
       },

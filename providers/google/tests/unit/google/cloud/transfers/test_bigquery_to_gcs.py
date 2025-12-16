@@ -112,7 +112,11 @@ class TestBigQueryToGCSOperator:
             labels=labels,
             project_id=JOB_PROJECT_ID,
         )
-        operator.execute(context=mock.MagicMock())
+        result = operator.execute(context=mock.MagicMock())
+
+        assert result is not None
+        assert isinstance(result, list)
+        assert result == ["gs://some-bucket/some-file.txt"]
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             job_id="123456_hash",
@@ -206,6 +210,27 @@ class TestBigQueryToGCSOperator:
             event={"status": "success", "message": "Job completed", "job_id": job_id},
         )
         assert operator.job_id == job_id
+
+    def test_execute_complete_returns_destination_cloud_storage_uris(self):
+        """Assert that self.destination_cloud_storage_uris is returned by execute_complete."""
+
+        operator = BigQueryToGCSOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=[f"gs://{TEST_BUCKET}/{TEST_FOLDER}/"],
+            deferrable=True,
+            job_id=None,
+        )
+
+        result = operator.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "message": "Job completed", "job_id": None},
+        )
+
+        assert result is not None
+        assert isinstance(result, list)
+        assert result == [f"gs://{TEST_BUCKET}/{TEST_FOLDER}/"]
 
     @pytest.mark.parametrize(
         ("gcs_uri", "expected_dataset_name"),
