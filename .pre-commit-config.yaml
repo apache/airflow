@@ -423,6 +423,7 @@ repos:
             ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
             ^airflow-core/tests/unit/models/test_dagwarning.py$|
             ^airflow-core/tests/integration/otel/test_otel.py$|
+            ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
