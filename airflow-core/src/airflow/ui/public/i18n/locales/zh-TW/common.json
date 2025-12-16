@@ -131,7 +131,7 @@
     "docs": "文件",
     "home": "首頁",
     "legacyFabViews": "舊版檢視",
-    "plugins": "插件",
+    "plugins": "外掛",
     "security": "安全"
   },
   "noItemsFound": "找不到 {{modelName}}",
