@@ -416,6 +416,7 @@ repos:
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
             ^providers/databricks/.*\.py$|
+            ^providers/mysql/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
