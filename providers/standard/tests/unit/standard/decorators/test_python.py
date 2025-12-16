@@ -1152,13 +1152,13 @@ async def dummy_task():
     pass
 
 
-def test_is_async_callable(self):
+def test_is_async_callable():
     from airflow.sdk.bases.decorator import is_async_callable
 
     assert is_async_callable(dummy_task)
 
 
-def test_python_task(self):
+def test_python_task():
     from airflow.providers.standard.decorators.python import _PythonDecoratedAsyncOperator, python_task
     from airflow.sdk.bases.decorator import _TaskDecorator
 
