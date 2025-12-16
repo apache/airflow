@@ -662,6 +662,16 @@ def sync_bag_to_db(
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    # Build the set of all files that were parsed and include files with import errors
+    # in case they are not in file_last_changed
+    files_parsed = set(import_errors)
+    if dagbag.bundle_path:
+        files_parsed.update(
+            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
+            for abs_filepath in dagbag.file_last_changed
+        )
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -670,6 +680,7 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        files_parsed=files_parsed,
     )
 
 
