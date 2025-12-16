@@ -36,7 +36,6 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
-from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -99,8 +98,8 @@ def cleanup_tables():
 class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
-            session.execute(delete(DagRun))
-            session.execute(delete(TaskInstance))
+            session.query(DagRun).delete()
+            session.query(TaskInstance).delete()
 
     def setup_method(self):
         settings.configure_logging()
@@ -782,14 +781,17 @@ class TestFilenameRendering:
         )
         TaskInstanceHistory.record_ti(ti, session=session)
         session.flush()
-        stmt = select(TaskInstanceHistory).filter_by(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index,
-            try_number=ti.try_number,
+        tih = (
+            session.query(TaskInstanceHistory)
+            .filter_by(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                run_id=ti.run_id,
+                map_index=ti.map_index,
+                try_number=ti.try_number,
+            )
+            .one()
         )
-        tih = session.execute(stmt).scalar_one()
         fth = FileTaskHandler("")
         rendered_ti = fth._render_filename(ti, ti.try_number, session=session)
         rendered_tih = fth._render_filename(tih, ti.try_number, session=session)
