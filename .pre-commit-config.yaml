@@ -179,6 +179,8 @@ repos:
         name: Check minimum Python version
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
+        additional_dependencies:
+          - rich
         require_serial: true
       - id: check-version-consistency
         name: Check version consistency
@@ -371,6 +373,8 @@ repos:
         name: Replace bad characters
         entry: ./scripts/ci/prek/replace_bad_characters.py
         language: python
+        additional_dependencies:
+          - rich
         types: [file, text]
         exclude: >
           (?x)
@@ -654,6 +658,9 @@ repos:
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
+        additional_dependencies:
+          - pyyaml
+          - termcolor
         entry: ./scripts/ci/prek/boring_cyborg.py
         pass_filenames: false
         require_serial: true
@@ -826,6 +833,9 @@ repos:
         description: Update output of breeze commands in Breeze documentation
         entry: ./scripts/ci/prek/breeze_cmd_line.py
         language: python
+        additional_dependencies:
+          - rich
+          - breeze
         files: >
           (?x)
           ^dev/breeze/.*$|
@@ -838,6 +848,8 @@ repos:
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/prek/update_example_dags_paths.py
         language: python
+        additional_dependencies:
+          - pyyaml
         pass_filenames: true
         files:
           (?x)
