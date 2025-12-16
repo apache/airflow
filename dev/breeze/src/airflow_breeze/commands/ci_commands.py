@@ -629,9 +629,9 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
 
     # Define all upgrade commands to run (all run with check=False to continue on errors)
     upgrade_commands = [
-        "prek autoupdate --cooldown-days 4 --freeze",
-        "prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks",
-        "prek autoupdate --bleeding-edge --freeze --repo https://github.com/eclipse-csi/octopin",
+        "prek auto-update --cooldown-days 4 --freeze",
+        "prek auto-update --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks",
+        "prek auto-update --bleeding-edge --freeze --repo https://github.com/eclipse-csi/octopin",
         "prek --all-files --verbose --hook-stage manual pin-versions",
         "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual update-chart-dependencies",
         "prek --all-files --show-diff-on-failure --color always --verbose --hook-stage manual upgrade-important-versions",
