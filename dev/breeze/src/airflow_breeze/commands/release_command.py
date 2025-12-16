@@ -28,6 +28,9 @@ from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
+# Pattern to match Airflow release versions (e.g., "3.0.5")
+RELEASE_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
+
 
 def clone_asf_repo(working_dir):
     if confirm_action("Clone ASF repo?"):
@@ -159,18 +162,75 @@ def commit_release(version, task_sdk_version, rc, task_sdk_rc, svn_release_repo)
         os.chdir(current_dir)
 
 
-def remove_old_release(previous_release):
-    if confirm_action(f"Remove old release {previous_release}?"):
-        run_command(["svn", "rm", f"{previous_release}"], check=True)
-        run_command(
-            ["svn", "commit", "-m", f"Remove old release: {previous_release}"],
-            check=True,
-        )
-        confirm_action(
-            "Verify that the packages appear in "
-            "[airflow](https://dist.apache.org/repos/dist/release/airflow/). Continue?",
-            abort=True,
-        )
+def remove_old_release(version, task_sdk_version, svn_release_repo):
+    """
+    Remove all old Airflow and Task SDK releases from SVN except the current versions.
+
+    :param version: Current Airflow release version to keep
+    :param task_sdk_version: Current Task SDK release version to keep (if any)
+    :param svn_release_repo: Path to the SVN release repository
+    """
+    if not confirm_action("Do you want to look for old releases to remove?"):
+        return
+
+    # Save current directory
+    current_dir = os.getcwd()
+    os.chdir(svn_release_repo)
+
+    # Initialize lists for old releases
+    old_airflow_releases = []
+    old_task_sdk_releases = []
+
+    # Remove old Airflow releases
+    for entry in os.scandir():
+        if entry.name == version:
+            # Don't remove the current release
+            continue
+        if entry.is_dir() and RELEASE_PATTERN.match(entry.name):
+            old_airflow_releases.append(entry.name)
+    old_airflow_releases.sort()
+
+    if old_airflow_releases:
+        console_print(f"The following old Airflow releases should be removed: {old_airflow_releases}")
+        for old_release in old_airflow_releases:
+            console_print(f"Removing old release {old_release}")
+            if confirm_action(f"Remove old release {old_release}?"):
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old release: {old_release}"],
+                    check=True,
+                )
+
+    # Remove old Task SDK releases
+    if task_sdk_version:
+        task_sdk_dir = os.path.join(svn_release_repo, "task-sdk")
+        if os.path.exists(task_sdk_dir):
+            for entry in os.scandir(task_sdk_dir):
+                if entry.name == task_sdk_version:
+                    # Don't remove the current Task SDK release
+                    continue
+                if entry.is_dir() and RELEASE_PATTERN.match(entry.name):
+                    old_task_sdk_releases.append(f"task-sdk/{entry.name}")
+            old_task_sdk_releases.sort()
+
+            if old_task_sdk_releases:
+                console_print(
+                    f"The following old Task SDK releases should be removed: {old_task_sdk_releases}"
+                )
+                for old_release in old_task_sdk_releases:
+                    console_print(f"Removing old release {old_release}")
+                    if confirm_action(f"Remove old release {old_release}?"):
+                        run_command(["svn", "rm", old_release], check=True)
+                        run_command(
+                            ["svn", "commit", "-m", f"Remove old release: {old_release}"],
+                            check=True,
+                        )
+
+    if not old_airflow_releases and not old_task_sdk_releases:
+        console_print("No old releases to remove.")
+    if old_airflow_releases or old_task_sdk_releases:
+        console_print("[success]Old releases removed")
+    os.chdir(current_dir)
 
 
 def verify_pypi_package(version):
@@ -315,22 +375,18 @@ def push_tag_for_final_version(version, release_candidate, task_sdk_version=None
     "The latest release candidate for the given version will be automatically found from SVN dev directory.",
 )
 @click.option("--version", required=True, help="Airflow release version e.g. 3.0.5")
-@click.option("--previous-release", required=True, help="Previous Airflow release e.g. 3.0.4")
 @click.option("--task-sdk-version", required=False, help="Task SDK release version e.g. 1.0.5")
 @option_answer
 @option_dry_run
 @option_verbose
-def airflow_release(version, previous_release, task_sdk_version):
+def airflow_release(version, task_sdk_version):
     if "rc" in version:
         exit("Version must not contain 'rc' - use the final version (e.g., 3.0.5)")
-    if "rc" in previous_release:
-        exit("Previous release must not contain 'rc'")
 
     os.chdir(AIRFLOW_ROOT_PATH)
     airflow_repo_root = os.getcwd()
     console_print()
     console_print("Airflow Release Version:", version)
-    console_print("Previous Airflow release:", previous_release)
     if task_sdk_version:
         console_print("Task SDK Release Version:", task_sdk_version)
     console_print("Airflow repo root:", airflow_repo_root)
@@ -402,10 +458,16 @@ def airflow_release(version, previous_release, task_sdk_version):
         "Verify that the artifacts appear in https://dist.apache.org/repos/dist/release/airflow/", abort=True
     )
 
-    # Remove old release
+    # Remove old releases
     if os.path.exists(svn_release_version_dir):
         os.chdir("..")
-    remove_old_release(previous_release)
+    remove_old_release(version, task_sdk_version, svn_release_repo)
+    confirm_action(
+        "Verify that the packages appear in "
+        "[airflow](https://dist.apache.org/repos/dist/release/airflow/)"
+        "and [airflow](https://dist.apache.org/repos/dist/release/airflow/task-sdk/). Continue?",
+        abort=True,
+    )
 
     # Verify pypi package
     if os.path.exists(svn_release_version_dir):
