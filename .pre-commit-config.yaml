@@ -415,6 +415,7 @@ repos:
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
+            ^providers/databricks/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
