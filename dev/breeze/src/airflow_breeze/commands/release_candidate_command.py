@@ -473,25 +473,25 @@ def move_artifacts_to_svn(
             shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
-        run_command(["ls"])
-        run_command([f"ls {version}"])
-        run_command([f"ls task-sdk/{task_sdk_version}"])
+        run_command([f"ls {repo_root}/asf-dist/dev/airflow/{version}"])
+        run_command([f"ls {repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"])
 
 
 def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
+        base_dir = f"{repo_root}/asf-dist/dev/airflow"
+        airflow_dir = f"{base_dir}/{version}"
+        task_sdk_dir = f"{base_dir}/task-sdk/{task_sdk_version}"
+
         console_print("Airflow Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=airflow_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
         console_print("Task SDK Version Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}")
-        run_command(["ls"])
+        run_command(["ls"], cwd=task_sdk_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
+        if not get_dry_run():
+            os.chdir(base_dir)
+        run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
         run_command(
             ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
             check=True,

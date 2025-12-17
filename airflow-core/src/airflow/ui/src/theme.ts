@@ -20,7 +20,7 @@
 /* eslint-disable perfectionist/sort-objects */
 
 /* eslint-disable max-lines */
-import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+import { createSystem, defaultConfig, defineConfig, mergeConfigs } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 
 import type { Theme } from "openapi/requests/types.gen";
@@ -35,7 +35,7 @@ const generateSemanticTokens = (color: string, darkContrast: string = "white") =
   focusRing: { value: { _light: `{colors.${color}.800}`, _dark: `{colors.${color}.200}` } },
 });
 
-const defaultTheme = {
+const defaultAirflowTheme = {
   // See https://chakra-ui.com/docs/theming/colors for more information on the colors used here.
   tokens: {
     colors: {
@@ -398,11 +398,13 @@ const defaultTheme = {
 };
 
 export const createTheme = (userTheme?: Theme) => {
-  const customConfig = defineConfig({
-    theme: typeof userTheme === "undefined" ? defaultTheme : { ...defaultTheme, ...userTheme },
-  });
+  const defaultAirflowConfig = defineConfig({ theme: defaultAirflowTheme });
 
-  return createSystem(defaultConfig, customConfig);
+  const userConfig = defineConfig({ theme: userTheme ?? {} });
+
+  const mergedConfig = mergeConfigs(defaultConfig, defaultAirflowConfig, userConfig);
+
+  return createSystem(mergedConfig);
 };
 
 export const defaultSystem = createTheme();

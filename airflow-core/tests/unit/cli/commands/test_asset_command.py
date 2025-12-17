@@ -116,7 +116,10 @@ def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> Non
     # No good way to statically compare these.
     undeterministic = {"id": None}
 
-    assert alias_detail_list[0] | undeterministic == undeterministic | {"name": "example-alias", "group": ""}
+    assert alias_detail_list[0] | undeterministic == undeterministic | {
+        "name": "example-alias",
+        "group": "asset",
+    }
 
 
 @mock.patch("airflow.api_fastapi.core_api.datamodels.dag_versions.hasattr")
