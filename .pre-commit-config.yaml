@@ -417,6 +417,8 @@ repos:
             ^airflow-core/tests/unit/models/test_pool.py$|
             ^airflow-core/tests/unit/models/test_trigger.py$|
             ^airflow-core/tests/unit/models/test_callback.py$|
+            ^airflow-core/tests/unit/models/test_xcom.py$|
+            ^airflow-core/tests/unit/models/test_xcom.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
