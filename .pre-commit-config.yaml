@@ -432,9 +432,10 @@ repos:
             ^airflow-core/tests/unit/models/test_cleartasks.py$|
             ^airflow-core/tests/unit/models/test_xcom.py$|
             ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
-            ^providers/openlineage/.*\.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
