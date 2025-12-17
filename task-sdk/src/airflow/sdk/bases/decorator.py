@@ -22,7 +22,8 @@ import re
 import textwrap
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
-from functools import cached_property, update_wrapper
+from contextlib import suppress
+from functools import cached_property, partial, update_wrapper
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
@@ -640,26 +641,52 @@ class TaskDecorator(Protocol):
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
+def unwrap_partial(fn):
+    while isinstance(fn, partial):
+        fn = fn.func
+    return fn
+
+
 def unwrap_callable(func):
-    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.mappedoperator import OperatorPartial
 
+    # Airflow-specific unwrap
     if isinstance(func, (_TaskDecorator, OperatorPartial)):
-        # unwrap to the real underlying callable
-        return getattr(func, "function", getattr(func, "_func", func))
+        func = getattr(func, "function", getattr(func, "_func", func))
+
+    # Unwrap functools.partial
+    func = unwrap_partial(func)
+
+    # Unwrap @functools.wraps chains
+    with suppress(Exception):
+        func = inspect.unwrap(func)
+
     return func
 
 
 def is_async_callable(func):
-    """Detect if a callable (possibly an Airflow TaskDecorator) wraps an async function."""
-    # unwrap to the real underlying callable
+    """Detect if a callable (possibly wrapped) is an async function."""
     func = unwrap_callable(func)
 
-    # If it's not callable, bail out early
     if not callable(func):
         return False
 
-    return inspect.iscoroutinefunction(func)
+    # Direct async function
+    if inspect.iscoroutinefunction(func):
+        return True
+
+    # Callable object with async __call__
+    call = getattr(func, "__call__", None)
+    if call:
+        # unwrap bound methods / decorators
+        call = inspect.unwrap(getattr(func, "__call__", call))
+        # if it's a bound method, get the underlying function
+        if hasattr(call, "__func__"):
+            call = call.__func__
+        if inspect.iscoroutinefunction(call):
+            return True
+
+    return False
 
 
 def task_decorator_factory(
