@@ -22,9 +22,9 @@ virtual environment.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
-import time
 from pprint import pprint
 
 import pendulum
@@ -62,18 +62,19 @@ def example_python_decorator():
     log_the_sql = log_sql()
     # [END howto_operator_python_render_sql]
 
-    # [START howto_operator_python_kwargs]
+    # [START howto_async_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
+    # Asynchronous callables are natively supported since Airflow 3.2+
     @task
-    def my_sleeping_function(random_base):
+    async def my_asynchronous_sleeping_function(random_base):
         """This is a function that will run within the DAG execution"""
-        time.sleep(random_base)
+        await asyncio.sleep(random_base)
 
     for i in range(5):
-        sleeping_task = my_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
+        sleeping_task = my_asynchronous_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
 
         run_this >> log_the_sql >> sleeping_task
-    # [END howto_operator_python_kwargs]
+    # [END howto_async_operator_python_kwargs]
 
     # [START howto_operator_python_venv]
     @task.virtualenv(
