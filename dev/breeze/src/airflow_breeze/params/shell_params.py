@@ -52,6 +52,7 @@ from airflow_breeze.global_constants import (
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
+    SEQUENTIAL_EXECUTOR,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
@@ -490,7 +491,11 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
-        _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        if self.backend == "sqlite":
+            get_console().print(f"[warning]SQLite backend needs {SEQUENTIAL_EXECUTOR}[/]")
+            _set_var(_env, "AIRFLOW__CORE__EXECUTOR", SEQUENTIAL_EXECUTOR)
+        else:
+            _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         _set_var(_env, "AIRFLOW__CORE__FERNET_KEY", None, None)
         if self.executor == EDGE_EXECUTOR:
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
