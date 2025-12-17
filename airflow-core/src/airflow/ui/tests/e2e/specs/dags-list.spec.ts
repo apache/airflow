@@ -64,3 +64,37 @@ test.describe("Dags Pagination", () => {
     expect(dagNamesAfterPrev).toEqual(initialDagNames);
   });
 });
+
+/**
+ * Dag Trigger E2E Tests
+ */
+
+test.describe("Dag Trigger Workflow", () => {
+  let loginPage: LoginPage;
+  let dagsPage: DagsPage;
+
+  // Test configuration from centralized config
+
+  const testCredentials = testConfig.credentials;
+
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    loginPage = new LoginPage(page);
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should successfully trigger a Dag run", async () => {
+    test.setTimeout(7 * 60 * 1000);
+
+    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
+
+    await loginPage.expectLoginSuccess();
+
+    const dagRunId = await dagsPage.triggerDag(testDagId);
+
+    if (Boolean(dagRunId)) {
+      await dagsPage.verifyDagRunStatus(testDagId, dagRunId);
+    }
+  });
+});
