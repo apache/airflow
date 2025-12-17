@@ -16,20 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonProps as ChakraCloseButtonProps } from "@chakra-ui/react";
-import { IconButton as ChakraIconButton } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { useDisclosure, Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { LuX } from "react-icons/lu";
+import { FiPlus } from "react-icons/fi";
 
-export type CloseButtonProps = {} & ChakraCloseButtonProps;
+import XComModal from "./XComModal";
 
-export const CloseButton = forwardRef<HTMLButtonElement, CloseButtonProps>((props, ref) => {
-  const { t: translate } = useTranslation(["components"]);
+type AddXComButtonProps = {
+  readonly dagId: string;
+  readonly mapIndex: number;
+  readonly runId: string;
+  readonly taskId: string;
+};
+
+const AddXComButton = ({ dagId, mapIndex, runId, taskId }: AddXComButtonProps) => {
+  const { t: translate } = useTranslation("browse");
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <ChakraIconButton aria-label={translate("close")} ref={ref} variant="ghost" {...props}>
-      {props.children ?? <LuX />}
-    </ChakraIconButton>
+    <>
+      <Button colorPalette="brand" onClick={onOpen}>
+        <FiPlus /> {translate("xcom.add.title")}
+      </Button>
+
+      <XComModal
+        dagId={dagId}
+        isOpen={open}
+        mapIndex={mapIndex}
+        mode="add"
+        onClose={onClose}
+        runId={runId}
+        taskId={taskId}
+      />
+    </>
   );
-});
+};
+
+export default AddXComButton;
