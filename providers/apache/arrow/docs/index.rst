@@ -72,7 +72,7 @@
 apache-airflow-providers-apache-arrow package
 ------------------------------------------------------
 
-Apache Arrow  <https://arrow.apache.org/>`__
+`Apache Arrow  <https://arrow.apache.org/>`__
 
 
 Release: 1.0.0
@@ -95,15 +95,15 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ==================
+=======================================  =====================================
 PIP package                              Version required
-=======================================  ==================
+=======================================  =====================================
 ``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.28.2``
 ``adbc-driver-manager``                  ``>=1.7.0``
 ``importlib-resources``                  ``>=1.3``
 ``pyarrow``                              ``>=16.1.0; python_version < "3.13"``
-=======================================  ==================
+=======================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
