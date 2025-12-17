@@ -655,6 +655,29 @@ class MappedTaskGroup(TaskGroup):
             self.set_upstream(op)
         super().__exit__(exc_type, exc_val, exc_tb)
 
+    def _set_relatives(
+        self,
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
+        upstream: bool = False,
+        edge_modifier: EdgeModifier | None = None,
+    ) -> None:
+        """
+        Call set_upstream/set_downstream for all root/leaf tasks within this MappedTaskGroup.
+
+        Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
+
+        Ensure that all tasks in the MappedTaskGroup are added as downstream dependencies of the mapping source.
+
+        """
+        super()._set_relatives(task_or_task_list, upstream, edge_modifier)
+        self._set_mapping_sources()
+
+    def _set_mapping_sources(self):
+        """Set tasks within MappedTaskGroup as downstream dependencies of mapping sources here."""
+        for mapping_source in self.iter_mapped_dependencies():
+            for task in self.iter_tasks():
+                mapping_source.set_downstream(task)
+
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
         from airflow.sdk.definitions.xcom_arg import XComArg

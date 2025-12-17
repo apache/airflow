@@ -905,3 +905,45 @@ def test_build_task_group_with_operators():
     # Testing Tasks downstream
     assert dag.task_dict["task_start"].downstream_task_ids == {"section_1.task_1"}
     assert dag.task_dict["section_1.task_3"].downstream_task_ids == {"task_end"}
+
+
+def test_mapped_task_group_tasks_depend_on_mapping_source():
+    """Verify that all tasks in a mapped TaskGroup are set as downstream dependencies of the mapping source."""
+    from airflow.sdk import task
+
+    @task
+    def get_mapping_source():
+        # At least two parallel task streams within a
+        # mapped group are needed for the issue to arise.
+
+        return ["one", "two"]
+
+    @task
+    def mapping_function(x: str, y: str):
+        output = f"{x}_{y}"
+        return output
+
+    @task_group_decorator
+    def the_task_group(x: str, y: str):
+        group_mid = mapping_function(x, y)
+
+        # End task within a mapped task group must
+        # not be set as a consumer of the mapping source.
+        # The dependency must be implicit.
+        group_end = EmptyOperator(task_id="end")
+
+        group_mid >> group_end
+
+    with DAG(dag_id="example_mapped_task_group", schedule=None, start_date=DEFAULT_DATE) as dag:
+        final_end = EmptyOperator(task_id="end")
+        mapping_source = get_mapping_source()
+
+        mapped_group = the_task_group.partial(x="base").expand(y=mapping_source)
+
+        mapping_source >> mapped_group >> final_end
+
+    mapping_source = dag.task_dict["get_mapping_source"]
+
+    # Only downstream task IDs for tasks are serialized.
+    task_ids = {task.task_id for task in mapped_group.iter_tasks()}
+    assert task_ids.issubset(mapping_source.downstream_task_ids)
