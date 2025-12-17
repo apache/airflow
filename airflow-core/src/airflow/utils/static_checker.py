@@ -35,8 +35,8 @@ class RuntimeVaryingValueWarning:
 class WarningContext(str, Enum):
     """Context types for warnings."""
 
-    TASK_CONSTRUCTOR = "TASK constructor"
-    DAG_CONSTRUCTOR = "DAG constructor"
+    TASK_CONSTRUCTOR = "Task constructor"
+    DAG_CONSTRUCTOR = "Dag constructor"
 
 
 RUNTIME_VARYING_CALLS = [
@@ -211,11 +211,11 @@ class RuntimeVaryingValueAnalyzer:
         return False
 
 
-class DAGTaskDetector:
+class DagTaskDetector:
     """
-    Detector dedicated to identifying DAG and Task constructors.
+    Detector dedicated to identifying Dag and Task constructors.
 
-    This detector identifies when code is creating DAG or Task objects
+    This detector identifies when code is creating Dag or Task objects
     in Airflow. It needs to handle both traditional class instantiation and decorator styles.
     """
 
@@ -282,7 +282,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
     Main responsibilities:
     - Traverse AST and visit nodes
-    - Detect DAG/Task creation
+    - Detect Dag/Task creation
     - Track runtime-varying values and generate warnings
     """
 
@@ -294,7 +294,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
         # Helper objects
         self.value_analyzer = RuntimeVaryingValueAnalyzer(self.varying_vars, self.imports, self.from_imports)
-        self.dag_detector = DAGTaskDetector(self.from_imports)
+        self.dag_detector = DagTaskDetector(self.from_imports)
 
     def visit_Import(self, node: ast.Import):
         """Process import statements."""
@@ -314,13 +314,13 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         Process variable assignments.
 
         Checks:
-        1. DAG instance assignment
+        1. Dag instance assignment
         2. Task instance assignment
         3. Runtime-varying value assignment
         """
         value = node.value
 
-        # DAG constructor
+        # Dag constructor
         if isinstance(value, ast.Call) and self.dag_detector.is_dag_constructor(value):
             self._register_dag_instances(node.targets)
             self._check_and_warn(value, WarningContext.DAG_CONSTRUCTOR)
@@ -337,7 +337,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         """
         Process function calls.
 
-        Check not assign but just call the function or dag definition via decorator.
+        Check not assign but just call the function or Dag definition via decorator.
         """
         if self.dag_detector.is_dag_constructor(node):
             self._check_and_warn(node, WarningContext.DAG_CONSTRUCTOR)
@@ -369,15 +369,15 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         """
         Process with statements.
 
-        Detect DAG context manager.
+        Detect Dag context manager.
         """
         is_with_dag_context = False
         for item in node.items:
-            # check if the dag instance exists in with context
+            # check if the Dag instance exists in with context
             self.visit(item)
             if isinstance(item.context_expr, ast.Call):
                 if self.dag_detector.is_dag_constructor(item.context_expr):
-                    # check the value defined in with statement to detect entering DAG with block
+                    # check the value defined in with statement to detect entering Dag with block
                     is_with_dag_context = True
 
         if is_with_dag_context:
@@ -386,11 +386,11 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         for body in node.body:
             self.visit(body)
 
-        # Exit DAG with block
+        # Exit Dag with block
         self.dag_detector.exit_dag_context()
 
     def _register_dag_instances(self, targets: list):
-        """Register DAG instance variable names."""
+        """Register Dag instance variable names."""
         for target in targets:
             if isinstance(target, ast.Name):
                 self.dag_detector.register_dag_instance(target.id)
@@ -419,7 +419,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     def _get_warning_message(self, context: WarningContext):
         """Get appropriate warning message based on context."""
         if self.dag_detector.is_in_dag_context and context == WarningContext.TASK_CONSTRUCTOR:
-            return "Don't use runtime-varying values as function arguments within with DAG block"
+            return "Don't use runtime-varying values as function arguments within with Dag block"
         return f"Don't use runtime-varying value as argument in {context.value}"
 
     def format_warnings(self) -> str | None:
@@ -428,8 +428,8 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
             return None
 
         lines = [
-            "⚠️ This DAG uses runtime-variable values in DAG construction.",
-            "⚠️ It causes the DAG version to increase as values change on every DAG parse.",
+            "⚠️ This Dag uses runtime-variable values in Dag construction.",
+            "⚠️ It causes the Dag version to increase as values change on every Dag parse.",
             "",
         ]
         for w in self.warnings:
@@ -441,7 +441,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         return "\n".join(lines)
 
 
-def check_dag_file_static(file_path):
+def check_dag_file_static(file_path) -> str | None:
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
     except Exception:
@@ -452,8 +452,8 @@ def check_dag_file_static(file_path):
     return checker.format_warnings()
 
 
-def get_warning_dag_format_dict(warning_statement, dag_ids):
-    """Convert warning statement to DAG warning format."""
+def get_warning_dag_format_dict(warning_statement: str | None, dag_ids):
+    """Convert warning statement to Dag warning format."""
     from airflow.models.dagwarning import DagWarningType
 
     if not warning_statement:
@@ -461,7 +461,7 @@ def get_warning_dag_format_dict(warning_statement, dag_ids):
     return [
         {
             "dag_id": dag_id,
-            "warning_type": DagWarningType.PARSING_ERROR.value,
+            "warning_type": DagWarningType.RUNTIME_VARYING_VALUE.value,
             "message": warning_statement,
         }
         for dag_id in dag_ids

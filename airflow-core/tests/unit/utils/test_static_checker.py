@@ -20,7 +20,7 @@ import ast
 
 from airflow.utils.static_checker import (
     AirflowRuntimeVaryingValueChecker,
-    DAGTaskDetector,
+    DagTaskDetector,
     RuntimeVaryingValueAnalyzer,
     RuntimeVaryingValueWarning,
     WarningContext,
@@ -274,7 +274,7 @@ class TestDAGTaskDetector:
     def setup_method(self):
         """Each test gets a fresh detector instance"""
         self.from_imports = {}
-        self.detector = DAGTaskDetector(self.from_imports)
+        self.detector = DagTaskDetector(self.from_imports)
 
     def test_is_dag_constructor__detects_traditional_dag_call_uppercase(self):
         """

@@ -1211,9 +1211,8 @@ def process_parse_results(
             files_parsed = {(bundle_name, relative_fileloc)}
             files_parsed.update(import_errors.keys())
 
-        warning = parsing_result.warnings
-        if parsing_result.warnings and isinstance(parsing_result.warnings[0], dict):
-            warning = [DagWarning(**warn) for warn in parsing_result.warnings]
+        if (warnings := parsing_result.warnings) and isinstance(warnings[0], dict):
+            warnings = [DagWarning(**warn) for warn in warnings]
 
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
@@ -1221,7 +1220,7 @@ def process_parse_results(
             dags=parsing_result.serialized_dags,
             import_errors=import_errors,
             parse_duration=run_duration,
-            warnings=set(warning or []),
+            warnings=set(warnings or []),
             session=session,
             files_parsed=files_parsed,
         )

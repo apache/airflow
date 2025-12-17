@@ -11085,7 +11085,7 @@ components:
       enum:
       - asset conflict
       - non-existent pool
-      - parsing error
+      - runtime varying value
       title: DagWarningType
       description: 'Enum for DAG warning types.
 

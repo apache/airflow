@@ -510,6 +510,10 @@ class DagFileProcessorProcess(WatchedSubprocess):
         client: Client,
         **kwargs,
     ) -> Self:
+        logger = kwargs["logger"]
+
+        _pre_import_airflow_modules(os.fspath(path), logger)
+
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
         proc._on_child_started(callbacks, path, bundle_path, bundle_name)
