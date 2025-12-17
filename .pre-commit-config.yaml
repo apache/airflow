@@ -425,6 +425,16 @@ repos:
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
+            ^airflow-core/tests/unit/models/test_renderedtifields.py$|
+            ^airflow-core/tests/unit/models/test_timestamp.py$|
+            ^airflow-core/tests/unit/utils/test_cli_util.py$|
+            ^airflow-core/tests/unit/timetables/test_assets_timetable.py$|
+            ^airflow-core/tests/unit/assets/test_manager.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
+            ^airflow-core/tests/unit/models/test_dagwarning.py$|
+            ^airflow-core/tests/integration/otel/test_otel.py$|
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
