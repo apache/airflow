@@ -139,7 +139,7 @@ class KeyedHeadQueue(Generic[K, V]):
             return [key for key in self.__map.keys() if key not in self.__popped_keys]
 
 
-class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[tuple[K, V]]]):
+class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[V]]):
     """
     Dict-like container where each key maps to an asyncio.Queue.
 
