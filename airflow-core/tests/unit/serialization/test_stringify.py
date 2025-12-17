@@ -24,7 +24,7 @@ import pytest
 
 from airflow.sdk.serde import serialize
 from airflow.serialization.stringify import CLASSNAME, VERSION, stringify
-from airflow.utils.module_loading import qualname
+from airflow._shared.module_loading import qualname
 
 
 @dataclass
