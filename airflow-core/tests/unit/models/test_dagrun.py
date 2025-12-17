@@ -1442,7 +1442,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
 
     query = (
         select(TI.map_index, TI.state)
-        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     )
     indices = session.execute(query).all()
@@ -1508,7 +1508,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
 
     query = (
         select(TI.map_index, TI.state)
-        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     )
     indices = session.execute(query).all()
@@ -1549,7 +1549,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     dr = dag_maker.create_dagrun()
     query = (
         select(TI.map_index, TI.state)
-        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     )
     indices = session.execute(query).all()
@@ -1658,7 +1658,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     dr.task_instance_scheduling_decisions(session=session)
     query = (
         select(TI.map_index, TI.state)
-        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     )
     indices = session.execute(query).all()
@@ -1748,7 +1748,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
 
     query = (
         select(TI.map_index, TI.state)
-        .filter_by(task_id="task_2", dag_id=dr.dag_id, run_id=dr.run_id)
+        .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
     )
     indices = session.execute(query).all()
@@ -2572,8 +2572,14 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
 
     dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
     ti = dr1.get_task_instances()[0]
-    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-    ti = session.scalar(select(TaskInstance).filter_by(**filter_kwargs))
+    ti = session.scalar(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+    )
 
     tr = TaskReschedule(
         ti_id=ti.id,
