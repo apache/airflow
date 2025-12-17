@@ -95,7 +95,7 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
-      <ExtraLinks />
+      {taskInstance?.extra_links && taskInstance.extra_links.length > 0 ? <ExtraLinks /> : undefined}
       {taskInstance === undefined ||
       // eslint-disable-next-line unicorn/no-null
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
