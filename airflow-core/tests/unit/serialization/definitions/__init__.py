@@ -15,28 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from pluggy import HookspecMarker
-
-if TYPE_CHECKING:
-    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
-
-hookspec = HookspecMarker("airflow")
-
-
-@hookspec
-def on_asset_created(asset: SerializedAsset):
-    """Execute when a new asset is created."""
-
-
-@hookspec
-def on_asset_alias_created(asset_alias: SerializedAssetAlias):
-    """Execute when a new asset alias is created."""
-
-
-@hookspec
-def on_asset_changed(asset: SerializedAsset):
-    """Execute when asset change is registered."""
