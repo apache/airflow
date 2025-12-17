@@ -389,7 +389,7 @@ config:
     options:
       master_name:
         description: |
-          The name of the Redis Sentinel master to connect to.
+          The name of the Redis Sentinel primary node to connect to.
           Required when using Redis Sentinel as the result backend.
         version_added: ~
         type: string
