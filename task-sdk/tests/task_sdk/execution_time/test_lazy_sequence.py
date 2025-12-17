@@ -83,7 +83,18 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
     ]
     assert list(it) == ["f"]
 
-    mock_supervisor_comms.send.assert_called_once_with(
+    assert mock_supervisor_comms.send.call_args_list == [
+        call(
+            msg=GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=None,
+            )
+        ),
         call(
             msg=GetXComSequenceSlice(
                 key=BaseXCom.XCOM_RETURN_KEY,
@@ -91,11 +102,11 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
                 task_id="task",
                 run_id="run",
                 start=1,
-                stop=stop,
+                stop=stop + 1,
                 step=None,
-            ),
-        )
-    )
+            )
+        ),
+    ]
 
 
 def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
