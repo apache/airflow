@@ -261,7 +261,9 @@ class TestRenderedTaskInstanceFields:
         session.add_all(rtif_list)
         session.flush()
 
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
 
         for rtif in rtif_list:
             assert rtif in result
@@ -270,7 +272,9 @@ class TestRenderedTaskInstanceFields:
 
         with assert_queries_count(expected_query_count):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
         assert remaining_rtifs == len(result)
 
     @pytest.mark.parametrize(
@@ -302,14 +306,16 @@ class TestRenderedTaskInstanceFields:
                 session.add(RTIF(ti))
         session.flush()
 
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
+        result = session.scalars(select(RTIF).where(RTIF.dag_id == dag.dag_id)).all()
         assert len(result) == num_runs * 2
 
         with assert_queries_count(expected_query_count):
             RTIF.delete_old_records(
                 task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
             )
-        result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == mapped.task_id)
+        ).all()
         rtif_num_runs = Counter(rtif.run_id for rtif in result)
         assert len(rtif_num_runs) == remaining_rtifs
         # Check that we have _all_ the data for each row
@@ -322,7 +328,7 @@ class TestRenderedTaskInstanceFields:
         Variable.set(key="test_key", value="test_val")
 
         session = settings.Session()
-        result = session.query(RTIF).all()
+        result = session.scalars(select(RTIF)).all()
         assert result == []
 
         with dag_maker("test_write"):
@@ -334,15 +340,13 @@ class TestRenderedTaskInstanceFields:
 
         rtif = RTIF(ti)
         rtif.write()
-        result = (
-            session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
-            .filter(
+        result = session.execute(
+            select(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields).where(
                 RTIF.dag_id == rtif.dag_id,
                 RTIF.task_id == rtif.task_id,
                 RTIF.run_id == rtif.run_id,
             )
-            .first()
-        )
+        ).first()
         assert result == ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None})
 
         # Test that overwrite saves new values to the DB
@@ -357,15 +361,13 @@ class TestRenderedTaskInstanceFields:
         rtif_updated = RTIF(ti)
         rtif_updated.write()
 
-        result_updated = (
-            session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
-            .filter(
+        result_updated = session.execute(
+            select(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields).where(
                 RTIF.dag_id == rtif_updated.dag_id,
                 RTIF.task_id == rtif_updated.task_id,
                 RTIF.run_id == rtif_updated.run_id,
             )
-            .first()
-        )
+        ).first()
         assert result_updated == (
             "test_write",
             "test",
