@@ -54,7 +54,7 @@ Documentation in separate distributions:
 
 Documentation for a general overview and summaries not connected with any specific distribution:
 
-* `docker-stack-docs` - documentation for Docker Stack'
+* `docker-stack-docs` - documentation for Docker Stack
 * `providers-summary-docs` - documentation for the provider summary page
 
 # Architecture of documentation for Airflow
