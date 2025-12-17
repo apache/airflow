@@ -491,6 +491,7 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        _set_var(_env, "AIRFLOW__CORE__FERNET_KEY", None, None)
         if self.executor == EDGE_EXECUTOR:
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
