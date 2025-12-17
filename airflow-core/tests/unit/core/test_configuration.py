@@ -173,12 +173,15 @@ class TestConf:
 
     def test_team_config_file(self):
         """Test team_name parameter with config file sections, following test_env_team pattern."""
-        test_config = """[celery]
-result_backend = FOO
+        test_config = textwrap.dedent(
+            """
+            [celery]
+            result_backend = FOO
 
-[unit_test_team=celery]
-result_backend = BAR
-"""
+            [unit_test_team=celery]
+            result_backend = BAR
+            """
+        )
 
         test_conf = AirflowConfigParser()
         test_conf.read_string(test_config)
@@ -235,19 +238,25 @@ result_backend = BAR
         assert "testsection" not in cfg_dict
 
     def test_command_precedence(self):
-        test_config = """[test]
-key1 = hello
-key2_cmd = printf cmd_result
-key3 = airflow
-key4_cmd = printf key4_result
-"""
-        test_config_default = """[test]
-key1 = awesome
-key2 = airflow
+        test_config = textwrap.dedent(
+            """
+            [test]
+            key1 = hello
+            key2_cmd = printf cmd_result
+            key3 = airflow
+            key4_cmd = printf key4_result
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            key1 = awesome
+            key2 = airflow
 
-[another]
-key6 = value6
-"""
+            [another]
+            key6 = value6
+            """
+        )
 
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
@@ -286,9 +295,12 @@ key6 = value6
         assert cfg_dict["test"]["key4_cmd"] == "printf key4_result"
 
     def test_can_read_dot_section(self):
-        test_config = """[test.abc]
-key1 = true
-"""
+        test_config = textwrap.dedent(
+            """
+            [test.abc]
+            key1 = true
+            """
+        )
         test_conf = AirflowConfigParser()
         test_conf.read_string(test_config)
         section = "test.abc"
@@ -334,12 +346,18 @@ key1 = true
             "auth": None,
         }
 
-        test_config = """[test]
-sql_alchemy_conn_secret = sql_alchemy_conn
-"""
-        test_config_default = """[test]
-sql_alchemy_conn = airflow
-"""
+        test_config = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn_secret = sql_alchemy_conn
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn = airflow
+            """
+        )
 
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
@@ -350,12 +368,18 @@ sql_alchemy_conn = airflow
         assert test_conf.get("test", "sql_alchemy_conn") == "sqlite:////Users/airflow/airflow/airflow.db"
 
     def test_hidding_of_sensitive_config_values(self):
-        test_config = """[test]
-                         sql_alchemy_conn_secret = sql_alchemy_conn
-                      """
-        test_config_default = """[test]
-                                 sql_alchemy_conn = airflow
-                              """
+        test_config = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn_secret = sql_alchemy_conn
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn = airflow
+            """
+        )
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
         test_conf.sensitive_config_values = test_conf.sensitive_config_values | {
@@ -392,12 +416,18 @@ sql_alchemy_conn = airflow
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v2.read_secret_version.return_value = Exception
 
-        test_config = """[test]
-sql_alchemy_conn_secret = sql_alchemy_conn
-"""
-        test_config_default = """[test]
-sql_alchemy_conn = airflow
-"""
+        test_config = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn_secret = sql_alchemy_conn
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            sql_alchemy_conn = airflow
+            """
+        )
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         # Configure secrets backend on test_conf itself
         test_conf.read_string(test_config)
@@ -417,23 +447,25 @@ sql_alchemy_conn = airflow
 
     def test_getboolean(self):
         """Test AirflowConfigParser.getboolean"""
-        test_config = """
-[type_validation]
-key1 = non_bool_value
+        test_config = textwrap.dedent(
+            """
+            [type_validation]
+            key1 = non_bool_value
 
-[true]
-key2 = t
-key3 = true
-key4 = 1
+            [true]
+            key2 = t
+            key3 = true
+            key4 = 1
 
-[false]
-key5 = f
-key6 = false
-key7 = 0
+            [false]
+            key5 = f
+            key6 = false
+            key7 = 0
 
-[inline-comment]
-key8 = true #123
-"""
+            [inline-comment]
+            key8 = true #123
+            """
+        )
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
             AirflowConfigException,
@@ -454,13 +486,15 @@ key8 = true #123
 
     def test_getint(self):
         """Test AirflowConfigParser.getint"""
-        test_config = """
-[invalid]
-key1 = str
+        test_config = textwrap.dedent(
+            """
+            [invalid]
+            key1 = str
 
-[valid]
-key2 = 1
-"""
+            [valid]
+            key2 = 1
+            """
+        )
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
             AirflowConfigException,
@@ -475,13 +509,15 @@ key2 = 1
 
     def test_getfloat(self):
         """Test AirflowConfigParser.getfloat"""
-        test_config = """
-[invalid]
-key1 = str
+        test_config = textwrap.dedent(
+            """
+            [invalid]
+            key1 = str
 
-[valid]
-key2 = 1.23
-"""
+            [valid]
+            key2 = 1.23
+            """
+        )
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
             AirflowConfigException,
@@ -496,19 +532,21 @@ key2 = 1.23
 
     def test_getlist(self):
         """Test AirflowConfigParser.getlist"""
-        test_config = """
-[empty]
-key0 = willbereplacedbymock
+        test_config = textwrap.dedent(
+            """
+            [empty]
+            key0 = willbereplacedbymock
 
-[single]
-key1 = str
+            [single]
+            key1 = str
 
-[many]
-key2 = one,two,three
+            [many]
+            key2 = one,two,three
 
-[diffdelimiter]
-key3 = one;two;three
-"""
+            [diffdelimiter]
+            key3 = one;two;three
+            """
+        )
         test_conf = AirflowConfigParser(default_config=test_config)
         single = test_conf.getlist("single", "key1")
         assert isinstance(single, list)
@@ -559,7 +597,8 @@ key3 = one;two;three
             option3 = 3
             fallback = 4
 
-        config = """
+        config = textwrap.dedent(
+            """
             [test1]
             option = option1
             [test2]
@@ -569,6 +608,7 @@ key3 = one;two;three
             [test4]
             option = option4
             """
+        )
         test_conf = AirflowConfigParser()
         test_conf.read_string(config)
 
@@ -586,7 +626,8 @@ key3 = one;two;three
             option3 = 3
             fallback = 4
 
-        config = """
+        config = textwrap.dedent(
+            """
             [test1]
             option = option1,option2,option3
             [test2]
@@ -596,6 +637,7 @@ key3 = one;two;three
             [test4]
             option =
             """
+        )
         test_conf = AirflowConfigParser()
         test_conf.read_string(config)
 
@@ -636,9 +678,12 @@ key3 = one;two;three
         assert test_conf.getjson("test", "json", fallback=fallback) == fallback
 
     def test_has_option(self):
-        test_config = """[test]
-key1 = value1
-"""
+        test_config = textwrap.dedent(
+            """
+            [test]
+            key1 = value1
+            """
+        )
         test_conf = AirflowConfigParser()
         test_conf.read_string(test_config)
         assert test_conf.has_option("test", "key1")
@@ -646,14 +691,20 @@ key1 = value1
         assert not test_conf.has_option("section_not_exists", "key1")
 
     def test_remove_option(self):
-        test_config = """[test]
-key1 = hello
-key2 = airflow
-"""
-        test_config_default = """[test]
-key1 = awesome
-key2 = airflow
-"""
+        test_config = textwrap.dedent(
+            """
+            [test]
+            key1 = hello
+            key2 = airflow
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            key1 = awesome
+            key2 = airflow
+            """
+        )
 
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
@@ -666,20 +717,24 @@ key2 = airflow
         assert not test_conf.has_option("test", "key2")
 
     def test_getsection(self):
-        test_config = """
-[test]
-key1 = hello
-[new_section]
-key = value
-"""
-        test_config_default = """
-[test]
-key1 = awesome
-key2 = airflow
+        test_config = textwrap.dedent(
+            """
+            [test]
+            key1 = hello
+            [new_section]
+            key = value
+            """
+        )
+        test_config_default = textwrap.dedent(
+            """
+            [test]
+            key1 = awesome
+            key2 = airflow
 
-[testsection]
-key3 = value3
-"""
+            [testsection]
+            key3 = value3
+            """
+        )
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
@@ -924,31 +979,33 @@ key3 = value3
         assert conf_materialize_cmds["database"]["sql_alchemy_conn"] == "postgresql://"
 
     def test_gettimedelta(self):
-        test_config = """
-[invalid]
-# non-integer value
-key1 = str
+        test_config = textwrap.dedent(
+            """
+            [invalid]
+            # non-integer value
+            key1 = str
 
-# fractional value
-key2 = 300.99
+            # fractional value
+            key2 = 300.99
 
-# too large value for C int
-key3 = 999999999999999
+            # too large value for C int
+            key3 = 999999999999999
 
-[valid]
-# negative value
-key4 = -1
+            [valid]
+            # negative value
+            key4 = -1
 
-# zero
-key5 = 0
+            # zero
+            key5 = 0
 
-# positive value
-key6 = 300
+            # positive value
+            key6 = 300
 
-[default]
-# Equals to None
-key7 =
-"""
+            [default]
+            # Equals to None
+            key7 =
+            """
+        )
         test_conf = AirflowConfigParser(default_config=test_config)
         with pytest.raises(
             AirflowConfigException,

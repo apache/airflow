@@ -42,7 +42,6 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockCreateDataSourceOperator,
     BedrockCreateKnowledgeBaseOperator,
     BedrockIngestDataOperator,
-    BedrockInvokeModelOperator,
     BedrockRaGOperator,
     BedrockRetrieveOperator,
 )
@@ -81,9 +80,8 @@ from system.amazon.aws.utils import SystemTestContextBuilder
 #   the Amazon Bedrock console and may take up to 24 hours to apply:
 #######################################################################
 
-CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TITAN_MODEL_ID = "amazon.titan-embed-text-v1"
-ANTHROPIC_VERSION = "bedrock-2023-05-31"
+CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
 # Externally fetched variables:
 ROLE_ARN_KEY = "ROLE_ARN"
@@ -482,21 +480,6 @@ with DAG(
     )
     # [END howto_sensor_opensearch_collection_active]
 
-    PROMPT = "What color is an orange?"
-    # [START howto_operator_invoke_claude_model]
-    invoke_claude_completions = BedrockInvokeModelOperator(
-        task_id="invoke_claude_completions",
-        model_id=CLAUDE_MODEL_ID,
-        input_data={
-            "max_tokens": 4000,
-            "anthropic_version": ANTHROPIC_VERSION,
-            "messages": [
-                {"role": "user", "content": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
-            ],
-        },
-    )
-    # [END howto_operator_invoke_claude_model]
-
     # [START howto_operator_bedrock_create_knowledge_base]
     create_knowledge_base = BedrockCreateKnowledgeBaseOperator(
         task_id="create_knowledge_base",
@@ -592,7 +575,6 @@ with DAG(
         create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
         copy_data_to_s3(bucket=bucket_name),
         # TEST BODY
-        invoke_claude_completions,
         create_knowledge_base,
         await_knowledge_base,
         create_data_source,
