@@ -210,7 +210,7 @@ class messages:
             Field(default=None),
         ]
         # Format of list[str] is the exc traceback format
-        failures: list[tuple[int, list | None, list[str] | None]] | None = None
+        failures: list[tuple[int, tuple[str, dict[str, Any]] | None, list[str] | None]] | None = None
         finished: list[int] | None = None
 
     class TriggerStateSync(BaseModel):
@@ -1065,7 +1065,6 @@ class TriggerRunner:
                         "Trigger %s exited with error %s", details["name"], e, trigger_id=trigger_id
                     )
                     saved_exc = e
-                    # await self.failed_triggers.put((trigger_id, details.get("trigger"), saved_exc))
                     self.failed_triggers.append((trigger_id, details.get("trigger"), saved_exc))
                 else:
                     # See if they foolishly returned a TriggerEvent
@@ -1084,7 +1083,7 @@ class TriggerRunner:
                         trigger_id=trigger_id,
                     )
                     # TODO: better formatting of the exception?
-                    # self.failed_triggers.append((trigger_id, saved_exc))
+                    self.failed_triggers.append((trigger_id, details.get("trigger"), saved_exc))
                 del self.triggers[trigger_id]
             await asyncio.sleep(0)
         return finished_ids
