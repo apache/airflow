@@ -24,10 +24,11 @@ from threading import Lock
 from typing import Generic, TypeVar
 
 K = TypeVar("K")
-V = TypeVar("V", bound=tuple)
+V = TypeVar("V")
+KV = TypeVar("KV", bound=tuple)
 
 
-class KeyedHeadQueue(Generic[K, V]):
+class KeyedHeadQueue(Generic[K, KV]):
     """
     A keyed queue that manages values per key in insertion order.
 
@@ -50,12 +51,12 @@ class KeyedHeadQueue(Generic[K, V]):
     """
 
     def __init__(self) -> None:
-        self.__map: OrderedDict[K, deque[V]] = OrderedDict()  # key -> deque of values
+        self.__map: OrderedDict[K, deque[KV]] = OrderedDict()  # key -> deque of values
         self.__popped_keys: set[K] = set()  # keys whose first value has been consumed
         self._lock = Lock()
 
     @property
-    def _map(self) -> OrderedDict[K, list[V]]:
+    def _map(self) -> OrderedDict[K, list[KV]]:
         with self._lock:
             return OrderedDict((key, list(value)) for key, value in self.__map.items())
 
@@ -64,14 +65,14 @@ class KeyedHeadQueue(Generic[K, V]):
         with self._lock:
             return set(self.__popped_keys)
 
-    def get(self, key: K, default_value: list[V] | None = None) -> list[V] | None:
+    def get(self, key: K, default_value: list[KV] | None = None) -> list[KV] | None:
         return list(self._map.get(key, default_value or []))
 
-    def extend(self, elements: Iterable[V]) -> None:
+    def extend(self, elements: Iterable[KV]) -> None:
         for element in elements:
             self.append(element)
 
-    def append(self, element: V) -> None:
+    def append(self, element: KV) -> None:
         """Append a (key, value) pair unless key already consumed."""
         key = element[0]
         with self._lock:
@@ -79,7 +80,7 @@ class KeyedHeadQueue(Generic[K, V]):
                 self.__map[key] = deque()
             self.__map[key].append(element)
 
-    def popleft(self) -> V:
+    def popleft(self) -> KV:
         """
         Pop the *first inserted value* for the next key in order.
 
@@ -95,7 +96,7 @@ class KeyedHeadQueue(Generic[K, V]):
                     return value
         raise IndexError("pop from empty KeyedHeadQueue")
 
-    def popall(self) -> tuple[K, list[V]]:
+    def popall(self) -> tuple[K, list[KV]]:
         """
         Pop all values for the first unconsumed key (in insertion order).
 
@@ -114,7 +115,7 @@ class KeyedHeadQueue(Generic[K, V]):
     def __contains__(self, key: K) -> bool:
         return key in self._map
 
-    def __iter__(self) -> Iterator[tuple[K, V]]:
+    def __iter__(self) -> Iterator[tuple[K, KV]]:
         """Iterate over leftover (key, value) pairs in a snapshot, so concurrent appends during iteration are not visible."""
         for key, values in self._map.items():
             for value in values:
