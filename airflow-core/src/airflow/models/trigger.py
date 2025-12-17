@@ -300,19 +300,17 @@ class Trigger(Base):
             trigger = session.scalars(
                 select(Trigger).options(selectinload(Trigger.assets)).where(Trigger.id == trigger_id)
             ).one_or_none()
-
             if not trigger:
-                # TODO: check why Trigger disappears after first handled event, we need to FIX this
-                log.warning("Trigger %s was not found.", trigger_id)
-            else:
-                for asset in trigger.assets:
-                    AssetManager.register_asset_change(
-                        asset=asset.to_public(),
-                        extra={"from_trigger": True, "payload": event.payload},
-                        session=session,
-                    )
-                if trigger.callback:
-                    trigger.callback.handle_callback_event(event, session)
+                # Already deleted for some reason
+                return False
+            for asset in trigger.assets:
+                AssetManager.register_asset_change(
+                    asset=asset.to_public(),
+                    extra={"from_trigger": True, "payload": event.payload},
+                    session=session,
+                )
+            if trigger.callback:
+                trigger.callback.handle_event(event, session)
             return True
 
         log.debug(

@@ -72,7 +72,6 @@ SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", str(True))
 # on the AWS System Test stack.
 SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", str(True))
 
-LLAMA_SHORT_MODEL_ID = "meta.llama3-8b-instruct-v1:0"
 TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
 TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
 
@@ -117,6 +116,42 @@ def customize_model_workflow():
         return not SKIP_LONG_TASKS
 
     chain(should_run_long_tasks(), customize_model, await_custom_model_job, delete_custom_model())
+
+
+@task_group
+def additional_invoke_examples():
+    ANTHROPIC_VERSION = "bedrock-2023-05-31"
+    CLAUDE_MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+    LLAMA_SHORT_MODEL_ID = "meta.llama3-8b-instruct-v1:0"
+
+    # [START howto_operator_invoke_llama_model]
+    invoke_llama_model = BedrockInvokeModelOperator(
+        task_id="invoke_llama",
+        model_id=LLAMA_SHORT_MODEL_ID,
+        input_data={"prompt": PROMPT},
+    )
+    # [END howto_operator_invoke_llama_model]
+
+    # [START howto_operator_invoke_claude_model]
+    invoke_claude_model = BedrockInvokeModelOperator(
+        task_id="invoke_claude_model",
+        model_id=CLAUDE_MODEL_ID,
+        input_data={
+            "max_tokens": 4000,
+            "anthropic_version": ANTHROPIC_VERSION,
+            "messages": [
+                {"role": "user", "content": f"\n\nHuman: {PROMPT}\n\nAssistant:"},
+            ],
+        },
+    )
+    # [END howto_operator_invoke_claude_model]
+
+    @task.short_circuit()
+    def skip_extra_invokes():
+        # Always skip these - they're just for documentation
+        return False
+
+    chain(skip_extra_invokes(), invoke_llama_model, invoke_claude_model)
 
 
 @task_group
@@ -181,14 +216,6 @@ with DAG(
         data=json.dumps(TRAIN_DATA),
     )
 
-    # [START howto_operator_invoke_llama_model]
-    invoke_llama_model = BedrockInvokeModelOperator(
-        task_id="invoke_llama",
-        model_id=LLAMA_SHORT_MODEL_ID,
-        input_data={"prompt": PROMPT},
-    )
-    # [END howto_operator_invoke_llama_model]
-
     # [START howto_operator_invoke_titan_model]
     invoke_titan_model = BedrockInvokeModelOperator(
         task_id="invoke_titan",
@@ -210,7 +237,8 @@ with DAG(
         create_bucket,
         upload_training_data,
         # TEST BODY
-        [invoke_llama_model, invoke_titan_model],
+        invoke_titan_model,
+        additional_invoke_examples(),  # These tasks get skipped but are here for documentation.
         customize_model_workflow(),
         provision_throughput_workflow(),
         # TEST TEARDOWN
