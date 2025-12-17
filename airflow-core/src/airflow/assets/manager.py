@@ -63,8 +63,6 @@ log = structlog.get_logger(__name__)
 def _lock_asset_model(
     *,
     session: Session,
-    dag_id: str,
-    partition_key: str,
     asset_id: int,
     max_retries: int = 10,
     retry_delay: float = 0.05,
@@ -429,12 +427,7 @@ class AssetManager(LoggingMixin):
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
         """
-        with _lock_asset_model(
-            session=session,
-            asset_id=asset_id,
-            dag_id=target_dag.dag_id,
-            partition_key=target_key,
-        ):
+        with _lock_asset_model(session=session, asset_id=asset_id):
             latest_apdr: AssetPartitionDagRun | None = session.scalar(
                 select(AssetPartitionDagRun)
                 .where(
