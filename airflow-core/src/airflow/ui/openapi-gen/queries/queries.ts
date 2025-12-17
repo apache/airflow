@@ -2429,6 +2429,31 @@ export const usePoolServiceDeletePool = <TData = Common.PoolServiceDeletePoolMut
   poolName: string;
 }, TContext>({ mutationFn: ({ poolName }) => PoolService.deletePool({ poolName }) as unknown as Promise<TData>, ...options });
 /**
+* Delete Xcom Entry
+* Delete an XCom entry.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.taskId
+* @param data.dagRunId
+* @param data.xcomKey
+* @param data.mapIndex
+* @returns void Successful Response
+* @throws ApiError
+*/
+export const useXcomServiceDeleteXcomEntry = <TData = Common.XcomServiceDeleteXcomEntryMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  xcomKey: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  xcomKey: string;
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, taskId, xcomKey }) => XcomService.deleteXcomEntry({ dagId, dagRunId, mapIndex, taskId, xcomKey }) as unknown as Promise<TData>, ...options });
+/**
 * Delete Variable
 * Delete a variable entry.
 * @param data The data for the request.
