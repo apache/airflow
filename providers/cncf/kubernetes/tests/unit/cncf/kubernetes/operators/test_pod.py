@@ -2397,10 +2397,10 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
-    # @patch(f"{TRIGGER_CLASS}.define_container_state")
+    @patch(f"{TRIGGER_CLASS}.define_container_state")
     def test_async_create_pod_should_execute_successfully(
         self,
-        test_async_create_pod_should_execute_successfully
+        mocked_container_state,
         mocked_get_connection,
         mocked_pod,
         mocked_pod_obj,
