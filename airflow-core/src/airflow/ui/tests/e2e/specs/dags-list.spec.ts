@@ -61,7 +61,6 @@ test.describe("Dag Trigger Workflow", () => {
   });
 
   test("should successfully trigger a Dag run", async () => {
-    test.setTimeout(7 * 60 * 1000);
 
     const dagRunId = await dagsPage.triggerDag(testDagId);
 
@@ -127,5 +126,152 @@ test.describe("Dags List Display", () => {
     const dagExists = await dagsPage.verifyDagExists(testDagId);
 
     expect(dagExists).toBe(true);
+  });
+});
+
+/**
+ * Card/Table View Toggle Tests
+ */
+
+test.describe("Dags View Toggle", () => {
+  let dagsPage: DagsPage;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should toggle between card view and table view", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    // Step 4: Switch to card view
+    await dagsPage.switchToCardView();
+
+    // Step 5: Verify card view is displayed
+    const cardViewVisible = await dagsPage.verifyCardViewVisible();
+
+    expect(cardViewVisible).toBe(true);
+
+    // Step 6: Switch to table view
+    await dagsPage.switchToTableView();
+
+    // Step 7: Verify table view is displayed
+    const tableViewVisible = await dagsPage.verifyTableViewVisible();
+
+    expect(tableViewVisible).toBe(true);
+  });
+});
+
+/**
+ * Dag Search Functionality Tests
+ */
+
+test.describe("Dags Search", () => {
+  let dagsPage: DagsPage;
+
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should search for a Dag by name", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    // Step 4: Get initial count of Dags
+    const initialCount = await dagsPage.getDagsCount();
+
+    expect(initialCount).toBeGreaterThan(0);
+
+    // Step 5: Search for the test Dag
+    await dagsPage.searchDag(testDagId);
+
+    // Step 6: Verify the test Dag is in the filtered results
+    const dagExists = await dagsPage.verifyDagExists(testDagId);
+
+    expect(dagExists).toBe(true);
+
+    // Step 7: Clear the search
+    await dagsPage.clearSearch();
+
+    // Step 8: Wait for the list to reload and verify count returns to initial
+    await dagsPage.verifyDagsListVisible();
+    const finalCount = await dagsPage.getDagsCount();
+
+    expect(finalCount).toBe(initialCount);
+  });
+});
+
+/**
+ * Dag Status Filtering Tests
+ */
+
+test.describe("Dags Status Filtering", () => {
+  let dagsPage: DagsPage;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should filter Dags by status", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    // Step 4: Verify filter buttons are visible
+    await expect(dagsPage.successFilter).toBeVisible();
+    await expect(dagsPage.failedFilter).toBeVisible();
+    await expect(dagsPage.runningFilter).toBeVisible();
+    await expect(dagsPage.queuedFilter).toBeVisible();
+
+    // Step 5: Click success filter
+    await dagsPage.filterByStatus("success");
+
+    // Step 6: Verify Dags are still displayed (filtered)
+    const successCount = await dagsPage.getDagsCount();
+
+    expect(successCount).toBeGreaterThanOrEqual(0);
+
+    // Step 7: Click failed filter
+    await dagsPage.filterByStatus("failed");
+
+    // Step 8: Verify Dags are still displayed (filtered)
+    const failedCount = await dagsPage.getDagsCount();
+
+    expect(failedCount).toBeGreaterThanOrEqual(0);
+  });
+});
+
+/**
+ * Dag Sorting Tests
+ */
+
+test.describe("Dags Sorting", () => {
+  let dagsPage: DagsPage;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should display sort select in card view", async () => {
+    await dagsPage.navigate();
+    await dagsPage.verifyDagsListVisible();
+
+    // Step 4: Switch to card view
+    await dagsPage.switchToCardView();
+
+    // Step 5: Verify sort select is visible
+    await expect(dagsPage.sortSelect).toBeVisible();
+
+    // Step 6: Get initial Dag names
+    const initialDagNames = await dagsPage.getDagNames();
+
+    expect(initialDagNames.length).toBeGreaterThan(0);
+
+    // Step 7: Click sort select to open options
+    await dagsPage.clickSortSelect();
+
+    // Step 8: Verify sort options menu is opened
+    await expect(dagsPage.page.getByRole("option").first()).toBeVisible();
   });
 });

@@ -30,14 +30,30 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  // View toggle elements
+  public readonly cardList: Locator;
+  public readonly cardViewButton: Locator;
+  // Search elements
+  public readonly clearSearchButton: Locator;
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  // Filter elements
+  public readonly failedFilter: Locator;
+  public readonly needsReviewFilter: Locator;
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-
+  public readonly queuedFilter: Locator;
+  public readonly runningFilter: Locator;
+  // Search elements
+  public readonly searchInput: Locator;
+  // Sort element (only visible in card view)
+  public readonly sortSelect: Locator;
   public readonly stateElement: Locator;
+  public readonly successFilter: Locator;
+  public readonly tableList: Locator;
+  public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
@@ -48,6 +64,26 @@ export class DagsPage extends BasePage {
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+
+    // View toggle elements
+    this.cardViewButton = page.getByRole("button", { name: /card/i });
+    this.tableViewButton = page.getByRole("button", { name: /table/i });
+    this.cardList = page.locator('[data-testid="card-list"]');
+    this.tableList = page.locator('[data-testid="table-list"]');
+
+    // Search elements
+    this.searchInput = page.locator('[data-testid="search-dags"]');
+    this.clearSearchButton = page.locator('[data-testid="clear-search"]');
+
+    // Filter elements
+    this.failedFilter = page.locator('[data-testid="dags-failed-filter"]');
+    this.queuedFilter = page.locator('[data-testid="dags-queued-filter"]');
+    this.runningFilter = page.locator('[data-testid="dags-running-filter"]');
+    this.successFilter = page.locator('[data-testid="dags-success-filter"]');
+    this.needsReviewFilter = page.locator('[data-testid="dags-needs-review-filter"]');
+
+    // Sort element
+    this.sortSelect = page.locator('[data-testid="sort-by-select"]');
   }
 
   // URL builders for dynamic paths
@@ -57,6 +93,17 @@ export class DagsPage extends BasePage {
 
   public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
     return `/dags/${dagName}/runs/${dagRunId}/details`;
+  }
+
+  /**
+   * Clear the search input
+   */
+  public async clearSearch(): Promise<void> {
+    // Clear the input by selecting all and deleting
+    await this.searchInput.clear();
+    // Wait for the search to update
+    await this.page.waitForTimeout(500);
+    await this.waitForPageLoad();
   }
 
   /**
@@ -73,6 +120,29 @@ export class DagsPage extends BasePage {
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
     await this.waitForDagList();
+  }
+
+  /**
+   * Click sort select (only works in card view)
+   */
+  public async clickSortSelect(): Promise<void> {
+    await this.sortSelect.click();
+  }
+
+  /**
+   * Filter Dags by status
+   */
+  public async filterByStatus(status: "failed" | "needs_review" | "queued" | "running" | "success"): Promise<void> {
+    const filterMap = {
+      failed: this.failedFilter,
+      needs_review: this.needsReviewFilter,
+      queued: this.queuedFilter,
+      running: this.runningFilter,
+      success: this.successFilter,
+    };
+
+    await filterMap[status].click();
+    await this.waitForPageLoad();
   }
 
   /**
@@ -126,6 +196,30 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Search for a Dag by name
+   */
+  public async searchDag(searchTerm: string): Promise<void> {
+    await this.searchInput.fill(searchTerm);
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Toggle to card view
+   */
+  public async switchToCardView(): Promise<void> {
+    await this.cardViewButton.click();
+    await this.cardList.first().waitFor({ state: "visible", timeout: 10_000 });
+  }
+
+  /**
+   * Toggle to table view
+   */
+  public async switchToTableView(): Promise<void> {
+    await this.tableViewButton.click();
+    await this.tableList.waitFor({ state: "visible", timeout: 10_000 });
+  }
+
+  /**
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
@@ -172,6 +266,13 @@ export class DagsPage extends BasePage {
     await expect(this.page.locator('[data-testid="catchup-row"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="default-args-row"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
+  }
+
+  /**
+   * Verify card view is displayed
+   */
+  public async verifyCardViewVisible(): Promise<boolean> {
+    return await this.cardList.first().isVisible();
   }
 
   /**
@@ -224,6 +325,13 @@ export class DagsPage extends BasePage {
    */
   public async verifyDagsListVisible(): Promise<void> {
     await this.dagsTable.first().waitFor({ state: "visible", timeout: 10_000 });
+  }
+
+  /**
+   * Verify table view is displayed
+   */
+  public async verifyTableViewVisible(): Promise<boolean> {
+    return await this.tableList.isVisible();
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {
