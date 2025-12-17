@@ -22,7 +22,7 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 /**
- * DAGs Page Object
+ * Dags Page Object
  */
 export class DagsPage extends BasePage {
   // Page URLs
@@ -33,6 +33,10 @@ export class DagsPage extends BasePage {
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  // Pagination elements
+  public readonly paginationNextButton: Locator;
+  public readonly paginationPrevButton: Locator;
+
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
@@ -42,6 +46,8 @@ export class DagsPage extends BasePage {
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
+    this.paginationNextButton = page.locator('[data-testid="next"]');
+    this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
   // URL builders for dynamic paths
@@ -54,21 +60,49 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Navigate to DAGs list page
+   * Click next page button
+   */
+  public async clickNextPage(): Promise<void> {
+    await this.paginationNextButton.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Click previous page button
+   */
+  public async clickPrevPage(): Promise<void> {
+    await this.paginationPrevButton.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Get all Dag names from the current page
+   */
+  public async getDagNames(): Promise<Array<string>> {
+    const dagLinks = this.page.locator('[data-testid="dag-id"]');
+
+    await dagLinks.first().waitFor({ state: "visible", timeout: 10_000 });
+    const texts = await dagLinks.allTextContents();
+
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  /**
+   * Navigate to Dags list page
    */
   public async navigate(): Promise<void> {
     await this.navigateTo(DagsPage.dagsListUrl);
   }
 
   /**
-   * Navigate to DAG detail page
+   * Navigate to Dag detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
   /**
-   * Trigger a DAG run
+   * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
@@ -102,7 +136,7 @@ export class DagsPage extends BasePage {
       if (currentStatus === "success") {
         return;
       } else if (currentStatus === "failed") {
-        throw new Error(`DAG run failed: ${dagRunId}`);
+        throw new Error(`Dag run failed: ${dagRunId}`);
       }
 
       await this.page.waitForTimeout(checkInterval);
@@ -112,7 +146,7 @@ export class DagsPage extends BasePage {
       await this.page.waitForTimeout(2000);
     }
 
-    throw new Error(`DAG run did not complete within 5 minutes: ${dagRunId}`);
+    throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {

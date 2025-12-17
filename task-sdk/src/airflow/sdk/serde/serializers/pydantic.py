@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.sdk.module_loading import qualname
 from airflow.sdk.serde.typing import is_pydantic_model
-from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.sdk.serde import U

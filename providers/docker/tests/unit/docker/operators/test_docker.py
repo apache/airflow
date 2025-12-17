@@ -26,7 +26,7 @@ from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator, fetch_logs
 

@@ -25,6 +25,7 @@
     },
     "title": "{{name}}에 대한 에셋 이벤트 생성"
   },
+  "extra": "추가 정보",
   "group": "그룹",
   "lastAssetEvent": "마지막 에셋 이벤트",
   "name": "이름",

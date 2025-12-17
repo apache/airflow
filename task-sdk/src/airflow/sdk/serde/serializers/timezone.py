@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.utils.module_loading import qualname
+from airflow.sdk.module_loading import qualname
 
 if TYPE_CHECKING:
     from airflow.sdk.serde import U

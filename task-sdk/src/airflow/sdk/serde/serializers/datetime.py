@@ -20,11 +20,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow._shared.timezones.timezone import parse_timezone
+from airflow.sdk.module_loading import qualname
 from airflow.sdk.serde.serializers.timezone import (
     deserialize as deserialize_timezone,
     serialize as serialize_timezone,
 )
-from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     import datetime

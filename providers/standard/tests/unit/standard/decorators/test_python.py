@@ -22,9 +22,9 @@ from datetime import date
 
 import pytest
 
-from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
+from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
@@ -927,7 +927,7 @@ def test_task_decorator_has_doc_attr():
 
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
-    from airflow.exceptions import AirflowSkipException
+    from airflow.providers.common.compat.sdk import AirflowSkipException
 
     try:
         from airflow.sdk import TriggerRule
@@ -969,7 +969,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
 
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
-    from airflow.exceptions import AirflowSkipException
+    from airflow.providers.common.compat.sdk import AirflowSkipException
 
     try:
         from airflow.sdk import TriggerRule
@@ -1029,27 +1029,22 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.need_serialized_dag
 def test_task_decorator_asset(dag_maker, session):
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.asset import AssetActive, AssetModel
-        from airflow.sdk.definitions.asset import Asset
-    else:
-        from airflow.datasets import Dataset as Asset
-        from airflow.models.dataset import DatasetModel as AssetModel
-
     result = None
     uri = "s3://bucket/name"
     asset_name = "test_asset"
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import Asset
+
         asset = Asset(uri=uri, name=asset_name)
     else:
-        asset = Asset(uri)
-    session.add(AssetModel.from_public(asset))
-    if AIRFLOW_V_3_0_PLUS:
-        session.add(AssetActive.for_asset(asset))
+        from airflow.datasets import Dataset as Asset
 
-    with dag_maker(session=session, serialized=True) as dag:
+        asset = Asset(uri)
+
+    with dag_maker(session=session) as dag:
 
         @dag.task()
         def up1() -> Asset:

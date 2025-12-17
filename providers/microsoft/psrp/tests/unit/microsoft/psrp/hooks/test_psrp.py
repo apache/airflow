@@ -25,8 +25,8 @@ from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 
 CONNECTION_ID = "conn_id"

@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 
 TASK_ID = "test-gcs-to-sftp-operator"

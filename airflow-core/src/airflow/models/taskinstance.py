@@ -111,12 +111,11 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import ColumnElement
 
+    from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
     from airflow.sdk import DAG
-    from airflow.sdk.api.datamodels._generated import AssetProfile
-    from airflow.sdk.definitions.asset import AssetUniqueKey
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
@@ -1314,26 +1313,32 @@ class TaskInstance(Base, LoggingMixin):
         outlet_events: list[dict[str, Any]],
         session: Session = NEW_SESSION,
     ) -> None:
-        from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
+        print(task_outlets, outlet_events)
+        from airflow.serialization.definitions.assets import (
+            SerializedAsset,
+            SerializedAssetNameRef,
+            SerializedAssetUniqueKey,
+            SerializedAssetUriRef,
+        )
 
         # TODO: AIP-76 should we provide an interface to override this, so that the task can
         #  tell the truth if for some reason it touches a different partition?
         #  https://github.com/apache/airflow/issues/58474
         partition_key = ti.dag_run.partition_key
         asset_keys = {
-            AssetUniqueKey(o.name, o.uri)
+            SerializedAssetUniqueKey(o.name, o.uri)
             for o in task_outlets
-            if o.type == Asset.__name__ and o.name and o.uri
+            if o.type == "Asset" and o.name and o.uri
         }
         asset_name_refs = {
-            Asset.ref(name=o.name) for o in task_outlets if o.type == AssetNameRef.__name__ and o.name
+            SerializedAssetNameRef(o.name) for o in task_outlets if o.type == "AssetNameRef" and o.name
         }
         asset_uri_refs = {
-            Asset.ref(uri=o.uri) for o in task_outlets if o.type == AssetUriRef.__name__ and o.uri
+            SerializedAssetUriRef(o.uri) for o in task_outlets if o.type == "AssetUriRef" and o.uri
         }
 
-        asset_models: dict[AssetUniqueKey, AssetModel] = {
-            AssetUniqueKey.from_asset(am): am
+        asset_models: dict[SerializedAssetUniqueKey, AssetModel] = {
+            SerializedAssetUniqueKey.from_asset(am): am
             for am in session.scalars(
                 select(AssetModel).where(
                     AssetModel.active.has(),
@@ -1346,8 +1351,8 @@ class TaskInstance(Base, LoggingMixin):
             )
         }
 
-        asset_event_extras: dict[AssetUniqueKey, dict] = {
-            AssetUniqueKey(**event["dest_asset_key"]): event["extra"]
+        asset_event_extras: dict[SerializedAssetUniqueKey, dict] = {
+            SerializedAssetUniqueKey(**event["dest_asset_key"]): event["extra"]
             for event in outlet_events
             if "source_alias_name" not in event
         }
@@ -1410,7 +1415,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-        def _asset_event_extras_from_aliases() -> dict[tuple[AssetUniqueKey, str, str], set[str]]:
+        def _asset_event_extras_from_aliases() -> dict[tuple[SerializedAssetUniqueKey, str, str], set[str]]:
             d = defaultdict(set)
             for event in outlet_events:
                 try:
@@ -1419,14 +1424,14 @@ class TaskInstance(Base, LoggingMixin):
                     continue
                 if alias_name not in outlet_alias_names:
                     continue
-                asset_key = AssetUniqueKey(**event["dest_asset_key"])
+                asset_key = SerializedAssetUniqueKey(**event["dest_asset_key"])
                 # fallback for backward compatibility
                 asset_extra_json = json.dumps(event.get("dest_asset_extra", {}), sort_keys=True)
                 asset_event_extra_json = json.dumps(event["extra"], sort_keys=True)
                 d[asset_key, asset_extra_json, asset_event_extra_json].add(alias_name)
             return d
 
-        outlet_alias_names = {o.name for o in task_outlets if o.type == AssetAlias.__name__ and o.name}
+        outlet_alias_names = {o.name for o in task_outlets if o.type == "AssetAlias" and o.name}
         if outlet_alias_names and (event_extras_from_aliases := _asset_event_extras_from_aliases()):
             for (
                 asset_key,
@@ -1434,7 +1439,13 @@ class TaskInstance(Base, LoggingMixin):
                 asset_event_extras_json,
             ), event_aliase_names in event_extras_from_aliases.items():
                 asset_event_extra = json.loads(asset_event_extras_json)
-                asset = Asset(name=asset_key.name, uri=asset_key.uri, extra=json.loads(asset_extra_json))
+                asset = SerializedAsset(
+                    name=asset_key.name,
+                    uri=asset_key.uri,
+                    group="asset",
+                    extra=json.loads(asset_extra_json),
+                    watchers=[],
+                )
                 ti.log.debug("register event for asset %s with aliases %s", asset_key, event_aliase_names)
                 event = asset_manager.register_asset_change(
                     task_instance=ti,
@@ -1446,7 +1457,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_public(asset))
+                    session.add(AssetModel.from_serialized(asset))
                     session.flush()  # So event can set up its asset fk.
                     asset_manager.register_asset_change(
                         task_instance=ti,

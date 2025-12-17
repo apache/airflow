@@ -21,7 +21,7 @@ import json
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import and_, select
+from sqlalchemy import and_, delete, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -61,7 +61,7 @@ xcom_router = AirflowRouter(
 
 
 @xcom_router.get(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -304,7 +304,7 @@ def create_xcom_entry(
 
 
 @xcom_router.patch(
-    "/{xcom_key}",
+    "/{xcom_key:path}",
     status_code=status.HTTP_200_OK,
     responses=create_openapi_http_exception_doc(
         [
@@ -327,7 +327,6 @@ def update_xcom_entry(
 ) -> XComResponseNative:
     """Update an existing XCom entry."""
     # Check if XCom entry exists
-    xcom_new_value = json.dumps(patch_body.value)
     xcom_entry = session.scalar(
         select(XComModel)
         .where(
@@ -348,6 +347,47 @@ def update_xcom_entry(
         )
 
     # Update XCom entry
-    xcom_entry.value = json.dumps(xcom_new_value)
+    xcom_entry.value = json.dumps(patch_body.value)
 
     return XComResponseNative.model_validate(xcom_entry)
+
+
+@xcom_router.delete(
+    "/{xcom_key:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="DELETE", access_entity=DagAccessEntity.XCOM)),
+    ],
+)
+def delete_xcom_entry(
+    dag_id: str,
+    task_id: str,
+    dag_run_id: str,
+    xcom_key: str,
+    session: SessionDep,
+    map_index: Annotated[int, Query(ge=-1)] = -1,
+):
+    """Delete an XCom entry."""
+    # Delete XCom entry
+    result = session.execute(
+        delete(XComModel).where(
+            XComModel.dag_id == dag_id,
+            XComModel.task_id == task_id,
+            XComModel.run_id == dag_run_id,
+            XComModel.key == xcom_key,
+            XComModel.map_index == map_index,
+        )
+    )
+
+    if getattr(result, "rowcount", 0) == 0:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The XCom with key: `{xcom_key}` with mentioned task instance doesn't exist.",
+        )
