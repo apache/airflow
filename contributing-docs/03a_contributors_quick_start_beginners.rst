@@ -16,7 +16,7 @@
     under the License.
 
 Your First Airflow Pull Request — 15-Minute Guide
-===============================================
+=================================================
 
 .. contents:: On this page
    :local:
