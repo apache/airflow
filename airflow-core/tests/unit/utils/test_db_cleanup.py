@@ -414,7 +414,7 @@ class TestDBCleanup:
                 session=session,
             )
 
-            remaining_tis = session.query(TaskInstance).all()
+            remaining_tis = session.scalars(select(TaskInstance)).all()
             remaining_dag_ids = {ti.dag_id for ti in remaining_tis}
 
             assert remaining_dag_ids == expected_remaining_dag_ids, (
