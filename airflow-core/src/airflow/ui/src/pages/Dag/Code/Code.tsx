@@ -222,7 +222,7 @@ export const Code = () => {
               <VersionCompareSelect
                 label={translate("common:diffCompareWith")}
                 onVersionChange={handleVersionChange}
-                placeholder="Select version to compare"
+                placeholder={translate("common:diffSelectVersionToCompare")}
                 selectedVersionNumber={compareVersionNumber}
               />
             </Box>

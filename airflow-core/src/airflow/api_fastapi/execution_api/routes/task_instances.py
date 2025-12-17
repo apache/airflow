@@ -71,6 +71,7 @@ from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
@@ -532,7 +533,7 @@ def _create_ti_state_update_query_and_update_state(
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
         # set the value to milliseconds instead of seconds. There's another check when
         # we actually try to reschedule to ensure database coherence.
-        if session.get_bind().dialect.name == "mysql":
+        if get_dialect_name(session) == "mysql":
             # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:

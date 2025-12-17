@@ -328,3 +328,190 @@ def test_remove_old_releases_removes_both_airflow_and_task_sdk_releases(monkeypa
         (["svn", "rm", "1.0.6rc1"], {"check": True}),
         (["svn", "commit", "-m", "Remove old Task SDK release: 1.0.6rc1"], {"check": True}),
     ]
+
+
+def test_move_artifacts_to_svn_returns_early_when_user_declines(monkeypatch, rc_cmd):
+    """Test that function returns early when user declines initial prompt."""
+    version = "2.10.0rc3"
+    version_without_rc = "2.10.0"
+    task_sdk_version = "1.0.6rc3"
+    task_sdk_version_without_rc = "1.0.6"
+    repo_root = "/repo/root"
+
+    confirm_prompts: list[str] = []
+
+    def fake_confirm_action(prompt: str, **kwargs):
+        confirm_prompts.append(prompt)
+        return False
+
+    def should_not_be_called(*_args, **_kwargs):
+        raise AssertionError("This should not have been called when user declines the initial prompt.")
+
+    monkeypatch.setattr(rc_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(rc_cmd.os, "chdir", should_not_be_called)
+    monkeypatch.setattr(rc_cmd, "console_print", should_not_be_called)
+    monkeypatch.setattr(rc_cmd, "run_command", should_not_be_called)
+
+    rc_cmd.move_artifacts_to_svn(
+        version=version,
+        version_without_rc=version_without_rc,
+        task_sdk_version=task_sdk_version,
+        task_sdk_version_without_rc=task_sdk_version_without_rc,
+        repo_root=repo_root,
+    )
+
+    assert confirm_prompts == ["Do you want to move artifacts to SVN?"]
+
+
+def test_move_artifacts_to_svn_completes_successfully(monkeypatch, rc_cmd):
+    """Test that function completes successfully when user confirms."""
+    version = "2.10.0rc3"
+    version_without_rc = "2.10.0"
+    task_sdk_version = "1.0.6rc3"
+    task_sdk_version_without_rc = "1.0.6"
+    repo_root = "/repo/root"
+
+    chdir_calls: list[str] = []
+    console_messages: list[str] = []
+    run_command_calls: list[tuple[list[str] | str, dict]] = []
+    confirm_prompts: list[str] = []
+
+    def fake_confirm_action(prompt: str, **kwargs):
+        confirm_prompts.append(prompt)
+        return True
+
+    def fake_chdir(path: str):
+        chdir_calls.append(path)
+
+    def fake_run_command(cmd: list[str] | str, **kwargs):
+        run_command_calls.append((cmd, kwargs))
+
+    monkeypatch.setattr(rc_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(rc_cmd.os, "chdir", fake_chdir)
+    monkeypatch.setattr(rc_cmd, "console_print", lambda msg="": console_messages.append(str(msg)))
+    monkeypatch.setattr(rc_cmd, "run_command", fake_run_command)
+
+    rc_cmd.move_artifacts_to_svn(
+        version=version,
+        version_without_rc=version_without_rc,
+        task_sdk_version=task_sdk_version,
+        task_sdk_version_without_rc=task_sdk_version_without_rc,
+        repo_root=repo_root,
+    )
+
+    assert confirm_prompts == ["Do you want to move artifacts to SVN?"]
+    assert chdir_calls == [f"{repo_root}/asf-dist/dev/airflow"]
+    # Verify svn mkdir for airflow version
+    assert any(
+        cmd == ["svn", "mkdir", version] and kwargs.get("check") is True for cmd, kwargs in run_command_calls
+    )
+    # Verify mv command for airflow artifacts
+    assert any(
+        cmd == f"mv {repo_root}/dist/*{version_without_rc}* {version}/"
+        and kwargs.get("check") is True
+        and kwargs.get("shell") is True
+        for cmd, kwargs in run_command_calls
+    )
+    # Verify svn mkdir for task-sdk version
+    assert any(cmd == ["svn", "mkdir", f"task-sdk/{task_sdk_version}"] for cmd, kwargs in run_command_calls)
+    # Verify mv command for task-sdk artifacts
+    assert any(
+        cmd == f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/"
+        and kwargs.get("check") is True
+        and kwargs.get("shell") is True
+        for cmd, kwargs in run_command_calls
+    )
+    assert "[success]Moved artifacts to SVN:" in console_messages
+    # Verify ls commands
+    assert any(cmd == [f"ls {repo_root}/asf-dist/dev/airflow/{version}"] for cmd, kwargs in run_command_calls)
+    assert any(
+        cmd == [f"ls {repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"]
+        for cmd, kwargs in run_command_calls
+    )
+
+
+def test_push_artifacts_to_asf_repo_returns_early_when_user_declines(monkeypatch, rc_cmd):
+    """Test that function returns early when user declines initial prompt."""
+    version = "2.10.0rc3"
+    task_sdk_version = "1.0.6rc3"
+    repo_root = "/repo/root"
+
+    confirm_prompts: list[str] = []
+
+    def fake_confirm_action(prompt: str, **kwargs):
+        confirm_prompts.append(prompt)
+        if kwargs.get("abort") and not prompt.startswith("Do you want to push"):
+            # Simulate abort behavior
+            import sys
+
+            sys.exit(1)
+        return False
+
+    def should_not_be_called(*_args, **_kwargs):
+        raise AssertionError("This should not have been called when user declines the initial prompt.")
+
+    monkeypatch.setattr(rc_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(rc_cmd, "get_dry_run", lambda: False)
+    monkeypatch.setattr(rc_cmd.os, "chdir", should_not_be_called)
+    monkeypatch.setattr(rc_cmd, "console_print", should_not_be_called)
+    monkeypatch.setattr(rc_cmd, "run_command", should_not_be_called)
+
+    rc_cmd.push_artifacts_to_asf_repo(version=version, task_sdk_version=task_sdk_version, repo_root=repo_root)
+
+    assert confirm_prompts == ["Do you want to push artifacts to ASF repo?"]
+
+
+def test_push_artifacts_to_asf_repo_completes_successfully(monkeypatch, rc_cmd):
+    """Test that function completes successfully when user confirms all prompts."""
+    version = "2.10.0rc3"
+    task_sdk_version = "1.0.6rc3"
+    repo_root = "/repo/root"
+
+    chdir_calls: list[str] = []
+    console_messages: list[str] = []
+    run_command_calls: list[tuple[list[str] | str, dict]] = []
+    confirm_prompts: list[str] = []
+
+    def fake_confirm_action(prompt: str, **kwargs):
+        confirm_prompts.append(prompt)
+        return True
+
+    def fake_chdir(path: str):
+        chdir_calls.append(path)
+
+    def fake_run_command(cmd: list[str] | str, **kwargs):
+        run_command_calls.append((cmd, kwargs))
+
+    monkeypatch.setattr(rc_cmd, "confirm_action", fake_confirm_action)
+    monkeypatch.setattr(rc_cmd, "get_dry_run", lambda: False)
+    monkeypatch.setattr(rc_cmd.os, "chdir", fake_chdir)
+    monkeypatch.setattr(rc_cmd, "console_print", lambda msg="": console_messages.append(str(msg)))
+    monkeypatch.setattr(rc_cmd, "run_command", fake_run_command)
+
+    rc_cmd.push_artifacts_to_asf_repo(version=version, task_sdk_version=task_sdk_version, repo_root=repo_root)
+
+    assert confirm_prompts == [
+        "Do you want to push artifacts to ASF repo?",
+        "Do you want to continue?",
+        "Do you want to continue?",
+    ]
+    assert chdir_calls == [f"{repo_root}/asf-dist/dev/airflow"]
+    ls_calls = [(cmd, kwargs) for cmd, kwargs in run_command_calls if cmd == ["ls"]]
+    assert len(ls_calls) == 2  # Two ls calls
+    assert any(kwargs.get("cwd") == f"{repo_root}/asf-dist/dev/airflow/{version}" for cmd, kwargs in ls_calls)
+    assert any(
+        kwargs.get("cwd") == f"{repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"
+        for cmd, kwargs in ls_calls
+    )
+    assert any(
+        cmd == f"svn add {version}/* task-sdk/{task_sdk_version}/*" for cmd, kwargs in run_command_calls
+    )
+    assert any(
+        cmd == ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"]
+        for cmd, kwargs in run_command_calls
+    )
+    assert "[success]Files pushed to svn" in console_messages
+    assert (
+        "Verify that the files are available here: https://dist.apache.org/repos/dist/dev/airflow/"
+        in console_messages
+    )

@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link, Text } from "@chakra-ui/react";
+import { Button, Flex, Link, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DagRunAssetReference, DagRunState } from "openapi/requests/types.gen";
-import { Button, Popover } from "src/components/ui";
+import { Popover } from "src/components/ui";
 
 import { StateBadge } from "../StateBadge";
 
