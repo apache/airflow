@@ -75,7 +75,7 @@ def test_len(mock_supervisor_comms, lazy_sequence):
 
 
 def test_iter(mock_supervisor_comms, lazy_sequence):
-    stop = conf.getint("core", "parallelism") + 1
+    stop = conf.getint("core", "parallelism")
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
@@ -85,7 +85,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
 
     assert mock_supervisor_comms.send.call_args_list == [
         call(
-            msg=GetXComSequenceSlice(
+            GetXComSequenceSlice(
                 key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="dag",
                 task_id="task",
@@ -96,7 +96,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
             )
         ),
         call(
-            msg=GetXComSequenceSlice(
+            GetXComSequenceSlice(
                 key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="dag",
                 task_id="task",
@@ -110,7 +110,7 @@ def test_iter(mock_supervisor_comms, lazy_sequence):
 
 
 def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
-    stop = conf.getint("core", "parallelism") + 1
+    stop = conf.getint("core", "parallelism")
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
@@ -120,19 +120,30 @@ def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
     with pytest.raises(TypeError):
         list(it)
 
-    mock_supervisor_comms.send.assert_called_once_with(
+    assert mock_supervisor_comms.send.call_args_list == [
         call(
-            msg=GetXComSequenceSlice(
+            GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=None,
+            )
+        ),
+        call(
+            GetXComSequenceSlice(
                 key=BaseXCom.XCOM_RETURN_KEY,
                 dag_id="dag",
                 task_id="task",
                 run_id="run",
                 start=1,
-                stop=stop,
+                stop=stop + 1,
                 step=None,
-            ),
-        )
-    )
+            )
+        ),
+    ]
 
 
 def test_getitem_index(mock_supervisor_comms, lazy_sequence):
