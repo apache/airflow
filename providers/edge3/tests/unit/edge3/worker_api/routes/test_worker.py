@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -88,7 +89,7 @@ class TestWorkerApiRoutes:
         register("test_worker", body, session)
         session.commit()
 
-        worker: list[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test_worker"
         if input_queues:
@@ -240,7 +241,7 @@ class TestWorkerApiRoutes:
         )
         return_queues = set_state("test2_worker", body, session).queues
 
-        worker: list[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert worker[0].state == EdgeWorkerState.RUNNING
@@ -274,7 +275,7 @@ class TestWorkerApiRoutes:
         session.commit()
         body = WorkerQueueUpdateBody(new_queues=add_queues, remove_queues=remove_queues)
         update_queues("test2_worker", body, session)
-        worker: list[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
+        worker: Sequence[EdgeWorkerModel] = session.scalars(select(EdgeWorkerModel)).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"
         assert len(expected_queues) == len(worker[0].queues or [])

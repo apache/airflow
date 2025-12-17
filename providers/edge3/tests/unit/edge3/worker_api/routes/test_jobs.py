@@ -95,4 +95,6 @@ class TestJobsApiRoutes:
             )
             mock_stats_incr.call_count == 2
 
-            assert session.scalar(select(EdgeJobModel)).state == TaskInstanceState.SUCCESS
+            db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))
+            assert db_job is not None
+            assert db_job.state == TaskInstanceState.SUCCESS

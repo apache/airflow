@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pytest
@@ -69,7 +70,7 @@ class TestLogsApiRoutes:
                 body=log_data,
                 session=session,
             )
-        logs: list[EdgeLogsModel] = session.scalars(select(EdgeLogsModel)).all()
+        logs: Sequence[EdgeLogsModel] = session.scalars(select(EdgeLogsModel)).all()
         assert len(logs) == 1
         assert logs[0].dag_id == DAG_ID
         assert logs[0].task_id == TASK_ID

@@ -140,17 +140,15 @@ class EdgeExecutor(BaseExecutor):
         key = task_instance.key
 
         # Check if job already exists with same dag_id, task_id, run_id, map_index, try_number
-        existing_job = session.execute(
-            select(EdgeJobModel)
-            .where(
+        existing_job = session.scalars(
+            select(EdgeJobModel).where(
                 EdgeJobModel.dag_id == key.dag_id,
                 EdgeJobModel.task_id == key.task_id,
                 EdgeJobModel.run_id == key.run_id,
                 EdgeJobModel.map_index == key.map_index,
                 EdgeJobModel.try_number == key.try_number,
             )
-            .first()
-        )
+        ).first()
 
         if existing_job:
             existing_job.state = TaskInstanceState.QUEUED
@@ -176,7 +174,7 @@ class EdgeExecutor(BaseExecutor):
         """Reset worker state if heartbeat timed out."""
         changed = False
         heartbeat_interval: int = conf.getint("edge", "heartbeat_interval")
-        lifeless_workers: list[EdgeWorkerModel] = session.scalars(
+        lifeless_workers: Sequence[EdgeWorkerModel] = session.scalars(
             select(EdgeWorkerModel)
             .with_for_update(skip_locked=True)
             .where(
@@ -211,7 +209,7 @@ class EdgeExecutor(BaseExecutor):
     def _update_orphaned_jobs(self, session: Session) -> bool:
         """Update status ob jobs when workers die and don't update anymore."""
         heartbeat_interval: int = conf.getint("scheduler", "task_instance_heartbeat_timeout")
-        lifeless_jobs: list[EdgeJobModel] = session.scalars(
+        lifeless_jobs: Sequence[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
@@ -252,7 +250,7 @@ class EdgeExecutor(BaseExecutor):
         purged_marker = False
         job_success_purge = conf.getint("edge", "job_success_purge")
         job_fail_purge = conf.getint("edge", "job_fail_purge")
-        jobs: list[EdgeJobModel] = session.scalars(
+        jobs: Sequence[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
             .where(
