@@ -19,17 +19,18 @@
  * under the License.
  */
 import {
-  Flex,
-  IconButton,
+  Box,
+  Button,
   ButtonGroup,
   createListCollection,
-  type SelectValueChangeDetails,
+  Flex,
+  IconButton,
   Popover,
   Portal,
   Select,
-  VStack,
+  type SelectValueChangeDetails,
   Text,
-  Box,
+  VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
@@ -48,7 +49,7 @@ import { directionOptions, type Direction } from "src/components/Graph/useGraphL
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
-import { Button, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Input, Text, VStack } from "@chakra-ui/react";
+import { Button, Box, Heading, Input, Text, VStack } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -30,7 +30,7 @@ import {
 } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import { JsonEditor } from "src/components/JsonEditor";
-import { Button, Dialog, ProgressBar, toaster } from "src/components/ui";
+import { Dialog, ProgressBar, toaster } from "src/components/ui";
 
 type XComModalProps = {
   readonly dagId: string;
