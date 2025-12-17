@@ -65,7 +65,7 @@ def _lock_asset_model(
     session: Session,
     asset_id: int,
     max_retries: int = 10,
-    retry_delay: float = 0.05,
+    retry_delay: float = 0.1,
 ):
     """
     Context manager to acquire a lock for AssetPartitionDagRun creation.
