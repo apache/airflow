@@ -101,16 +101,28 @@ def get_xcom_entry(
     item = copy.copy(result)
 
     if deserialize:
-        # We use `airflow.serialization.serde` for deserialization here because custom XCom backends (with their own
-        # serializers/deserializers) are only used on the worker side during task execution.
+        # Custom XCom backends may store references (eg: object storage paths) in the database.
+        # The custom XCom backend's deserialize_value() resolves these to actual values, but that is only
+        # used on workers during task execution. The API reads directly from the database and uses
+        # stringify() to convert DB values (references or serialized data) to human readable
+        # format for UI display or for API users.
+        import json
 
-        # However, the XCom value is *always* stored in the metadata database as a valid JSON object.
-        # Therefore, for purposes such as UI display or returning API responses, deserializing with
-        # `airflow.serialization.serde` is safe and recommended.
-        from airflow.serialization.serde import deserialize as serde_deserialize
+        from airflow.serialization.stringify import (
+            StringifyNotSupportedError,
+            stringify as stringify_xcom,
+        )
 
-        # full=False ensures that the `item` is deserialized without loading the classes, and it returns a stringified version
-        item.value = serde_deserialize(XComModel.deserialize_value(item), full=False)
+        try:
+            parsed_value = json.loads(result.value)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            parsed_value = result.value
+
+        try:
+            item.value = stringify_xcom(parsed_value)
+        except StringifyNotSupportedError:
+            item.value = XComModel.deserialize_value(result)
     else:
         # For native format, return the raw serialized value from the database
         # This preserves the JSON string format that the API expects
