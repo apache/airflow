@@ -676,15 +676,14 @@ def is_async_callable(func):
         return True
 
     # Callable object with async __call__
-    call = getattr(func, "__call__", None)
-    if call:
-        # unwrap bound methods / decorators
-        call = inspect.unwrap(getattr(func, "__call__", call))
-        # if it's a bound method, get the underlying function
-        if hasattr(call, "__func__"):
-            call = call.__func__
-        if inspect.iscoroutinefunction(call):
-            return True
+    if not inspect.isfunction(func) and callable(func):
+        # unwrap bound method / decorator
+        call = getattr(func, "__call__", None)
+        if call:
+            with suppress(Exception):
+                call = inspect.unwrap(call)
+            if inspect.iscoroutinefunction(call):
+                return True
 
     return False
 
