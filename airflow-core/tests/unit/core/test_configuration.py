@@ -240,9 +240,11 @@ result_backend = BAR
             default_section = test_conf.getsection("celery")
             # TODO: here and below, should we also assert the expected result_backend? To ensure the values were merged together? Do we even expect that?
             assert default_section["worker_concurrency"] == 99
+            assert default_section["result_backend"] == "FOO"
 
             team_section = test_conf.getsection("celery", team_name="unit_test_team")
             assert team_section["worker_concurrency"] == 88
+            assert team_section["result_backend"] == "BAR"
 
     def test_has_option_with_team_name(self):
         """Test has_option with team_name parameter."""
