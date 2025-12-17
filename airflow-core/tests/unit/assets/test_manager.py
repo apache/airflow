@@ -69,6 +69,7 @@ def create_mock_dag():
 
 class TestAssetManager:
     def test_register_asset_change_asset_doesnt_exist(self, mock_task_instance):
+        mock_task_instance = mock.Mock()
         asset = Asset(uri="asset_doesnt_exist", name="not exist")
 
         mock_session = mock.Mock(spec=Session)
@@ -84,6 +85,7 @@ class TestAssetManager:
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
+        mock_task_instance.log.warning.assert_called()
 
     def test_register_asset_change(self, session, dag_maker, mock_task_instance, testing_dag_bundle):
         asset_manager = AssetManager()
