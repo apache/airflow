@@ -54,8 +54,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk import Asset, AssetAlias
-from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef, BaseAsset
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetNameRef,
+    SerializedAssetUriRef,
+)
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
@@ -72,7 +76,7 @@ if TYPE_CHECKING:
     from airflow.models.dagwarning import DagWarning
     from airflow.typing_compat import Self
 
-AssetT = TypeVar("AssetT", bound=BaseAsset)
+    AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
 
@@ -643,19 +647,19 @@ def _get_dag_assets(
                 yield task["task_id"], obj
 
 
-def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Asset]:
+def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAsset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for _, asset in _get_dag_assets(dag, of=Asset):
+        for _, asset in _get_dag_assets(dag, of=SerializedAsset):
             yield asset
 
 
-def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
-        for _, alias in _get_dag_assets(dag, of=AssetAlias):
+        for _, alias in _get_dag_assets(dag, of=SerializedAssetAlias):
             yield alias
 
 
@@ -677,14 +681,14 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
 class AssetModelOperation(NamedTuple):
     """Collect asset/alias objects from DAGs and perform database operations for them."""
 
-    schedule_asset_references: dict[str, list[Asset]]
-    schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    schedule_asset_references: dict[str, list[SerializedAsset]]
+    schedule_asset_alias_references: dict[str, list[SerializedAssetAlias]]
     schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
     schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
-    inlet_references: dict[str, list[tuple[str, Asset]]]
-    outlet_references: dict[str, list[tuple[str, Asset]]]
-    assets: dict[tuple[str, str], Asset]
-    asset_aliases: dict[str, AssetAlias]
+    inlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    outlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    assets: dict[tuple[str, str], SerializedAsset]
+    asset_aliases: dict[str, SerializedAssetAlias]
 
     @classmethod
     def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
@@ -701,20 +705,20 @@ class AssetModelOperation(NamedTuple):
                 (dag_id, ref.name)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetNameRef)
+                if isinstance(ref, SerializedAssetNameRef)
             },
             schedule_asset_uri_references={
                 (dag_id, ref.uri)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetUriRef)
+                if isinstance(ref, SerializedAssetUriRef)
             },
             inlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=True, outlets=False))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=True, outlets=False))
                 for dag_id, dag in dags.items()
             },
             outlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=False, outlets=True))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},

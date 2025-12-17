@@ -19,6 +19,7 @@
 import {
   Badge,
   Box,
+  Button,
   createListCollection,
   HStack,
   IconButton,
@@ -31,16 +32,16 @@ import {
   MdCode,
   MdCompress,
   MdExpand,
+  MdOutlineFileDownload,
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
-  MdOutlineFileDownload,
 } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Menu, Select, Tooltip } from "src/components/ui";
+import { Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";

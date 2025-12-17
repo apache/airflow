@@ -959,7 +959,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.run_helm_tests or self.run_task_sdk_integration_tests
+        return (
+            self.run_kubernetes_tests
+            or self.run_helm_tests
+            or self.run_task_sdk_integration_tests
+            or self.run_ui_e2e_tests
+        )
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
