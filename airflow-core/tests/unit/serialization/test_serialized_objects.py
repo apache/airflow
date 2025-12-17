@@ -60,17 +60,14 @@ from airflow.sdk.definitions.asset import (
     AssetUniqueKey,
     AssetWatcher,
 )
-from airflow.sdk.definitions.deadline import (
-    AsyncCallback,
-    DeadlineAlert,
-    DeadlineAlertFields,
-    DeadlineReference,
-)
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization.decoders import decode_deadline_alert
+from airflow.serialization.encoders import encode_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -464,20 +461,20 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
 
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
 def test_serialize_deserialize_deadline_alert(reference):
-    public_deadline_alert_fields = {
-        field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
-    }
     original = DeadlineAlert(
         reference=reference,
         interval=timedelta(hours=1),
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
-    serialized = original.serialize_deadline_alert()
-    assert serialized[Encoding.TYPE] == DAT.DEADLINE_ALERT
-    assert set(serialized[Encoding.VAR].keys()) == public_deadline_alert_fields
+    serialized = encode_deadline_alert(original)
+    assert serialized == {
+        "reference": None,
+        "interval": None,
+        "callback": None,
+    }
 
-    deserialized = DeadlineAlert.deserialize_deadline_alert(serialized)
+    deserialized = decode_deadline_alert(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
     assert deserialized.interval == original.interval
     assert deserialized.callback == original.callback

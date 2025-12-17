@@ -18,96 +18,35 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+
+import attrs
 
 from airflow.models.deadline import DeadlineReferenceType, ReferenceModels
 from airflow.sdk.definitions.callback import AsyncCallback, Callback
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.serde import deserialize, serialize
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import TypeAlias
+
+    from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 
 DeadlineReferenceTypes: TypeAlias = tuple[type[ReferenceModels.BaseDeadlineReference], ...]
 
 
-class DeadlineAlertFields:
-    """
-    Define field names used in DeadlineAlert serialization/deserialization.
-
-    These constants provide a single source of truth for the field names used when
-    serializing DeadlineAlert instances to and from their dictionary representation.
-    """
-
-    REFERENCE = "reference"
-    INTERVAL = "interval"
-    CALLBACK = "callback"
-
-
+@attrs.define
 class DeadlineAlert:
     """Store Deadline values needed to calculate the need-by timestamp and the callback information."""
 
-    def __init__(
-        self,
-        reference: DeadlineReferenceType,
-        interval: timedelta,
-        callback: Callback,
-    ):
-        self.reference = reference
-        self.interval = interval
+    reference: DeadlineReferenceType
+    interval: timedelta | relativedelta
+    callback: Callback
 
-        if not isinstance(callback, AsyncCallback):
-            raise ValueError(f"Callbacks of type {type(callback).__name__} are not currently supported")
-        self.callback = callback
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, DeadlineAlert):
-            return NotImplemented
-        return (
-            isinstance(self.reference, type(other.reference))
-            and self.interval == other.interval
-            and self.callback == other.callback
-        )
-
-    def __hash__(self) -> int:
-        return hash(
-            (
-                type(self.reference).__name__,
-                self.interval,
-                self.callback,
-            )
-        )
-
-    def serialize_deadline_alert(self):
-        """Return the data in a format that BaseSerialization can handle."""
-        return {
-            Encoding.TYPE: DAT.DEADLINE_ALERT,
-            Encoding.VAR: {
-                DeadlineAlertFields.REFERENCE: self.reference.serialize_reference(),
-                DeadlineAlertFields.INTERVAL: self.interval.total_seconds(),
-                DeadlineAlertFields.CALLBACK: serialize(self.callback),
-            },
-        }
-
-    @classmethod
-    def deserialize_deadline_alert(cls, encoded_data: dict) -> DeadlineAlert:
-        """Deserialize a DeadlineAlert from serialized data."""
-        data = encoded_data.get(Encoding.VAR, encoded_data)
-
-        reference_data = data[DeadlineAlertFields.REFERENCE]
-        reference_type = reference_data[ReferenceModels.REFERENCE_TYPE_FIELD]
-
-        reference_class = ReferenceModels.get_reference_class(reference_type)
-        reference = reference_class.deserialize_reference(reference_data)
-
-        return cls(
-            reference=reference,
-            interval=timedelta(seconds=data[DeadlineAlertFields.INTERVAL]),
-            callback=cast("Callback", deserialize(data[DeadlineAlertFields.CALLBACK])),
-        )
+    def __attrs_post_init__(self) -> None:
+        if not isinstance(self.callback, AsyncCallback):
+            raise ValueError(f"Callbacks of type {type(self.callback).__name__} are not currently supported")
 
 
 class DeadlineReference:

@@ -17,18 +17,19 @@
 from __future__ import annotations
 
 import inspect
-from abc import ABC
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
 from airflow.sdk._shared.module_loading import import_string, is_valid_dotpath
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 log = structlog.getLogger(__name__)
 
 
-class Callback(ABC):
+class Callback:
     """
     Base class for Deadline Alert callbacks.
 
@@ -42,9 +43,9 @@ class Callback(ABC):
     """
 
     path: str
-    kwargs: dict
+    kwargs: dict[str, Any]
 
-    def __init__(self, callback_callable: Callable | str, kwargs: dict[str, Any] | None = None):
+    def __init__(self, callback_callable: Callable | str, kwargs: dict[str, Any] | None = None) -> None:
         self.path = self.get_callback_path(callback_callable)
         if kwargs and "context" in kwargs:
             raise ValueError("context is a reserved kwarg for this class")
@@ -75,14 +76,14 @@ class Callback(ABC):
 
             cls.verify_callable(callback)
 
-        except ImportError as e:
+        except ImportError:
             # Logging here instead of failing because it is possible that the code for the callable
             # exists somewhere other than on the DAG processor. We are making a best effort to validate,
             # but can't rule out that it may be available at runtime even if it can not be imported here.
             log.debug(
-                "Callback %s is formatted like a callable dotpath, but could not be imported.\n%s",
-                stripped_callback,
-                e,
+                "Callback is formatted like a callable dot-path, but could not be imported.",
+                callable=stripped_callback,
+                exc_info=True,
             )
 
         return stripped_callback
@@ -91,33 +92,6 @@ class Callback(ABC):
     def verify_callable(cls, callback: Callable):
         """For additional verification of the callable during initialization in subclasses."""
         pass  # No verification needed in the base class
-
-    @classmethod
-    def deserialize(cls, data: dict, version):
-        path = data.pop("path")
-        return cls(callback_callable=path, **data)
-
-    @classmethod
-    def serialized_fields(cls) -> tuple[str, ...]:
-        return ("path", "kwargs")
-
-    def serialize(self) -> dict[str, Any]:
-        return {f: getattr(self, f) for f in self.serialized_fields()}
-
-    def __eq__(self, other):
-        if type(self) is not type(other):
-            return NotImplemented
-        return self.serialize() == other.serialize()
-
-    def __hash__(self):
-        serialized = self.serialize()
-        hashable_items = []
-        for k, v in serialized.items():
-            if isinstance(v, dict):
-                hashable_items.append((k, tuple(sorted(v.items()))))
-            else:
-                hashable_items.append((k, v))
-        return hash(tuple(sorted(hashable_items)))
 
 
 class AsyncCallback(Callback):
@@ -130,9 +104,6 @@ class AsyncCallback(Callback):
 
     It will be called with Airflow context and specified kwargs when a deadline is missed.
     """
-
-    def __init__(self, callback_callable: Callable | str, kwargs: dict | None = None):
-        super().__init__(callback_callable=callback_callable, kwargs=kwargs)
 
     @classmethod
     def verify_callable(cls, callback: Callable):
@@ -153,11 +124,10 @@ class SyncCallback(Callback):
     executor: str | None
 
     def __init__(
-        self, callback_callable: Callable | str, kwargs: dict | None = None, executor: str | None = None
-    ):
+        self,
+        callback_callable: Callable | str,
+        kwargs: dict | None = None,
+        executor: str | None = None,
+    ) -> None:
         super().__init__(callback_callable=callback_callable, kwargs=kwargs)
         self.executor = executor
-
-    @classmethod
-    def serialized_fields(cls) -> tuple[str, ...]:
-        return super().serialized_fields() + ("executor",)

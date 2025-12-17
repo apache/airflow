@@ -114,6 +114,8 @@ class TestCallback:
 class TestTriggererCallback:
     def test_polymorphic_serde(self, session):
         """Test that TriggererCallback can be serialized and deserialized"""
+        from airflow.serialization.encoders import _encode_callback
+
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
         session.add(callback)
         session.commit()
@@ -121,7 +123,7 @@ class TestTriggererCallback:
         retrieved = session.query(Callback).filter_by(id=callback.id).one()
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
-        assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
+        assert retrieved.data == _encode_callback(TEST_ASYNC_CALLBACK)
         assert retrieved.state == CallbackState.PENDING.value
         assert retrieved.output is None
         assert retrieved.priority_weight == 1
