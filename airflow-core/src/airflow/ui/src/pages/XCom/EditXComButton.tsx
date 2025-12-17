@@ -16,33 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { AiOutlineFileSync } from "react-icons/ai";
+import { FiEdit2 } from "react-icons/fi";
 
-import { useDagParsing } from "src/queries/useDagParsing.ts";
+import type { XComResponse } from "openapi/requests/types.gen";
 
-type Props = {
-  readonly dagId: string;
-  readonly fileToken: string;
-} & ButtonProps;
+import XComModal from "./XComModal";
 
-const ParseDag = ({ dagId, fileToken, ...rest }: Props) => {
-  const { t: translate } = useTranslation("components");
-  const { isPending, mutate } = useDagParsing({ dagId });
+type EditXComButtonProps = {
+  readonly xcom: XComResponse;
+};
+
+const EditXComButton = ({ xcom }: EditXComButtonProps) => {
+  const { t: translate } = useTranslation("browse");
+  const { onClose, onOpen, open } = useDisclosure();
 
   return (
-    <Button
-      aria-label={translate("reparseDag")}
-      loading={isPending}
-      onClick={() => mutate({ fileToken })}
-      variant="outline"
-      {...rest}
-    >
-      <AiOutlineFileSync height={5} width={5} />
-      {translate("reparseDag")}
-    </Button>
+    <>
+      <IconButton aria-label={translate("xcom.edit.title")} onClick={onOpen} variant="ghost">
+        <FiEdit2 />
+      </IconButton>
+
+      <XComModal
+        dagId={xcom.dag_id}
+        isOpen={open}
+        mapIndex={xcom.map_index}
+        mode="edit"
+        onClose={onClose}
+        runId={xcom.run_id}
+        taskId={xcom.task_id}
+        xcomKey={xcom.key}
+      />
+    </>
   );
 };
 
-export default ParseDag;
+export default EditXComButton;

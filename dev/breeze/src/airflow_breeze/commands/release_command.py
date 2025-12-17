@@ -76,7 +76,6 @@ def find_latest_release_candidate(version, svn_dev_repo, component="airflow"):
             if match:
                 rc_number = int(match.group(1))
                 matching_rcs.append((rc_number, entry))
-
         if not matching_rcs:
             return None
 
@@ -85,7 +84,8 @@ def find_latest_release_candidate(version, svn_dev_repo, component="airflow"):
         latest_rc = matching_rcs[0][1]
         console_print(f"Found latest {component} release candidate: {latest_rc}")
         return latest_rc
-    except OSError:
+    except OSError as e:
+        console_print("[red]Error accessing SVN dev directory:[/red]", e)
         return None
 
 

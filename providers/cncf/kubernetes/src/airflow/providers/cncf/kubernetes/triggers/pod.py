@@ -88,6 +88,7 @@ class KubernetesPodTrigger(BaseTrigger):
         trigger_start_time: datetime.datetime,
         base_container_name: str,
         kubernetes_conn_id: str | None = None,
+        connection_extras: dict | None = None,
         poll_interval: float = 2,
         cluster_context: str | None = None,
         config_dict: dict | None = None,
@@ -107,6 +108,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.trigger_start_time = trigger_start_time
         self.base_container_name = base_container_name
         self.kubernetes_conn_id = kubernetes_conn_id
+        self.connection_extras = connection_extras
         self.poll_interval = poll_interval
         self.cluster_context = cluster_context
         self.config_dict = config_dict
@@ -130,6 +132,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "pod_namespace": self.pod_namespace,
                 "base_container_name": self.base_container_name,
                 "kubernetes_conn_id": self.kubernetes_conn_id,
+                "connection_extras": self.connection_extras,
                 "poll_interval": self.poll_interval,
                 "cluster_context": self.cluster_context,
                 "config_dict": self.config_dict,
@@ -324,6 +327,7 @@ class KubernetesPodTrigger(BaseTrigger):
             in_cluster=self.in_cluster,
             config_dict=self.config_dict,
             cluster_context=self.cluster_context,
+            connection_extras=self.connection_extras,
         )
 
     @cached_property
