@@ -433,6 +433,7 @@ repos:
             ^airflow-core/tests/unit/models/test_xcom.py$|
             ^airflow-core/tests/unit/models/test_dagrun.py$|
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
+            ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
             ^providers/openlineage/.*\.py$|
