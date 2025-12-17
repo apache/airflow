@@ -1147,12 +1147,14 @@ def simple_decorator(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         return fn(*args, **kwargs)
+
     return wrapper
 
 
 def decorator_without_wraps(fn):
     def wrapper(*args, **kwargs):
         return fn(*args, **kwargs)
+
     return wrapper
 
 
