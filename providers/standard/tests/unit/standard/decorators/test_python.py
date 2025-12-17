@@ -1143,15 +1143,15 @@ def test_teardown_trigger_rule_override_behavior(dag_maker, session):
 
 
 @task
-async def dummy_task():
-    pass
+async def say_hello():
+    return "Hello world!"
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
 def test_is_async_callable():
     from airflow.sdk.bases.decorator import is_async_callable
 
-    assert is_async_callable(dummy_task)
+    assert is_async_callable(say_hello)
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
@@ -1159,10 +1159,10 @@ def test_python_task():
     from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
     from airflow.sdk.bases.decorator import _TaskDecorator
 
-    decorator = python_task(dummy_task)
+    decorator = python_task(say_hello)
 
     assert isinstance(decorator, _TaskDecorator)
-    assert decorator.function == dummy_task
+    assert decorator.function == say_hello
     assert decorator.operator_class == _PythonDecoratedOperator
     assert not decorator.multiple_outputs
     assert decorator.kwargs == {"task_id": "dummy_task"}
