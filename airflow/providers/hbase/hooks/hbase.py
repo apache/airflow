@@ -237,6 +237,8 @@ class HBaseHook(BaseHook):
             },
         }
 
+
+
     def close(self) -> None:
         """Close HBase connection."""
         if self._connection:

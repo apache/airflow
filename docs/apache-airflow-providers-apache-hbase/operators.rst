@@ -111,7 +111,68 @@ Use the ``table_name`` parameter to specify the table to delete.
     :start-after: [START howto_operator_hbase_delete_table]
     :end-before: [END howto_operator_hbase_delete_table]
 
+Backup and Restore Operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+HBase provides built-in backup and restore functionality for data protection and disaster recovery.
+
+.. _howto/operator:HBaseCreateBackupSetOperator:
+
+Creating Backup Sets
+""""""""""""""""""""
+
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseCreateBackupSetOperator` operator is used to create a backup set containing one or more tables.
+
+Use the ``backup_set_name`` parameter to specify the backup set name and ``tables`` parameter to list the tables to include.
+
+.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
+    :language: python
+    :start-after: [START howto_operator_hbase_create_backup_set]
+    :end-before: [END howto_operator_hbase_create_backup_set]
+
+.. _howto/operator:HBaseFullBackupOperator:
+
+Full Backup
+"""""""""""
+
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseFullBackupOperator` operator is used to create a full backup of tables in a backup set.
+
+Use the ``backup_path`` parameter to specify the HDFS path for backup storage, ``backup_set_name`` for the backup set, and optionally ``workers`` to control parallelism.
+
+.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
+    :language: python
+    :start-after: [START howto_operator_hbase_full_backup]
+    :end-before: [END howto_operator_hbase_full_backup]
+
+.. _howto/operator:HBaseIncrementalBackupOperator:
+
+Incremental Backup
+""""""""""""""""""
+
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseIncrementalBackupOperator` operator is used to create an incremental backup that captures changes since the last backup.
+
+Use the same parameters as the full backup operator. Incremental backups are faster and require less storage space.
+
+.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
+    :language: python
+    :start-after: [START howto_operator_hbase_incremental_backup]
+    :end-before: [END howto_operator_hbase_incremental_backup]
+
+.. _howto/operator:HBaseRestoreOperator:
+
+Restore from Backup
+"""""""""""""""""""
+
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseRestoreOperator` operator is used to restore tables from a backup to a specific point in time.
+
+Use the ``backup_path`` parameter for the backup location, ``backup_id`` for the specific backup to restore, and ``backup_set_name`` for the backup set.
+
+.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
+    :language: python
+    :start-after: [START howto_operator_hbase_restore]
+    :end-before: [END howto_operator_hbase_restore]
+
 Reference
 ^^^^^^^^^
 
-For further information, look at `HBase documentation <https://hbase.apache.org/book.html>`_.
+For further information, look at `HBase documentation <https://hbase.apache.org/book.html>`_ and `HBase Backup and Restore <https://hbase.apache.org/book.html#_backup_and_restore>`_.

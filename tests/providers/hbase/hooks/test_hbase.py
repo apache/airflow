@@ -200,3 +200,110 @@ class TestHBaseHook:
         hook.delete_row("test_table", "row1")
         
         mock_table.delete.assert_called_once_with("row1", columns=None)
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_create_backup_set(self, mock_subprocess_run):
+        """Test create_backup_set method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "Backup set created successfully"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.create_backup_set("test_backup_set", ["table1", "table2"])
+        
+        expected_cmd = ["hbase", "backup", "set", "add", "test_backup_set", "table1", "table2"]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "Backup set created successfully"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_list_backup_sets(self, mock_subprocess_run):
+        """Test list_backup_sets method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "test_backup_set\nother_backup_set"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.list_backup_sets()
+        
+        expected_cmd = ["hbase", "backup", "set", "list"]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "test_backup_set\nother_backup_set"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_create_full_backup(self, mock_subprocess_run):
+        """Test create_full_backup method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "backup_20240101_123456"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.create_full_backup("hdfs://test/backup", "test_backup_set", 5)
+        
+        expected_cmd = [
+            "hbase", "backup", "create", "full", 
+            "hdfs://test/backup", "-s", "test_backup_set", "-w", "5"
+        ]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "backup_20240101_123456"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_create_incremental_backup(self, mock_subprocess_run):
+        """Test create_incremental_backup method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "backup_20240101_234567"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.create_incremental_backup("hdfs://test/backup", "test_backup_set", 3)
+        
+        expected_cmd = [
+            "hbase", "backup", "create", "incremental", 
+            "hdfs://test/backup", "-s", "test_backup_set", "-w", "3"
+        ]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "backup_20240101_234567"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_backup_history(self, mock_subprocess_run):
+        """Test backup_history method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "backup_20240101_123456\nbackup_20240101_234567"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.backup_history("test_backup_set")
+        
+        expected_cmd = ["hbase", "backup", "history", "-s", "test_backup_set"]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "backup_20240101_123456\nbackup_20240101_234567"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_describe_backup(self, mock_subprocess_run):
+        """Test describe_backup method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "Backup ID: backup_123\nTables: table1, table2"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.describe_backup("backup_123")
+        
+        expected_cmd = ["hbase", "backup", "describe", "backup_123"]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "Backup ID: backup_123\nTables: table1, table2"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_restore_backup(self, mock_subprocess_run):
+        """Test restore_backup method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "Restore completed successfully"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.restore_backup("hdfs://test/backup", "backup_123", "test_backup_set")
+        
+        expected_cmd = [
+            "hbase", "restore", 
+            "hdfs://test/backup", "backup_123", "-s", "test_backup_set"
+        ]
+        mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
+        assert result == "Restore completed successfully"
