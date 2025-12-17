@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack, useDisclosure } from "@chakra-ui/react";
+import { Button, Flex, Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
@@ -25,11 +25,12 @@ import { useDagServiceGetDagDetails } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import Time from "src/components/Time";
-import { Button, Dialog, Checkbox } from "src/components/ui";
+import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearTaskInstances } from "src/queries/useClearTaskInstances";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 import ClearTaskInstanceConfirmationDialog from "./ClearTaskInstanceConfirmationDialog";
 
@@ -54,7 +55,7 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     onSuccessConfirm: onCloseDialog,
   });
 
-  const [selectedOptions, setSelectedOptions] = useState<Array<string>>([]);
+  const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
@@ -77,10 +78,16 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
     dagId,
   });
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data } = useClearTaskInstancesDryRun({
     dagId,
     options: {
       enabled: openDialog,
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+          ? refetchInterval
+          : false,
       refetchOnMount: "always",
     },
     requestBody: {

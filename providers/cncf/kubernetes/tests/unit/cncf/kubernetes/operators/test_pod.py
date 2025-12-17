@@ -2395,8 +2395,16 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("find_pod"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.BaseHook.get_connection")
     def test_async_create_pod_should_execute_successfully(
-        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push, mocker
+        self,
+        mocked_get_connection,
+        mocked_pod,
+        mocked_pod_obj,
+        mocked_found_pod,
+        mocked_client,
+        do_xcom_push,
+        mocker,
     ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
@@ -2404,6 +2412,8 @@ class TestKubernetesPodOperatorAsync:
 
         pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar
         """
+
+        mocked_get_connection.return_value.extra_dejson = {"foo": "bar"}
 
         k = KubernetesPodOperator(
             task_id=TEST_TASK_ID,
@@ -2437,6 +2447,8 @@ class TestKubernetesPodOperatorAsync:
         ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
         ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
+        assert exc.value.trigger.connection_extras == {"foo": "bar"}
+        mocked_get_connection.assert_called_once_with(k.kubernetes_conn_id)
 
     @pytest.mark.parametrize("status", ["error", "failed", "timeout"])
     @patch(KUB_OP_PATH.format("log"))
