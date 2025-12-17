@@ -1241,6 +1241,7 @@ export type ProviderResponse = {
     package_name: string;
     description: string;
     version: string;
+    documentation_url?: string | null;
 };
 
 /**
