@@ -60,6 +60,7 @@ class BuildCiParams(CommonBuildParams):
         self.build_arg_values: list[str] = []
         # Required build args
         self._req_arg("AIRFLOW_BRANCH", self.airflow_branch)
+        self._req_arg("AIRFLOW_REPO", self.github_repository)
         self._req_arg("AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
         self._req_arg("AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         self._req_arg("AIRFLOW_EXTRAS", self.airflow_extras)
