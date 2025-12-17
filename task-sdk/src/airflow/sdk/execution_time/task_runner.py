@@ -859,9 +859,6 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
 
 
 def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
-    # TODO: Port one of the following to Task SDK
-    #   airflow.serialization.helpers.serialize_template_field or
-    #   airflow.models.renderedtifields.get_serialized_template_fields
     from airflow.sdk._shared.secrets_masker import redact
 
     rendered_fields = {}
