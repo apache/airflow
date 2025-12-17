@@ -24,7 +24,7 @@ import pytest
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
+from airflow.providers.common.compat.sdk import AirflowException, XComNotFound, task
 
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
@@ -42,7 +42,6 @@ if AIRFLOW_V_3_0_PLUS:
         TaskGroup,
         XComArg,
         setup,
-        task,
         task as task_decorator,
         teardown,
     )
