@@ -60,7 +60,7 @@ log = structlog.get_logger(__name__)
 
 
 @contextmanager
-def _acquire_apdr_lock(
+def _lock_asset_model(
     *,
     session: Session,
     dag_id: str,
@@ -429,7 +429,7 @@ class AssetManager(LoggingMixin):
         To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
         AssetPartitionDagRunMutexLock table for SQLite.
         """
-        with _acquire_apdr_lock(
+        with _lock_asset_model(
             session=session,
             asset_id=asset_id,
             dag_id=target_dag.dag_id,
