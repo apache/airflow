@@ -1,0 +1,154 @@
+{
+  "allRuns": "すべての実行",
+  "blockingDeps": {
+    "dependency": "依存関係",
+    "reason": "理由",
+    "title": "スケジュール済タスクをブロック中の依存関係"
+  },
+  "calendar": {
+    "daily": "日単位",
+    "hourly": "時間単位",
+    "legend": {
+      "less": "Less",
+      "mixed": "Mixed",
+      "more": "More"
+    },
+    "navigation": {
+      "nextMonth": "次月",
+      "nextYear": "次年",
+      "previousMonth": "前月",
+      "previousYear": "前年"
+    },
+    "noData": "データが利用できません",
+    "noFailedRuns": "失敗した実行はありません",
+    "noRuns": "実行はありません",
+    "totalRuns": "すべての実行",
+    "week": "{{weekNumber}} 週",
+    "weekdays": {
+      "friday": "金",
+      "monday": "月",
+      "saturday": "土",
+      "sunday": "日",
+      "thursday": "木",
+      "tuesday": "火",
+      "wednesday": "水"
+    }
+  },
+  "code": {
+    "bundleUrl": "バンドル URL",
+    "noCode": "コードが見つかりません",
+    "parseDuration": "パース時間:",
+    "parsedAt": "パース日時:"
+  },
+  "extraLinks": "追加リンク",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reset to latest",
+      "toggleGroup": "グループを切り替え"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Advanced",
+      "dagDocs": "Dag ドキュメント"
+    }
+  },
+  "logs": {
+    "allLevels": "全ログレベル",
+    "allSources": "全ソース",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "全画面",
+      "tooltip": "全画面で表示するには {{hotkey}} を押してください"
+    },
+    "info": "INFO",
+    "noTryNumber": "試行回数なし",
+    "settings": "ログ設定",
+    "viewInExternal": "{{name}} でログを見る ({{attempt}} 試行目)",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "Navigation: Shift+{{arrow}}",
+    "toggleGroup": "Toggle group: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "失敗した実行",
+      "failedRun_other": "失敗した実行",
+      "failedTask_one": "失敗したタスク",
+      "failedTask_other": "失敗したタスク",
+      "failedTaskInstance_one": "失敗したタスクインスタンス",
+      "failedTaskInstance_other": "失敗したタスクインスタンス"
+    },
+    "charts": {
+      "assetEvent_one": "作成されたアセットイベント",
+      "assetEvent_other": "作成されたアセットイベント"
+    },
+    "failedLogs": {
+      "hideLogs": "ログを隠す",
+      "showLogs": "ログを表示",
+      "title": "最近失敗したタスクのログ",
+      "viewFullLogs": "すべてのログを表示"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "オプション",
+      "showGantt": "ガントチャート表示",
+      "showGraphShortcut": "グラフ表示 (g を押す)",
+      "showGridShortcut": "グリッド表示 (g を押す)"
+    },
+    "dagRuns": {
+      "label": "Dag 実行数"
+    },
+    "dependencies": {
+      "label": "依存関係",
+      "options": {
+        "allDagDependencies": "すべての Dag 依存関係",
+        "externalConditions": "外部条件",
+        "onlyTasks": "タスクのみ"
+      },
+      "placeholder": "依存関係"
+    },
+    "graphDirection": {
+      "label": "グラフの向き"
+    }
+  },
+  "paramsFailed": "パラメータのロードに失敗しました",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag のパースリクエストが失敗しました。未完了のパースリクエストが存在する可能性があります",
+        "title": "Dag の再パースに失敗"
+      },
+      "success": {
+        "description": "Dag はまもなく再パースされます",
+        "title": "再パースが正常にリクエストされました"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "アセットイベント",
+    "auditLog": "監査ログ",
+    "backfills": "過去分実行",
+    "calendar": "カレンダー",
+    "code": "コード",
+    "details": "詳細",
+    "logs": "ログ",
+    "mappedTaskInstances_one": "タスクインスタンス [{{count}}]",
+    "mappedTaskInstances_other": "タスクインスタンス [{{count}}]",
+    "overview": "概要",
+    "renderedTemplates": "生成されたテンプレート",
+    "requiredActions": "要対応項目",
+    "runs": "実行",
+    "taskInstances": "タスクインスタンス",
+    "tasks": "タスク",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "タスクグループをすべて閉じる",
+    "expandAll": "タスクグループをすべて展開"
+  }
+}

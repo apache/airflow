@@ -1,0 +1,34 @@
+{
+  "filters": {
+    "response": {
+      "all": "すべての",
+      "pending": "保留中",
+      "received": "レビュー済"
+    }
+  },
+  "requiredAction_one": "要対応項目",
+  "requiredAction_other": "要対応項目",
+  "requiredActionCount_one": "要対応項目 ({{count}} 件)",
+  "requiredActionCount_other": "要対応項目 ({{count}} 件)",
+  "requiredActionState": "要対応状態",
+  "response": {
+    "error": "応答に失敗しました",
+    "optionsDescription": "このタスクインスタンスに対する選択肢を選んでください",
+    "optionsLabel": "選択肢",
+    "received": "以下の日時に応答を受信しました",
+    "respond": "応答する",
+    "success": "{{taskId}} の応答に成功しました",
+    "title": "ヒューマンタスクインスタンス - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "承認済",
+    "approvalRequired": "要承認",
+    "choiceReceived": "選択済",
+    "choiceRequired": "要選択",
+    "noResponseReceived": "未応答",
+    "rejectionReceived": "却下済",
+    "responseReceived": "応答済",
+    "responseRequired": "要応答"
+  },
+  "subject": "件名"
+}

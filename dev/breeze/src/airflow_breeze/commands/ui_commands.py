@@ -82,6 +82,7 @@ PLURAL_SUFFIXES = {
     "hi": MOST_COMMON_PLURAL_SUFFIXES,
     "hu": MOST_COMMON_PLURAL_SUFFIXES,
     "it": ["_zero", "_one", "_many", "_other"],
+    "ja": ["_other"],
     "ko": ["_other"],
     "nl": MOST_COMMON_PLURAL_SUFFIXES,
     "pl": ["_one", "_few", "_many", "_other"],
