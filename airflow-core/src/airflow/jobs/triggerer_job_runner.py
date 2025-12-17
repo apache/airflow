@@ -865,7 +865,7 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: PartitionedQueue[int, tuple[int, events.DiscrimatedTriggerEvent]]
+    events: PartitionedQueue[int, events.DiscrimatedTriggerEvent]
 
     # Outbound queue of failed triggers
     failed_triggers: KeyedHeadQueue[int, tuple[int, tuple[str, dict[str, Any]] | None, BaseException | None]]
