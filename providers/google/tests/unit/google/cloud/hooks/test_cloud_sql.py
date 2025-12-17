@@ -1756,6 +1756,28 @@ class TestCloudSqlProxyRunner:
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.GoogleBaseHook.get_connection")
+    def test_cloud_sql_proxy_auto_auth(self, mock_get_connection):
+        """
+        Tests that when a user account is already present on the connection,
+        the proxy runner returns the auto auth flag
+        """
+        test_conn_id = "test_connection_id"
+        connection = Connection(
+            conn_id=test_conn_id,
+            conn_type="test_conn_type",
+            login="test_email",
+            extra={}
+        )
+        mock_get_connection.return_value = connection
+        expected_params = ["--auto-iam-authn", test_conn_id]
+        runner = CloudSqlProxyRunner(
+            path_prefix="12345678",
+            instance_specification="project:us-east-1:instance",
+            sql_proxy_version="v1.23.0",
+            gcp_conn_id=test_conn_id,
+        )
+        assert runner._get_credential_parameters() == expected_params
 
 class TestCloudSQLAsyncHook:
     @pytest.mark.asyncio
