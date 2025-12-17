@@ -85,19 +85,21 @@ def _lock_asset_model(
             try:
                 session.execute(stmt)
                 session.flush()
-                try:
-                    # lock acquired
-                    yield
-                finally:
-                    session.flush()
-                return
             except exc.OperationalError as err:
                 err_msg = str(err).lower()
                 if "locked" in err_msg or "busy" in err_msg:
                     session.rollback()
                     time.sleep(retry_delay)
+                    continue
 
-        raise RuntimeError(f"Could not acquire SQLite APDR mutex (writer lock) for asset_id={asset_id}")
+            try:
+                # lock acquired
+                yield
+            finally:
+                session.flush()
+            return
+
+        raise RuntimeError(f"Could not acquire SQLite AssetModel writer lock for asset_id={asset_id}")
     else:
         # Postgres/MySQL row-level lock
         if (
