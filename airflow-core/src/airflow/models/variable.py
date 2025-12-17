@@ -36,7 +36,7 @@ from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import mapped_column
+from airflow.utils.sqlalchemy import get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
@@ -257,7 +257,7 @@ class Variable(Base, LoggingMixin):
             is_encrypted = new_variable.is_encrypted
 
             # Create dialect-specific upsert statement
-            dialect_name = session.get_bind().dialect.name
+            dialect_name = get_dialect_name(session)
             stmt: MySQLInsert | PostgreSQLInsert | SQLiteInsert
 
             if dialect_name == "postgresql":
