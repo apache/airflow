@@ -1214,22 +1214,22 @@ class TestAsyncCallable:
     def test_plain_async_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(async_fn) is True
+        assert is_async_callable(async_fn)
 
     def test_plain_sync_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(sync_fn) is False
+        assert not is_async_callable(sync_fn)
 
     def test_wrapped_async_function_with_wraps(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(wrapped_async_fn) is True
+        assert is_async_callable(wrapped_async_fn)
 
     def test_wrapped_sync_function_with_wraps(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(wrapped_sync_fn) is False
+        assert not is_async_callable(wrapped_sync_fn)
 
     def test_wrapped_async_function_without_wraps(self):
         """
@@ -1238,24 +1238,24 @@ class TestAsyncCallable:
         """
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(wrapped_async_fn_no_wraps) is False
+        assert not is_async_callable(wrapped_async_fn_no_wraps)
 
     def test_multi_wrapped_async_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(multi_wrapped_async_fn) is True
+        assert is_async_callable(multi_wrapped_async_fn)
 
     def test_partial_async_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
         fn = functools.partial(async_with_args, 1)
-        assert is_async_callable(fn) is True
+        assert is_async_callable(fn)
 
     def test_partial_sync_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
         fn = functools.partial(sync_with_args, 1)
-        assert is_async_callable(fn) is False
+        assert not is_async_callable(fn)
 
     def test_nested_partial_async_function(self):
         from airflow.sdk.bases.decorator import is_async_callable
@@ -1264,34 +1264,52 @@ class TestAsyncCallable:
             functools.partial(async_with_args, 1),
             2,
         )
-        assert is_async_callable(fn) is True
+        assert is_async_callable(fn)
 
     def test_async_callable_class(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(AsyncCallable()) is True
+        assert is_async_callable(AsyncCallable())
 
     def test_sync_callable_class(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(SyncCallable()) is False
+        assert not is_async_callable(SyncCallable())
 
     def test_wrapped_async_callable_class(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(WrappedAsyncCallable()) is True
+        assert is_async_callable(WrappedAsyncCallable())
 
     def test_partial_callable_class(self):
         from airflow.sdk.bases.decorator import is_async_callable
 
         fn = functools.partial(AsyncCallable())
-        assert is_async_callable(fn) is True
+        assert is_async_callable(fn)
 
     @pytest.mark.parametrize("value", [None, 42, "string", object()])
     def test_non_callable(self, value):
         from airflow.sdk.bases.decorator import is_async_callable
 
-        assert is_async_callable(value) is False
+        assert not is_async_callable(value)
+
+    def test_task_decorator_async_function(self):
+        from airflow.sdk.bases.decorator import is_async_callable
+
+        @task
+        async def async_task_fn():
+            return 42
+
+        assert is_async_callable(async_task_fn)
+
+    def test_task_decorator_sync_function(self):
+        from airflow.sdk.bases.decorator import is_async_callable
+
+        @task
+        def sync_task_fn():
+            return 42
+
+        assert not is_async_callable(sync_task_fn)
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
