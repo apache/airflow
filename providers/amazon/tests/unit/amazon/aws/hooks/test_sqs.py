@@ -56,7 +56,8 @@ class TestSqsHook:
         """Create a test queue before each test."""
         with mock_aws():
             hook = SqsHook(aws_conn_id="aws_default")
-            self.queue_url = hook.create_queue(queue_name=QUEUE_NAME)
+            response = hook.create_queue(queue_name=QUEUE_NAME)
+            self.queue_url = response["QueueUrl"]
             yield
 
     @pytest.fixture
@@ -73,10 +74,11 @@ class TestSqsHook:
     def test_create_queue(self, hook):
         """Test that create_queue creates a queue and returns the queue URL."""
         queue_name = "test-create-queue"
-        queue_url = hook.create_queue(queue_name=queue_name)
+        response = hook.create_queue(queue_name=queue_name)
 
-        assert isinstance(queue_url, str)
-        assert queue_name in queue_url
+        assert isinstance(response, dict)
+        assert "QueueUrl" in response
+        assert queue_name in response["QueueUrl"]
 
     def test_create_queue_with_attributes(self, hook):
         """Test creating a queue with custom attributes."""
@@ -86,14 +88,15 @@ class TestSqsHook:
             "MaximumMessageSize": MAX_MESSAGE_SIZE,
         }
 
-        queue_url = hook.create_queue(queue_name=queue_name, attributes=attributes)
+        response = hook.create_queue(queue_name=queue_name, attributes=attributes)
 
-        assert isinstance(queue_url, str)
-        assert queue_name in queue_url
+        assert isinstance(response, dict)
+        assert "QueueUrl" in response
+        assert queue_name in response["QueueUrl"]
 
         # Verify attributes were actually set on the queue
         queue_attrs = hook.get_conn().get_queue_attributes(
-            QueueUrl=queue_url, AttributeNames=["DelaySeconds", "MaximumMessageSize"]
+            QueueUrl=response["QueueUrl"], AttributeNames=["DelaySeconds", "MaximumMessageSize"]
         )
         assert queue_attrs["Attributes"]["DelaySeconds"] == str(DELAY)
         assert queue_attrs["Attributes"]["MaximumMessageSize"] == MAX_MESSAGE_SIZE
