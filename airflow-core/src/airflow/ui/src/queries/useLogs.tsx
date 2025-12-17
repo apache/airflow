@@ -107,70 +107,72 @@ const parseLogs = ({
     return { data, warning };
   }
 
-  // Process parsed lines to handle groups
-  type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
-  const groupStack: Array<Group> = [];
-  const processedLines: Array<JSX.Element | ""> = [];
+  parsedLines = (() => {
+    type Group = { level: number; lines: Array<JSX.Element | "">; name: string };
+    const groupStack: Array<Group> = [];
+    const result: Array<JSX.Element | ""> = [];
 
-  parsedLines.forEach((line) => {
-    const text = innerText(line);
+    parsedLines.forEach((line) => {
+      const text = innerText(line);
 
-    if (text.includes("::group::")) {
-      const groupName = text.split("::group::")[1] as string;
-      groupStack.push({ level: groupStack.length, lines: [], name: groupName });
+      if (text.includes("::group::")) {
+        const groupName = text.split("::group::")[1] as string;
 
-      return;
-    }
+        groupStack.push({ level: groupStack.length, lines: [], name: groupName });
 
-    if (text.includes("::endgroup::")) {
-      const finishedGroup = groupStack.pop();
-
-      if (finishedGroup) {
-        const groupElement = (
-          <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
-            <chakra.details open={open} w="100%">
-              <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
-                <chakra.span color="fg.info" cursor="pointer">
-                  {finishedGroup.name}
-                </chakra.span>
-              </chakra.summary>
-              {finishedGroup.lines}
-            </chakra.details>
-          </Box>
-        );
-
-        const lastGroup = groupStack[groupStack.length - 1];
-
-        if (groupStack.length > 0 && lastGroup) {
-          lastGroup.lines.push(groupElement);
-        } else {
-          processedLines.push(groupElement);
-        }
+        return;
       }
 
-      return;
+      if (text.includes("::endgroup::")) {
+        const finishedGroup = groupStack.pop();
+
+        if (finishedGroup) {
+          const groupElement = (
+            <Box key={finishedGroup.name} mb={2} pl={finishedGroup.level * 2}>
+              <chakra.details open={open} w="100%">
+                <chakra.summary data-testid={`summary-${finishedGroup.name}`}>
+                  <chakra.span color="fg.info" cursor="pointer">
+                    {finishedGroup.name}
+                  </chakra.span>
+                </chakra.summary>
+                {finishedGroup.lines}
+              </chakra.details>
+            </Box>
+          );
+
+          const lastGroup = groupStack[groupStack.length - 1];
+
+          if (groupStack.length > 0 && lastGroup) {
+            lastGroup.lines.push(groupElement);
+          } else {
+            result.push(groupElement);
+          }
+        }
+
+        return;
+      }
+
+      if (groupStack.length > 0 && groupStack[groupStack.length - 1]) {
+        groupStack[groupStack.length - 1]?.lines.push(line);
+      } else {
+        result.push(line);
+      }
+    });
+
+    while (groupStack.length > 0) {
+      const unfinished = groupStack.pop();
+
+      if (unfinished) {
+        result.push(
+          <Box key={unfinished.name} mb={2} pl={unfinished.level * 2}>
+            {unfinished.lines}
+          </Box>,
+        );
+      }
     }
 
-    if (groupStack.length > 0 && groupStack[groupStack.length - 1]) {
-      groupStack[groupStack.length - 1]?.lines.push(line);
-    } else {
-      processedLines.push(line);
-    }
-  });
-
-  while (groupStack.length > 0) {
-    const unfinished = groupStack.pop();
-
-    if (unfinished) {
-      processedLines.push(
-        <Box key={unfinished.name} mb={2} pl={unfinished.level * 2}>
-          {unfinished.lines}
-        </Box>,
-      );
-    }
-  }
-
-  parsedLines = processedLines;
+    return result;
+  })();
 
   return {
     parsedLogs: parsedLines,
@@ -220,16 +222,20 @@ export const useLogs = (
 
   // Log truncation is performed in the frontend because the backend
   // does not support yet pagination / limits on logs reading endpoint
-  let truncatedData = data;
-  if (data?.content && limit !== undefined && limit > 0) {
+  const truncatedData = (() => {
+    if (!data?.content || limit === undefined || limit <= 0) {
+      return data;
+    }
+
     const streamingContent = parseStreamingLogContent(data);
     const truncatedContent =
       streamingContent.length > limit ? streamingContent.slice(-limit) : streamingContent;
-    truncatedData = {
+
+    return {
       ...data,
       content: truncatedContent,
     };
-  }
+  })();
 
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncatedData),

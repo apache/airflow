@@ -98,9 +98,11 @@ const ConnectionForm = ({
 
   // Check if extra fields have changed by comparing with initial connection
   let isExtraFieldsDirty: boolean;
+
   try {
     const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
     const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
     isExtraFieldsDirty = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
   } catch {
     // If parsing fails, fall back to string comparison

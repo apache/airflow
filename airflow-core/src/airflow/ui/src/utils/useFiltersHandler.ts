@@ -98,6 +98,7 @@ export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsK
   const { pagination, sorting } = tableURLState;
 
   const initialValues: Record<string, FilterValue> = {};
+
   filterConfigs.forEach((config) => {
     if (config.type === "daterange") {
       // Handle daterange filters using startKey and endKey

@@ -472,13 +472,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/jsx-no-comment-textnodes`]: ERROR,
 
     /**
-     * Prevent react contexts from taking non-stable values.
-     *
-     * @see [react/jsx-no-constructed-context-values](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-constructed-context-values.md)
-     */
-    [`${reactNamespace}/jsx-no-constructed-context-values`]: ERROR,
-
-    /**
      * Disallow problematic leaked values from being rendered.
      *
      * @see [react/jsx-no-leaked-render](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-leaked-render.md)
@@ -619,5 +612,5 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      */
     [`${reactRefreshNamespace}/only-export-components`]: [WARN, { allowConstantExport: true }],
   },
-  settings: { react: { version: "18" } },
+  settings: { react: { version: "19" } },
 });

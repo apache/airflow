@@ -44,7 +44,7 @@ const mapKeyToDirection = (key: ArrowKey): NavigationDirection => {
 };
 
 export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGroup }: Props) => {
-  const createKeyHandler = () => (event: KeyboardEvent) => {
+  const handleNormalKeyPress = (event: KeyboardEvent) => {
     const direction = mapKeyToDirection(event.key as ArrowKey);
 
     event.preventDefault();
@@ -52,8 +52,6 @@ export const useKeyboardNavigation = ({ enabled = true, onNavigate, onToggleGrou
 
     onNavigate(direction);
   };
-
-  const handleNormalKeyPress = createKeyHandler();
 
   const hotkeyOptions = { enabled, preventDefault: true };
 

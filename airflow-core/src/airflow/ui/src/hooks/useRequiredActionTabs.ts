@@ -52,6 +52,7 @@ export const useRequiredActionTabs = (
 
   const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
   let redirectPath: string;
+
   if (Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)) {
     redirectPath = `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`;
   } else if (Boolean(dagId) && Boolean(dagRunId)) {
@@ -67,14 +68,14 @@ export const useRequiredActionTabs = (
 
   const { data: hitlData, isLoading: isLoadingHitl } = useTaskInstanceServiceGetHitlDetails(
     {
-      dagId: hitlParams.dagId,
-      dagRunId: hitlParams.dagRunId ?? "~",
-      taskId: hitlParams.taskId,
-      taskIdPattern: hitlParams.taskIdPattern,
+      dagId,
+      dagRunId: dagRunId ?? "~",
+      taskId,
+      taskIdPattern,
     },
     undefined,
     {
-      enabled: Boolean(hitlParams.dagId),
+      enabled: Boolean(dagId),
       refetchInterval,
     },
   );

@@ -37,22 +37,15 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...r
   const { mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
-  const onToggle = () => {
+  const onToggle = () =>
     togglePause({
       dagId,
       requestBody: {
         is_paused: !isPaused,
       },
     });
-  };
 
-  const onChange = () => {
-    if (showConfirmation && skipConfirm !== true) {
-      onOpen();
-    } else {
-      onToggle();
-    }
-  };
+  const onChange = () => (showConfirmation && skipConfirm !== true ? onOpen() : onToggle());
 
   return (
     <>

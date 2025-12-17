@@ -48,6 +48,7 @@ export const Calendar = () => {
   const currentDate = dayjs();
 
   let dateRange: { logicalDateGte: string; logicalDateLte: string };
+
   if (granularity === "daily") {
     const yearStart = selectedDate.startOf("year");
     const yearEnd = selectedDate.endOf("year");

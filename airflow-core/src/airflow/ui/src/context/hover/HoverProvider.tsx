@@ -24,10 +24,7 @@ import { HoverContext } from "./Context";
 export const HoverProvider = ({ children }: PropsWithChildren) => {
   const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
 
-  const value = {
-    hoveredTaskId,
-    setHoveredTaskId,
-  };
-
-  return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;
+  return (
+    <HoverContext.Provider value={{ hoveredTaskId, setHoveredTaskId }}>{children}</HoverContext.Provider>
+  );
 };

@@ -104,9 +104,7 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = ({
-    currentTarget: { value },
-  }) => {
+  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
     if (value === "all") {
       searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
       searchParams.delete(NEEDS_REVIEW_PARAM);

@@ -106,20 +106,23 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   // extract allowed task IDs from task structure when filter is active
   let allowedTaskIds: Set<string> | undefined;
+
   if (hasActiveFilter && filterRoot !== undefined && taskStructure !== undefined) {
     allowedTaskIds = new Set<string>();
+
     const addNodeAndChildren = <T extends { children?: Array<T> | null; id: string }>(currentNode: T) => {
-      allowedTaskIds!.add(currentNode.id);
+      allowedTaskIds?.add(currentNode.id);
       if (currentNode.children) {
         currentNode.children.forEach((child) => addNodeAndChildren(child));
       }
     };
+
     taskStructure.nodes.forEach((node) => {
       addNodeAndChildren(node);
     });
   }
 
-  // calculate dag run bar heights relative to max
+  // Calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -130,11 +133,11 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   );
 
   const flatNodesResult = flattenNodes(dagStructure, openGroupIds);
-  // filter nodes based on task stream filter if active
+  //  filter nodes based on task stream filter if active
   const flatNodes =
-    allowedTaskIds !== undefined
-      ? flatNodesResult.flatNodes.filter((node) => allowedTaskIds.has(node.id))
-      : flatNodesResult.flatNodes;
+    allowedTaskIds === undefined
+      ? flatNodesResult.flatNodes
+      : flatNodesResult.flatNodes.filter((node) => allowedTaskIds.has(node.id));
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,

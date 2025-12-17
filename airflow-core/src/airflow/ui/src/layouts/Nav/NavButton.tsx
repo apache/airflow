@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
-import { type ReactNode, type ForwardRefExoticComponent, type RefAttributes } from "react";
+import type { ReactNode, ForwardRefExoticComponent, RefAttributes } from "react";
 import type { IconType } from "react-icons";
 import { Link as RouterLink, useMatch } from "react-router-dom";
 

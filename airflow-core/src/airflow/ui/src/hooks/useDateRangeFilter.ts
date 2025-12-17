@@ -200,7 +200,7 @@ export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeF
         startTime: startDateValue?.format(TIME_INPUT_FORMAT) ?? "",
       },
     }));
-  }, [startDateValue?.valueOf(), endDateValue?.valueOf()]);
+  }, [startDateValue, endDateValue]);
 
   const handleDateClick = (clickedDate: dayjs.Dayjs) => {
     const currentTarget = editingState.selectionTarget;

@@ -28,20 +28,15 @@ export const PageText = forwardRef<HTMLParagraphElement, PageTextProps>((props, 
   const { format = "compact", ...rest } = props;
   const { count, page, pageRange, pages } = usePaginationContext();
 
-  const getContent = () => {
-    if (format === "short") {
-      return `${page} / ${pages.length}`;
-    }
-    if (format === "compact") {
-      return `${page} of ${pages.length}`;
-    }
-
-    return `${pageRange.start + 1} - ${pageRange.end} of ${count}`;
+  const content = {
+    compact: `${page} of ${pages.length}`,
+    long: `${pageRange.start + 1} - ${pageRange.end} of ${count}`,
+    short: `${page} / ${pages.length}`,
   };
 
   return (
     <Text fontWeight="medium" ref={ref} {...rest}>
-      {getContent()}
+      {content[format]}
     </Text>
   );
 });

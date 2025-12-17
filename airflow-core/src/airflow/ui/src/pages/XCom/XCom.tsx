@@ -51,7 +51,7 @@ type ColumnsProps = {
   readonly translate: (key: string) => string;
 };
 
-const columns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
+const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -180,7 +180,7 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
-  const memoizedColumns = columns({
+  const columns = getColumns({
     open,
     translate,
   });
@@ -215,7 +215,7 @@ export const XCom = () => {
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={memoizedColumns}
+        columns={columns}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}

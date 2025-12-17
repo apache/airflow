@@ -73,13 +73,6 @@ const ClearTaskInstanceConfirmationDialog = ({
 
   const [isReady, setIsReady] = useState(false);
 
-  const handleConfirm = () => {
-    if (onConfirm) {
-      onConfirm();
-    }
-    onClose();
-  };
-
   const taskInstances = data?.task_instances ?? [];
   const [firstInstance] = taskInstances;
   const taskCurrentState = firstInstance?.state;
@@ -89,12 +82,13 @@ const ClearTaskInstanceConfirmationDialog = ({
       const isInTriggeringState = taskCurrentState === "queued" || taskCurrentState === "scheduled";
 
       if (!preventRunningTask || !isInTriggeringState) {
-        handleConfirm();
+        onConfirm?.();
+        onClose();
       } else {
         setIsReady(true);
       }
     }
-  }, [isFetching, data, open, taskCurrentState, preventRunningTask]);
+  }, [isFetching, data, open, taskCurrentState, preventRunningTask, onConfirm, onClose]);
 
   return (
     <Dialog.Root lazyMount onOpenChange={onClose} open={open}>
