@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { useDisclosure, Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlus } from "react-icons/fi";
-
-import { Button } from "src/components/ui";
 
 import XComModal from "./XComModal";
 
