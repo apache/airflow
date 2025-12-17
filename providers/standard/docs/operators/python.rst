@@ -72,6 +72,33 @@ Pass extra arguments to the ``@task`` decorated function as you would with a nor
             :start-after: [START howto_operator_python_kwargs]
             :end-before: [END howto_operator_python_kwargs]
 
+Async Python functions
+^^^^^^^^^^^^^^^^^^^^^^
+
+From Airflow 3.2 and onwards, async Python callables are now also supported out of the box.
+This means we don't need to cope with the event loop and allows us to easily invoke async Python code and async
+Airflow hooks which are not always available through deferred operators.
+
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_async_operator_python_kwargs]
+            :end-before: [END howto_async_operator_python_kwargs]
+
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_async_operator_python_kwargs]
+            :end-before: [END howto_async_operator_python_kwargs]
+
 Templating
 ^^^^^^^^^^
 

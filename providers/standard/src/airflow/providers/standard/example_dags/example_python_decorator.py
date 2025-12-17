@@ -76,6 +76,20 @@ def example_python_decorator():
         run_this >> log_the_sql >> sleeping_task
     # [END howto_async_operator_python_kwargs]
 
+    # [START howto_async_operator_python_kwargs]
+    # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
+    # Asynchronous callables are natively supported since Airflow 3.2+
+    @task
+    async def my_async_sleeping_function(random_base):
+        """This is a function that will run within the DAG execution"""
+        await asyncio.sleep(random_base)
+
+    for i in range(5):
+        async_sleeping_task = my_async_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
+
+        run_this >> log_the_sql >> async_sleeping_task
+    # [END howto_async_operator_python_kwargs]
+
     # [START howto_operator_python_venv]
     @task.virtualenv(
         task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
