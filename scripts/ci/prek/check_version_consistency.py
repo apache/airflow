@@ -156,36 +156,36 @@ def check_version_in_constraint(version: str, constraint: str) -> bool:
         return False
 
 
-def get_minimum_version_from_constraint(constraint: str) -> str | None:
+def get_exact_version_from_constraint(constraint: str) -> str | None:
     """
-    Extract the minimum version from a constraint string.
-    Returns the highest >= or > version requirement, or None if not found.
+    Extract the exact version from a constraint string (== operator).
+    Returns the version if found, or None if not found.
     """
     try:
         spec = SpecifierSet(constraint)
-        min_version = None
+        exact_version = None
 
         for specifier in spec:
-            if specifier.operator in (">=", ">"):
-                if min_version is None or Version(specifier.version) > Version(min_version):
-                    min_version = specifier.version
+            if specifier.operator == "==":
+                exact_version = specifier.version
+                break
 
-        return min_version
+        return exact_version
     except Exception:
         return None
 
 
 def check_constraint_matches_version(version: str, constraint: str) -> tuple[bool, str | None]:
     """
-    Check if the constraint's minimum version matches the actual version.
-    Returns (is_match, min_version_from_constraint)
+    Check if the constraint has an exact match (==) that matches the actual version.
+    Returns (is_match, exact_version_from_constraint)
     """
-    min_version = get_minimum_version_from_constraint(constraint)
-    if min_version is None:
+    exact_version = get_exact_version_from_constraint(constraint)
+    if exact_version is None:
         return (False, None)
 
-    # Check if the minimum version in the constraint matches the actual version
-    return (Version(min_version) == Version(version), min_version)
+    # Check if the exact version in the constraint matches the actual version
+    return (Version(exact_version) == Version(version), exact_version)
 
 
 def main():
@@ -237,16 +237,16 @@ def main():
             f"  airflow-core/pyproject.toml constraint: apache-airflow-task-sdk{task_sdk_constraint}"
         )
 
-    # Check Task SDK constraint minimum version matches actual version in airflow-core/pyproject.toml
-    constraint_matches, min_version = check_constraint_matches_version(
+    # Check Task SDK constraint exact version matches actual version in airflow-core/pyproject.toml
+    constraint_matches, exact_version = check_constraint_matches_version(
         task_sdk_version_init, task_sdk_constraint
     )
     if not constraint_matches:
         errors.append(
-            f"Task SDK constraint minimum version does not match actual version in airflow-core/pyproject.toml:\n"
+            f"Task SDK constraint exact version does not match actual version in airflow-core/pyproject.toml:\n"
             f"  task-sdk/src/airflow/sdk/__init__.py: {task_sdk_version_init}\n"
-            f"  airflow-core/pyproject.toml constraint minimum: {min_version}\n"
-            f"  Expected constraint to have minimum version: >= {task_sdk_version_init}"
+            f"  airflow-core/pyproject.toml constraint exact: {exact_version}\n"
+            f"  Expected constraint to have exact version: == {task_sdk_version_init}"
         )
 
     # Check Task SDK version is within constraint in root pyproject.toml
@@ -257,24 +257,27 @@ def main():
             f"  pyproject.toml constraint: apache-airflow-task-sdk{root_task_sdk_constraint}"
         )
 
-    # Check Task SDK constraint minimum version matches actual version in root pyproject.toml
-    root_constraint_matches, root_min_version = check_constraint_matches_version(
+    # Check Task SDK constraint exact version matches actual version in root pyproject.toml
+    root_constraint_matches, root_exact_version = check_constraint_matches_version(
         task_sdk_version_init, root_task_sdk_constraint
     )
     if not root_constraint_matches:
         errors.append(
-            f"Task SDK constraint minimum version does not match actual version in pyproject.toml:\n"
+            f"Task SDK constraint exact version does not match actual version in pyproject.toml:\n"
             f"  task-sdk/src/airflow/sdk/__init__.py: {task_sdk_version_init}\n"
-            f"  pyproject.toml constraint minimum: {root_min_version}\n"
-            f"  Expected constraint to have minimum version: >= {task_sdk_version_init}"
+            f"  pyproject.toml constraint exact: {root_exact_version}\n"
+            f"  Expected constraint to have exact version: == {task_sdk_version_init}"
         )
 
     # Verify constraints match between airflow-core and root pyproject.toml
-    if task_sdk_constraint != root_task_sdk_constraint:
+    # Compare the exact versions extracted from constraints rather than raw strings
+    airflow_core_exact = get_exact_version_from_constraint(task_sdk_constraint)
+    root_exact = get_exact_version_from_constraint(root_task_sdk_constraint)
+    if airflow_core_exact != root_exact:
         errors.append(
-            f"Task SDK constraint mismatch between pyproject.toml files:\n"
-            f"  airflow-core/pyproject.toml: apache-airflow-task-sdk{task_sdk_constraint}\n"
-            f"  pyproject.toml: apache-airflow-task-sdk{root_task_sdk_constraint}"
+            f"Task SDK constraint exact version mismatch between pyproject.toml files:\n"
+            f"  airflow-core/pyproject.toml: apache-airflow-task-sdk{task_sdk_constraint} (exact: {airflow_core_exact})\n"
+            f"  pyproject.toml: apache-airflow-task-sdk{root_task_sdk_constraint} (exact: {root_exact})"
         )
 
     # Report results
