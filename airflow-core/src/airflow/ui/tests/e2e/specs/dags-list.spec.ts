@@ -152,13 +152,23 @@ test.describe("Dags View Toggle", () => {
 
     expect(cardViewVisible).toBe(true);
 
-    // Step 6: Switch to table view
+    // Step 6: Verify Dags are visible in card view
+    const cardViewDagsCount = await dagsPage.getDagsCount();
+
+    expect(cardViewDagsCount).toBeGreaterThan(0);
+
+    // Step 7: Switch to table view
     await dagsPage.switchToTableView();
 
-    // Step 7: Verify table view is displayed
+    // Step 8: Verify table view is displayed
     const tableViewVisible = await dagsPage.verifyTableViewVisible();
 
     expect(tableViewVisible).toBe(true);
+
+    // Step 9: Verify Dags are visible in table view
+    const tableViewDagsCount = await dagsPage.getDagsCount();
+
+    expect(tableViewDagsCount).toBeGreaterThan(0);
   });
 });
 
