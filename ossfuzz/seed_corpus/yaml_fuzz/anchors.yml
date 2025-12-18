@@ -1,0 +1,8 @@
+defaults: &defaults
+  retries: 3
+  retry_delay: 5
+
+task:
+  <<: *defaults
+  owner: airflow
+
