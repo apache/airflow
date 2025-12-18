@@ -43,7 +43,7 @@ def _get_session() -> Generator[Session, None, None]:
         yield session
 
 
-SessionDep = Annotated[Session, Depends(_get_session, scope="function")]
+SessionDep = Annotated[Session, Depends(_get_session)]
 
 
 def apply_filters_to_select(
