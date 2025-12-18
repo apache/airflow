@@ -63,7 +63,10 @@
     "vite": "^5.4.20",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "@typescript-eslint/eslint-plugin": "8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "8.50.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
