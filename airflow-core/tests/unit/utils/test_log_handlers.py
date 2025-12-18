@@ -101,7 +101,6 @@ class TestFileTaskLogHandler:
         with create_session() as session:
             session.execute(delete(DagRun))
             session.execute(delete(TaskInstance))
-            session.commit()
 
     def setup_method(self):
         settings.configure_logging()
