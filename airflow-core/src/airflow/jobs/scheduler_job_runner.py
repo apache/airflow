@@ -923,20 +923,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         1. **Normal task completion**: Updates task states for successful/failed tasks
         2. **External termination**: Detects tasks killed outside Airflow and marks them as failed
         3. **Task requeuing**: Handles tasks that were requeued by other schedulers or executors
-        4. **Callback processing**: Sends task callback requests to Dag Processor for execution
-        5. **Email notifications**: Sends email notification requests to Dag Processor
+        4. **Callback processing**: Sends task callback requests to DAG Processor for execution
+        5. **Email notifications**: Sends email notification requests to DAG Processor
 
         :param executor: The executor reporting task completion events
         :param job_id: The scheduler job ID, used to detect task requeuing by other schedulers
-        :param scheduler_dag_bag: Serialized Dag bag for retrieving task definitions
+        :param scheduler_dag_bag: Serialized DAG bag for retrieving task definitions
         :param session: Database session for task instance updates
 
         :return: Number of events processed from the executor event buffer
 
-        :raises Exception: If Dag retrieval or task processing fails, logs error and continues
+        :raises Exception: If DAG retrieval or task processing fails, logs error and continues
 
         This is a classmethod because this is also used in `dag.test()`.
-        `dag.test` execute Dags with no scheduler, therefore it needs to handle the events pushed by the
+        `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
         executors as well.
         """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
@@ -963,7 +963,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return len(event_buffer)
 
         # Check state of finished tasks
-        if (filter_for_tis := TI.filter_for_tis(tis_with_right_state)) is None:
+        filter_for_tis = TI.filter_for_tis(tis_with_right_state)
+        if filter_for_tis is None:
             return len(event_buffer)
         asset_loader, _ = _eager_load_dag_run_for_validation()
         query = (
@@ -1019,11 +1020,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            if (active_ti_span := cls.active_spans.get(f"ti:{ti.id}")) is not None:
+            if (active_ti_span := cls.active_spans.get("ti:" + str(ti.id))) is not None:
                 cls.set_ti_span_attrs(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                cls.active_spans.delete(f"ti:{ti.id}")
+                cls.active_spans.delete("ti:" + str(ti.id))
                 ti.span_status = SpanStatus.ENDED
             else:
                 if ti.span_status == SpanStatus.ACTIVE:
@@ -1066,16 +1067,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
-                # Get task from the Serialized Dag
+                # Get task from the Serialized DAG
                 try:
                     dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                     if not dag:
                         cls.logger().error(
-                            "Dag '%s' for task instance %s not found in serialized_dag table",
+                            "DAG '%s' for task instance %s not found in serialized_dag table",
                             ti.dag_id,
                             ti,
                         )
-                        raise DagNotFound(f"Dag '{ti.dag_id}' not found in serialized_dag table")
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
 
                     task = dag.get_task(ti.task_id)
                 except Exception:
@@ -1118,10 +1119,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.set_state(None)
                     continue
 
-                # Send email notification request to Dag processor via DB
+                # Send email notification request to DAG processor via DB
                 if task.email and (task.email_on_failure or task.email_on_retry):
                     cls.logger().info(
-                        "Sending email request for task %s to Dag Processor",
+                        "Sending email request for task %s to DAG Processor",
                         ti,
                     )
                     email_request = EmailRequest(
@@ -1141,7 +1142,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     executor.send_callback(email_request)
 
-                # Update task state - emails are handled by Dag processor now
+                # Update task state - emails are handled by DAG processor now
                 ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
@@ -1419,10 +1420,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _run_scheduler_loop(self) -> None:
         """
-        Harvest Dag parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
+        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
 
         The main steps in the loop are:
-            #. Harvest Dag parsing results through DagFileProcessorAgent
+            #. Harvest DAG parsing results through DagFileProcessorAgent
             #. Find and queue executable tasks
                 #. Change task instance state in DB
                 #. Queue tasks in executor
