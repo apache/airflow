@@ -60,13 +60,12 @@ class TestS3RemoteLogIO:
             clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
+    def setup_tests(self, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
             self.remote_log_key = "remote/log/location/1.log"
             self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
-            create_log_template("{try_number}.log")
             self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
             # Verify the hook now with the config override
             self.subject = self.s3_task_handler.io
@@ -203,13 +202,12 @@ class TestS3TaskHandler:
             clear_db_dag_bundles()
 
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory, session, testing_dag_bundle):
+    def setup_tests(self, tmp_path_factory, session, testing_dag_bundle):
         with conf_vars({("logging", "remote_log_conn_id"): "aws_default"}):
             self.remote_log_base = "s3://bucket/remote/log/location"
             self.remote_log_location = "s3://bucket/remote/log/location/1.log"
             self.remote_log_key = "remote/log/location/1.log"
             self.local_log_location = str(tmp_path_factory.mktemp("local-s3-log-location"))
-            create_log_template("{try_number}.log")
             self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
             # Verify the hook now with the config override
             assert self.s3_task_handler.io.hook is not None

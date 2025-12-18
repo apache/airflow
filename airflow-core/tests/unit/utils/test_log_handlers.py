@@ -681,8 +681,7 @@ class TestFileTaskLogHandler:
 
 @pytest.mark.parametrize("logical_date", ((None), (DEFAULT_DATE)))
 class TestFilenameRendering:
-    def test_python_formatting(self, create_log_template, create_task_instance, logical_date):
-        create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
+    def test_python_formatting(self, create_task_instance, logical_date):
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
@@ -700,9 +699,8 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_python_formatting_catchup_false(self, create_log_template, create_task_instance, logical_date):
+    def test_python_formatting_catchup_false(self, create_task_instance, logical_date):
         """Test the filename rendering with catchup=False (the new default behavior)"""
-        create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
@@ -724,8 +722,7 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert rendered_filename == expected_filename
 
-    def test_jinja_rendering(self, create_log_template, create_task_instance, logical_date):
-        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
+    def test_jinja_rendering(self, create_task_instance, logical_date):
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
@@ -743,9 +740,8 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_rendering_catchup_false(self, create_log_template, create_task_instance, logical_date):
+    def test_jinja_rendering_catchup_false(self, create_task_instance, logical_date):
         """Test the Jinja template rendering with catchup=False (the new default behavior)"""
-        create_log_template("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
@@ -767,11 +763,8 @@ class TestFilenameRendering:
         rendered_filename = fth._render_filename(filename_rendering_ti, 42)
         assert expected_filename == rendered_filename
 
-    def test_jinja_id_in_template_for_history(
-        self, create_log_template, create_task_instance, logical_date, session
-    ):
+    def test_jinja_id_in_template_for_history(self, create_task_instance, logical_date, session):
         """Test that Jinja template using ti.id works for both TaskInstance and TaskInstanceHistory"""
-        create_log_template("{{ ti.id }}.log")
         ti = create_task_instance(
             dag_id="dag_history_test",
             task_id="history_task",

@@ -73,28 +73,24 @@ class TestSchedulerCommand:
             assert mock_process.call_count == 0
 
     @mock.patch("airflow.utils.db.check_and_run_migrations")
-    @mock.patch("airflow.utils.db.synchronize_log_template")
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_check_migrations_is_false(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+    def test_check_migrations_is_false(self, mock_process, mock_scheduler_job, mock_run_migration):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("database", "check_migrations"): "False"}):
             scheduler_command.scheduler(args)
             mock_run_migration.assert_not_called()
-            mock_log.assert_called_once()
 
     @mock.patch("airflow.utils.db.check_and_run_migrations")
-    @mock.patch("airflow.utils.db.synchronize_log_template")
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_check_migrations_is_true(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+    def test_check_migrations_is_true(self, mock_process, mock_scheduler_job, mock_run_migration):
         mock_scheduler_job.return_value.job_type = "SchedulerJob"
         args = self.parser.parse_args(["scheduler"])
         with conf_vars({("database", "check_migrations"): "True"}):
             scheduler_command.scheduler(args)
             mock_run_migration.assert_called_once()
-            mock_log.assert_called_once()
 
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")

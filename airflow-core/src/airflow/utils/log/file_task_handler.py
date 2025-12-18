@@ -526,7 +526,7 @@ class FileTaskHandler(logging.Handler):
         date = dag_run.logical_date or dag_run.run_after
         formatted_date = date.isoformat()
 
-        template = dag_run.get_log_template(session=session).filename
+        template = conf.get("logging", "log_filename_template")
         str_tpl, jinja_tpl = parse_template_string(template)
         if jinja_tpl:
             return render_template(
