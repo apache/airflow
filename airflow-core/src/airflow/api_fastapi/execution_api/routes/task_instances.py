@@ -50,6 +50,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRequeuePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
@@ -571,6 +572,27 @@ def _create_ti_state_update_query_and_update_state(
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+    elif isinstance(ti_patch_payload, TIRequeuePayload):
+        task_instance = session.get(TI, ti_id_str)
+        actual_start_date = timezone.utcnow()
+        if task_instance is not None and task_instance.id is not None:
+            session.add(
+                TaskReschedule(
+                    ti_id=UUID(str(task_instance.id)),
+                    start_date=actual_start_date,
+                    # TODO: update end_date:
+                    end_date=actual_start_date,
+                    reschedule_date=timezone.utcnow(),
+                )
+            )
+
+        query = update(TI).where(TI.id == ti_id_str)
+        # calculate the duration for TI table too
+        if session.bind is not None:
+            query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+        # clear the next_method and next_kwargs so that none of the retries pick them up
+        updated_state = TaskInstanceState.SCHEDULED
         query = query.values(state=updated_state, next_method=None, next_kwargs=None)
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")

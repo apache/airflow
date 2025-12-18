@@ -184,6 +184,14 @@ class TIRetryStatePayload(StrictBaseModel):
     rendered_map_index: str | None = None
 
 
+class TIRequeuePayload(StrictBaseModel):
+    """Schema for re-queuing TaskInstance."""
+
+    reason: str | None = None
+    delay_secs: float | None = None
+    max_attempts: int | None = None
+
+
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
     """Schema for updating downstream tasks to a skipped state."""
 
