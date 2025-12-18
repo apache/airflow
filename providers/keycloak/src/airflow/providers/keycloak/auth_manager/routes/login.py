@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, Request
 from starlette.responses import HTMLResponse, RedirectResponse
@@ -83,14 +83,18 @@ def login_callback(request: Request):
 @login_router.get("/logout")
 def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
     """Log out the user from Keycloak."""
-    client = KeycloakAuthManager.get_keycloak_client()
-    keycloak_config = client.well_known()
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    keycloak_config = auth_manager.get_keycloak_client().well_known()
     end_session_endpoint = keycloak_config["end_session_endpoint"]
 
     # Use the refresh flow to get the id token, it avoids us to save the id token
-    tokens = client.refresh_token(user.refresh_token)
+    token_id = auth_manager.refresh_tokens(user=user).get("id_token")
     post_logout_redirect_uri = request.url_for("logout_callback")
-    logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={tokens['id_token']}"
+
+    if token_id:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={token_id}"
+    else:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
 
     return RedirectResponse(logout_url)
 
@@ -118,16 +122,14 @@ def refresh(
     request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
 ) -> RedirectResponse:
     """Refresh the token."""
-    client = KeycloakAuthManager.get_keycloak_client()
-
-    tokens = client.refresh_token(user.refresh_token)
-    user.refresh_token = tokens["refresh_token"]
-    user.access_token = tokens["access_token"]
-    token = get_auth_manager().generate_jwt(user)
-
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    refreshed_user = auth_manager.refresh_user(user=user)
     redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
     response = RedirectResponse(url=redirect_url, status_code=303)
-    secure = bool(conf.get("api", "ssl_cert", fallback=""))
 
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    if refreshed_user:
+        token = auth_manager.generate_jwt(refreshed_user)
+        secure = bool(conf.get("api", "ssl_cert", fallback=""))
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
     return response

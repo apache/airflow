@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.1.4 (2025-12-10)
+Airflow 3.1.5 (2025-12-12)
 --------------------------
 
 Significant Changes
