@@ -29,9 +29,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import attr
 
-from airflow.observability.stats import Stats
 from airflow.sdk._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk.configuration import conf
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.serde.typing import is_pydantic_model
 
 if TYPE_CHECKING:
