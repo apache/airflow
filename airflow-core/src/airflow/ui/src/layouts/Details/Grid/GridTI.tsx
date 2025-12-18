@@ -18,7 +18,7 @@
  */
 import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React, { useCallback } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
@@ -72,18 +72,15 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
   const onMouseEnter = handleMouseEnter(setHoveredTaskId);
   const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
-  const getTaskUrl = useCallback(
-    () =>
-      buildTaskInstanceUrl({
-        currentPathname: location.pathname,
-        dagId,
-        isGroup,
-        isMapped: Boolean(isMapped),
-        runId,
-        taskId,
-      }),
-    [dagId, isGroup, isMapped, location.pathname, runId, taskId],
-  );
+  const getTaskUrl = () =>
+    buildTaskInstanceUrl({
+      currentPathname: location.pathname,
+      dagId,
+      isGroup,
+      isMapped: Boolean(isMapped),
+      runId,
+      taskId,
+    });
 
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:

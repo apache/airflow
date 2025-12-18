@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLocation } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -46,24 +45,17 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
     sorting,
   } as const satisfies TableState;
 
-  const handleStateChange = useCallback(
-    (state: TableState) => {
-      setSearchParams(stateToSearchParams(state, defaultTableState), {
-        replace: true,
-      });
-      setSorting(state.sorting);
-    },
-    [setSearchParams, defaultTableState, setSorting],
-  );
+  const handleStateChange = (state: TableState) => {
+    setSearchParams(stateToSearchParams(state, defaultTableState), {
+      replace: true,
+    });
+    setSorting(state.sorting);
+  };
 
-  const tableURLState = useMemo(
-    () =>
-      searchParamsToState(searchParams, {
-        ...defaultTableState,
-        ...defaultState,
-      }),
-    [searchParams, defaultState, defaultTableState],
-  );
+  const tableURLState = searchParamsToState(searchParams, {
+    ...defaultTableState,
+    ...defaultState,
+  });
 
   return {
     setTableURLState: handleStateChange,

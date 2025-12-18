@@ -20,7 +20,6 @@ import { chakra, Box } from "@chakra-ui/react";
 import type { UseQueryOptions } from "@tanstack/react-query";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
@@ -223,7 +222,7 @@ export const useLogs = (
 
   // Log truncation is performed in the frontend because the backend
   // does not support yet pagination / limits on logs reading endpoint
-  const truncatedData = useMemo(() => {
+  const truncatedData = (() => {
     if (!data?.content || limit === undefined || limit <= 0) {
       return data;
     }
@@ -236,7 +235,7 @@ export const useLogs = (
       ...data,
       content: truncatedContent,
     };
-  }, [data, limit]);
+  })();
 
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncatedData),

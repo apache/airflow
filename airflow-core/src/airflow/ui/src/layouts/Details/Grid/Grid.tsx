@@ -19,7 +19,7 @@
 import { Box, Flex, IconButton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -105,15 +105,13 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   );
 
   // extract allowed task IDs from task structure when filter is active
-  const allowedTaskIds = useMemo(() => {
-    if (!hasActiveFilter || filterRoot === undefined || taskStructure === undefined) {
-      return undefined;
-    }
+  let allowedTaskIds: Set<string> | undefined;
 
-    const taskIds = new Set<string>();
+  if (hasActiveFilter && filterRoot !== undefined && taskStructure !== undefined) {
+    allowedTaskIds = new Set<string>();
 
     const addNodeAndChildren = <T extends { children?: Array<T> | null; id: string }>(currentNode: T) => {
-      taskIds.add(currentNode.id);
+      allowedTaskIds?.add(currentNode.id);
       if (currentNode.children) {
         currentNode.children.forEach((child) => addNodeAndChildren(child));
       }
@@ -122,11 +120,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     taskStructure.nodes.forEach((node) => {
       addNodeAndChildren(node);
     });
+  }
 
-    return taskIds;
-  }, [hasActiveFilter, filterRoot, taskStructure]);
-
-  // calculate dag run bar heights relative to max
+  // Calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
     gridRuns === undefined
@@ -136,19 +132,12 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => {
-    const nodes = flattenNodes(dagStructure, openGroupIds);
-
-    // filter nodes based on task stream filter if active
-    if (allowedTaskIds !== undefined) {
-      return {
-        ...nodes,
-        flatNodes: nodes.flatNodes.filter((node) => allowedTaskIds.has(node.id)),
-      };
-    }
-
-    return nodes;
-  }, [dagStructure, openGroupIds, allowedTaskIds]);
+  const flatNodesResult = flattenNodes(dagStructure, openGroupIds);
+  //  filter nodes based on task stream filter if active
+  const flatNodes =
+    allowedTaskIds === undefined
+      ? flatNodesResult.flatNodes
+      : flatNodesResult.flatNodes.filter((node) => allowedTaskIds.has(node.id));
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,

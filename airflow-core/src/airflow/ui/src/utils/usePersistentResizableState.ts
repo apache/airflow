@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
 
 type Size = { height: number; width: number };
@@ -25,17 +25,14 @@ export const usePersistentResizableState = (storageKey: string, defaultSize: Siz
   const [storedSize, setStoredSize] = useLocalStorage(storageKey, defaultSize);
   const [size, setSize] = useState(storedSize);
 
-  const handleResize = useCallback((_event: React.SyntheticEvent, { size: newSize }: { size: Size }) => {
+  const handleResize = (_event: React.SyntheticEvent, { size: newSize }: { size: Size }) => {
     setSize(newSize);
-  }, []);
+  };
 
-  const handleResizeStop = useCallback(
-    (_event: React.SyntheticEvent, { size: finalSize }: { size: Size }) => {
-      setSize(finalSize);
-      setStoredSize(finalSize);
-    },
-    [setStoredSize],
-  );
+  const handleResizeStop = (_event: React.SyntheticEvent, { size: finalSize }: { size: Size }) => {
+    setSize(finalSize);
+    setStoredSize(finalSize);
+  };
 
   return { handleResize, handleResizeStop, size };
 };

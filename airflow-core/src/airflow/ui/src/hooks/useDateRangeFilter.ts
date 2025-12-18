@@ -19,7 +19,7 @@
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import type { TFunction } from "i18next";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { DateRangeValue } from "src/components/FilterBar/types";
 import { isValidDateValue } from "src/components/FilterBar/utils";
@@ -124,14 +124,8 @@ const combineDateAndTime = (dateStr: string, timeStr: string, tz: string): strin
 
 export const useDateRangeFilter = ({ onChange, translate, value }: UseDateRangeFilterArgs) => {
   const { selectedTimezone } = useTimezone();
-  const startDateValue = useMemo(
-    () => (isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined),
-    [value.startDate],
-  );
-  const endDateValue = useMemo(
-    () => (isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined),
-    [value.endDate],
-  );
+  const startDateValue = isValidDateValue(value.startDate) ? dayjs(value.startDate) : undefined;
+  const endDateValue = isValidDateValue(value.endDate) ? dayjs(value.endDate) : undefined;
 
   const [editingState, setEditingState] = useState<DateRangeEditingState>(() => ({
     currentMonth: startDateValue ?? endDateValue ?? dayjs(),

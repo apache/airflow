@@ -18,7 +18,6 @@
  */
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StateBadge } from "src/components/StateBadge";
@@ -53,13 +52,10 @@ export const TaskNode = ({
       toggleGroupId(id);
     }
   };
-  const thisChildCount = useMemo(
-    () =>
-      Object.entries(taskInstance?.child_states ?? {})
-        .map(([_state, count]) => count)
-        .reduce((sum, val) => sum + val, 0),
-    [taskInstance],
-  );
+
+  const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
 
   return (
     <NodeWrapper>

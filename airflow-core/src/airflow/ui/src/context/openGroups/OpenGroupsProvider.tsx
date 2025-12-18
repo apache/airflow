@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, useEffect, useRef, type PropsWithChildren } from "react";
+import { useEffect, useRef, type PropsWithChildren } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -74,35 +74,26 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
     100, // 100ms debounce for batch operations
   );
 
-  const toggleGroupId = useCallback(
-    (groupId: string) => {
-      if (openGroupIds.includes(groupId)) {
-        debouncedSetOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
-      } else {
-        debouncedSetOpenGroupIds([...openGroupIds, groupId]);
-      }
-    },
-    [openGroupIds, debouncedSetOpenGroupIds],
-  );
+  const toggleGroupId = (groupId: string) => {
+    if (openGroupIds.includes(groupId)) {
+      debouncedSetOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
+    } else {
+      debouncedSetOpenGroupIds([...openGroupIds, groupId]);
+    }
+  };
 
-  const setOpenGroupIdsImmediate = useCallback(
-    (newGroupIds: Array<string>) => {
-      debouncedSetOpenGroupIds.cancel();
-      setOpenGroupIds(newGroupIds);
-    },
-    [debouncedSetOpenGroupIds, setOpenGroupIds],
-  );
+  const setOpenGroupIdsImmediate = (newGroupIds: Array<string>) => {
+    debouncedSetOpenGroupIds.cancel();
+    setOpenGroupIds(newGroupIds);
+  };
 
-  const value = useMemo<OpenGroupsContextType>(
-    () => ({
-      allGroupIds,
-      openGroupIds,
-      setAllGroupIds,
-      setOpenGroupIds: setOpenGroupIdsImmediate,
-      toggleGroupId,
-    }),
-    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIdsImmediate, toggleGroupId],
-  );
+  const value: OpenGroupsContextType = {
+    allGroupIds,
+    openGroupIds,
+    setAllGroupIds,
+    setOpenGroupIds: setOpenGroupIdsImmediate,
+    toggleGroupId,
+  };
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
 };

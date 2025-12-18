@@ -18,21 +18,18 @@
  */
 import { Field, VStack, Box, Text } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { supportedLanguages } from "src/i18n/config";
 
 const LanguageSelector: React.FC = () => {
   const { i18n, t: translate } = useTranslation();
-  const options = useMemo(
-    () =>
-      supportedLanguages.map((lang) => ({
-        label: lang.name,
-        value: lang.code,
-      })),
-    [],
-  );
+
+  const options = supportedLanguages.map((lang) => ({
+    label: lang.name,
+    value: lang.code,
+  }));
 
   const handleLanguageChange = (selectedOption: SingleValue<{ label: string; value: string }>) => {
     if (selectedOption) {

@@ -18,7 +18,6 @@
  */
 import { Box, Heading, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -118,7 +117,7 @@ export const Backfills = () => {
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = useMemo(() => getColumns(translate), [translate]);
+  const columns = getColumns(translate);
 
   return (
     <Box>
