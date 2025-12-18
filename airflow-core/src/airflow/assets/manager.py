@@ -48,7 +48,11 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+    from airflow.serialization.definitions.assets import (
+        SerializedAsset,
+        SerializedAssetAlias,
+        SerializedAssetUniqueKey,
+    )
     from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
@@ -63,11 +67,11 @@ class AssetManager(LoggingMixin):
     """
 
     @classmethod
-    def create_assets(cls, assets: list[Asset], *, session: Session) -> list[AssetModel]:
+    def create_assets(cls, assets: list[SerializedAsset], *, session: Session) -> list[AssetModel]:
         """Create new assets."""
 
-        def _add_one(asset: Asset) -> AssetModel:
-            model = AssetModel.from_public(asset)
+        def _add_one(asset: SerializedAsset) -> AssetModel:
+            model = AssetModel.from_serialized(asset)
             session.add(model)
             cls.notify_asset_created(asset=asset)
             return model
@@ -77,14 +81,14 @@ class AssetManager(LoggingMixin):
     @classmethod
     def create_asset_aliases(
         cls,
-        asset_aliases: list[AssetAlias],
+        asset_aliases: list[SerializedAssetAlias],
         *,
         session: Session,
     ) -> list[AssetAliasModel]:
         """Create new asset aliases."""
 
-        def _add_one(asset_alias: AssetAlias) -> AssetAliasModel:
-            model = AssetAliasModel.from_public(asset_alias)
+        def _add_one(asset_alias: SerializedAssetAlias) -> AssetAliasModel:
+            model = AssetAliasModel.from_serialized(asset_alias)
             session.add(model)
             cls.notify_asset_alias_created(asset_assets=asset_alias)
             return model
@@ -115,7 +119,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         task_instance: TaskInstance | None = None,
-        asset: Asset | AssetModel | AssetUniqueKey,
+        asset: SerializedAsset | AssetModel | SerializedAssetUniqueKey,
         extra=None,
         source_alias_names: Collection[str] = (),
         session: Session,
@@ -140,7 +144,11 @@ class AssetManager(LoggingMixin):
             )
         )
         if not asset_model:
-            cls.logger().warning("AssetModel %s not found", asset)
+            msg = f"AssetModel {asset} not found; cannot create asset event."
+            cls.logger().warning(msg)
+            # if there is a task_instance, write to task log
+            if task_instance is not None and hasattr(task_instance, "log"):
+                task_instance.log.warning(msg)
             return None
 
         if not asset_model.active:
@@ -205,7 +213,7 @@ class AssetManager(LoggingMixin):
             )
         )
 
-        cls.notify_asset_changed(asset=asset_model.to_public())
+        cls.notify_asset_changed(asset=asset_model.to_serialized())
 
         Stats.incr("asset.updates")
 
@@ -223,7 +231,7 @@ class AssetManager(LoggingMixin):
         return asset_event
 
     @staticmethod
-    def notify_asset_created(asset: Asset):
+    def notify_asset_created(asset: SerializedAsset):
         """Run applicable notification actions when an asset is created."""
         try:
             get_listener_manager().hook.on_asset_created(asset=asset)
@@ -231,7 +239,7 @@ class AssetManager(LoggingMixin):
             log.exception("error calling listener")
 
     @staticmethod
-    def notify_asset_alias_created(asset_assets: AssetAlias):
+    def notify_asset_alias_created(asset_assets: SerializedAssetAlias):
         """Run applicable notification actions when an asset alias is created."""
         try:
             get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
@@ -239,7 +247,7 @@ class AssetManager(LoggingMixin):
             log.exception("error calling listener")
 
     @staticmethod
-    def notify_asset_changed(asset: Asset):
+    def notify_asset_changed(asset: SerializedAsset) -> None:
         """Run applicable notification actions when an asset is changed."""
         try:
             # TODO: AIP-76 this will have to change. needs to know *what* happened to the asset (e.g. partition key)

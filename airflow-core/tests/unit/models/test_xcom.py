@@ -439,7 +439,7 @@ class TestXComClear:
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
-    @mock.patch("airflow.models.xcom.XCom.purge")
+    @mock.patch("airflow.sdk.execution_time.xcom.XCom.purge")
     def test_xcom_clear(self, mock_purge, session, task_instance):
         assert session.scalar(select(func.count()).select_from(XComModel)) == 1
         XComModel.clear(

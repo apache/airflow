@@ -21,7 +21,7 @@ import itertools
 from unittest import mock
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from airflow.assets.manager import AssetManager
@@ -69,6 +69,7 @@ def create_mock_dag():
 
 class TestAssetManager:
     def test_register_asset_change_asset_doesnt_exist(self, mock_task_instance):
+        mock_task_instance = mock.Mock()
         asset = Asset(uri="asset_doesnt_exist", name="not exist")
 
         mock_session = mock.Mock(spec=Session)
@@ -84,6 +85,7 @@ class TestAssetManager:
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
+        mock_task_instance.log.warning.assert_called()
 
     def test_register_asset_change(self, session, dag_maker, mock_task_instance, testing_dag_bundle):
         asset_manager = AssetManager()
@@ -105,8 +107,11 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
-        assert session.query(AssetDagRunQueue).count() == 2
+        assert (
+            session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asm.id))
+            == 1
+        )
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
 
     @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(
@@ -145,8 +150,11 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
-        assert session.query(AssetDagRunQueue).count() == 2
+        assert (
+            session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asm.id))
+            == 1
+        )
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()
@@ -161,8 +169,11 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
-        assert session.query(AssetDagRunQueue).count() == 0
+        assert (
+            session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asm.id))
+            == 1
+        )
+        assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
 
     def test_register_asset_change_notifies_asset_listener(
         self, session, mock_task_instance, testing_dag_bundle
