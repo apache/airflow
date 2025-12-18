@@ -307,3 +307,35 @@ class TestHBaseHook:
         ]
         mock_subprocess_run.assert_called_once_with(expected_cmd, capture_output=True, text=True, check=True)
         assert result == "Restore completed successfully"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_execute_hbase_command(self, mock_subprocess_run):
+        """Test execute_hbase_command method."""
+        mock_result = MagicMock()
+        mock_result.stdout = "Command executed successfully"
+        mock_subprocess_run.return_value = mock_result
+        
+        hook = HBaseHook()
+        result = hook.execute_hbase_command("backup set list")
+        
+        mock_subprocess_run.assert_called_once_with(
+            "hbase backup set list",
+            shell=True,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        assert result == "Command executed successfully"
+
+    @patch("airflow.providers.hbase.hooks.hbase.subprocess.run")
+    def test_execute_hbase_command_failure(self, mock_subprocess_run):
+        """Test execute_hbase_command method with failure."""
+        import subprocess
+        mock_subprocess_run.side_effect = subprocess.CalledProcessError(
+            returncode=1, cmd="hbase backup set list", stderr="Command failed"
+        )
+        
+        hook = HBaseHook()
+        
+        with pytest.raises(subprocess.CalledProcessError):
+            hook.execute_hbase_command("backup set list")

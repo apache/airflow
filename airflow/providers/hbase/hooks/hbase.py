@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from typing import Any
 
 import happybase
@@ -238,6 +239,32 @@ class HBaseHook(BaseHook):
         }
 
 
+
+    def execute_hbase_command(self, command: str, **kwargs) -> str:
+        """
+        Execute HBase shell command.
+        
+        :param command: HBase command to execute (without 'hbase' prefix).
+        :param kwargs: Additional arguments for subprocess.
+        :return: Command output.
+        """
+        full_command = f"hbase {command}"
+        self.log.info("Executing HBase command: %s", full_command)
+        
+        try:
+            result = subprocess.run(
+                full_command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                check=True,
+                **kwargs
+            )
+            self.log.info("Command executed successfully")
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            self.log.error("Command failed with return code %d: %s", e.returncode, e.stderr)
+            raise
 
     def close(self) -> None:
         """Close HBase connection."""
