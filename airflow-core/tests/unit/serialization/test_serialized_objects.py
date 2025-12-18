@@ -82,6 +82,7 @@ from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     LazyDeserializedDAG,
+    SerializedBaseOperator,
     SerializedDAG,
     _has_kubernetes,
     create_scheduler_operator,
@@ -767,23 +768,23 @@ class TestKubernetesImportAvoidance:
 
 
 class TestDeserializeFieldValue:
-    """Test for BaseOperator._deserialize_field_value method."""
+    """Test for SerializedBaseOperator._deserialize_field_value method."""
 
     def test_downstream_task_ids_with_list(self):
         """Test downstream_task_ids deserializes list to set."""
-        result = BaseOperator._deserialize_field_value("downstream_task_ids", ["task1", "task2"])
+        result = SerializedBaseOperator._deserialize_field_value("downstream_task_ids", ["task1", "task2"])
         assert result == {"task1", "task2"}
         assert isinstance(result, set)
 
     def test_downstream_task_ids_with_none(self):
         """Test downstream_task_ids returns empty set for None."""
-        result = BaseOperator._deserialize_field_value("downstream_task_ids", None)
+        result = SerializedBaseOperator._deserialize_field_value("downstream_task_ids", None)
         assert result == set()
         assert isinstance(result, set)
 
     def test_downstream_task_ids_with_empty_list(self):
         """Test downstream_task_ids handles empty list."""
-        result = BaseOperator._deserialize_field_value("downstream_task_ids", [])
+        result = SerializedBaseOperator._deserialize_field_value("downstream_task_ids", [])
         assert result == set()
 
     # Test callback fields
@@ -799,9 +800,9 @@ class TestDeserializeFieldValue:
     )
     def test_callback_fields_with_truthy_values(self, callback_field):
         """Test callback fields convert truthy values to True."""
-        assert BaseOperator._deserialize_field_value(callback_field, 1) is True
-        assert BaseOperator._deserialize_field_value(callback_field, "yes") is True
-        assert BaseOperator._deserialize_field_value(callback_field, [1]) is True
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, 1) is True
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, "yes") is True
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, [1]) is True
 
     @pytest.mark.parametrize(
         "callback_field",
@@ -815,10 +816,10 @@ class TestDeserializeFieldValue:
     )
     def test_callback_fields_with_falsy_values(self, callback_field):
         """Test callback fields convert falsy values to False."""
-        assert BaseOperator._deserialize_field_value(callback_field, 0) is False
-        assert BaseOperator._deserialize_field_value(callback_field, "") is False
-        assert BaseOperator._deserialize_field_value(callback_field, None) is False
-        assert BaseOperator._deserialize_field_value(callback_field, []) is False
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, 0) is False
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, "") is False
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, None) is False
+        assert SerializedBaseOperator._deserialize_field_value(callback_field, []) is False
 
     # Test timedelta fields
     @pytest.mark.parametrize(
@@ -832,10 +833,10 @@ class TestDeserializeFieldValue:
     def test_timedelta_fields_with_valid_value(self, timedelta_field, mocker):
         """Test timedelta fields deserialize valid values."""
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_timedelta", return_value=timedelta(seconds=30)
+            SerializedBaseOperator, "_deserialize_timedelta", return_value=timedelta(seconds=30)
         )
 
-        result = BaseOperator._deserialize_field_value(timedelta_field, 30)
+        result = SerializedBaseOperator._deserialize_field_value(timedelta_field, 30)
 
         assert result == timedelta(seconds=30)
         mock_deserialize.assert_called_once_with(30)
@@ -850,12 +851,12 @@ class TestDeserializeFieldValue:
     )
     def test_timedelta_fields_with_none(self, timedelta_field):
         """Test timedelta fields return None for None value."""
-        result = BaseOperator._deserialize_field_value(timedelta_field, None)
+        result = SerializedBaseOperator._deserialize_field_value(timedelta_field, None)
         assert result is None
 
     def test_resources_field_with_none(self):
         """Test resources field returns None for None value."""
-        result = BaseOperator._deserialize_field_value("resources", None)
+        result = SerializedBaseOperator._deserialize_field_value("resources", None)
         assert result is None
 
     # Test date fields
@@ -863,10 +864,10 @@ class TestDeserializeFieldValue:
         """Test date field deserializes integer timestamp."""
         expected_dt = datetime(2024, 1, 1, 0, 0, 0)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value("start_date", 1704067200)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", 1704067200)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(1704067200)
@@ -875,50 +876,50 @@ class TestDeserializeFieldValue:
         """Test date field deserializes float timestamp."""
         expected_dt = datetime(2024, 1, 1, 12, 30, 0)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value("end_date", 1704112200.5)
+        result = SerializedBaseOperator._deserialize_field_value("end_date", 1704112200.5)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(1704112200.5)
 
     def test_date_field_with_none(self):
         """Test date field returns None for None value."""
-        result = BaseOperator._deserialize_field_value("start_date", None)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", None)
         assert result is None
 
     def test_date_field_with_string_passes_through(self):
         """Test date field passes through string values unchanged."""
-        result = BaseOperator._deserialize_field_value("start_date", "2024-01-01")
+        result = SerializedBaseOperator._deserialize_field_value("start_date", "2024-01-01")
         assert result == "2024-01-01"
 
     def test_date_field_with_datetime_object_passes_through(self):
         """Test date field passes through datetime objects unchanged."""
         dt = datetime(2024, 1, 1, 12, 0, 0)
-        result = BaseOperator._deserialize_field_value("end_date", dt)
+        result = SerializedBaseOperator._deserialize_field_value("end_date", dt)
         assert result == dt
 
     def test_date_field_with_bool_true_passes_through(self):
         """Test date field does NOT deserialize boolean True (type security)."""
-        result = BaseOperator._deserialize_field_value("start_date", True)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", True)
         assert result is True
 
     def test_date_field_with_bool_false_passes_through(self):
         """Test date field does NOT deserialize boolean False (type security)."""
-        result = BaseOperator._deserialize_field_value("start_date", False)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", False)
         assert result is False
 
     def test_date_field_with_dict_passes_through(self):
         """Test date field passes through dict values unchanged."""
         value = {"year": 2024, "month": 1}
-        result = BaseOperator._deserialize_field_value("start_date", value)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", value)
         assert result == value
 
     def test_date_field_with_list_passes_through(self):
         """Test date field passes through list values unchanged."""
         value = [2024, 1, 1]
-        result = BaseOperator._deserialize_field_value("start_date", value)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", value)
         assert result == value
 
     @pytest.mark.parametrize(
@@ -935,10 +936,10 @@ class TestDeserializeFieldValue:
         """Test that any field ending with '_date' is handled correctly."""
         expected_dt = datetime(2024, 1, 1)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value(date_field_name, 1704067200)
+        result = SerializedBaseOperator._deserialize_field_value(date_field_name, 1704067200)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(1704067200)
@@ -946,34 +947,34 @@ class TestDeserializeFieldValue:
     # Test non-matching fields (else clause)
     def test_other_field_string_value(self):
         """Test non-matching fields return string values as-is."""
-        result = BaseOperator._deserialize_field_value("task_id", "my_task")
+        result = SerializedBaseOperator._deserialize_field_value("task_id", "my_task")
         assert result == "my_task"
 
     def test_other_field_int_value(self):
         """Test non-matching fields return int values as-is."""
-        result = BaseOperator._deserialize_field_value("retries", 3)
+        result = SerializedBaseOperator._deserialize_field_value("retries", 3)
         assert result == 3
 
     def test_other_field_bool_value(self):
         """Test non-matching fields return bool values as-is."""
-        result = BaseOperator._deserialize_field_value("depends_on_past", True)
+        result = SerializedBaseOperator._deserialize_field_value("depends_on_past", True)
         assert result is True
 
     def test_other_field_list_value(self):
         """Test non-matching fields return list values as-is."""
         value = [1, 2, 3]
-        result = BaseOperator._deserialize_field_value("some_list", value)
+        result = SerializedBaseOperator._deserialize_field_value("some_list", value)
         assert result == value
 
     def test_other_field_dict_value(self):
         """Test non-matching fields return dict values as-is."""
         value = {"key": "value"}
-        result = BaseOperator._deserialize_field_value("some_dict", value)
+        result = SerializedBaseOperator._deserialize_field_value("some_dict", value)
         assert result == value
 
     def test_other_field_none_value(self):
         """Test non-matching fields return None as-is."""
-        result = BaseOperator._deserialize_field_value("some_field", None)
+        result = SerializedBaseOperator._deserialize_field_value("some_field", None)
         assert result is None
 
     # edge cases validation
@@ -981,10 +982,10 @@ class TestDeserializeFieldValue:
         """Test date field handles zero timestamp (epoch)."""
         expected_dt = datetime(1970, 1, 1, 0, 0, 0)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value("start_date", 0)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", 0)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(0)
@@ -993,10 +994,10 @@ class TestDeserializeFieldValue:
         """Test date field handles negative timestamp (before epoch)."""
         expected_dt = datetime(1969, 12, 31, 0, 0, 0)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value("start_date", -86400)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", -86400)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(-86400)
@@ -1005,23 +1006,23 @@ class TestDeserializeFieldValue:
         """Test date field handles very large timestamps."""
         expected_dt = datetime(2038, 1, 19, 3, 14, 7)
         mock_deserialize = mocker.patch.object(
-            BaseOperator, "_deserialize_datetime", return_value=expected_dt
+            SerializedBaseOperator, "_deserialize_datetime", return_value=expected_dt
         )
 
-        result = BaseOperator._deserialize_field_value("start_date", 2147483647)
+        result = SerializedBaseOperator._deserialize_field_value("start_date", 2147483647)
 
         assert result == expected_dt
         mock_deserialize.assert_called_once_with(2147483647)
 
     def test_downstream_task_ids_with_tuple(self):
         """Test downstream_task_ids converts tuple to set."""
-        result = BaseOperator._deserialize_field_value("downstream_task_ids", ("task1", "task2"))
+        result = SerializedBaseOperator._deserialize_field_value("downstream_task_ids", ("task1", "task2"))
         assert result == {"task1", "task2"}
         assert isinstance(result, set)
 
     def test_downstream_task_ids_with_set(self):
         """Test downstream_task_ids handles set input."""
         input_set = {"task1", "task2"}
-        result = BaseOperator._deserialize_field_value("downstream_task_ids", input_set)
+        result = SerializedBaseOperator._deserialize_field_value("downstream_task_ids", input_set)
         assert result == input_set
         assert isinstance(result, set)
