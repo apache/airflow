@@ -98,3 +98,27 @@ test.describe("Dag Trigger Workflow", () => {
     }
   });
 });
+
+/*
+  DAG verify details tab E2E test
+*/
+test.describe("Dag Details Tab", () => {
+  let loginPage: LoginPage;
+  let dagsPage: DagsPage;
+
+  const testCredentials = testConfig.credentials;
+
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    loginPage = new LoginPage(page);
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should successfully verify details tab", async () => {
+    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
+    await loginPage.expectLoginSuccess();
+
+    await dagsPage.verifyDagDetails(testDagId);
+  });
+});
