@@ -92,11 +92,8 @@ def _lock_asset_model(
                     time.sleep(retry_delay)
                     continue
 
-            try:
-                # lock acquired
-                yield
-            finally:
-                session.flush()
+            # lock acquired
+            yield
             return
 
         raise RuntimeError(f"Could not acquire SQLite AssetModel writer lock for asset_id={asset_id}")
