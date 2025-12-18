@@ -228,7 +228,7 @@ class TestAssetManager:
         session.add_all([asm, testing_dag])
         session.commit()
         session.flush()
-        assert session.query(AssetPartitionDagRun).count() == 0
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 0
 
         def _get_or_create_apdr():
             if TYPE_CHECKING:
@@ -259,4 +259,4 @@ class TestAssetManager:
         }
 
         assert len(set(ids)) == 1
-        assert session.query(AssetPartitionDagRun).count() == 1
+        assert session.scalar(select(func.count()).select_from(AssetPartitionDagRun)) == 1
