@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import ANY
-
 import pytest
 
 from airflow.models.team import Team
@@ -55,15 +53,12 @@ class TestListTeams:
         assert response.json() == {
             "teams": [
                 {
-                    "id": ANY,
                     "name": "team1",
                 },
                 {
-                    "id": ANY,
                     "name": "team2",
                 },
                 {
-                    "id": ANY,
                     "name": "team3",
                 },
             ],

@@ -18,7 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { forwardRef } from "react";
-import type { ReactNode } from "react";
+import type { PropsWithChildren } from "react";
 import { ResizableBox } from "react-resizable";
 import "react-resizable/css/styles.css";
 
@@ -39,11 +39,10 @@ const ResizeHandle = forwardRef<HTMLDivElement>((props, ref) => (
 ));
 
 type ResizableWrapperProps = {
-  readonly children: ReactNode;
   readonly defaultSize?: { height: number; width: number };
   readonly maxConstraints?: [width: number, height: number];
   readonly storageKey: string;
-};
+} & PropsWithChildren;
 
 const DEFAULT_SIZE = { height: 400, width: 500 };
 const MAX_SIZE: [number, number] = [1200, 800];
@@ -77,7 +76,7 @@ export const ResizableWrapper = ({
       }}
       width={size.width}
     >
-      {children}
+      <div>{children}</div>
     </ResizableBox>
   );
 };

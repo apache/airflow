@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Grafik Yönü"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktif Filtre",
+      "clearFilter": "Filtreyi Temizle",
+      "clickTask": "Bir göreve tıklayarak yukarı/aşağı akışını filtreleyin",
+      "label": "Filtre",
+      "options": {
+        "both": "Yukarı ve Aşağı akış",
+        "downstream": "Aşağı akış",
+        "upstream": "Yukarı akış"
+      },
+      "selectedTask": "Seçilmiş Görev"
     }
   },
   "paramsFailed": "Parametreler yüklenemedi",

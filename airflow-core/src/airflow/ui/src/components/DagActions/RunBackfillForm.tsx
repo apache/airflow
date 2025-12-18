@@ -16,14 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
+import { Box, Button, Field, Flex, HStack, Input, Spacer, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import { useForm, Controller, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
-import type { DAGResponse, DAGWithLatestDagRunsResponse, BackfillPostBody } from "openapi/requests/types.gen";
-import { Button } from "src/components/ui";
+import type { BackfillPostBody, DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
@@ -36,16 +36,14 @@ import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
 import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
-import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "../ui/RadioCard";
 import { getInlineMessage } from "./inlineMessage";
 
 type RunBackfillFormProps = {
   readonly dag: DAGResponse | DAGWithLatestDagRunsResponse;
   readonly onClose: () => void;
 };
-const today = new Date().toISOString().slice(0, 16);
-
 type BackfillFormProps = DagRunTriggerParams & Omit<BackfillPostBody, "dag_run_conf">;
+const today = new Date().toISOString().slice(0, 16);
 
 const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const { t: translate } = useTranslation(["components", "common"]);
@@ -62,6 +60,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       max_active_runs: 1,
       reprocess_behavior: "none",
       run_backwards: false,
+      run_on_latest_version: true,
       to_date: "",
     },
     mode: "onBlur",
@@ -78,6 +77,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
         max_active_runs: values.max_active_runs ?? 1,
         reprocess_behavior: values.reprocess_behavior,
         run_backwards: values.run_backwards ?? false,
+        run_on_latest_version: values.run_on_latest_version ?? true,
         to_date: values.to_date ?? "",
       },
     },
@@ -92,16 +92,11 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
       setErrors((prev) => ({ ...prev, date: dateValidationError }));
     }
   }, [dateValidationError]);
-
   useEffect(() => {
     if (conf) {
-      reset((prevValues) => ({
-        ...prevValues,
-        conf,
-      }));
+      reset((prevValues) => ({ ...prevValues, conf }));
     }
   }, [conf, reset]);
-
   const dataIntervalStart = watch("from_date");
   const dataIntervalEnd = watch("to_date");
   const noDataInterval = !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
@@ -128,16 +123,8 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     reset(fdata);
     onClose();
   };
-
-  const resetDateError = () => {
-    setErrors((prev) => ({ ...prev, date: undefined }));
-  };
-
-  const affectedTasks = data ?? {
-    backfills: [],
-    total_entries: 0,
-  };
-
+  const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
+  const affectedTasks = data ?? { backfills: [], total_entries: 0 };
   const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
 
   return (
@@ -178,12 +165,7 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           name="reprocess_behavior"
           render={({ field }) => (
-            <RadioCardRoot
-              defaultValue={field.value}
-              onChange={(event) => {
-                field.onChange(event);
-              }}
-            >
+            <RadioCardRoot defaultValue={field.value} onChange={field.onChange}>
               <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
                 {translate("backfill.reprocessBehavior")}
               </RadioCardLabel>
@@ -230,6 +212,16 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           )}
         />
         <Spacer />
+        <Controller
+          control={control}
+          name="run_on_latest_version"
+          render={({ field }) => (
+            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange}>
+              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
+          )}
+        />
+        <Spacer />
         {dag.is_paused ? (
           <>
             <Checkbox
@@ -243,7 +235,6 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
             <Spacer />
           </>
         ) : undefined}
-
         <ConfigForm
           control={control}
           errors={errors}

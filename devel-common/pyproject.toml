@@ -35,7 +35,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.14.8",
+    "ruff==0.14.9",
     "semver>=3.0.2",
     "typer-slim>=0.15.1",
     # limited due to changes needed https://github.com/apache/airflow/issues/58470
@@ -76,7 +76,7 @@ dependencies = [
     "rich-click>=1.7.1",
     "click>=8.1.8",
     "docutils>=0.21",
-    "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.2.3/sphinx_airflow_theme-0.2.3-py3-none-any.whl",
+    "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.3.0/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3",
     "sphinx-autobuild>=2024.10.2",
@@ -103,7 +103,7 @@ dependencies = [
 "mypy" = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
-    "mypy==1.19.0",
+    "mypy==1.19.1",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",

@@ -35,10 +35,10 @@ from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar
 
 from packaging.utils import canonicalize_name
 
+from airflow._shared.module_loading import import_string
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.singleton import Singleton
 
 log = logging.getLogger(__name__)

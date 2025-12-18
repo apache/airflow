@@ -44,6 +44,7 @@ Helm Chart for Apache Airflow
     :caption: Guides
 
     production-guide
+    service-account-token-examples
 
 .. toctree::
     :hidden:
