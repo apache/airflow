@@ -466,8 +466,8 @@ dag = DAG(dag_id=f"dag_{datetime.now()}")
 
         self.checker.visit(tree)
 
-        assert len(self.checker.warnings) > 0
-        assert any("DAG constructor" in w.message for w in self.checker.warnings)
+        assert len(self.checker.warnings) == 1
+        assert any("Dag constructor" in w.message for w in self.checker.warnings)
 
     def test_visit_call__detects_task_in_dag_context(self):
         """Detect task creation inside DAG with block."""
