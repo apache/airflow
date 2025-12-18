@@ -28,7 +28,7 @@ from typing import Any
 
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+from airflow.sdk._shared.secrets_backend import DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
 

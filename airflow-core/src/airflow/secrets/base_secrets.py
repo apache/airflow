@@ -16,5 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from airflow._shared.secrets_backend import DEFAULT_SECRETS_SEARCH_PATH as DEFAULT_SECRETS_SEARCH_PATH
+
 # Re export for compat
 from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
