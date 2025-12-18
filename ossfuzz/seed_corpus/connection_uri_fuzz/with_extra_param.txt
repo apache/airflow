@@ -1,0 +1,2 @@
+mysql://user:pass@localhost:3306/schema?__extra__=%7B%22cursor%22%3A%20%22DictCursor%22%7D
+
