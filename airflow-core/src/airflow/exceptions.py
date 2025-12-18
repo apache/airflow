@@ -119,7 +119,7 @@ class AirflowClusterPolicyError(AirflowException):
 
 
 class DagNotFound(AirflowNotFoundException):
-    """Raise when a Dag is not available in the system."""
+    """Raise when a DAG is not available in the system."""
 
 
 class DagCodeNotFound(AirflowNotFoundException):
