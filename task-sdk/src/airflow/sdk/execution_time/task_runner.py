@@ -27,7 +27,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -61,6 +61,7 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowInactiveAssetInInletOrOutletException,
+    AirflowRequeueException,
     AirflowRuntimeError,
     AirflowTaskTimeout,
     ErrorType,
@@ -726,7 +727,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        sys.exit(1)
+        raise AirflowRequeueException(f"Dag {what.ti.dag_id} not found during start up")
 
     # install_loader()
 
@@ -740,7 +741,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        sys.exit(1)
+        raise AirflowRequeueException(f"Task {what.ti.task_id} not found during start up")
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
         raise TypeError(
@@ -1729,6 +1730,23 @@ def main():
             state, _, error = run(ti, context, log)
             context["exception"] = error
             finalize(ti, state, context, log, error)
+    except AirflowRequeueException:
+        # This handles the case that Dag bundle is not yet available by the worker.
+        # Since the task is not yet even run, instead of failing it, we try to requeue it.
+
+        # SUPERVISOR_COMMS.send(msg=RequeueTask(reason=str(err)))
+        try:
+            now = datetime.now(tz=timezone.utc)
+            SUPERVISOR_COMMS.send(
+                msg=RescheduleTask(
+                    end_date=now,
+                    reschedule_date=now + timedelta(seconds=5),
+                )
+            )
+        except Exception:
+            log.exception("testing")
+
+        exit(0)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         exit(2)

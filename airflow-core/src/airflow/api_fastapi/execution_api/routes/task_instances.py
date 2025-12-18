@@ -22,6 +22,7 @@ import itertools
 import json
 from collections import defaultdict
 from collections.abc import Iterator
+from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from uuid import UUID
 
@@ -51,6 +52,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
+    TIRequeuePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
@@ -504,6 +506,46 @@ def _create_ti_state_update_query_and_update_state(
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
         # clear the next_method and next_kwargs so that none of the retries pick them up
         updated_state = TaskInstanceState.UP_FOR_RESCHEDULE
+        query = query.values(state=updated_state, next_method=None, next_kwargs=None)
+    elif isinstance(ti_patch_payload, TIRequeuePayload):
+        # TODO: make it configurable
+        # from airflow.configuration import conf
+        # max_requeue_num = conf.getint("core", "max_requeue_num", 5)
+        # requeue_delay= conf.getint("core", "requeue_delay", 0.05)
+        max_requeue_num = 5
+        requeue_delay = 0.5
+
+        task_reschedule_count = (
+            session.execute(func.count())
+            .select_from(TaskReschedule)
+            .filter(TaskReschedule.ti_id == ti_id_str)
+            .scalar()
+            or 0
+        )
+        if task_reschedule_count > max_requeue_num:
+            # TODO: failed the task
+            raise ValueError("TODO: failed the task")
+
+        task_instance = session.get(TI, ti_id_str)
+        # TODO: update end_date:
+        current_ts = timezone.utcnow() + timedelta(seconds=requeue_delay)
+        end_date = current_ts
+        if task_instance is not None and task_instance.id is not None:
+            session.add(
+                TaskReschedule(
+                    ti_id=UUID(str(task_instance.id)),
+                    start_date=current_ts,
+                    end_date=end_date,
+                    reschedule_date=current_ts,
+                )
+            )
+
+        query = update(TI).where(TI.id == ti_id_str)
+        # calculate the duration for TI table too
+        if session.bind is not None:
+            query = TI.duration_expression_update(end_date=end_date, query=query, bind=session.bind)
+        # clear the next_method and next_kwargs so that none of the retries pick them up
+        updated_state = TaskInstanceState.SCHEDULED
         query = query.values(state=updated_state, next_method=None, next_kwargs=None)
     else:
         raise ValueError(f"Unexpected Payload Type {type(ti_patch_payload)}")

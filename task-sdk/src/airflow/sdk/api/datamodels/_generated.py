@@ -233,6 +233,18 @@ class TIHeartbeatInfo(BaseModel):
     pid: Annotated[int, Field(title="Pid")]
 
 
+class TIRequeuePayload(BaseModel):
+    """
+    Schema for re-queuing TaskInstance.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
+    reason: Annotated[str | None, Field(title="Reason")] = None
+
+
 class TIRescheduleStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a up_for_reschedule state.
