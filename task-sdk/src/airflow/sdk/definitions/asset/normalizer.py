@@ -38,16 +38,17 @@ def normalize_asset_metadata(metadata_dict: dict[str, Any]) -> dict[str, Any]:
             return {k: _normalize_value(v) for k, v in value.items()}
         if isinstance(value, (list, tuple)):
             return [_normalize_value(item) for item in value]
-        if np and isinstance(value, np.integer):
-            return int(value)
-        if np and isinstance(value, np.floating):
-            return float(value)
-        if np and isinstance(value, np.bool_):
-            return bool(value)
-        if np and isinstance(value, np.ndarray):
-            return value.tolist()
-        if np and isinstance(value, np.complexfloating):
-            return {"real": float(value.real), "imag": float(value.imag)}
+        if np:
+            if isinstance(value, np.integer):
+                return int(value)
+            if isinstance(value, np.floating):
+                return float(value)
+            if isinstance(value, np.bool_):
+                return bool(value)
+            if isinstance(value, np.ndarray):
+                return value.tolist()
+            if isinstance(value, np.complexfloating):
+                return {"real": float(value.real), "imag": float(value.imag)}
         return value
 
     return _normalize_value(metadata_dict)
