@@ -304,7 +304,7 @@ def _get_upstream_map_indexes(
         if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task.get_closest_mapped_task_group() == upstream_mapped_group:
+        elif task.get_closest_mapped_task_group() is upstream_mapped_group:
             # tasks in the same mapped task group hierarchy
             map_indexes = ti.map_index
         else:
