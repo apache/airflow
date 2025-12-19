@@ -579,7 +579,7 @@ def _create_ti_state_update_query_and_update_state(
         # max_requeue_num = conf.getint("core", "max_requeue_num", 5)
         # requeue_delay= conf.getint("core", "requeue_delay", 0.05)
         max_requeue_num = 5
-        requeue_delay = 0.05
+        # requeue_delay = 0.05
 
         task_reschedule_count = (
             session.query(func.count())
