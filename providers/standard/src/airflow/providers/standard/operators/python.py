@@ -79,7 +79,10 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.providers.common.compat.sdk import Context
-    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, ExecutionCallableRunner
+    from airflow.sdk.execution_time.callback_runner import (
+        AsyncExecutionCallableRunner,
+        ExecutionCallableRunner,
+    )
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
