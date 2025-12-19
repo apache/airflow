@@ -468,9 +468,7 @@ def test_celery_extra_celery_config_loaded_from_string():
     assert default_celery.DEFAULT_CELERY_CONFIG["worker_max_tasks_per_child"] == 10
 
 
-@conf_vars(
-    {("celery_result_backend_transport_options", "sentinel_kwargs"): '{"password": "redis_password"}'}
-)
+@conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): '{"password": "redis_password"}'})
 def test_result_backend_sentinel_kwargs_loaded_from_string():
     """Test that sentinel_kwargs for result backend transport options is correctly parsed."""
     import importlib
@@ -491,7 +489,9 @@ def test_result_backend_master_name_loaded():
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
     assert "result_backend_transport_options" in default_celery.DEFAULT_CELERY_CONFIG
-    assert default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]["master_name"] == "mymaster"
+    assert (
+        default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]["master_name"] == "mymaster"
+    )
 
 
 @conf_vars(
@@ -518,7 +518,9 @@ def test_result_backend_sentinel_kwargs_invalid_json():
 
     from airflow.providers.common.compat.sdk import AirflowException
 
-    with pytest.raises(AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"):
+    with pytest.raises(
+        AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"
+    ):
         importlib.reload(default_celery)
 
 
@@ -529,7 +531,9 @@ def test_result_backend_sentinel_kwargs_not_dict():
 
     from airflow.providers.common.compat.sdk import AirflowException
 
-    with pytest.raises(AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"):
+    with pytest.raises(
+        AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"
+    ):
         importlib.reload(default_celery)
 
 
