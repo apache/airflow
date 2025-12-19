@@ -132,7 +132,9 @@ export class DagsPage extends BasePage {
   /**
    * Filter Dags by status
    */
-  public async filterByStatus(status: "failed" | "needs_review" | "queued" | "running" | "success"): Promise<void> {
+  public async filterByStatus(
+    status: "failed" | "needs_review" | "queued" | "running" | "success",
+  ): Promise<void> {
     const filterMap = {
       failed: this.failedFilter,
       needs_review: this.needsReviewFilter,
@@ -149,13 +151,15 @@ export class DagsPage extends BasePage {
    * Get all Dag links from the list
    */
   public async getDagLinks(): Promise<Array<string>> {
-    const links = await this.page.locator('[data-testid="dag-id"]').all();
+    // Select all links that point to specific Dags (href starts with /dags/)
+    const links = await this.page.locator('a[href^="/dags/"]').all();
     const hrefs: Array<string> = [];
 
     for (const link of links) {
       const href = await link.getAttribute("href");
 
-      if (href !== null && href !== "") {
+      // Only include links that match /dags/{dag_id} pattern (not /dags or /dags/{id}/runs/...)
+      if (href !== null && href !== "" && /^\/dags\/[^/]+$/.exec(href) !== null) {
         hrefs.push(href);
       }
     }
@@ -167,18 +171,84 @@ export class DagsPage extends BasePage {
    * Get all Dag names from the current page
    */
   public async getDagNames(): Promise<Array<string>> {
-    await this.waitForDagList();
-    const dagLinks = this.page.locator('[data-testid="dag-id"]');
-    const texts = await dagLinks.allTextContents();
+    // Select all Dag links using href pattern
+    const dagLinks = this.page.locator('a[href^="/dags/"]');
 
-    return texts.map((text) => text.trim()).filter((text) => text !== "");
+    // Wait for page to load - check for either Dag links or "No Dag found" message
+    await Promise.race([
+      dagLinks
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          // Ignore error, we're racing with "No Dag found" message
+        }),
+      this.page
+        .locator("text=No Dag found")
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          // Ignore error, we're racing with Dag links
+        }),
+    ]);
+
+    const links = await dagLinks.all();
+    const names: Array<string> = [];
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+      const text = await link.textContent();
+
+      // Only include links that match /dags/{dag_id} pattern
+      if (
+        href !== null &&
+        href !== "" &&
+        /^\/dags\/[^/]+$/.exec(href) !== null &&
+        text !== null &&
+        text !== ""
+      ) {
+        names.push(text.trim());
+      }
+    }
+
+    return names.filter((name) => name !== "");
   }
 
   /**
    * Get the count of Dags displayed in the list
+   * Works for both card view and table view by counting Dag links with href pattern
    */
   public async getDagsCount(): Promise<number> {
-    return await this.dagsTable.count();
+    // Select all links that point to specific Dags
+    const dagLinks = this.page.locator('a[href^="/dags/"]');
+
+    // Wait for page to load - check for either Dag links or "No Dag found" message
+    await Promise.race([
+      dagLinks
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          // Ignore error, we're racing with "No Dag found" message
+        }),
+      this.page
+        .locator("text=No Dag found")
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          // Ignore error, we're racing with Dag links
+        }),
+    ]);
+
+    const links = await dagLinks.all();
+    let count = 0;
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+
+      // Only count links that match /dags/{dag_id} pattern
+      if (href !== null && href !== "" && /^\/dags\/[^/]+$/.exec(href) !== null) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   /**
@@ -232,6 +302,13 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Verify card view is displayed
+   */
+  public async verifyCardViewVisible(): Promise<boolean> {
+    return await this.cardList.first().isVisible();
+  }
+
+  /**
    * Navigate to details tab and verify Dag details are displayed correctly
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
@@ -269,17 +346,10 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Verify card view is displayed
-   */
-  public async verifyCardViewVisible(): Promise<boolean> {
-    return await this.cardList.first().isVisible();
-  }
-
-  /**
    * Verify that a specific Dag exists in the list
    */
   public async verifyDagExists(dagId: string): Promise<boolean> {
-    const dagLink = this.page.locator(`[data-testid="dag-id"][href="/dags/${dagId}"]`);
+    const dagLink = this.page.locator(`a[href="/dags/${dagId}"]`);
 
     return await dagLink.isVisible();
   }

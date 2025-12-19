@@ -67,7 +67,7 @@ export class LoginPage extends BasePage {
 
           return !urlString.includes("/login");
         },
-        { timeout: 60_000 },
+        { timeout: 15_000 },
       );
     } catch (error: unknown) {
       const hasError: boolean = await this.errorMessage.isVisible().catch(() => false);
