@@ -599,6 +599,46 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             }
         )
 
+    @staticmethod
+    @provide_session
+    def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger | None:
+        if trigger.task_instance is None:
+            return workloads.RunTrigger(
+                id=trigger.id,
+                classpath=trigger.classpath,
+                encrypted_kwargs=trigger.encrypted_kwargs,
+            )
+
+        if not trigger.task_instance.dag_version_id:
+            # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
+            log.warning(
+                "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
+                ti_id=trigger.task_instance.id,
+            )
+            return None
+
+        log_path = render_log_fname(ti=trigger.task_instance)
+        serialized_dag = dag_bag.get_dag_model(
+            version_id=trigger.task_instance.dag_version_id,
+            session=session,
+        )
+        ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
+
+        # When producing logs from TIs, include the job id producing the logs to disambiguate it.
+        self.logger_cache[trigger.id] = TriggerLoggingFactory(
+            log_path=f"{log_path}.trigger.{self.job.id}.log",
+            ti=ser_ti,  # type: ignore
+        )
+
+        return workloads.RunTrigger(
+            id=trigger.id,
+            classpath=trigger.classpath,
+            encrypted_kwargs=trigger.encrypted_kwargs,
+            ti=ser_ti,
+            timeout_after=trigger.task_instance.trigger_timeout,
+            dag_data=serialized_dag.data if serialized_dag else None,
+        )
+
     def update_triggers(self, requested_trigger_ids: set[int]):
         """
         Request that we update what triggers we're running.
@@ -611,45 +651,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
         dag_bag = DBDagBag()
         render_log_fname = log_filename_template_renderer()
-
-        @provide_session
-        def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger | None:
-            if trigger.task_instance:
-                if not new_trigger_orm.task_instance.dag_version_id:
-                    # This is to handle 2 to 3 upgrade where TI.dag_version_id can be none
-                    log.warning(
-                        "TaskInstance associated with Trigger has no associated Dag Version, skipping the trigger",
-                        ti_id=new_trigger_orm.task_instance.id,
-                    )
-                    return None
-
-                log_path = render_log_fname(ti=trigger.task_instance)
-                serialized_dag = dag_bag.get_dag_model(
-                    version_id=trigger.task_instance.dag_version_id,
-                    session=session,
-                )
-                ser_ti = workloads.TaskInstance.model_validate(trigger.task_instance, from_attributes=True)
-
-                # When producing logs from TIs, include the job id producing the logs to disambiguate it.
-                self.logger_cache[new_id] = TriggerLoggingFactory(
-                    log_path=f"{log_path}.trigger.{self.job.id}.log",
-                    ti=ser_ti,  # type: ignore
-                )
-
-                return workloads.RunTrigger(
-                    id=new_id,
-                    classpath=trigger.classpath,
-                    encrypted_kwargs=trigger.encrypted_kwargs,
-                    ti=ser_ti,
-                    timeout_after=trigger.task_instance.trigger_timeout,
-                    dag_data=serialized_dag.data if serialized_dag else None,
-                )
-            return workloads.RunTrigger(
-                id=new_id,
-                classpath=trigger.classpath,
-                encrypted_kwargs=trigger.encrypted_kwargs,
-            )
-
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
@@ -693,7 +694,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                if workload := create_workload(new_trigger_orm, session=session):
+                if workload := self.create_workload(trigger=new_trigger_orm, session=session):
                     to_create.append(workload)
 
             self.creating_triggers.extend(to_create)
