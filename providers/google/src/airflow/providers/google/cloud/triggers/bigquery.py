@@ -105,6 +105,8 @@ class BigQueryInsertJobTrigger(BaseTrigger):
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
+            if self.task_instance is None:
+                raise ValueError("Trigger task instance attribute is `None`.")
             query = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.task_instance.dag_id,
                 TaskInstance.task_id == self.task_instance.task_id,
@@ -123,6 +125,8 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             return task_instance
 
     async def get_task_state(self):
+        if self.task_instance is None:
+            raise ValueError("Trigger task instance attribute is `None`.")
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
         task_states_response = await sync_to_async(RuntimeTaskInstance.get_task_states)(
