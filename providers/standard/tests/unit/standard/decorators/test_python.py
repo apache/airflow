@@ -657,9 +657,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 hello.override(pool="my_pool", priority_weight=i)()
 
         weights = []
-        for task in self.dag_non_serialized.tasks:
-            assert task.pool == "my_pool"
-            weights.append(task.priority_weight)
+        for _task in self.dag_non_serialized.tasks:
+            assert _task.pool == "my_pool"
+            weights.append(_task.priority_weight)
         assert weights == [0, 1, 2]
 
     def test_python_callable_args_work_as_well_as_baseoperator_args(self, dag_maker):
