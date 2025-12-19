@@ -36,7 +36,10 @@ const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>>
       <Link
         aria-label={original.package_name}
         color="fg.info"
-        href={original.documentation_url ?? `https://airflow.apache.org/docs/${original.package_name}/${original.version}/`}
+        href={
+          original.documentation_url ??
+          `https://airflow.apache.org/docs/${original.package_name}/${original.version}/`
+        }
         rel="noopener noreferrer"
         target="_blank"
       >
