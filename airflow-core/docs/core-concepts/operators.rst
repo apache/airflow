@@ -344,4 +344,41 @@ If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literall
       dag=dag,
   )
 
-This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during Dag parsing or unexpected behavior at runtime when the templating does not occur as expected.
+This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during DAG parsing or unexpected behavior at runtime when the templating does not occur as expected.
+
+Pre- and post-execute methods
+-----------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed, respectively.
+
+For example, you can use the ``pre_execute`` method to elegantly determine if a task should be executed or not:
+
+.. code-block:: python
+
+    def _check_skipped(context: Any) -> None:
+        """
+        Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
+        """
+        tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
+        if context["task"].task_id in on_ice:
+            raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
+
+
+    ...
+
+
+    @task(pre_execute=_check_skipped)
+    def test():
+        """
+        This task will be skipped if the `tasks_to_skip` Airflow Variable is set and contains the task id.
+        """
+        ...
+
+``post_execute`` can be used to clean up a temporary file or directory that was created by the operator.
+
+The ``pre_execute`` and ``post_execute`` methods include the task instance's context as a parameter.
+
+Difference between pre-/post-execute and setup/teardown
+-------------------------------------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to beform setup or cleanup operations before and after multiple task instances are executed within a Dag run.
