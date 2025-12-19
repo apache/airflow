@@ -543,7 +543,9 @@ class TestStructureDataEndpoint:
     def test_should_return_200_with_resolved_asset_alias_attached_to_the_corrrect_producing_task(
         self, test_client, session
     ):
-        resolved_asset = session.scalar(select(AssetModel).filter_by(name="resolved_example_asset_alias"))
+        resolved_asset = session.scalar(
+            select(AssetModel).where(AssetModel.name == "resolved_example_asset_alias")
+        )
         params = {
             "dag_id": DAG_ID_RESOLVED_ASSET_ALIAS,
             "external_dependencies": True,
