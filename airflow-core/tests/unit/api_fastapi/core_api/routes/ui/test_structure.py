@@ -544,7 +544,7 @@ class TestStructureDataEndpoint:
         self, test_client, session
     ):
         resolved_asset = session.scalar(
-            session.query(AssetModel).filter_by(name="resolved_example_asset_alias")
+            select(AssetModel).filter_by(name="resolved_example_asset_alias")
         )
         params = {
             "dag_id": DAG_ID_RESOLVED_ASSET_ALIAS,

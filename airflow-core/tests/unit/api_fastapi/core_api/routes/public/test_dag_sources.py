@@ -137,12 +137,11 @@ class TestGetDAGSource:
         # force reserialization
         test_dag.doc_md = "new doc"
         force_reserialization(test_dag.dag_id, "dag-folder")
-        dagcode = (
-            session.query(DagCode)
-            .filter(DagCode.fileloc == test_dag.fileloc)
+        dagcode = session.scalars(
+            select(DagCode)
+            .where(DagCode.fileloc == test_dag.fileloc)
             .order_by(DagCode.id.desc())
-            .first()
-        )
+        ).first()
         assert dagcode.dag_version.version_number == 2
         # populate the latest dagcode with a value
         dag_content2 = "new source code"
