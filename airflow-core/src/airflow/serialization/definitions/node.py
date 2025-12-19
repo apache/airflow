@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
     Operator: TypeAlias = SerializedBaseOperator | MappedOperator
 
+__all__ = ["DAGNode"]
+
 
 class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"], metaclass=abc.ABCMeta):
     """
