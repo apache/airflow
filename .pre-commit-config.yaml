@@ -356,7 +356,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.9']
+        additional_dependencies: ['ruff==0.14.10']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -436,6 +436,9 @@ repos:
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
+            ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
+            ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
             ^airflow-core/tests/unit/models/test_renderedtifields.py$|
             ^airflow-core/tests/unit/models/test_timestamp.py$|
