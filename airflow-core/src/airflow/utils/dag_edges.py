@@ -16,17 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, cast
 
-from airflow.models.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
     from airflow.serialization.definitions.dag import SerializedDAG
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 def dag_edges(dag: DAG | SerializedDAG):
@@ -64,7 +64,7 @@ def dag_edges(dag: DAG | SerializedDAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, MappedOperator)):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, SerializedMappedOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:
