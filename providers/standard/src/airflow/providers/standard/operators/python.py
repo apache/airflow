@@ -63,9 +63,6 @@ if AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
 
-    if TYPE_CHECKING:
-        from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner
-
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
     from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -82,7 +79,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.providers.common.compat.sdk import Context
-    from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
+    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
