@@ -198,11 +198,9 @@ const TriggerDAGForm = ({
                   )}
                 />
               </HStack>
-            ) : // eslint-disable-next-line unicorn/no-null
-            null}
+            ) : undefined}
           </Box>
-        ) : // eslint-disable-next-line unicorn/no-null
-        null}
+        ) : undefined}
         <Spacer />
         {isPaused ? (
           <>

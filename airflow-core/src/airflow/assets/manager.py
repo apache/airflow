@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 import structlog
@@ -40,7 +41,7 @@ from airflow.models.asset import (
 )
 from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -56,6 +57,60 @@ if TYPE_CHECKING:
     from airflow.timetables.simple import PartitionedAssetTimetable
 
 log = structlog.get_logger(__name__)
+
+
+@contextmanager
+def _lock_asset_model(
+    *,
+    session: Session,
+    asset_id: int,
+    max_retries: int = 10,
+    retry_delay: float = 0.1,
+):
+    """
+    Context manager to acquire a lock for AssetPartitionDagRun creation.
+
+    - SQLite: Use a no-op ORM update to trigger a write-transaction and acquire SQLite's global writer lock.
+    - Postgres/MySQL: uses row-level lock on AssetModel.
+    """
+    if get_dialect_name(session) == "sqlite":
+        import time
+
+        from sqlalchemy import update
+
+        # no-op update
+        # This is used to acquire SQLite's global writer lock.
+        stmt = update(AssetModel).where(AssetModel.id == asset_id).values(id=AssetModel.id)
+        for _ in range(max_retries):
+            try:
+                session.execute(stmt)
+                session.flush()
+            except exc.OperationalError as err:
+                err_msg = str(err).lower()
+                if "locked" in err_msg or "busy" in err_msg:
+                    session.rollback()
+                    time.sleep(retry_delay)
+                    continue
+
+            # lock acquired
+            yield
+            return
+
+        raise RuntimeError(f"Could not acquire SQLite AssetModel writer lock for asset_id={asset_id}")
+    else:
+        # Postgres/MySQL row-level lock
+        if (
+            session.scalar(
+                with_row_locks(
+                    query=select(AssetModel.id).where(AssetModel.id == asset_id),
+                    session=session,
+                    key_share=True,
+                )
+            )
+        ) is None:
+            raise RuntimeError(f"Asset {asset_id} does not exist – cannot lock.")
+
+        yield
 
 
 class AssetManager(LoggingMixin):
@@ -173,7 +228,7 @@ class AssetManager(LoggingMixin):
 
         asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
-        session.flush()  # Ensure the event is written earlier than DDRQ entries below.
+        session.flush()  # Ensure the event is written earlier than ADRQ entries below.
 
         dags_to_queue_from_asset = {
             ref.dag for ref in asset_model.scheduled_dags if not ref.dag.is_stale and not ref.dag.is_paused
@@ -340,6 +395,7 @@ class AssetManager(LoggingMixin):
             apdr = cls._get_or_create_apdr(
                 target_key=target_key,
                 target_dag=target_dag,
+                asset_id=asset_id,
                 session=session,
             )
             log_record = PartitionedAssetKeyLog(
@@ -355,22 +411,40 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _get_or_create_apdr(
         cls,
+        *,
         target_key: str,
         target_dag: SerializedDagModel,
+        asset_id: int,
         session: Session,
     ) -> AssetPartitionDagRun:
-        latest_apdr: AssetPartitionDagRun | None = session.scalar(
-            select(AssetPartitionDagRun)
-            .where(
-                AssetPartitionDagRun.partition_key == target_key,
-                AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+        """
+        Get or create an APDR.
+
+        If 2 processes invoke this method at the same time using the same (target_key, target_dag) pair,
+        they may both check the database and, finding no existing APDR, create separate instances.
+        This leads to the unintended outcome of having two APDRs created instead of one.
+        To resolve this, we add a mutex lock to AssetModel for PostgreSQL and MySQL and use
+        AssetPartitionDagRunMutexLock table for SQLite.
+        """
+        with _lock_asset_model(session=session, asset_id=asset_id):
+            latest_apdr: AssetPartitionDagRun | None = session.scalar(
+                select(AssetPartitionDagRun)
+                .where(
+                    AssetPartitionDagRun.partition_key == target_key,
+                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
+                )
+                .order_by(AssetPartitionDagRun.id.desc())
+                .limit(1)
             )
-            .order_by(AssetPartitionDagRun.id.desc())
-            .limit(1)
-        )
-        if latest_apdr and latest_apdr.created_dag_run_id is None:
-            apdr = latest_apdr
-        else:
+            if latest_apdr and latest_apdr.created_dag_run_id is None:
+                cls.logger().debug(
+                    "Existing APDR found for key %s dag_id %s",
+                    target_key,
+                    target_dag.dag_id,
+                    exc_info=True,
+                )
+                return latest_apdr
+
             apdr = AssetPartitionDagRun(
                 target_dag_id=target_dag.dag_id,
                 created_dag_run_id=None,
@@ -378,7 +452,13 @@ class AssetManager(LoggingMixin):
             )
             session.add(apdr)
             session.flush()
-        return apdr
+            cls.logger().debug(
+                "No existing APDR found. Create APDR for key %s dag_id %s",
+                target_key,
+                target_dag.dag_id,
+                exc_info=True,
+            )
+            return apdr
 
     @classmethod
     def _queue_dagruns_nonpartitioned_slow_path(
