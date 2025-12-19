@@ -44,6 +44,7 @@ from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
+from airflow.models.dagbag import DBDagBag
 from airflow.models.trigger import Trigger
 from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
@@ -599,9 +600,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             }
         )
 
-    @staticmethod
     @provide_session
-    def create_workload(trigger: Trigger, session: Session = NEW_SESSION) -> workloads.RunTrigger | None:
+    def create_workload(
+        self,
+        trigger: Trigger,
+        dag_bag = DBDagBag(),
+        render_log_fname = log_filename_template_renderer(),
+        session: Session = NEW_SESSION,
+    ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
             return workloads.RunTrigger(
                 id=trigger.id,
@@ -647,10 +653,6 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
-        from airflow.models.dagbag import DBDagBag
-
-        dag_bag = DBDagBag()
-        render_log_fname = log_filename_template_renderer()
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
