@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow import models, settings
 from airflow.cli import cli_parser
@@ -47,7 +48,9 @@ class TestCliPools:
     def _cleanup(session=None):
         if session is None:
             session = Session()
-        session.query(Pool).filter(Pool.pool != Pool.DEFAULT_POOL_NAME).delete()
+        session.execute(
+            Pool.__table__.delete().where(Pool.pool != Pool.DEFAULT_POOL_NAME),
+        )
         session.commit()
         add_default_pool_if_not_exists()
         session.close()
@@ -64,19 +67,28 @@ class TestCliPools:
 
     def test_pool_create(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).count() == 2
+        assert self.session.execute(select(func.count()).select_from(Pool)).scalar_one() == 2
 
     def test_pool_update_deferred(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert (
+            self.session.execute(select(Pool).where(Pool.pool == "foo")).scalars().first().include_deferred
+            is False
+        )
 
         pool_command.pool_set(
             self.parser.parse_args(["pools", "set", "foo", "1", "test", "--include-deferred"])
         )
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is True
+        assert (
+            self.session.execute(select(Pool).where(Pool.pool == "foo")).scalars().first().include_deferred
+            is True
+        )
 
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert (
+            self.session.execute(select(Pool).where(Pool.pool == "foo")).scalars().first().include_deferred
+            is False
+        )
 
     def test_pool_get(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
@@ -85,7 +97,7 @@ class TestCliPools:
     def test_pool_delete(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
-        assert self.session.query(Pool).count() == 1
+        assert self.session.execute(select(func.count()).select_from(Pool)).scalar_one() == 1
 
     def test_pool_import_nonexistent(self):
         with pytest.raises(SystemExit):
@@ -123,7 +135,10 @@ class TestCliPools:
 
         pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
 
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert (
+            self.session.execute(select(Pool).where(Pool.pool == "foo")).scalars().first().include_deferred
+            is False
+        )
 
     def test_pool_import_export(self, tmp_path):
         pool_import_file_path = tmp_path / "pools_import.json"
