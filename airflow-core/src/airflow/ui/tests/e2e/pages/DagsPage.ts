@@ -22,6 +22,20 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 /**
+ * Reprocess behavior types for backfill
+ */
+export type ReprocessBehavior = "completed" | "failed" | "none";
+
+/**
+ * Options for creating a backfill
+ */
+export type CreateBackfillOptions = {
+  fromDate: string;
+  reprocessBehavior?: ReprocessBehavior;
+  toDate: string;
+};
+
+/**
  * Dags Page Object
  */
 export class DagsPage extends BasePage {
@@ -30,13 +44,21 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  public readonly backfillDateError: Locator;
+  public readonly backfillFromDateInput: Locator;
+  // Backfill elements
+  public readonly backfillModeRadio: Locator;
+  public readonly backfillRunButton: Locator;
+
+  public readonly backfillsTable: Locator;
+  public readonly backfillToDateInput: Locator;
+
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
@@ -48,6 +70,18 @@ export class DagsPage extends BasePage {
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+
+    // Backfill locators
+    this.backfillModeRadio = page.locator('label:has-text("Backfill")');
+    this.backfillFromDateInput = page.locator('input[type="datetime-local"]').first();
+    this.backfillToDateInput = page.locator('input[type="datetime-local"]').nth(1);
+    this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
+    this.backfillsTable = page.locator("table");
+    this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
+  }
+
+  public static getDagBackfillsUrl(dagName: string): string {
+    return `/dags/${dagName}/backfills`;
   }
 
   // URL builders for dynamic paths
@@ -76,6 +110,39 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Create a backfill with specified parameters
+   */
+  public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
+    const { fromDate, reprocessBehavior = "none", toDate } = options;
+
+    await this.navigateToDagDetail(dagName);
+    await this.openBackfillDialog();
+
+    await this.backfillFromDateInput.fill(fromDate);
+    await this.backfillToDateInput.fill(toDate);
+
+    await this.selectReprocessBehavior(reprocessBehavior);
+
+    await this.page.waitForTimeout(2000);
+
+    await this.backfillRunButton.waitFor({ state: "visible", timeout: 5000 });
+    await this.backfillRunButton.click();
+
+    await this.page.waitForTimeout(2000);
+  }
+
+  /**
+   * Get number of rows in the backfills table
+   */
+  public async getBackfillsTableRows(): Promise<number> {
+    await this.page.waitForTimeout(1000);
+    const rows = this.page.locator("table tbody tr");
+    const count = await rows.count();
+
+    return count;
+  }
+
+  /**
    * Get all Dag names from the current page
    */
   public async getDagNames(): Promise<Array<string>> {
@@ -88,6 +155,13 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Check if backfill date error is visible
+   */
+  public async isBackfillDateErrorVisible(): Promise<boolean> {
+    return this.backfillDateError.isVisible();
+  }
+
+  /**
    * Navigate to Dags list page
    */
   public async navigate(): Promise<void> {
@@ -95,10 +169,46 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Navigate to DAG's Backfills tab
+   */
+  public async navigateToBackfillsTab(dagName: string): Promise<void> {
+    await this.navigateTo(DagsPage.getDagBackfillsUrl(dagName));
+  }
+
+  /**
    * Navigate to Dag detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+  }
+
+  /**
+   * Open backfill dialog from DAG detail page
+   */
+  public async openBackfillDialog(): Promise<void> {
+    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await this.triggerButton.click();
+    await this.page.waitForTimeout(1000);
+    await this.backfillModeRadio.waitFor({ state: "visible", timeout: 8000 });
+    await this.backfillModeRadio.click();
+    await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * Select reprocess behavior in backfill form
+   */
+  public async selectReprocessBehavior(behavior: ReprocessBehavior): Promise<void> {
+    const behaviorLabels: Record<ReprocessBehavior, string> = {
+      completed: "All Runs",
+      failed: "Missing and Errored Runs",
+      none: "Missing Runs",
+    };
+
+    const label = behaviorLabels[behavior];
+    const radioItem = this.page.locator(`label:has-text("${label}")`).first();
+
+    await radioItem.waitFor({ state: "visible", timeout: 5000 });
+    await radioItem.click();
   }
 
   /**
