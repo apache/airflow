@@ -2584,8 +2584,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
+                        # If we reset a TI, it will be eligible to be scheduled again.
+                        # This can cause the scheduler to increase the try_number on the TI.
+                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
+                        # the attempt that was abandoned.
+                        ti.prepare_db_for_next_try(session=session)
+
                         ti.state = None
                         ti.queued_by_job_id = None
+                        ti.external_executor_id = None
+                        ti.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
