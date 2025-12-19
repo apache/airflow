@@ -49,13 +49,9 @@ export type ParamSchema = {
 
 export const useDagParams = (dagId: string, open: boolean) => {
   const { t: translate } = useTranslation("dag");
-  const { data, error }: { data?: Record<string, ParamsSpec>; error?: unknown } = useDagServiceGetDagDetails(
-    { dagId },
-    undefined,
-    {
-      enabled: open,
-    },
-  );
+  const { data, error } = useDagServiceGetDagDetails({ dagId }, undefined, {
+    enabled: open,
+  });
 
   if (Boolean(error)) {
     const errorDescription =
@@ -70,7 +66,7 @@ export const useDagParams = (dagId: string, open: boolean) => {
     });
   }
 
-  const paramsDict: ParamsSpec = data?.params ?? ({} as ParamsSpec);
+  const paramsDict = (data?.params ?? {}) as ParamsSpec;
 
   return { paramsDict };
 };
