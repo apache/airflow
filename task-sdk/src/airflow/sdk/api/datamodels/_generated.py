@@ -223,6 +223,7 @@ class TIRequeuePayload(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
+    state: Annotated[Literal["up_for_reschedule"] | None, Field(title="State")] = "up_for_reschedule"
     reason: Annotated[str | None, Field(title="Reason")] = None
     delay_secs: Annotated[float | None, Field(title="Delay Secs")] = None
     max_attempts: Annotated[int | None, Field(title="Max Attempts")] = None

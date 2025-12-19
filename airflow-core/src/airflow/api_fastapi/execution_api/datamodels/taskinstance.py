@@ -187,6 +187,17 @@ class TIRetryStatePayload(StrictBaseModel):
 class TIRequeuePayload(StrictBaseModel):
     """Schema for re-queuing TaskInstance."""
 
+    state: Annotated[
+        Literal[IntermediateTIState.UP_FOR_RESCHEDULE],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.UP_FOR_RESCHEDULE],
+                "default": IntermediateTIState.UP_FOR_RESCHEDULE,
+            }
+        ),
+    ]
     reason: str | None = None
     delay_secs: float | None = None
     max_attempts: int | None = None
