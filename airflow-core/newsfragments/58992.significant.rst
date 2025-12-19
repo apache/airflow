@@ -3,7 +3,7 @@ Move serialization/deserialization (serde) logic into Task SDK
 Airflow now sources serde logic from ``airflow.sdk.serde`` instead of
 ``airflow.serialization.serde``. Serializer modules have moved from ``airflow.serialization.serializers.*``
 to ``airflow.sdk.serde.serializers.*``. The old import paths still work but emit ``DeprecatedImportWarning``
-to guide migration.
+to guide migration. The backward compatibility layer will be removed in Airflow 4.
 
 **What changed:**
 
