@@ -254,15 +254,49 @@ class HBaseHook(BaseHook):
         
         if ssh_conn_id:
             # Use SSH to execute command on remote server
-            from airflow.providers.ssh.hooks.ssh import SSHHook
-            ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
-            self.log.info("Executing via SSH: %s", full_command)
-            result = ssh_hook.exec_ssh_client_command(full_command)
-            if result[2] != 0:  # exit_status != 0
-                self.log.error("SSH command failed with exit code %d: %s", result[2], result[1])
-                raise RuntimeError(f"SSH command failed: {result[1]}")
-            return result[0]  # stdout
-        else:
+            try:
+                from airflow.providers.ssh.hooks.ssh import SSHHook
+            except (AttributeError, ImportError) as e:
+                if "DSSKey" in str(e) or "paramiko" in str(e):
+                    self.log.warning("SSH provider has compatibility issues with current paramiko version. Using local execution.")
+                    ssh_conn_id = None
+                else:
+                    raise
+            
+            if ssh_conn_id:  # If SSH is still available after import check
+                ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
+                
+                # Get hbase_home and java_home from SSH connection extra
+                ssh_conn = ssh_hook.get_connection(ssh_conn_id)
+                hbase_home = None
+                java_home = None
+                environment = {}
+                if ssh_conn.extra_dejson:
+                    hbase_home = ssh_conn.extra_dejson.get('hbase_home')
+                    java_home = ssh_conn.extra_dejson.get('java_home')
+                
+                # Use full path if hbase_home is provided
+                if hbase_home:
+                    full_command = full_command.replace('hbase ', f'{hbase_home}/bin/hbase ')
+                
+                # Set JAVA_HOME if provided - add it to the command
+                if java_home:
+                    full_command = f'JAVA_HOME={java_home} {full_command}'
+                
+                self.log.info("Executing via SSH: %s", full_command)
+                with ssh_hook.get_conn() as ssh_client:
+                    exit_status, stdout, stderr = ssh_hook.exec_ssh_client_command(
+                        ssh_client=ssh_client,
+                        command=full_command,
+                        get_pty=False,
+                        environment=None
+                    )
+                    if exit_status != 0:
+                        self.log.error("SSH command failed with exit code %d: %s", exit_status, stderr.decode())
+                        raise RuntimeError(f"SSH command failed: {stderr.decode()}")
+                    return stdout.decode()
+        
+        if not ssh_conn_id:
             # Execute locally
             try:
                 result = subprocess.run(

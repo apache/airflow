@@ -603,7 +603,7 @@ def get_provider_requirement(provider_spec: str) -> str:
 PREINSTALLED_PROVIDER_REQUIREMENTS = [
     get_provider_requirement(provider_spec)
     for provider_spec in PRE_INSTALLED_PROVIDERS
-    if PROVIDER_DEPENDENCIES[get_provider_id(provider_spec)]["state"] == "ready"
+    if get_provider_id(provider_spec) in PROVIDER_DEPENDENCIES and PROVIDER_DEPENDENCIES[get_provider_id(provider_spec)]["state"] == "ready"
 ]
 
 # Here we keep all pre-installed provider dependencies, so that we can add them as requirements in
@@ -621,6 +621,9 @@ PREINSTALLED_NOT_READY_PROVIDER_DEPS: list[str] = []
 
 for provider_spec in PRE_INSTALLED_PROVIDERS:
     provider_id = get_provider_id(provider_spec)
+    # Skip standard provider if it doesn't exist in PROVIDER_DEPENDENCIES
+    if provider_id not in PROVIDER_DEPENDENCIES:
+        continue
     for dependency in PROVIDER_DEPENDENCIES[provider_id]["deps"]:
         if (
             dependency.startswith("apache-airflow-providers")
@@ -888,6 +891,9 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         """
         for dependency_id in PROVIDER_DEPENDENCIES.keys():
             if PROVIDER_DEPENDENCIES[dependency_id]["state"] != "ready":
+                continue
+            # Skip standard provider as it doesn't exist
+            if dependency_id == "standard":
                 continue
             excluded_python_versions = PROVIDER_DEPENDENCIES[dependency_id].get("excluded-python-versions")
             if version != "standard" and skip_for_editable_build(excluded_python_versions):

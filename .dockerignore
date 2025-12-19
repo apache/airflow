@@ -116,6 +116,9 @@ airflow/www/static/docs
 **/.DS_Store
 **/Thumbs.db
 
+# Exclude non-existent standard provider to prevent entry point issues
+airflow/providers/standard
+
 # Exclude docs generated files
 docs/_build/
 docs/_api/

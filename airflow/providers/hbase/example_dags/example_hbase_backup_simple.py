@@ -28,12 +28,18 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import os
+
 from airflow import DAG
 from airflow.providers.hbase.operators.hbase import (
     HBaseBackupHistoryOperator,
     HBaseBackupSetOperator,
     HBaseCreateBackupOperator,
 )
+
+# Configuration via environment variables
+HBASE_SSH_CONN_ID = os.getenv("HBASE_SSH_CONNECTION_ID", "hbase_ssh")
+HBASE_THRIFT_CONN_ID = os.getenv("HBASE_THRIFT_CONNECTION_ID", "hbase_thrift")
 
 default_args = {
     "owner": "airflow",
@@ -60,6 +66,7 @@ create_backup_set = HBaseBackupSetOperator(
     action="add",
     backup_set_name="test_backup_set",
     tables=["test_table"],
+    ssh_conn_id=HBASE_SSH_CONN_ID,
     dag=dag,
 )
 
@@ -67,6 +74,7 @@ create_backup_set = HBaseBackupSetOperator(
 list_backup_sets = HBaseBackupSetOperator(
     task_id="list_backup_sets",
     action="list",
+    ssh_conn_id=HBASE_SSH_CONN_ID,
     dag=dag,
 )
 
@@ -77,6 +85,7 @@ create_full_backup = HBaseCreateBackupOperator(
     backup_path="/tmp/hbase-backup",
     backup_set_name="test_backup_set",
     workers=1,
+    ssh_conn_id=HBASE_SSH_CONN_ID,
     dag=dag,
 )
 
@@ -84,6 +93,7 @@ create_full_backup = HBaseCreateBackupOperator(
 get_backup_history = HBaseBackupHistoryOperator(
     task_id="get_backup_history",
     backup_set_name="test_backup_set",
+    ssh_conn_id=HBASE_SSH_CONN_ID,
     dag=dag,
 )
 
