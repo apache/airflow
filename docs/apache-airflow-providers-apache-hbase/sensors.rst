@@ -36,10 +36,17 @@ The :class:`~airflow.providers.apache.hbase.sensors.hbase.HBaseTableSensor` sens
 
 Use the ``table_name`` parameter to specify the table to monitor.
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase.py
-    :language: python
-    :start-after: [START howto_sensor_hbase_table]
-    :end-before: [END howto_sensor_hbase_table]
+.. code-block:: python
+
+    from airflow.providers.hbase.sensors.hbase import HBaseTableSensor
+
+    wait_for_table = HBaseTableSensor(
+        task_id="wait_for_table",
+        table_name="my_table",
+        hbase_conn_id="hbase_default",
+        timeout=300,
+        poke_interval=30,
+    )
 
 .. _howto/sensor:HBaseRowSensor:
 
@@ -50,10 +57,18 @@ The :class:`~airflow.providers.apache.hbase.sensors.hbase.HBaseRowSensor` sensor
 
 Use the ``table_name`` parameter to specify the table and ``row_key`` parameter to specify the row to monitor.
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase.py
-    :language: python
-    :start-after: [START howto_sensor_hbase_row]
-    :end-before: [END howto_sensor_hbase_row]
+.. code-block:: python
+
+    from airflow.providers.hbase.sensors.hbase import HBaseRowSensor
+
+    wait_for_row = HBaseRowSensor(
+        task_id="wait_for_row",
+        table_name="my_table",
+        row_key="row_123",
+        hbase_conn_id="hbase_default",
+        timeout=600,
+        poke_interval=60,
+    )
 
 .. _howto/sensor:HBaseRowCountSensor:
 
@@ -64,10 +79,29 @@ The :class:`~airflow.providers.apache.hbase.sensors.hbase.HBaseRowCountSensor` s
 
 Use the ``table_name`` parameter to specify the table, ``expected_count`` for the threshold, and ``comparison`` to specify the comparison operator ('>=', '>', '==', '<', '<=').
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_advanced.py
-    :language: python
-    :start-after: [START howto_sensor_hbase_row_count]
-    :end-before: [END howto_sensor_hbase_row_count]
+.. code-block:: python
+
+    from airflow.providers.hbase.sensors.hbase import HBaseRowCountSensor
+
+    # Wait for at least 1000 rows
+    wait_for_rows = HBaseRowCountSensor(
+        task_id="wait_for_rows",
+        table_name="my_table",
+        expected_count=1000,
+        comparison=">=",
+        hbase_conn_id="hbase_default",
+        timeout=1800,
+        poke_interval=120,
+    )
+
+    # Wait for exactly 500 rows
+    wait_exact_count = HBaseRowCountSensor(
+        task_id="wait_exact_count",
+        table_name="my_table",
+        expected_count=500,
+        comparison="==",
+        hbase_conn_id="hbase_default",
+    )
 
 .. _howto/sensor:HBaseColumnValueSensor:
 
@@ -78,10 +112,31 @@ The :class:`~airflow.providers.apache.hbase.sensors.hbase.HBaseColumnValueSensor
 
 Use the ``table_name`` parameter to specify the table, ``row_key`` for the row, ``column`` for the column to check, and ``expected_value`` for the value to match.
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_advanced.py
-    :language: python
-    :start-after: [START howto_sensor_hbase_column_value]
-    :end-before: [END howto_sensor_hbase_column_value]
+.. code-block:: python
+
+    from airflow.providers.hbase.sensors.hbase import HBaseColumnValueSensor
+
+    # Wait for a specific status value
+    wait_for_status = HBaseColumnValueSensor(
+        task_id="wait_for_status",
+        table_name="my_table",
+        row_key="process_123",
+        column="cf1:status",
+        expected_value="completed",
+        hbase_conn_id="hbase_default",
+        timeout=900,
+        poke_interval=30,
+    )
+
+    # Wait for a numeric value
+    wait_for_score = HBaseColumnValueSensor(
+        task_id="wait_for_score",
+        table_name="scores",
+        row_key="user_456",
+        column="cf1:score",
+        expected_value="100",
+        hbase_conn_id="hbase_default",
+    )
 
 Reference
 ^^^^^^^^^

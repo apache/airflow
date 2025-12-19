@@ -247,3 +247,216 @@ class HBaseBatchGetOperator(BaseOperator):
                 row_dict[col_str] = val_str
             serializable_results.append(row_dict)
         return serializable_results
+
+
+class HBaseBackupSetOperator(BaseOperator):
+    """
+    Operator to manage HBase backup sets.
+    
+    :param action: Action to perform (add, list, describe, delete).
+    :param backup_set_name: Name of the backup set.
+    :param tables: List of tables to add to backup set (for 'add' action).
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    :param ssh_conn_id: SSH connection ID for remote execution.
+    """
+
+    template_fields: Sequence[str] = ("backup_set_name", "tables")
+
+    def __init__(
+        self,
+        action: str,
+        backup_set_name: str | None = None,
+        tables: list[str] | None = None,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.action = action
+        self.backup_set_name = backup_set_name
+        self.tables = tables or []
+        self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
+
+    def execute(self, context: Context) -> str:
+        """Execute the operator."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        
+        if self.action == "add":
+            if not self.backup_set_name or not self.tables:
+                raise ValueError("backup_set_name and tables are required for 'add' action")
+            tables_str = " ".join(self.tables)
+            command = f"backup set add {self.backup_set_name} {tables_str}"
+        elif self.action == "list":
+            command = "backup set list"
+        elif self.action == "describe":
+            if not self.backup_set_name:
+                raise ValueError("backup_set_name is required for 'describe' action")
+            command = f"backup set describe {self.backup_set_name}"
+        elif self.action == "delete":
+            if not self.backup_set_name:
+                raise ValueError("backup_set_name is required for 'delete' action")
+            command = f"backup set delete {self.backup_set_name}"
+        else:
+            raise ValueError(f"Unsupported action: {self.action}")
+        
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+
+
+class HBaseCreateBackupOperator(BaseOperator):
+    """
+    Operator to create HBase backup.
+    
+    :param backup_type: Type of backup ('full' or 'incremental').
+    :param backup_path: HDFS path where backup will be stored.
+    :param backup_set_name: Name of the backup set to backup.
+    :param tables: List of tables to backup (alternative to backup_set_name).
+    :param workers: Number of workers for backup operation.
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    :param ssh_conn_id: SSH connection ID for remote execution.
+    """
+
+    template_fields: Sequence[str] = ("backup_path", "backup_set_name", "tables")
+
+    def __init__(
+        self,
+        backup_type: str,
+        backup_path: str,
+        backup_set_name: str | None = None,
+        tables: list[str] | None = None,
+        workers: int = 3,
+        ignore_checksum: bool = False,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.backup_type = backup_type
+        self.backup_path = backup_path
+        self.backup_set_name = backup_set_name
+        self.tables = tables
+        self.workers = workers
+        self.ignore_checksum = ignore_checksum
+        self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
+
+    def execute(self, context: Context) -> str:
+        """Execute the operator."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        
+        if self.backup_type not in ["full", "incremental"]:
+            raise ValueError("backup_type must be 'full' or 'incremental'")
+        
+        command = f"backup create {self.backup_type} {self.backup_path}"
+        
+        if self.backup_set_name:
+            command += f" -s {self.backup_set_name}"
+        elif self.tables:
+            tables_str = ",".join(self.tables)
+            command += f" -t {tables_str}"
+        else:
+            raise ValueError("Either backup_set_name or tables must be specified")
+        
+        command += f" -w {self.workers}"
+        
+        if self.ignore_checksum:
+            command += " -i"
+        
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+
+
+class HBaseRestoreOperator(BaseOperator):
+    """
+    Operator to restore HBase backup.
+    
+    :param backup_path: HDFS path where backup is stored.
+    :param backup_id: ID of the backup to restore.
+    :param backup_set_name: Name of the backup set to restore.
+    :param tables: List of tables to restore (alternative to backup_set_name).
+    :param overwrite: Whether to overwrite existing tables.
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    """
+
+    template_fields: Sequence[str] = ("backup_path", "backup_id", "backup_set_name", "tables")
+
+    def __init__(
+        self,
+        backup_path: str,
+        backup_id: str,
+        backup_set_name: str | None = None,
+        tables: list[str] | None = None,
+        overwrite: bool = False,
+        ignore_checksum: bool = False,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.backup_path = backup_path
+        self.backup_id = backup_id
+        self.backup_set_name = backup_set_name
+        self.tables = tables
+        self.overwrite = overwrite
+        self.ignore_checksum = ignore_checksum
+        self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
+
+    def execute(self, context: Context) -> str:
+        """Execute the operator."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        
+        command = f"restore {self.backup_path} {self.backup_id}"
+        
+        if self.backup_set_name:
+            command += f" -s {self.backup_set_name}"
+        elif self.tables:
+            tables_str = ",".join(self.tables)
+            command += f" -t {tables_str}"
+        
+        if self.overwrite:
+            command += " -o"
+        
+        if self.ignore_checksum:
+            command += " -i"
+        
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+
+
+class HBaseBackupHistoryOperator(BaseOperator):
+    """
+    Operator to get HBase backup history.
+    
+    :param backup_set_name: Name of the backup set to get history for.
+    :param backup_path: HDFS path to get history for.
+    :param hbase_conn_id: The connection ID to use for HBase connection.
+    """
+
+    template_fields: Sequence[str] = ("backup_set_name", "backup_path")
+
+    def __init__(
+        self,
+        backup_set_name: str | None = None,
+        backup_path: str | None = None,
+        hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.backup_set_name = backup_set_name
+        self.backup_path = backup_path
+        self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
+
+    def execute(self, context: Context) -> str:
+        """Execute the operator."""
+        hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
+        
+        command = "backup history"
+        
+        if self.backup_set_name:
+            command += f" -s {self.backup_set_name}"
+        
+        if self.backup_path:
+            command += f" -p {self.backup_path}"
+        
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)

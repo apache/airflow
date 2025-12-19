@@ -64,6 +64,7 @@ dag = DAG(
 )
 
 # Create table
+# Note: "hbase_thrift" is the Connection ID configured in Airflow UI (Admin -> Connections)
 create_table = HBaseCreateTableOperator(
     task_id="create_table",
     table_name="advanced_test_table",
@@ -71,6 +72,7 @@ create_table = HBaseCreateTableOperator(
         "cf1": {"max_versions": 3},
         "cf2": {},
     },
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     outlets=[test_table_dataset],
     dag=dag,
 )
@@ -79,6 +81,7 @@ create_table = HBaseCreateTableOperator(
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
     table_name="advanced_test_table",
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -108,6 +111,7 @@ batch_put = HBaseBatchPutOperator(
             "cf2:status": "inactive",
         },
     ],
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     outlets=[test_table_dataset],
     dag=dag,
 )
@@ -118,6 +122,7 @@ check_row_count = HBaseRowCountSensor(
     task_id="check_row_count",
     table_name="advanced_test_table",
     min_row_count=3,
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -130,6 +135,7 @@ scan_table = HBaseScanOperator(
     table_name="advanced_test_table",
     columns=["cf1:name", "cf2:status"],
     limit=10,
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
 # [END howto_operator_hbase_scan]
@@ -140,6 +146,7 @@ batch_get = HBaseBatchGetOperator(
     table_name="advanced_test_table",
     row_keys=["user1", "user2"],
     columns=["cf1:name", "cf1:age"],
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
 # [END howto_operator_hbase_batch_get]
@@ -151,6 +158,7 @@ check_column_value = HBaseColumnValueSensor(
     row_key="user1",
     column="cf2:status",
     expected_value="active",
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -161,6 +169,7 @@ check_column_value = HBaseColumnValueSensor(
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="advanced_test_table",
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
 

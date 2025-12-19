@@ -30,6 +30,8 @@ versions:
 dependencies:
   - apache-airflow>=2.7.0
   - happybase>=1.2.0
+  - apache-airflow-providers-ssh
+  - paramiko>=3.5.0
 
 integrations:
   - integration-name: HBase
@@ -57,3 +59,5 @@ connection-types:
 
 example-dags:
   - airflow.providers.hbase.example_dags.example_hbase
+  - airflow.providers.hbase.example_dags.example_hbase_advanced
+  - airflow.providers.hbase.example_dags.example_hbase_backup_simple

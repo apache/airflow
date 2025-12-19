@@ -21,6 +21,9 @@ services:
     tty: true  # docker run -t
     environment:
       - AIRFLOW__CORE__PLUGINS_FOLDER=/files/plugins
+      - HBASE_SSH_CONNECTION_ID=hbase_ssh
+      - HBASE_THRIFT_CONNECTION_ID=hbase_thrift
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW__CORE__FERNET_KEY}
     # We need to mount files and directories individually because some files
     # such apache_airflow.egg-info should not be mounted from host
     # we only mount those files, so that it makes sense to edit while developing

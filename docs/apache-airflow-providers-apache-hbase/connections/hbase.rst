@@ -29,6 +29,12 @@ HBase hook and HBase operators use ``hbase_default`` by default.
 
 Configuring the Connection
 --------------------------
+
+HBase Thrift Connection
+^^^^^^^^^^^^^^^^^^^^^^^
+
+For basic HBase operations (table management, data operations), configure the Thrift server connection:
+
 Host (required)
     The host to connect to HBase Thrift server.
 
@@ -46,6 +52,34 @@ Extra (optional)
     * ``compat`` - Compatibility mode for older HBase versions. Default is '0.98'.
     * ``transport`` - Transport type ('buffered', 'framed'). Default is 'buffered'.
     * ``protocol`` - Protocol type ('binary', 'compact'). Default is 'binary'.
+
+SSH Connection for Backup Operations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For backup and restore operations that require HBase shell commands, you may need to configure an SSH connection.
+Create a separate SSH connection with the following parameters:
+
+Connection Type
+    SSH
+
+Host (required)
+    The hostname of the HBase cluster node where HBase shell commands can be executed.
+
+Username (required)
+    SSH username for authentication.
+
+Password/Private Key
+    SSH password or private key for authentication.
+
+Extra (required for backup operations)
+    Additional SSH and HBase-specific parameters. For backup operations, ``hbase_home`` and ``java_home`` are typically required:
+
+    * ``hbase_home`` - **Required** Path to HBase installation directory (e.g., "/opt/hbase", "/usr/local/hbase").
+    * ``java_home`` - **Required** Path to Java installation directory (e.g., "/usr/lib/jvm/java-8-openjdk", "/opt/java").
+    * ``timeout`` - SSH connection timeout in seconds.
+    * ``compress`` - Enable SSH compression (true/false).
+    * ``no_host_key_check`` - Skip host key verification (true/false).
+    * ``allow_host_key_change`` - Allow host key changes (true/false).
 
 Examples for the **Extra** field
 --------------------------------
@@ -77,6 +111,50 @@ Examples for the **Extra** field
       "compat": "0.96",
       "autoconnect": false
     }
+
+SSH Connection Examples
+^^^^^^^^^^^^^^^^^^^^^^^
+
+1. SSH connection with HBase and Java paths
+
+.. code-block:: json
+
+    {
+      "hbase_home": "/opt/hbase",
+      "java_home": "/usr/lib/jvm/java-8-openjdk",
+      "timeout": 30
+    }
+
+2. SSH connection with compression and host key settings
+
+.. code-block:: json
+
+    {
+      "compress": true,
+      "no_host_key_check": true,
+      "hbase_home": "/usr/local/hbase"
+    }
+
+Using SSH Connection in Operators
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When using backup operators, specify the SSH connection ID:
+
+.. code-block:: python
+
+    from airflow.providers.hbase.operators.hbase import HBaseCreateBackupOperator
+
+    backup_task = HBaseCreateBackupOperator(
+        task_id="create_backup",
+        backup_type="full",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        backup_set_name="my_backup_set",
+        hbase_conn_id="hbase_default",  # HBase Thrift connection
+        ssh_conn_id="hbase_ssh",        # SSH connection for shell commands
+    )
+
+.. note::
+    For backup and restore operations to work correctly, the SSH connection **must** include ``hbase_home`` and ``java_home`` in the Extra field. These parameters allow the hook to locate the HBase binaries and set the correct Java environment on the remote server.
 
 .. seealso::
     https://pypi.org/project/happybase/

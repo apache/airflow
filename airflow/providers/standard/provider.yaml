@@ -1,0 +1,10 @@
+---
+package-name: apache-airflow-providers-standard
+name: Standard
+description: Empty standard provider
+state: ready
+source-date-epoch: 1734000000
+versions:
+  - 0.0.1
+dependencies:
+  - apache-airflow>=2.7.0
