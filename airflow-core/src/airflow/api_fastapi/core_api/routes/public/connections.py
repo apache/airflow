@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from typing import Annotated
 
@@ -24,6 +25,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import merge
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryConnectionIdPatternSearch,
@@ -214,6 +216,7 @@ def patch_connection(
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(
     test_body: ConnectionBody,
+    session: SessionDep,
 ) -> ConnectionTestResponse:
     """
     Test an API connection.
@@ -234,6 +237,21 @@ def test_connection(
     try:
         data = test_body.model_dump(by_alias=True)
         data["conn_id"] = transient_conn_id
+
+        existing_conn = session.scalar(
+            select(Connection).where(Connection.conn_id == test_body.connection_id).limit(1)
+        )
+        if existing_conn:
+            if data.get("password") is not None and existing_conn.password is not None:
+                data["password"] = merge(data["password"], existing_conn.password, "password")
+            if data.get("extra") is not None and existing_conn.extra is not None:
+                try:
+                    merged_extra = merge(json.loads(data["extra"]), json.loads(existing_conn.extra))
+                    data["extra"] = json.dumps(merged_extra)
+                except json.JSONDecodeError:
+                    # Can't merge unstructured extra, keep the submitted value
+                    pass
+
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
         test_status, test_message = conn.test_connection()
