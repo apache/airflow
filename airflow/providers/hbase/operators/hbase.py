@@ -386,6 +386,7 @@ class HBaseRestoreOperator(BaseOperator):
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
         overwrite: bool = False,
+        ignore_checksum: bool = False,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         ssh_conn_id: str | None = None,
         **kwargs,
@@ -396,6 +397,7 @@ class HBaseRestoreOperator(BaseOperator):
         self.backup_set_name = backup_set_name
         self.tables = tables
         self.overwrite = overwrite
+        self.ignore_checksum = ignore_checksum
         self.hbase_conn_id = hbase_conn_id
         self.ssh_conn_id = ssh_conn_id
 
@@ -413,6 +415,9 @@ class HBaseRestoreOperator(BaseOperator):
         
         if self.overwrite:
             command += " -o"
+        
+        if self.ignore_checksum:
+            command += " -i"
         
         return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
 

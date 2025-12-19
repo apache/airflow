@@ -313,6 +313,207 @@ class HBaseHook(BaseHook):
                 self.log.error("Command failed with return code %d: %s", e.returncode, e.stderr)
                 raise
 
+    def create_backup_set(self, backup_set_name: str, tables: list[str], ssh_conn_id: str | None = None) -> str:
+        """
+        Create HBase backup set.
+        
+        :param backup_set_name: Name of the backup set.
+        :param tables: List of tables to include in the backup set.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        tables_str = ",".join(tables)
+        command = f"backup set add {backup_set_name} {tables_str}"
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def list_backup_sets(self, ssh_conn_id: str | None = None) -> str:
+        """
+        List all HBase backup sets.
+        
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output with list of backup sets.
+        """
+        command = "backup set list"
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def delete_backup_set(self, backup_set_name: str, ssh_conn_id: str | None = None) -> str:
+        """
+        Delete HBase backup set.
+        
+        :param backup_set_name: Name of the backup set to delete.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        command = f"backup set remove {backup_set_name}"
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def create_full_backup(
+        self,
+        backup_path: str,
+        tables: list[str] | None = None,
+        backup_set_name: str | None = None,
+        workers: int | None = None,
+        bandwidth: int | None = None,
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Create full HBase backup.
+        
+        :param backup_path: Path where backup will be stored.
+        :param tables: List of tables to backup (mutually exclusive with backup_set_name).
+        :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
+        :param workers: Number of parallel workers.
+        :param bandwidth: Bandwidth limit per worker in MB/s.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        command_parts = ["backup create full", backup_path]
+        
+        if tables:
+            command_parts.append("-t")
+            command_parts.append(",".join(tables))
+        elif backup_set_name:
+            command_parts.append("-s")
+            command_parts.append(backup_set_name)
+        
+        if workers:
+            command_parts.extend(["-w", str(workers)])
+        if bandwidth:
+            command_parts.extend(["-b", str(bandwidth)])
+        
+        command = " ".join(command_parts)
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def create_incremental_backup(
+        self,
+        backup_path: str,
+        tables: list[str] | None = None,
+        backup_set_name: str | None = None,
+        workers: int | None = None,
+        bandwidth: int | None = None,
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Create incremental HBase backup.
+        
+        :param backup_path: Path where backup will be stored.
+        :param tables: List of tables to backup (mutually exclusive with backup_set_name).
+        :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
+        :param workers: Number of parallel workers.
+        :param bandwidth: Bandwidth limit per worker in MB/s.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        command_parts = ["backup create incremental", backup_path]
+        
+        if tables:
+            command_parts.append("-t")
+            command_parts.append(",".join(tables))
+        elif backup_set_name:
+            command_parts.append("-s")
+            command_parts.append(backup_set_name)
+        
+        if workers:
+            command_parts.extend(["-w", str(workers)])
+        if bandwidth:
+            command_parts.extend(["-b", str(bandwidth)])
+        
+        command = " ".join(command_parts)
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def get_backup_history(
+        self,
+        backup_path: str | None = None,
+        backup_set_name: str | None = None,
+        num_records: int | None = None,
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Get HBase backup history.
+        
+        :param backup_path: Path to backup location.
+        :param backup_set_name: Name of backup set.
+        :param num_records: Number of records to return.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output with backup history.
+        """
+        command_parts = ["backup history"]
+        
+        if backup_path:
+            command_parts.append(backup_path)
+        if backup_set_name:
+            command_parts.extend(["-s", backup_set_name])
+        if num_records:
+            command_parts.extend(["-n", str(num_records)])
+        
+        command = " ".join(command_parts)
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def restore_backup(
+        self,
+        backup_path: str,
+        backup_id: str,
+        tables: list[str] | None = None,
+        overwrite: bool = False,
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Restore HBase backup.
+        
+        :param backup_path: Path where backup is stored.
+        :param backup_id: Backup ID to restore.
+        :param tables: List of tables to restore (optional).
+        :param overwrite: Whether to overwrite existing tables.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        command_parts = ["restore", backup_path, backup_id]
+        
+        if tables:
+            command_parts.append("-t")
+            command_parts.append(",".join(tables))
+        if overwrite:
+            command_parts.append("-o")
+        
+        command = " ".join(command_parts)
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def delete_backup(
+        self,
+        backup_path: str,
+        backup_ids: list[str],
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Delete HBase backup.
+        
+        :param backup_path: Path where backup is stored.
+        :param backup_ids: List of backup IDs to delete.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        backup_ids_str = ",".join(backup_ids)
+        command = f"backup delete {backup_path} {backup_ids_str}"
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
+    def merge_backups(
+        self,
+        backup_path: str,
+        backup_ids: list[str],
+        ssh_conn_id: str | None = None,
+    ) -> str:
+        """
+        Merge HBase backups.
+        
+        :param backup_path: Path where backups are stored.
+        :param backup_ids: List of backup IDs to merge.
+        :param ssh_conn_id: SSH connection ID for remote execution.
+        :return: Command output.
+        """
+        backup_ids_str = ",".join(backup_ids)
+        command = f"backup merge {backup_path} {backup_ids_str}"
+        return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
+
     def close(self) -> None:
         """Close HBase connection."""
         if self._connection:
