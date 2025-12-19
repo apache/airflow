@@ -116,61 +116,124 @@ Backup and Restore Operations
 
 HBase provides built-in backup and restore functionality for data protection and disaster recovery.
 
-.. _howto/operator:HBaseCreateBackupSetOperator:
+.. _howto/operator:HBaseBackupSetOperator:
 
-Creating Backup Sets
+Managing Backup Sets
 """"""""""""""""""""
 
-The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseCreateBackupSetOperator` operator is used to create a backup set containing one or more tables.
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseBackupSetOperator` operator is used to manage backup sets containing one or more tables.
 
-Use the ``backup_set_name`` parameter to specify the backup set name and ``tables`` parameter to list the tables to include.
+Supported actions:
+- ``add``: Create a new backup set with specified tables
+- ``list``: List all existing backup sets
+- ``describe``: Get details about a specific backup set
+- ``delete``: Remove a backup set
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
-    :language: python
-    :start-after: [START howto_operator_hbase_create_backup_set]
-    :end-before: [END howto_operator_hbase_create_backup_set]
+Use the ``action`` parameter to specify the operation, ``backup_set_name`` for the backup set name, and ``tables`` parameter to list the tables (for 'add' action).
 
-.. _howto/operator:HBaseFullBackupOperator:
+.. code-block:: python
 
-Full Backup
-"""""""""""
+    # Create a backup set
+    create_backup_set = HBaseBackupSetOperator(
+        task_id="create_backup_set",
+        action="add",
+        backup_set_name="my_backup_set",
+        tables=["table1", "table2"],
+        hbase_conn_id="hbase_default",
+    )
 
-The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseFullBackupOperator` operator is used to create a full backup of tables in a backup set.
+    # List backup sets
+    list_backup_sets = HBaseBackupSetOperator(
+        task_id="list_backup_sets",
+        action="list",
+        hbase_conn_id="hbase_default",
+    )
 
-Use the ``backup_path`` parameter to specify the HDFS path for backup storage, ``backup_set_name`` for the backup set, and optionally ``workers`` to control parallelism.
+.. _howto/operator:HBaseCreateBackupOperator:
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
-    :language: python
-    :start-after: [START howto_operator_hbase_full_backup]
-    :end-before: [END howto_operator_hbase_full_backup]
+Creating Backups
+""""""""""""""""
 
-.. _howto/operator:HBaseIncrementalBackupOperator:
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseCreateBackupOperator` operator is used to create full or incremental backups of HBase tables.
 
-Incremental Backup
-""""""""""""""""""
+Use the ``backup_type`` parameter to specify 'full' or 'incremental', ``backup_path`` for the HDFS storage location, and either ``backup_set_name`` or ``tables`` to specify what to backup.
 
-The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseIncrementalBackupOperator` operator is used to create an incremental backup that captures changes since the last backup.
+.. code-block:: python
 
-Use the same parameters as the full backup operator. Incremental backups are faster and require less storage space.
+    # Full backup using backup set
+    full_backup = HBaseCreateBackupOperator(
+        task_id="full_backup",
+        backup_type="full",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        backup_set_name="my_backup_set",
+        workers=4,
+        hbase_conn_id="hbase_default",
+    )
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
-    :language: python
-    :start-after: [START howto_operator_hbase_incremental_backup]
-    :end-before: [END howto_operator_hbase_incremental_backup]
+    # Incremental backup with specific tables
+    incremental_backup = HBaseCreateBackupOperator(
+        task_id="incremental_backup",
+        backup_type="incremental",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        tables=["table1", "table2"],
+        workers=2,
+        hbase_conn_id="hbase_default",
+    )
 
 .. _howto/operator:HBaseRestoreOperator:
 
-Restore from Backup
-"""""""""""""""""""
+Restoring from Backup
+"""""""""""""""""""""
 
 The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseRestoreOperator` operator is used to restore tables from a backup to a specific point in time.
 
-Use the ``backup_path`` parameter for the backup location, ``backup_id`` for the specific backup to restore, and ``backup_set_name`` for the backup set.
+Use the ``backup_path`` parameter for the backup location, ``backup_id`` for the specific backup to restore, and either ``backup_set_name`` or ``tables`` to specify what to restore.
 
-.. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_backup.py
-    :language: python
-    :start-after: [START howto_operator_hbase_restore]
-    :end-before: [END howto_operator_hbase_restore]
+.. code-block:: python
+
+    # Restore from backup set
+    restore_backup = HBaseRestoreOperator(
+        task_id="restore_backup",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        backup_id="backup_1234567890123",
+        backup_set_name="my_backup_set",
+        overwrite=True,
+        hbase_conn_id="hbase_default",
+    )
+
+    # Restore specific tables
+    restore_tables = HBaseRestoreOperator(
+        task_id="restore_tables",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        backup_id="backup_1234567890123",
+        tables=["table1", "table2"],
+        hbase_conn_id="hbase_default",
+    )
+
+.. _howto/operator:HBaseBackupHistoryOperator:
+
+Viewing Backup History
+""""""""""""""""""""""
+
+The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseBackupHistoryOperator` operator is used to retrieve backup history information.
+
+Use the ``backup_set_name`` parameter to get history for a specific backup set, or ``backup_path`` to get history for a backup location.
+
+.. code-block:: python
+
+    # Get backup history for a backup set
+    backup_history = HBaseBackupHistoryOperator(
+        task_id="backup_history",
+        backup_set_name="my_backup_set",
+        hbase_conn_id="hbase_default",
+    )
+
+    # Get backup history for a path
+    path_history = HBaseBackupHistoryOperator(
+        task_id="path_history",
+        backup_path="hdfs://namenode:9000/hbase/backup",
+        hbase_conn_id="hbase_default",
+    )
 
 Reference
 ^^^^^^^^^

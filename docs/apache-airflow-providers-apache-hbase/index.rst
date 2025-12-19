@@ -72,8 +72,16 @@
 apache-airflow-providers-apache-hbase package
 ----------------------------------------------
 
-`Apache HBase <https://hbase.apache.org/>`__.
+`Apache HBase <https://hbase.apache.org/>`__ is a distributed, scalable, big data store built on Apache Hadoop.
+It provides random, real-time read/write access to your big data and is designed to host very large tables
+with billions of rows and millions of columns.
 
+This provider package contains operators, hooks, and sensors for interacting with HBase, including:
+
+- **Table Operations**: Create, delete, and manage HBase tables
+- **Data Operations**: Insert, retrieve, scan, and batch operations on table data
+- **Backup & Restore**: Full and incremental backup operations with restore capabilities
+- **Monitoring**: Sensors for table existence, row counts, and column values
 
 Release: 1.0.0
 
@@ -101,6 +109,25 @@ Or install the dependency directly:
 
     pip install happybase>=1.2.0
 
+For backup and restore operations, you'll also need access to HBase shell commands on your system or via SSH.
+
+Configuration
+-------------
+
+To use this provider, you need to configure an HBase connection in Airflow.
+The connection should include:
+
+- **Host**: HBase Thrift server hostname
+- **Port**: HBase Thrift server port (default: 9090)
+- **Extra**: Additional connection parameters in JSON format
+
+For backup operations that require SSH access, configure an SSH connection with:
+
+- **Host**: HBase cluster node hostname
+- **Username**: SSH username
+- **Password/Key**: SSH authentication credentials
+- **Extra**: Optional ``hbase_home`` and ``java_home`` paths
+
 Requirements
 ------------
 
@@ -112,3 +139,30 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.7.0``
 ``happybase``       ``>=1.2.0``
 ==================  ==================
+
+Features
+--------
+
+**Operators**
+
+- ``HBaseCreateTableOperator`` - Create HBase tables with column families
+- ``HBaseDeleteTableOperator`` - Delete HBase tables
+- ``HBasePutOperator`` - Insert single rows into tables
+- ``HBaseBatchPutOperator`` - Insert multiple rows in batch
+- ``HBaseBatchGetOperator`` - Retrieve multiple rows in batch
+- ``HBaseScanOperator`` - Scan tables with filtering options
+- ``HBaseBackupSetOperator`` - Manage backup sets (add, list, describe, delete)
+- ``HBaseCreateBackupOperator`` - Create full or incremental backups
+- ``HBaseRestoreOperator`` - Restore tables from backups
+- ``HBaseBackupHistoryOperator`` - View backup history
+
+**Sensors**
+
+- ``HBaseTableSensor`` - Monitor table existence
+- ``HBaseRowSensor`` - Monitor row existence
+- ``HBaseRowCountSensor`` - Monitor row count thresholds
+- ``HBaseColumnValueSensor`` - Monitor specific column values
+
+**Hooks**
+
+- ``HBaseHook`` - Core hook for HBase operations via Thrift API and shell commands
