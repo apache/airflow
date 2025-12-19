@@ -1353,11 +1353,34 @@ class TestTIUpdateState:
         assert ti.next_kwargs is None
         assert ti.duration == 3600.00
 
-    def test_ti_update_state_not_running(self, client, session, create_task_instance):
-        """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""
+    def test_ti_update_state_not_running_terminal_is_idempotent(self, client, session, create_task_instance):
+        """Test that updating a terminal TI is treated as an idempotent no-op."""
         ti = create_task_instance(
             task_id="test_ti_update_state_not_running",
             state=State.SUCCESS,
+            session=session,
+            start_date=DEFAULT_START_DATE,
+        )
+        session.commit()
+
+        payload = {
+            "state": "failed",
+            "end_date": DEFAULT_END_DATE.isoformat(),
+        }
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        assert response.status_code == 204
+        assert response.text == ""
+
+        # Verify the task instance state hasn't changed
+        session.refresh(ti)
+        assert ti.state == State.SUCCESS
+
+    def test_ti_update_state_not_running_non_terminal(self, client, session, create_task_instance):
+        """Test that a 409 error is returned when attempting to update a TI that is not in RUNNING state."""
+        ti = create_task_instance(
+            task_id="test_ti_update_state_not_running_non_terminal",
+            state=State.QUEUED,
             session=session,
             start_date=DEFAULT_START_DATE,
         )
@@ -1373,12 +1396,12 @@ class TestTIUpdateState:
         assert response.json()["detail"] == {
             "reason": "invalid_state",
             "message": "TI was not in the running state so it cannot be updated",
-            "previous_state": State.SUCCESS,
+            "previous_state": State.QUEUED,
         }
 
         # Verify the task instance state hasn't changed
         session.refresh(ti)
-        assert ti.state == State.SUCCESS
+        assert ti.state == State.QUEUED
 
     def test_ti_update_state_to_failed_without_fail_fast(self, client, session, dag_maker):
         """Test that SerializedDAG is NOT loaded when fail_fast=False (default)."""

@@ -384,6 +384,17 @@ def ti_update_state(
         )
 
     if previous_state != TaskInstanceState.RUNNING:
+        # In HA, it's possible to receive a "late" finish/state update after another
+        # component already moved the TI to a terminal state. Treat this as an idempotent no-op to avoid
+        # crashing the process.
+        if previous_state in set(TerminalTIState):
+            requested_state = getattr(ti_patch_payload.state, "value", ti_patch_payload.state)
+            log.info(
+                "Ignoring state update for already terminal task instance",
+                previous_state=previous_state,
+                requested_state=requested_state,
+            )
+            return
         log.warning(
             "Cannot update Task Instance in invalid state",
             previous_state=previous_state,
