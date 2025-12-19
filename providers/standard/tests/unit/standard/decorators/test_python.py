@@ -50,7 +50,7 @@ else:
     from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput
     from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
-    from airflow.models.xcom_arg import XComArg
+    from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
 if AIRFLOW_V_3_1_PLUS:

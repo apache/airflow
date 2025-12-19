@@ -115,8 +115,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.sdk import DAG
-    from airflow.sdk.types import RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.utils.context import Context
@@ -160,7 +158,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
     tis = task_instance.dag_run.get_task_instances(session=session)
     if TYPE_CHECKING:
         assert task_instance.task
-        assert isinstance(task_instance.task.dag, DAG)
+        assert task_instance.task.dag
 
     for ti in tis:
         if ti.task_id == task_instance.task_id or ti.state in (
@@ -171,8 +169,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
         if task_teardown_map:
             teardown = task_teardown_map[ti.task_id]
         else:
-            task = task_instance.task.dag.task_dict[ti.task_id]
-            teardown = task.is_teardown
+            teardown = task_instance.task.dag.task_dict[ti.task_id].is_teardown
         if not teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
@@ -610,26 +607,6 @@ class TaskInstance(Base, LoggingMixin):
         if self.map_index >= 0:
             return str(self.map_index)
         return None
-
-    def to_runtime_ti(self, context_from_server) -> RuntimeTaskInstanceProtocol:
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            id=self.id,
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            try_numer=self.try_number,
-            map_index=self.map_index,
-            task=self.task,
-            max_tries=self.max_tries,
-            hostname=self.hostname,
-            _ti_context_from_server=context_from_server,
-            start_date=self.start_date,
-            dag_version_id=self.dag_version_id,
-        )
-
-        return runtime_ti
 
     @property
     def log_url(self) -> str:
@@ -1689,6 +1666,7 @@ class TaskInstance(Base, LoggingMixin):
         )
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
         from airflow.utils.context import (
             ConnectionAccessor,
             OutletEventAccessors,
@@ -1720,12 +1698,24 @@ class TaskInstance(Base, LoggingMixin):
         dag_run = _get_dagrun(session)
 
         validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
-        ti_context_from_server = TIRunContext(
-            dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
+        runtime_ti = RuntimeTaskInstance.model_construct(
+            id=self.id,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            try_numer=self.try_number,
+            map_index=self.map_index,
+            task=self.task,
             max_tries=self.max_tries,
-            should_retry=self.is_eligible_to_retry(),
+            hostname=self.hostname,
+            _ti_context_from_server=TIRunContext(
+                dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
+                max_tries=self.max_tries,
+                should_retry=self.is_eligible_to_retry(),
+            ),
+            start_date=self.start_date,
+            dag_version_id=self.dag_version_id,
         )
-        runtime_ti = self.to_runtime_ti(context_from_server=ti_context_from_server)
 
         context: Context = runtime_ti.get_template_context()
 
