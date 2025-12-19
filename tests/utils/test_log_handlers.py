@@ -845,3 +845,124 @@ def test_fetch_logs_from_service_with_cidr_no_proxy(mock_send, monkeypatch):
     proxies = kwargs["proxies"]
     assert "http" not in proxies.keys()
     assert "no" not in proxies.keys()
+
+
+class TestFileTaskHandlerSSL:
+    """Tests for SSL configuration in FileTaskHandler."""
+
+    @pytest.mark.parametrize(
+        "ssl_verify_conf,expected_verify",
+        [
+            ("True", True),  # Default: verify enabled
+            ("true", True),  # Case insensitive
+            ("1", True),  # Alternative true value
+            ("yes", True),  # Alternative true value
+            ("False", False),  # Verification disabled
+            ("false", False),  # Case insensitive
+            ("0", False),  # Alternative false value
+            ("no", False),  # Alternative false value
+            ("/path/to/ca-bundle.crt", "/path/to/ca-bundle.crt"),  # Custom CA bundle
+        ],
+    )
+    @mock.patch("requests.get")
+    def test_fetch_logs_ssl_verify_configuration(self, mock_get, ssl_verify_conf, expected_verify):
+        """Test SSL verification configuration in _fetch_logs_from_service."""
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.encoding = "utf-8"
+        mock_get.return_value = mock_response
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_verify"): ssl_verify_conf,
+                ("webserver", "secret_key"): "test_secret_key",
+            }
+        ):
+            _fetch_logs_from_service(log_url, log_location)
+
+        # Verify that requests.get was called with correct verify parameter
+        mock_get.assert_called_once()
+        _, kwargs = mock_get.call_args
+        assert "verify" in kwargs
+        assert kwargs["verify"] == expected_verify
+
+    @pytest.mark.parametrize(
+        "ssl_cert,ssl_key,expected_protocol",
+        [
+            ("", "", "http"),  # No SSL configured
+            ("/path/to/cert.pem", "", "http"),  # Only cert, no key
+            ("", "/path/to/key.pem", "http"),  # Only key, no cert
+            ("/path/to/cert.pem", "/path/to/key.pem", "https"),  # Both provided
+        ],
+    )
+    def test_log_retrieval_url_protocol(self, create_task_instance, ssl_cert, ssl_key, expected_protocol):
+        """Test that correct protocol (http/https) is used based on SSL configuration."""
+        ti = create_task_instance(
+            dag_id="dag_for_testing_ssl_url",
+            task_id="task_for_testing_ssl_url",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        ti.hostname = "test-hostname"
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_cert"): ssl_cert,
+                ("logging", "worker_log_server_ssl_key"): ssl_key,
+            }
+        ):
+            fth = FileTaskHandler("")
+            url, _ = fth._get_log_retrieval_url(ti, "test/path.log")
+
+        assert url.startswith(f"{expected_protocol}://")
+        assert "test-hostname" in url
+        assert ":8793/log/test/path.log" in url
+
+    def test_log_retrieval_url_trigger_with_ssl(self, create_task_instance):
+        """Test that trigger log URLs use correct protocol with SSL."""
+        from airflow.jobs.job import Job
+        from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+        from airflow.models.trigger import Trigger
+
+        ti = create_task_instance(
+            dag_id="dag_for_testing_trigger_ssl",
+            task_id="task_for_testing_trigger_ssl",
+            run_type=DagRunType.SCHEDULED,
+            logical_date=DEFAULT_DATE,
+        )
+        ti.hostname = "test-hostname"
+
+        trigger = Trigger("", {})
+        job = Job(TriggererJobRunner.job_type)
+        job.id = 123
+        trigger.triggerer_job = job
+        ti.trigger = trigger
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_cert"): "/path/to/cert.pem",
+                ("logging", "worker_log_server_ssl_key"): "/path/to/key.pem",
+            }
+        ):
+            fth = FileTaskHandler("")
+            url, path = fth._get_log_retrieval_url(ti, "test/path.log", log_type=LogType.TRIGGER)
+
+        assert url.startswith("https://")
+        assert ":8794/log/" in url
+        assert path.endswith(".trigger.123.log")
+
+    @mock.patch("requests.get")
+    def test_fetch_logs_ssl_verify_default(self, mock_get):
+        """Test that SSL verification is enabled by default."""
+        mock_response = mock.Mock()
+        mock_response.status_code = 200
+        mock_response.encoding = "utf-8"
+        mock_get.return_value = mock_response
+
+        with conf_vars({("webserver", "secret_key"): "test_secret_key"}):
+            # Don't set worker_log_server_ssl_verify, use default
+            _fetch_logs_from_service(log_url, log_location)
+
+        mock_get.assert_called_once()
+        _, kwargs = mock_get.call_args
+        assert kwargs["verify"] is True

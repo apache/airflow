@@ -89,6 +89,23 @@ certs and keys.
     ssl_cert = <path to cert>
     ssl_cacert = <path to cacert>
 
+Worker and Triggerer Log Server SSL
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.0.0
+
+The worker and triggerer log servers can be configured to use SSL/HTTPS for secure log transmission.
+This encrypts the communication when the webserver fetches logs from workers and triggerers during task execution.
+
+.. code-block:: ini
+
+    [logging]
+    worker_log_server_ssl_cert = <path to cert>
+    worker_log_server_ssl_key = <path to key>
+    worker_log_server_ssl_verify = True
+
+For more information about configuring SSL for log servers, see :ref:`serving-worker-trigger-logs`.
+
 Rate limiting
 -------------
 

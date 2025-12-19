@@ -945,6 +945,36 @@ logging:
       type: string
       example: ~
       default: "8794"
+    worker_log_server_ssl_cert:
+      description: |
+        Path to SSL certificate file for worker log server.
+        When both worker_log_server_ssl_cert and worker_log_server_ssl_key are provided,
+        the worker log server will use HTTPS instead of HTTP for secure log transmission.
+        This applies to both worker and triggerer log servers.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/cert.pem"
+      default: ""
+    worker_log_server_ssl_key:
+      description: |
+        Path to SSL private key file for worker log server.
+        When both worker_log_server_ssl_cert and worker_log_server_ssl_key are provided,
+        the worker log server will use HTTPS instead of HTTP for secure log transmission.
+        This applies to both worker and triggerer log servers.
+      version_added: 3.0.0
+      type: string
+      example: "/path/to/key.pem"
+      default: ""
+    worker_log_server_ssl_verify:
+      description: |
+        Whether to verify SSL certificate when fetching logs from workers and triggerers.
+        Can be set to "True" to use system CA certificates, "False" to disable verification
+        (useful for self-signed certificates in development, not recommended for production),
+        or a path to a CA bundle file for custom certificate authorities.
+      version_added: 3.0.0
+      type: string
+      example: "True"
+      default: "True"
     interleave_timestamp_parser:
       description: |
         We must parse timestamps to interleave logs between trigger and task.  To do so,

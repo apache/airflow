@@ -180,6 +180,29 @@ def serve_logs(port=None):
         bind_option = GunicornOption("bind", f"0.0.0.0:{port}")
 
     options = [bind_option, GunicornOption("workers", 2)]
+
+    # Configure SSL if certificates are provided
+    ssl_cert = conf.get("logging", "worker_log_server_ssl_cert", fallback="")
+    ssl_key = conf.get("logging", "worker_log_server_ssl_key", fallback="")
+
+    if ssl_cert and ssl_key:
+        if not os.path.isfile(ssl_cert):
+            raise ValueError(f"SSL certificate file does not exist: {ssl_cert}")
+        if not os.path.isfile(ssl_key):
+            raise ValueError(f"SSL key file does not exist: {ssl_key}")
+
+        options.append(GunicornOption("certfile", ssl_cert))
+        options.append(GunicornOption("keyfile", ssl_key))
+        logger.info("Worker log server starting with HTTPS on port %s (cert: %s)", port, ssl_cert)
+    elif ssl_cert or ssl_key:
+        logger.warning(
+            "Both worker_log_server_ssl_cert and worker_log_server_ssl_key must be provided to enable HTTPS. "
+            "Only one is configured. Starting with HTTP."
+        )
+        logger.info("Worker log server starting with HTTP on port %s", port)
+    else:
+        logger.info("Worker log server starting with HTTP on port %s (no SSL configured)", port)
+
     StandaloneGunicornApplication(wsgi_app, options).run()
 
 

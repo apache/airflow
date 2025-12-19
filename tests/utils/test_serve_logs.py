@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import jwt
 import pytest
@@ -236,3 +237,87 @@ class TestServeLogs:
             ).status_code
             == 403
         )
+
+
+class TestServeLogsSSL:
+    """Tests for SSL configuration in serve_logs."""
+
+    @pytest.mark.parametrize(
+        "ssl_cert,ssl_key,expected_https",
+        [
+            ("", "", False),  # No SSL configured
+            ("/path/to/cert.pem", "", False),  # Only cert, no key
+            ("", "/path/to/key.pem", False),  # Only key, no cert
+            ("/path/to/cert.pem", "/path/to/key.pem", True),  # Both provided
+        ],
+    )
+    @mock.patch("airflow.utils.serve_logs.StandaloneGunicornApplication")
+    @mock.patch("airflow.utils.serve_logs.os.path.isfile")
+    def test_ssl_configuration(
+        self, mock_isfile, mock_gunicorn_app, ssl_cert, ssl_key, expected_https, tmp_path
+    ):
+        """Test that SSL is enabled only when both cert and key are provided."""
+        from airflow.utils.serve_logs import serve_logs
+
+        # Mock file existence
+        mock_isfile.return_value = True
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_cert"): ssl_cert,
+                ("logging", "worker_log_server_ssl_key"): ssl_key,
+                ("logging", "base_log_folder"): str(tmp_path),
+            }
+        ):
+            serve_logs(port=8793)
+
+        # Get the options passed to Gunicorn
+        call_args = mock_gunicorn_app.call_args
+        options_list = call_args[0][1]
+        options_dict = {opt.key: opt.value for opt in options_list}
+
+        if expected_https:
+            assert "certfile" in options_dict
+            assert "keyfile" in options_dict
+            assert options_dict["certfile"] == ssl_cert
+            assert options_dict["keyfile"] == ssl_key
+        else:
+            assert "certfile" not in options_dict
+            assert "keyfile" not in options_dict
+
+    @mock.patch("airflow.utils.serve_logs.StandaloneGunicornApplication")
+    def test_ssl_with_nonexistent_cert(self, mock_gunicorn_app, tmp_path):
+        """Test that serve_logs raises error when cert file doesn't exist."""
+        from airflow.utils.serve_logs import serve_logs
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_cert"): "/nonexistent/cert.pem",
+                ("logging", "worker_log_server_ssl_key"): "/nonexistent/key.pem",
+                ("logging", "base_log_folder"): str(tmp_path),
+            }
+        ):
+            with pytest.raises(ValueError, match="SSL certificate file does not exist"):
+                serve_logs(port=8793)
+
+    @mock.patch("airflow.utils.serve_logs.StandaloneGunicornApplication")
+    @mock.patch("airflow.utils.serve_logs.os.path.isfile")
+    def test_ssl_with_nonexistent_key(self, mock_isfile, mock_gunicorn_app, tmp_path):
+        """Test that serve_logs raises error when key file doesn't exist."""
+        from airflow.utils.serve_logs import serve_logs
+
+        # Cert exists but key doesn't
+        def isfile_side_effect(path):
+            return "cert.pem" in path
+
+        mock_isfile.side_effect = isfile_side_effect
+
+        with conf_vars(
+            {
+                ("logging", "worker_log_server_ssl_cert"): "/path/to/cert.pem",
+                ("logging", "worker_log_server_ssl_key"): "/nonexistent/key.pem",
+                ("logging", "base_log_folder"): str(tmp_path),
+            }
+        ):
+            with pytest.raises(ValueError, match="SSL key file does not exist"):
+                serve_logs(port=8793)

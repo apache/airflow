@@ -182,6 +182,92 @@ Communication between the webserver and the worker is signed with the key specif
 
 We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.
 
+Securing log server with SSL
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.0.0
+
+By default, the worker and triggerer log servers use HTTP for communication. For production deployments where security is a concern, you can enable HTTPS to encrypt log transmission between the webserver and workers/triggerers.
+
+Enabling HTTPS on log servers
+""""""""""""""""""""""""""""""
+
+To enable HTTPS, you need to provide both an SSL certificate and a private key. Once both are configured, the log server will automatically use HTTPS instead of HTTP.
+
+.. code-block:: ini
+
+    [logging]
+    worker_log_server_ssl_cert = /path/to/certificate.pem
+    worker_log_server_ssl_key = /path/to/private_key.pem
+
+This configuration applies to both worker and triggerer log servers. When enabled:
+
+- Worker log server will serve logs over HTTPS on port 8793 (or the port specified by ``worker_log_server_port``)
+- Triggerer log server will serve logs over HTTPS on port 8794 (or the port specified by ``triggerer_log_server_port``)
+- The webserver will automatically use ``https://`` URLs when fetching logs from workers and triggerers
+
+.. note::
+    Both ``worker_log_server_ssl_cert`` and ``worker_log_server_ssl_key`` must be provided to enable HTTPS. If only one is configured, the server will fall back to HTTP and log a warning.
+
+Configuring SSL certificate verification
+"""""""""""""""""""""""""""""""""""""""""
+
+When the webserver fetches logs from workers and triggerers over HTTPS, it verifies the SSL certificate by default. You can control this behavior with the ``worker_log_server_ssl_verify`` option:
+
+.. code-block:: ini
+
+    [logging]
+    # Use system CA certificates (default)
+    worker_log_server_ssl_verify = True
+
+    # Disable SSL verification (not recommended for production)
+    worker_log_server_ssl_verify = False
+
+    # Use custom CA bundle
+    worker_log_server_ssl_verify = /path/to/ca-bundle.crt
+
+.. warning::
+    Disabling SSL certificate verification (``worker_log_server_ssl_verify = False``) is not recommended for production environments as it makes the system vulnerable to man-in-the-middle attacks. This option should only be used in development environments with self-signed certificates.
+
+Deployment considerations
+""""""""""""""""""""""""""
+
+When deploying with SSL-enabled log servers:
+
+1. **Certificate distribution**: Ensure that SSL certificates and keys are available on all machines running workers and triggerers.
+
+2. **Configuration synchronization**: The SSL configuration must be consistent across all Airflow components. All workers, triggerers, schedulers, and webservers should use the same ``airflow.cfg`` settings for the ``[logging]`` section.
+
+3. **Time synchronization**: As with HTTP, ensure that time is synchronized across all machines (e.g., using ntpd) to prevent issues with signed requests and SSL certificate validation.
+
+4. **Port access**: If you're using a firewall, ensure that the HTTPS ports (8793 and 8794 by default) are accessible from the webserver to the workers and triggerers.
+
+Example configuration
+"""""""""""""""""""""
+
+Here's a complete example of a production-ready configuration with SSL enabled:
+
+.. code-block:: ini
+
+    [logging]
+    # Base log folder
+    base_log_folder = /opt/airflow/logs
+
+    # Log server ports
+    worker_log_server_port = 8793
+    triggerer_log_server_port = 8794
+
+    # SSL configuration for log servers
+    worker_log_server_ssl_cert = /etc/airflow/certs/server.crt
+    worker_log_server_ssl_key = /etc/airflow/certs/server.key
+
+    # SSL verification (use system CA certificates)
+    worker_log_server_ssl_verify = True
+
+    [webserver]
+    # Secret key must be the same on all components
+    secret_key = your-secret-key-here
+
 Implementing a custom file task handler
 ---------------------------------------
 

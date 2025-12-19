@@ -104,10 +104,22 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
+
+    # SSL verification configuration
+    ssl_verify_conf = conf.get("logging", "worker_log_server_ssl_verify", fallback="True")
+    if ssl_verify_conf.lower() in ("true", "1", "yes"):
+        ssl_verify = True
+    elif ssl_verify_conf.lower() in ("false", "0", "no"):
+        ssl_verify = False
+    else:
+        # Path to CA bundle file
+        ssl_verify = ssl_verify_conf
+
     response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
+        verify=ssl_verify,
     )
     response.encoding = "utf-8"
     return response
@@ -451,9 +463,15 @@ class FileTaskHandler(logging.Handler):
             hostname = ti.hostname
             config_key = "worker_log_server_port"
             config_default = 8793
+
+        # Determine protocol based on SSL configuration
+        ssl_cert = conf.get("logging", "worker_log_server_ssl_cert", fallback="")
+        ssl_key = conf.get("logging", "worker_log_server_ssl_key", fallback="")
+        protocol = "https" if (ssl_cert and ssl_key) else "http"
+
         return (
             urljoin(
-                f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
+                f"{protocol}://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
                 log_relative_path,
             ),
             log_relative_path,
