@@ -2028,6 +2028,14 @@ def _get_relevant_map_indexes(
     # and "ti_count == ancestor_ti_count" does not work, since the further
     # expansion may be of length 1.
     if not _is_further_mapped_inside(relative, common_ancestor):
+        placeholder_index = resolve_placeholder_map_index(
+            task=task, relative=relative, map_index=ancestor_map_index, run_id=run_id, session=session
+        )
+        # Handle cases where an upstream mapped placeholder (map_index = -1) has already
+        # been expanded and replaced by its successor (map_index = 0) at evaluation time.
+        if placeholder_index is not None:
+            return placeholder_index
+
         return ancestor_map_index
 
     # Otherwise we need a partial aggregation for values from selected task
@@ -2100,6 +2108,54 @@ def find_relevant_relatives(
     _visit_relevant_relatives_for_normal(normal_tasks)
     _visit_relevant_relatives_for_mapped(mapped_tasks)
     return visited
+
+
+def resolve_placeholder_map_index(
+    *,
+    task: Operator,
+    relative: Operator,
+    map_index: int,
+    run_id: str,
+    session: Session,
+) -> int | None:
+    """
+    Resolve the correct map_index for upstream dependency evaluation.
+
+    This handles the transition from map_index = -1 (pre-expansion placeholder)
+    to map_index = 0 (post-expansion placeholder successor).
+
+    Returns:
+        - 0 if the placeholder has transitioned from -1 to 0
+        - None if no override should be applied
+    """
+    if map_index != -1:
+        return None
+
+    rows = session.execute(
+        select(TaskInstance.task_id, TaskInstance.map_index).where(
+            TaskInstance.dag_id == relative.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id.in_([task.task_id, relative.task_id]),
+            TaskInstance.map_index.in_([-1, 0]),
+        )
+    ).all()
+
+    task_to_map_indexes: dict[str, list[int]] = defaultdict(list)
+    for task_id, mi in rows:
+        task_to_map_indexes[task_id].append(mi)
+
+    # We only rewrite when:
+    # 1) the current task is still using the placeholder (-1)
+    # 2) the upstream placeholder (-1) no longer exists
+    # 3) the post-expansion placeholder (0) does exist
+    if (
+        -1 in task_to_map_indexes.get(task.task_id, [])
+        and -1 not in task_to_map_indexes.get(relative.task_id, [])
+        and 0 in task_to_map_indexes.get(relative.task_id, [])
+    ):
+        return 0
+
+    return None
 
 
 class TaskInstanceNote(Base):
