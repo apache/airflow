@@ -39,6 +39,7 @@ from tenacity import (
 )
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRequeuePayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -60,7 +61,6 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
-    TIRequeuePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,

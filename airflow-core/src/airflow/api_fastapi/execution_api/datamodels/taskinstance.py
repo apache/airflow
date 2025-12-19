@@ -233,7 +233,8 @@ TIStateUpdate = Annotated[
     | Annotated[TITargetStatePayload, Tag("_other_")]
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
-    | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
+    | Annotated[TIRetryStatePayload, Tag("up_for_retry")]
+    | Annotated[TIRequeuePayload, Tag("up_for_reschedule")],
     Field(discriminator=ti_state_discriminator),
 ]
 
