@@ -419,6 +419,7 @@ repos:
             ^airflow-core/tests/unit/cli/commands/test_team_command\.py$|
             ^airflow-core/tests/unit/cli/commands/test_connection_command\.py$|
             ^airflow-core/tests/unit/cli/commands/test_pool_command\.py$|
+            ^airflow-core/tests/unit/utils/test_cli_util\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
