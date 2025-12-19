@@ -283,12 +283,11 @@ class TriggerDagRunOperator(BaseOperator):
                 DagRunTriggerException = None  # type: ignore[assignment]
 
         if self.note is not None:
-            logger = getattr(self, "log", None)
-            if logger is not None:
+            if (logger := getattr(self, "log", None)) is not None:
                 logger.info("Triggered DAG with note: %s", self.note)
 
         if DagRunTriggerException is None:
-            raise AirflowException(
+            raise RuntimeError(
                 f"Triggered DAG {self.trigger_dag_id} with run_id {run_id}. "
                 "DagRunTriggerException is not available in this Airflow version."
             )
