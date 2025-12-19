@@ -92,6 +92,7 @@ from airflow.sdk.execution_time.comms import (
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
+    TaskExecutionTimeout,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -753,6 +754,12 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti = parse(msg, log)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
+    # Send execution timeout to supervisor if configured
+    if hasattr(ti.task, "execution_timeout") and ti.task.execution_timeout:
+        timeout_seconds = ti.task.execution_timeout.total_seconds()
+        SUPERVISOR_COMMS.send(TaskExecutionTimeout(timeout_seconds=timeout_seconds))
+        log.debug("Sent execution timeout to supervisor", timeout_seconds=timeout_seconds)
+
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
     )
@@ -1328,23 +1335,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
     _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if task.execution_timeout:
-        from airflow.sdk.execution_time.timeout import timeout
-
-        # TODO: handle timeout in case of deferral
-        timeout_seconds = task.execution_timeout.total_seconds()
-        try:
-            # It's possible we're already timed out, so fast-fail if true
-            if timeout_seconds <= 0:
-                raise AirflowTaskTimeout()
-            # Run task in timeout wrapper
-            with timeout(timeout_seconds):
-                result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
-            task.on_kill()
-            raise
-    else:
-        result = ctx.run(execute, context=context)
+    # Timeout is now handled at supervisor level, not in the task process
+    # The supervisor monitors execution time and sends SIGTERM/SIGKILL if exceeded
+    result = ctx.run(execute, context=context)
 
     if (post_execute_hook := task._post_execute_hook) is not None:
         create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)

@@ -841,6 +841,13 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
+class TaskExecutionTimeout(BaseModel):
+    """Payload for communicating task execution timeout to supervisor."""
+
+    timeout_seconds: float
+    type: Literal["TaskExecutionTimeout"] = "TaskExecutionTimeout"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -998,6 +1005,7 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetRenderedFields
     | SetRenderedMapIndex
+    | TaskExecutionTimeout
     | SetXCom
     | SkipDownstreamTasks
     | SucceedTask
