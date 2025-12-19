@@ -75,7 +75,7 @@ Pass extra arguments to the ``@task`` decorated function as you would with a nor
 Async Python functions
 ^^^^^^^^^^^^^^^^^^^^^^
 
-From Airflow 3.2 and onwards, async Python callables are now also supported out of the box.
+From Airflow 3.2 onward, async Python callables are now also supported out of the box.
 This means we don't need to cope with the event loop and allows us to easily invoke async Python code and async
 Airflow hooks which are not always available through deferred operators.
 
