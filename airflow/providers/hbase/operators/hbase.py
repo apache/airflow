@@ -257,6 +257,7 @@ class HBaseBackupSetOperator(BaseOperator):
     :param backup_set_name: Name of the backup set.
     :param tables: List of tables to add to backup set (for 'add' action).
     :param hbase_conn_id: The connection ID to use for HBase connection.
+    :param ssh_conn_id: SSH connection ID for remote execution.
     """
 
     template_fields: Sequence[str] = ("backup_set_name", "tables")
@@ -267,6 +268,7 @@ class HBaseBackupSetOperator(BaseOperator):
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
         hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -274,6 +276,7 @@ class HBaseBackupSetOperator(BaseOperator):
         self.backup_set_name = backup_set_name
         self.tables = tables or []
         self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
@@ -297,7 +300,7 @@ class HBaseBackupSetOperator(BaseOperator):
         else:
             raise ValueError(f"Unsupported action: {self.action}")
         
-        return hook.execute_hbase_command(command)
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
 
 
 class HBaseCreateBackupOperator(BaseOperator):
@@ -310,6 +313,7 @@ class HBaseCreateBackupOperator(BaseOperator):
     :param tables: List of tables to backup (alternative to backup_set_name).
     :param workers: Number of workers for backup operation.
     :param hbase_conn_id: The connection ID to use for HBase connection.
+    :param ssh_conn_id: SSH connection ID for remote execution.
     """
 
     template_fields: Sequence[str] = ("backup_path", "backup_set_name", "tables")
@@ -322,6 +326,7 @@ class HBaseCreateBackupOperator(BaseOperator):
         tables: list[str] | None = None,
         workers: int = 3,
         hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -331,6 +336,7 @@ class HBaseCreateBackupOperator(BaseOperator):
         self.tables = tables
         self.workers = workers
         self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
@@ -351,7 +357,7 @@ class HBaseCreateBackupOperator(BaseOperator):
         
         command += f" -w {self.workers}"
         
-        return hook.execute_hbase_command(command)
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
 
 
 class HBaseRestoreOperator(BaseOperator):
@@ -376,6 +382,7 @@ class HBaseRestoreOperator(BaseOperator):
         tables: list[str] | None = None,
         overwrite: bool = False,
         hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -385,6 +392,7 @@ class HBaseRestoreOperator(BaseOperator):
         self.tables = tables
         self.overwrite = overwrite
         self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
@@ -401,7 +409,7 @@ class HBaseRestoreOperator(BaseOperator):
         if self.overwrite:
             command += " -o"
         
-        return hook.execute_hbase_command(command)
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
 
 
 class HBaseBackupHistoryOperator(BaseOperator):
@@ -420,12 +428,14 @@ class HBaseBackupHistoryOperator(BaseOperator):
         backup_set_name: str | None = None,
         backup_path: str | None = None,
         hbase_conn_id: str = HBaseHook.default_conn_name,
+        ssh_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.backup_set_name = backup_set_name
         self.backup_path = backup_path
         self.hbase_conn_id = hbase_conn_id
+        self.ssh_conn_id = ssh_conn_id
 
     def execute(self, context: Context) -> str:
         """Execute the operator."""
@@ -439,4 +449,4 @@ class HBaseBackupHistoryOperator(BaseOperator):
         if self.backup_path:
             command += f" -p {self.backup_path}"
         
-        return hook.execute_hbase_command(command)
+        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)

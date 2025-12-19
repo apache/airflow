@@ -240,31 +240,44 @@ class HBaseHook(BaseHook):
 
 
 
-    def execute_hbase_command(self, command: str, **kwargs) -> str:
+    def execute_hbase_command(self, command: str, ssh_conn_id: str | None = None, **kwargs) -> str:
         """
         Execute HBase shell command.
         
         :param command: HBase command to execute (without 'hbase' prefix).
+        :param ssh_conn_id: SSH connection ID for remote execution.
         :param kwargs: Additional arguments for subprocess.
         :return: Command output.
         """
         full_command = f"hbase {command}"
         self.log.info("Executing HBase command: %s", full_command)
         
-        try:
-            result = subprocess.run(
-                full_command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                check=True,
-                **kwargs
-            )
-            self.log.info("Command executed successfully")
-            return result.stdout
-        except subprocess.CalledProcessError as e:
-            self.log.error("Command failed with return code %d: %s", e.returncode, e.stderr)
-            raise
+        if ssh_conn_id:
+            # Use SSH to execute command on remote server
+            from airflow.providers.ssh.hooks.ssh import SSHHook
+            ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
+            self.log.info("Executing via SSH: %s", full_command)
+            result = ssh_hook.exec_ssh_client_command(full_command)
+            if result[2] != 0:  # exit_status != 0
+                self.log.error("SSH command failed with exit code %d: %s", result[2], result[1])
+                raise RuntimeError(f"SSH command failed: {result[1]}")
+            return result[0]  # stdout
+        else:
+            # Execute locally
+            try:
+                result = subprocess.run(
+                    full_command,
+                    shell=True,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    **kwargs
+                )
+                self.log.info("Command executed successfully")
+                return result.stdout
+            except subprocess.CalledProcessError as e:
+                self.log.error("Command failed with return code %d: %s", e.returncode, e.stderr)
+                raise
 
     def close(self) -> None:
         """Close HBase connection."""
