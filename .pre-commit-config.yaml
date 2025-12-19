@@ -416,6 +416,7 @@ repos:
             ^airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command\.py$|
             ^airflow-core/tests/unit/cli/commands/test_task_command\.py$|
             ^airflow-core/tests/unit/cli/commands/test_dag_command\.py$|
+            ^airflow-core/tests/unit/cli/commands/test_team_command\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
