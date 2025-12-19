@@ -637,8 +637,8 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Enable the default worker defined by the root 'workers' configuration.
-  # If false, only workers defined in 'sets' will be created.
+  # Enable the default workers defined by the root 'workers' configuration to be created.
+  # If false, only dedicated workers defined in 'sets' will be created.
   enableDefault: true
 
   # Queue name for the worker
