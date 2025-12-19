@@ -604,8 +604,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def create_workload(
         self,
         trigger: Trigger,
-        dag_bag = DBDagBag(),
-        render_log_fname = log_filename_template_renderer(),
+        dag_bag=DBDagBag(),
+        render_log_fname=log_filename_template_renderer(),
         session: Session = NEW_SESSION,
     ) -> workloads.RunTrigger | None:
         if trigger.task_instance is None:
