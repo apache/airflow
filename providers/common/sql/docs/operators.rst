@@ -148,6 +148,29 @@ The below example demonstrates how to instantiate the SQLTableCheckOperator task
     :end-before: [END howto_operator_sql_table_check]
 
 
+.. _howto/operator:SQLValueCheckOperator:
+
+Check value against expected
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLValueCheckOperator` to compare a SQL query result
+against an expected value, with some optionally specified tolerance for numeric results.
+The parameters for this operator are:
+
+- ``sql`` - the sql query to be executed, as a templated string.
+- ``pass_value`` - the expected value to compare the query result against.
+- ``tolerance`` (optional) - numerical tolerance for comparisons involving numeric values.
+- ``conn_id`` (optional) - the connection ID used to connect to the database.
+- ``database`` (optional) - name of the database which overwrites the name defined in the connection.
+
+The below example demonstrates how to instantiate the SQLValueCheckOperator task.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_value_check.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_value_check]
+    :end-before: [END howto_operator_sql_value_check]
+
 .. _howto/operator:SQLThresholdCheckOperator:
 
 Check values against a threshold

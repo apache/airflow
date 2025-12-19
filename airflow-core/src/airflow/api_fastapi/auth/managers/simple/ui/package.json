@@ -55,6 +55,9 @@
     "typescript-eslint": "^8.48.0",
     "vite": "^7.2.4",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^4.0.4"
+    "vitest": "^4.0.4",
+    "@typescript-eslint/eslint-plugin": "8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "8.50.0"
   }
 }
