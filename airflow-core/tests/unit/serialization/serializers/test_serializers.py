@@ -38,7 +38,7 @@ from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow._shared.module_loading import qualname
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
+from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
 from airflow.serialization.serializers import builtin
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -673,13 +673,3 @@ class TestSerializers:
         bad = {CLASSNAME: "", VERSION: 1, DATA: {}}
         with pytest.raises(TypeError, match="classname cannot be empty"):
             deserialize(bad)
-
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            (123, "dummy@version=1(123)"),
-            ([1], "dummy@version=1([,1,])"),
-        ],
-    )
-    def test_serde_stringify_primitives(self, value, expected):
-        assert _stringify("dummy", 1, value) == expected

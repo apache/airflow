@@ -22,14 +22,15 @@ from collections import defaultdict
 from typing import Any
 
 import pytest
-from pendulum import DateTime
-from sqlalchemy.sql import select
+from pendulum import UTC, DateTime
+from sqlalchemy import select
 
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.serialized_dag import SerializedDAG, SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset, AssetAll, AssetAny
-from airflow.timetables.assets import AssetOrTimeSchedule
+from airflow.sdk import Asset, AssetAll, AssetAny, AssetOrTimeSchedule as SdkAssetOrTimeSchedule
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
+from airflow.timetables.assets import AssetOrTimeSchedule as CoreAssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
@@ -110,27 +111,37 @@ def test_assets() -> list[Asset]:
 
 
 @pytest.fixture
-def asset_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetOrTimeSchedule:
+def sdk_asset_timetable(test_timetable, test_assets) -> SdkAssetOrTimeSchedule:
     """
-    Pytest fixture for creating an AssetOrTimeSchedule object.
+    Pytest fixture for creating an SDK AssetOrTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
     :param test_assets: A list of Asset instances.
     """
-    return AssetOrTimeSchedule(timetable=test_timetable, assets=test_assets)
+    return SdkAssetOrTimeSchedule(timetable=test_timetable, assets=test_assets)
 
 
-def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -> None:
+@pytest.fixture
+def core_asset_timetable(test_timetable: MockTimetable) -> CoreAssetOrTimeSchedule:
+    return CoreAssetOrTimeSchedule(
+        timetable=test_timetable,
+        assets=SerializedAssetAll([SerializedAsset("test_asset", "test://asset/", "asset", {}, [])]),
+    )
+
+
+def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch: Any) -> None:
     """
     Tests the serialization method of AssetOrTimeSchedule.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
+    from airflow.serialization.encoders import _serializer
+
     monkeypatch.setattr(
         "airflow.serialization.encoders.encode_timetable", lambda x: "mock_serialized_timetable"
     )
-    serialized = asset_timetable.serialize()
+    serialized = _serializer.serialize(sdk_asset_timetable)
     assert serialized == {
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
@@ -148,7 +159,7 @@ def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -
     }
 
 
-def test_deserialization(monkeypatch: Any) -> None:
+def test_deserialization(monkeypatch: Any, core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     """
     Tests the deserialization method of AssetOrTimeSchedule.
 
@@ -170,49 +181,53 @@ def test_deserialization(monkeypatch: Any) -> None:
             ],
         },
     }
-    deserialized = AssetOrTimeSchedule.deserialize(mock_serialized_data)
-    assert isinstance(deserialized, AssetOrTimeSchedule)
+    deserialized = CoreAssetOrTimeSchedule.deserialize(mock_serialized_data)
+    assert deserialized == core_asset_timetable
 
 
-def test_infer_manual_data_interval(asset_timetable: AssetOrTimeSchedule) -> None:
+def test_infer_manual_data_interval(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     """
     Tests the infer_manual_data_interval method of AssetOrTimeSchedule.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    run_after = DateTime.now()
-    result = asset_timetable.infer_manual_data_interval(run_after=run_after)
-    assert isinstance(result, DataInterval)
+    run_after = DateTime(2025, 6, 7, 8, 9, tzinfo=UTC)
+    result = core_asset_timetable.infer_manual_data_interval(run_after=run_after)
+    assert result == DataInterval.exact(run_after)
 
 
-def test_next_dagrun_info(asset_timetable: AssetOrTimeSchedule) -> None:
+def test_next_dagrun_info(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     """
     Tests the next_dagrun_info method of AssetOrTimeSchedule.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    last_interval = DataInterval.exact(DateTime.now())
-    restriction = TimeRestriction(earliest=DateTime.now(), latest=None, catchup=True)
-    result = asset_timetable.next_dagrun_info(
+    last_interval = DataInterval.exact(DateTime(2025, 6, 7, 8, 9, tzinfo=UTC))
+    restriction = TimeRestriction(earliest=None, latest=None, catchup=False)
+    result = core_asset_timetable.next_dagrun_info(
         last_automated_data_interval=last_interval, restriction=restriction
     )
-    assert result is None or isinstance(result, DagRunInfo)
+    assert result == DagRunInfo.interval(
+        DateTime(2025, 6, 8, 8, 9, tzinfo=UTC),
+        DateTime(2025, 6, 9, 8, 9, tzinfo=UTC),
+    )
 
 
-def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
+def test_generate_run_id(core_asset_timetable: CoreAssetOrTimeSchedule) -> None:
     """
     Tests the generate_run_id method of AssetOrTimeSchedule.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    run_id = asset_timetable.generate_run_id(
+    date = DateTime(2025, 6, 7, 8, 9, tzinfo=UTC)
+    run_id = core_asset_timetable.generate_run_id(
         run_type=DagRunType.MANUAL,
         extra_args="test",
-        logical_date=DateTime.now(),
-        run_after=DateTime.now(),
+        logical_date=date,
+        run_after=date,
         data_interval=None,
     )
-    assert isinstance(run_id, str)
+    assert run_id == "manual__2025-06-07T08:09:00+00:00"
 
 
 @pytest.fixture
@@ -242,17 +257,14 @@ def asset_events(mocker) -> list[AssetEvent]:
     return [event_earlier, event_later]
 
 
-def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
+def test_run_ordering_inheritance(core_asset_timetable) -> None:
     """
     Tests that AssetOrTimeSchedule inherits run_ordering from its parent class correctly.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    assert hasattr(asset_timetable, "run_ordering"), (
-        "AssetOrTimeSchedule should have 'run_ordering' attribute"
-    )
-    parent_run_ordering = getattr(AssetTriggeredTimetable, "run_ordering", None)
-    assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
+    assert core_asset_timetable.run_ordering == ("logical_date",)
+    assert core_asset_timetable.run_ordering == AssetTriggeredTimetable.run_ordering
 
 
 @pytest.mark.db_test
@@ -274,7 +286,7 @@ class TestAssetConditionWithTimetable:
         from airflow.assets.evaluation import AssetEvaluator
 
         assets = create_test_assets
-        asset_models = session.query(AssetModel).all()
+        asset_models = session.scalars(select(AssetModel)).all()
         evaluator = AssetEvaluator(session)
 
         with dag_maker(schedule=AssetAny(*assets)) as dag:
@@ -291,53 +303,72 @@ class TestAssetConditionWithTimetable:
         for record in records:
             dag_statuses[record.target_dag_id][record.asset.uri] = True
 
-        serialized_dags = session.execute(
+        serialized_dags = session.scalars(
             select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
-        ).fetchall()
+        )
 
-        for (serialized_dag,) in serialized_dags:
+        for serialized_dag in serialized_dags:
             dag = SerializedDAG.deserialize(serialized_dag.data)
             for asset_uri, status in dag_statuses[dag.dag_id].items():
                 cond = dag.timetable.asset_condition
                 assert evaluator.run(cond, {asset_uri: status}), "DAG trigger evaluation failed"
 
-    def test_dag_with_complex_asset_condition(self, session, dag_maker):
+    def test_dag_with_complex_asset_condition(self, dag_maker):
         # Create Asset instances
         asset1 = Asset(uri="test://asset1", name="hello1")
         asset2 = Asset(uri="test://asset2", name="hello2")
-
-        # Create and add AssetModel instances to the session
-        am1 = AssetModel(uri=asset1.uri, name=asset1.name, group="asset")
-        am2 = AssetModel(uri=asset2.uri, name=asset2.name, group="asset")
-        session.add_all([am1, am2])
-        session.commit()
 
         # Setup a DAG with complex asset triggers (AssetAny with AssetAll)
         with dag_maker(schedule=AssetAny(asset1, AssetAll(asset2, asset1))) as dag:
             EmptyOperator(task_id="hello")
 
-        assert isinstance(dag.timetable.asset_condition, AssetAny), (
-            "DAG's asset trigger should be an instance of AssetAny"
-        )
-        assert any(isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects), (
-            "DAG's asset trigger should include AssetAll"
-        )
+        assert dag.timetable.asset_condition == AssetAny(asset1, AssetAll(asset2, asset1))
 
         serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
-
         deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
-
-        assert isinstance(deserialized_triggers, AssetAny), (
-            "Deserialized triggers should be an instance of AssetAny"
-        )
-        assert any(isinstance(trigger, AssetAll) for trigger in deserialized_triggers.objects), (
-            "Deserialized triggers should include AssetAll"
+        assert deserialized_triggers == SerializedAssetAny(
+            [
+                SerializedAsset("hello1", "test://asset1/", "asset", {}, []),
+                SerializedAssetAll(
+                    [
+                        SerializedAsset("hello2", "test://asset2/", "asset", {}, []),
+                        SerializedAsset("hello1", "test://asset1/", "asset", {}, []),
+                    ],
+                ),
+            ],
         )
 
         serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
-        assert "asset_condition" in serialized_timetable_dict, (
-            "Serialized timetable should contain 'asset_condition'"
-        )
-        assert isinstance(serialized_timetable_dict["asset_condition"], dict), (
-            "Serialized 'asset_condition' should be a dict"
-        )
+        assert serialized_timetable_dict == {
+            "asset_condition": {
+                "__type": "asset_any",
+                "objects": [
+                    {
+                        "__type": "asset",
+                        "name": "hello1",
+                        "uri": "test://asset1/",
+                        "group": "asset",
+                        "extra": {},
+                    },
+                    {
+                        "__type": "asset_all",
+                        "objects": [
+                            {
+                                "__type": "asset",
+                                "name": "hello2",
+                                "uri": "test://asset2/",
+                                "group": "asset",
+                                "extra": {},
+                            },
+                            {
+                                "__type": "asset",
+                                "name": "hello1",
+                                "uri": "test://asset1/",
+                                "group": "asset",
+                                "extra": {},
+                            },
+                        ],
+                    },
+                ],
+            },
+        }
