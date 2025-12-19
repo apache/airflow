@@ -606,7 +606,7 @@ def _create_ti_state_update_query_and_update_state(
                 )
             )
 
-        query: Update = update(TI).where(TI.id == ti_id_str)
+        query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
         if session.bind is not None:
             query = TI.duration_expression_update(end_date=end_date, query=query, bind=session.bind)
