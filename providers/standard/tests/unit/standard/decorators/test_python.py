@@ -1325,4 +1325,4 @@ def test_python_task():
     assert decorator.function == async_fn
     assert decorator.operator_class == _PythonDecoratedOperator
     assert not decorator.multiple_outputs
-    assert decorator.kwargs == {"task_id": "dummy_task"}
+    assert decorator.kwargs == {"task_id": "async_fn"}
