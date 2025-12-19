@@ -194,6 +194,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "timeout_graceful_shutdown": args.worker_timeout,
                     "timeout_worker_healthcheck": args.worker_timeout,
                     "access_log": True,
+                    "log_level": "info",
                     "proxy_headers": args.proxy_headers,
                     **expected_additional_kwargs,
                 },
@@ -246,6 +247,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             ssl_keyfile=None,
             ssl_certfile=None,
             access_log=True,
+            log_level="info",
             proxy_headers=False,
         )
 

@@ -24,9 +24,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
 from airflow import XComArg
-from airflow.exceptions import AirflowException
 from airflow.models import SkipMixin
 from airflow.providers.common.compat.sdk import (
+    AirflowException,
     AirflowFailException,
     AirflowSkipException,
     BaseHook,
@@ -862,6 +862,9 @@ class SQLValueCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param pass_value: the value to check against
+    :param tolerance: (optional) the tolerance allowed to pass records within for
+        numeric queries
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}

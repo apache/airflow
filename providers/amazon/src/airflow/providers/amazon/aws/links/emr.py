@@ -19,10 +19,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, quote_plus, urlparse
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:

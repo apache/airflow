@@ -36,6 +36,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
@@ -81,7 +82,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -959,6 +959,7 @@ class TestDag:
             dag_run.handle_dag_callback(dag=dag, success=False)
             dag_run.handle_dag_callback(dag=dag, success=True)
 
+    @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(
         self, catchup, expected_next_dagrun, testing_dag_bundle
@@ -994,11 +995,9 @@ class TestDag:
             model = session.get(DagModel, dag.dag_id)
 
         if expected_next_dagrun is None:
-            # For catchup=False, next_dagrun should be based on the current date
-            current_time = timezone.utcnow()
             # Verify it's not using the old default date
-            assert model.next_dagrun.year == current_time.year
-            assert model.next_dagrun.month == current_time.month
+            assert model.next_dagrun.year == 2025
+            assert model.next_dagrun.month == 11
             # Verify next_dagrun_create_after is scheduled after next_dagrun
             assert model.next_dagrun_create_after > model.next_dagrun
         else:

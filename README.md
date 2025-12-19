@@ -48,7 +48,7 @@
 
 When workflows are defined as code, they become more maintainable, versionable, testable, and collaborative.
 
-Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
+Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on Dags a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
 <!-- END Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -82,7 +82,7 @@ Use Airflow to author workflows (Dags) that orchestrate tasks. The Airflow sched
 
 ## Project Focus
 
-Airflow works best with workflows that are mostly static and slowly changing. When the DAG structure is similar from one run to the next, it clarifies the unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
+Airflow works best with workflows that are mostly static and slowly changing. When the Dag structure is similar from one run to the next, it clarifies the unit of work and continuity. Other similar projects include [Luigi](https://github.com/spotify/luigi), [Oozie](https://oozie.apache.org/) and [Azkaban](https://azkaban.github.io/).
 
 Airflow is commonly used to process data, but has the opinion that tasks should ideally be idempotent (i.e., results of the task will be the same, and will not create duplicated data in a destination system), and should not pass large quantities of data from one task to the next (though tasks can pass metadata using Airflow's [XCom feature](https://airflow.apache.org/docs/apache-airflow/stable/concepts/xcoms.html)). For high-volume, data-intensive tasks, a best practice is to delegate to external services specializing in that type of work.
 
@@ -99,7 +99,7 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)           | Stable version (3.1.3) |
+|            | Main version (dev)           | Stable version (3.1.5) |
 |------------|------------------------------|------------------------|
 | Python     | 3.10, 3.11, 3.12, 3.13       | 3.10, 3.11, 3.12, 3.13 |
 | Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
@@ -172,15 +172,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==3.1.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.3/constraints-3.10.txt"
+pip install 'apache-airflow==3.1.5' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.5/constraints-3.10.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==3.1.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.3/constraints-3.10.txt"
+pip install 'apache-airflow[postgres,google]==3.1.5' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.5/constraints-3.10.txt"
 ```
 
 For information on installing provider distributions, check
@@ -231,19 +231,19 @@ following the ASF Policy.
 
 ## User Interface
 
-- **DAGs**: Overview of all DAGs in your environment.
+- **Dags**: Overview of all Dags in your environment.
 
-  ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/dags.png)
+  ![Dags](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/dags.png)
 
 - **Assets**: Overview of Assets with dependencies.
 
   ![Asset Dependencies](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/assets_graph.png)
 
-- **Grid**: Grid representation of a DAG that spans across time.
+- **Grid**: Grid representation of a Dag that spans across time.
 
   ![Grid](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/grid.png)
 
-- **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
+- **Graph**: Visualization of a Dag's dependencies and their current status for a specific run.
 
   ![Graph](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/graph.png)
 
@@ -251,11 +251,11 @@ following the ASF Policy.
 
   ![Home](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/home.png)
 
-- **Backfill**: Backfilling a DAG for a specific date range.
+- **Backfill**: Backfilling a Dag for a specific date range.
 
   ![Backfill](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/backfill.png)
 
-- **Code**: Quick way to view source code of a DAG.
+- **Code**: Quick way to view source code of a Dag.
 
   ![Code](https://raw.githubusercontent.com/apache/airflow/main/airflow-core/docs/img/ui-dark/code.png)
 
@@ -294,7 +294,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Maintenance   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-----------------------|------------------|
-| 3         | 3.1.3                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
+| 3         | 3.1.5                 | Supported | Apr 22, 2025    | TBD                   | TBD              |
 | 2         | 2.11.0                | Supported | Dec 17, 2020    | Oct 22, 2025          | Apr 22, 2026     |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020          | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018          | Aug 27, 2018     |
@@ -362,7 +362,7 @@ this image in the `main` branch.
 
 Airflow has a lot of dependencies - direct and transitive, also Airflow is both - library and application,
 therefore our policies to dependencies has to include both - stability of installation of application,
-but also ability to install newer version of dependencies for those users who develop DAGs. We developed
+but also ability to install newer version of dependencies for those users who develop Dags. We developed
 the approach where `constraints` are used to make sure airflow can be installed in a repeatable way, while
 we do not limit our users to upgrade most of the dependencies. As a result we decided not to upper-bound
 version of Airflow dependencies by default, unless we have good reasons to believe upper-bounding them is

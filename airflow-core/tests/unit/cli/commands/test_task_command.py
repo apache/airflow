@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
@@ -63,12 +64,10 @@ ROOT_FOLDER = Path(__file__).parents[4].resolve()
 
 def reset(dag_id):
     with create_session() as session:
-        tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
-        tis.delete()
-        runs = session.query(DagRun).filter_by(dag_id=dag_id)
-        runs.delete()
-        session.query(DagModel).filter_by(dag_id=dag_id).delete()
-        session.query(SerializedDagModel).filter_by(dag_id=dag_id).delete()
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dag_id))
+        session.execute(delete(DagRun).where(DagRun.dag_id == dag_id))
+        session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
 
 
 @contextmanager

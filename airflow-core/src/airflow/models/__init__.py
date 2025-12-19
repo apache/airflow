@@ -81,7 +81,7 @@ def __getattr__(name):
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    from airflow.utils.module_loading import import_string
+    from airflow._shared.module_loading import import_string
 
     val = import_string(f"{path}.{name}")
 

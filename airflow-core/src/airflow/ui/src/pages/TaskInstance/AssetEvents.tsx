@@ -18,6 +18,7 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -30,6 +31,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t: translate } = useTranslation(["assets"]);
 
   const [assetNameSearch, setAssetNameSearch] = useState(
     searchParams.get(SearchParamsKeys.NAME_PATTERN) ?? "",
@@ -107,12 +109,10 @@ export const AssetEvents = () => {
     <Box>
       <Box maxWidth="500px" mb={4}>
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={assetNameSearch}
-          hideAdvanced
           hotkeyDisabled
           onChange={handleSearchChange}
-          placeHolder="Search assets by name..."
+          placeholder={translate("searchPlaceholder")}
         />
       </Box>
       <AssetEventsTable
