@@ -17,16 +17,27 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow._shared.timezones import timezone
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
+try:
+    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.serialization.encoders import ensure_serialized_asset
+except ModuleNotFoundError:
+    BaseAsset: TypeAlias = SerializedAssetBase  # type: ignore[no-redef]
+
+    def ensure_serialized_asset(o):  # type: ignore[misc,no-redef]
+        return o
+
+
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
     from pendulum import DateTime
 
-    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -171,24 +182,28 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by assets"
 
-    def __init__(self, assets: BaseAsset) -> None:
+    def __init__(self, assets: Collection[SerializedAsset] | SerializedAssetBase) -> None:
         super().__init__()
-        self.asset_condition = assets
+        # Compatibility: Handle SDK assets if needed so this class works in dag files.
+        if isinstance(assets, SerializedAssetBase | BaseAsset):
+            self.asset_condition = ensure_serialized_asset(assets)
+        else:
+            self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.decoders import decode_asset_condition
+        from airflow.serialization.decoders import decode_asset_like
 
-        return cls(decode_asset_condition(data["asset_condition"]))
+        return cls(decode_asset_like(data["asset_condition"]))
 
     @property
     def summary(self) -> str:
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.encoders import encode_asset_condition
+        from airflow.serialization.encoders import encode_asset_like
 
-        return {"asset_condition": encode_asset_condition(self.asset_condition)}
+        return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     def generate_run_id(
         self,
@@ -260,24 +275,23 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
     def summary(self) -> str:
         return "Partitioned Asset"
 
-    def __init__(self, *, assets: BaseAsset, partition_mapper: PartitionMapper) -> None:
+    def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
         super().__init__(assets=assets)
-        self.asset_condition = assets
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition, encode_partition_mapper
+        from airflow.serialization.serialized_objects import encode_asset_like, encode_partition_mapper
 
         return {
-            "asset_condition": encode_asset_condition(self.asset_condition),
+            "asset_condition": encode_asset_like(self.asset_condition),
             "partition_mapper": encode_partition_mapper(self.partition_mapper),
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition, decode_partition_mapper
+        from airflow.serialization.serialized_objects import decode_asset_like, decode_partition_mapper
 
         return cls(
-            assets=decode_asset_condition(data["asset_condition"]),
+            assets=decode_asset_like(data["asset_condition"]),
             partition_mapper=decode_partition_mapper(data["partition_mapper"]),
         )

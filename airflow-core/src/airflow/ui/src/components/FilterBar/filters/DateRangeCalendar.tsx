@@ -38,9 +38,9 @@ const getDayState = (day: Dayjs, currentMonth: Dayjs, dateRange: { endDate?: Day
   const isEnd = Boolean(dateRange.endDate?.isSame(day, "day"));
   const isInRange = Boolean(
     dateRange.startDate &&
-      dateRange.endDate &&
-      day.isAfter(dateRange.startDate, "day") &&
-      day.isBefore(dateRange.endDate, "day"),
+    dateRange.endDate &&
+    day.isAfter(dateRange.startDate, "day") &&
+    day.isBefore(dateRange.endDate, "day"),
   );
   const isStart = Boolean(dateRange.startDate?.isSame(day, "day"));
   const isToday = day.isSame(dayjs(), "day");

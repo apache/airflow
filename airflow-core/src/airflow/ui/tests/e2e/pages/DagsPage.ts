@@ -33,6 +33,10 @@ export class DagsPage extends BasePage {
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  // Pagination elements
+  public readonly paginationNextButton: Locator;
+  public readonly paginationPrevButton: Locator;
+
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
@@ -42,6 +46,8 @@ export class DagsPage extends BasePage {
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
+    this.paginationNextButton = page.locator('[data-testid="next"]');
+    this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
   // URL builders for dynamic paths
@@ -51,6 +57,34 @@ export class DagsPage extends BasePage {
 
   public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
     return `/dags/${dagName}/runs/${dagRunId}/details`;
+  }
+
+  /**
+   * Click next page button
+   */
+  public async clickNextPage(): Promise<void> {
+    await this.paginationNextButton.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Click previous page button
+   */
+  public async clickPrevPage(): Promise<void> {
+    await this.paginationPrevButton.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Get all Dag names from the current page
+   */
+  public async getDagNames(): Promise<Array<string>> {
+    const dagLinks = this.page.locator('[data-testid="dag-id"]');
+
+    await dagLinks.first().waitFor({ state: "visible", timeout: 10_000 });
+    const texts = await dagLinks.allTextContents();
+
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
   /**

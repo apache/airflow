@@ -58,53 +58,55 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
       displayValue={displayValue ?? ""}
       filter={filter}
       hasValue={hasValue}
-      onChange={onChange}
       onRemove={onRemove}
-    >
-      <Box
-        alignItems="center"
-        bg="bg"
-        border="0.5px solid"
-        borderColor="border"
-        borderRadius="full"
-        display="flex"
-        h="full"
-        overflow="hidden"
-        width="330px"
-      >
-        <Text
+      renderInput={(props) => (
+        <Box
+          {...props}
           alignItems="center"
-          bg="gray.muted"
-          borderLeftRadius="full"
+          bg="bg"
+          border="0.5px solid"
+          borderColor="border"
+          borderRadius="full"
           display="flex"
-          fontSize="sm"
-          fontWeight="medium"
           h="full"
-          px={4}
-          py={2}
-          whiteSpace="nowrap"
+          overflow="hidden"
+          tabIndex={0}
+          width="330px"
         >
-          {filter.config.label}:
-        </Text>
-        <Select.Root
-          border="none"
-          collection={createListCollection({ items: config.options })}
-          h="full"
-          onValueChange={handleValueChange}
-          value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
-        >
-          <Select.Trigger triggerProps={{ border: "none" }}>
-            <Select.ValueText placeholder={filter.config.placeholder} />
-          </Select.Trigger>
-          <Select.Content>
-            {config.options.map((option) => (
-              <Select.Item item={option} key={option.value}>
-                {option.label}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </Box>
-    </FilterPill>
+          <Text
+            alignItems="center"
+            bg="gray.muted"
+            borderLeftRadius="full"
+            display="flex"
+            fontSize="sm"
+            fontWeight="medium"
+            h="full"
+            px={4}
+            py={2}
+            whiteSpace="nowrap"
+          >
+            {filter.config.label}:
+          </Text>
+          <Select.Root
+            border="none"
+            collection={createListCollection({ items: config.options })}
+            h="full"
+            onValueChange={handleValueChange}
+            value={hasValue && typeof filter.value === "string" ? [filter.value] : []}
+          >
+            <Select.Trigger triggerProps={{ border: "none" }}>
+              <Select.ValueText placeholder={filter.config.placeholder} />
+            </Select.Trigger>
+            <Select.Content>
+              {config.options.map((option) => (
+                <Select.Item item={option} key={option.value}>
+                  {option.label}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </Box>
+      )}
+    />
   );
 };

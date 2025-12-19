@@ -17,7 +17,7 @@
  * under the License.
  */
 export { FilterBar } from "./FilterBar";
-export { FilterPill } from "./FilterPill";
+export { FilterPill, type FilterPillInputProps } from "./FilterPill";
 export { defaultFilterIcons, getDefaultFilterIcon } from "./defaultIcons";
 export { DateFilter } from "./filters/DateFilter";
 export { NumberFilter } from "./filters/NumberFilter";

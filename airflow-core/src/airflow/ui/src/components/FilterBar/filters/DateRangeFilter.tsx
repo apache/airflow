@@ -58,105 +58,105 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
       displayValue={formatDisplayValue()}
       filter={filter}
       hasValue={hasValue}
-      onChange={onChange}
       onRemove={onRemove}
-    >
-      <Popover.Root
-        defaultOpen={!hasValue}
-        key={filter.id}
-        lazyMount
-        positioning={{ placement: "bottom-start" }}
-        unmountOnExit
-      >
-        <Popover.Trigger asChild>
-          <Box
-            alignItems="center"
-            bg={hasValue ? "blue.muted" : "gray.muted"}
-            border="0.5px solid"
-            borderColor="border"
-            borderRadius="full"
-            color="colorPalette.fg"
-            colorPalette={hasValue ? "blue" : "gray"}
-            cursor="pointer"
-            display="flex"
-            h="10"
-            maxWidth="600px"
-            minWidth="300px"
-            overflow="hidden"
-            width="fit-content"
-          >
-            <HStack
+      renderInput={() => (
+        <Popover.Root
+          defaultOpen={!hasValue}
+          key={filter.id}
+          lazyMount
+          positioning={{ placement: "bottom-start" }}
+          unmountOnExit
+        >
+          <Popover.Trigger asChild>
+            <Box
               alignItems="center"
               bg={hasValue ? "blue.muted" : "gray.muted"}
-              borderLeftRadius="full"
-              fontSize="sm"
-              fontWeight="medium"
-              gap={2}
-              h="full"
-              px={3}
-              py={1.5}
-              whiteSpace="nowrap"
+              border="0.5px solid"
+              borderColor="border"
+              borderRadius="full"
+              color="colorPalette.fg"
+              colorPalette={hasValue ? "blue" : "gray"}
+              cursor="pointer"
+              display="flex"
+              h="10"
+              maxWidth="600px"
+              minWidth="300px"
+              overflow="hidden"
+              width="fit-content"
             >
-              <MdCalendarToday />
-              <Text>{filter.config.label}:</Text>
-            </HStack>
-            <HStack flex="1" gap={2} px={2.5} py={0.5}>
-              <Text
-                color={hasValue ? "inherit" : "gray.500"}
-                flexShrink={0}
+              <HStack
+                alignItems="center"
+                bg={hasValue ? "blue.muted" : "gray.muted"}
+                borderLeftRadius="full"
                 fontSize="sm"
+                fontWeight="medium"
+                gap={2}
+                h="full"
+                px={3}
+                py={1.5}
                 whiteSpace="nowrap"
               >
-                {hasValue ? formatDisplayValue() : translate("common:filters.selectDateRange")}
-              </Text>
-              <Box
-                _hover={{
-                  bg: "gray.100",
-                  color: "gray.600",
-                }}
-                alignItems="center"
-                bg="transparent"
-                borderRadius="full"
-                color="gray.400"
-                cursor="pointer"
-                display="flex"
-                h={6}
-                justifyContent="center"
-                ml="auto"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onRemove();
-                }}
-                transition="all 0.2s"
-                w={6}
-              >
-                <MdClose size={16} />
-              </Box>
-            </HStack>
-          </Box>
-        </Popover.Trigger>
-        <Popover.Content p={3} w="320px">
-          <VStack gap={2} w="full">
-            <DateRangeInputs
-              editingState={editingState}
-              endDateValue={endDateValue}
-              getFieldError={getFieldError}
-              handleInputChange={handleInputChange}
-              onChange={onChange}
-              setEditingState={setEditingState}
-              startDateValue={startDateValue}
-              translate={translate}
-              value={value}
-            />
-            <DateRangeCalendar
-              currentMonth={editingState.currentMonth}
-              onDateClick={handleDateClick}
-              onMonthChange={(month) => setEditingState((prev) => ({ ...prev, currentMonth: month }))}
-              value={value}
-            />
-          </VStack>
-        </Popover.Content>
-      </Popover.Root>
-    </FilterPill>
+                <MdCalendarToday />
+                <Text>{filter.config.label}:</Text>
+              </HStack>
+              <HStack flex="1" gap={2} px={2.5} py={0.5}>
+                <Text
+                  color={hasValue ? "inherit" : "gray.500"}
+                  flexShrink={0}
+                  fontSize="sm"
+                  whiteSpace="nowrap"
+                >
+                  {hasValue ? formatDisplayValue() : translate("common:filters.selectDateRange")}
+                </Text>
+                <Box
+                  _hover={{
+                    bg: "gray.100",
+                    color: "gray.600",
+                  }}
+                  alignItems="center"
+                  bg="transparent"
+                  borderRadius="full"
+                  color="gray.400"
+                  cursor="pointer"
+                  display="flex"
+                  h={6}
+                  justifyContent="center"
+                  ml="auto"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRemove();
+                  }}
+                  transition="all 0.2s"
+                  w={6}
+                >
+                  <MdClose size={16} />
+                </Box>
+              </HStack>
+            </Box>
+          </Popover.Trigger>
+          <Popover.Content p={3} w="320px">
+            <VStack gap={2} w="full">
+              <DateRangeInputs
+                editingState={editingState}
+                endDateValue={endDateValue}
+                getFieldError={getFieldError}
+                handleInputChange={handleInputChange}
+                onChange={onChange}
+                setEditingState={setEditingState}
+                startDateValue={startDateValue}
+                translate={translate}
+                value={value}
+              />
+              <DateRangeCalendar
+                currentMonth={editingState.currentMonth}
+                onDateClick={handleDateClick}
+                onMonthChange={(month) => setEditingState((prev) => ({ ...prev, currentMonth: month }))}
+                value={value}
+              />
+            </VStack>
+          </Popover.Content>
+        </Popover.Root>
+      )}
+    />
   );
 };

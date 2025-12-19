@@ -23,8 +23,8 @@ import { LuFileWarning } from "react-icons/lu";
 import type { DAGWarningResponse } from "openapi/requests/types.gen";
 import { Dialog } from "src/components/ui";
 
-import { ErrorAlert } from "../ErrorAlert";
-import { WarningAlert } from "../WarningAlert";
+import { ErrorAlert } from "./ErrorAlert";
+import { WarningAlert } from "./WarningAlert";
 
 type ImportDAGErrorModalProps = {
   error?: unknown;

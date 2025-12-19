@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.serialized_objects import SerializedBaseOperator
 
     SchedulerOperator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -111,7 +110,7 @@ class PrevDagrunDep(BaseTIDep):
     @staticmethod
     def _has_unsuccessful_dependants(
         dagrun: DagRun,
-        task: SdkOperator | SchedulerOperator,
+        task: SchedulerOperator,
         *,
         session: Session,
     ) -> bool:

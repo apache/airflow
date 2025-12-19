@@ -31,7 +31,7 @@ from pydantic import BaseModel
 
 from airflow._shared.module_loading import import_string, iter_namespace, qualname
 from airflow.sdk.definitions.asset import Asset
-from airflow.serialization.serde import (
+from airflow.sdk.serde import (
     CLASSNAME,
     DATA,
     SCHEMA_ID,
@@ -67,28 +67,28 @@ def generate_serializers_importable_tests():
     """
     Generate test cases for `test_serializers_importable_and_str`.
 
-    The function iterates through all the modules defined under `airflow.serialization.serializers`. It loads
+    The function iterates through all the modules defined under `airflow.sdk.serde.serializers`. It loads
     the import strings defined in the `serializers` from each module, and create a test case to verify that the
     serializer is importable.
     """
-    import airflow.serialization.serializers
+    import airflow.sdk.serde.serializers
 
     NUMPY_VERSION = version.parse(metadata.version("numpy"))
 
     serializer_tests = []
 
-    for _, name, _ in iter_namespace(airflow.serialization.serializers):
+    for _, name, _ in iter_namespace(airflow.sdk.serde.serializers):
         ############################################################
         # Handle compatibility / optional dependency at module level
         ############################################################
         # https://github.com/apache/airflow/pull/37320
-        if name == "airflow.serialization.serializers.iceberg":
+        if name == "airflow.sdk.serde.serializers.iceberg":
             try:
                 import pyiceberg  # noqa: F401
             except ImportError:
                 continue
         # https://github.com/apache/airflow/pull/38074
-        if name == "airflow.serialization.serializers.deltalake":
+        if name == "airflow.sdk.serde.serializers.deltalake":
             try:
                 import deltalake  # noqa: F401
             except ImportError:
@@ -462,35 +462,24 @@ class TestSerDe:
         except ImportError:
             raise AttributeError(f"{s} cannot be imported (located in {name})")
 
-    def test_stringify(self):
-        i = V(W(10), ["l1", "l2"], (1, 2), 10)
-        e = serialize(i)
-        s = deserialize(e, full=False)
-
-        assert f"{qualname(V)}@version={V.__version__}" in s
-        # asdict from dataclasses removes class information
-        assert "w={'x': 10}" in s
-        assert "s=['l1', 'l2']" in s
-        assert "t=(1,2)" in s
-        assert "c=10" in s
-        e["__data__"]["t"] = (1, 2)
-
-        s = deserialize(e, full=False)
-
     @pytest.mark.parametrize(
         ("obj", "expected"),
         [
             (
                 Z(10),
                 {
-                    "__classname__": "unit.serialization.test_serde.Z",
+                    "__classname__": "tests.task_sdk.serde.test_serde.Z",
                     "__version__": 1,
                     "__data__": {"x": 10},
                 },
             ),
             (
                 W(2),
-                {"__classname__": "unit.serialization.test_serde.W", "__version__": 2, "__data__": {"x": 2}},
+                {
+                    "__classname__": "tests.task_sdk.serde.test_serde.W",
+                    "__version__": 2,
+                    "__data__": {"x": 2},
+                },
             ),
         ],
     )
@@ -511,6 +500,7 @@ class TestSerDe:
     def test_error_when_serializing_callable_without_name(self):
         i = C()
         with pytest.raises(
-            TypeError, match="cannot serialize object of type <class 'unit.serialization.test_serde.C'>"
+            TypeError,
+            match="cannot serialize object of type <class 'tests.task_sdk.serde.test_serde.C'>",
         ):
             serialize(i)

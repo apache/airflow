@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
@@ -275,7 +275,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def cleanup_audit_log(session: Session) -> None:
-    session.query(Log).delete()
+    session.execute(delete(Log))
     session.commit()
 
 
