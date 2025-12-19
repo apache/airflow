@@ -1277,7 +1277,7 @@ class AirflowConfigParser(ConfigParser):
         )
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
+    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True, **kwargs) -> bool:
         """
         Check if option is defined.
 
@@ -1287,6 +1287,7 @@ class AirflowConfigParser(ConfigParser):
         :param section: section to get option from
         :param option: option to get
         :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
+        :param kwargs: additional keyword arguments to pass to get(), such as team_name
         :return:
         """
         try:
@@ -1297,6 +1298,7 @@ class AirflowConfigParser(ConfigParser):
                 _extra_stacklevel=1,
                 suppress_warnings=True,
                 lookup_from_deprecated=lookup_from_deprecated,
+                **kwargs,
             )
             if value is None:
                 return False
@@ -1519,32 +1521,37 @@ class AirflowConfigParser(ConfigParser):
         """
         return _is_template(self.configuration_description, section, key)
 
-    def getsection(self, section: str) -> ConfigOptionsDictType | None:
+    def getsection(self, section: str, team_name: str | None = None) -> ConfigOptionsDictType | None:
         """
         Return the section as a dict.
 
         Values are converted to int, float, bool as required.
 
         :param section: section from the config
+        :param team_name: optional team name for team-specific configuration lookup
         """
-        if not self.has_section(section) and not self._default_values.has_section(section):
+        # Handle team-specific section lookup for config file
+        config_section = f"{team_name}={section}" if team_name else section
+
+        if not self.has_section(config_section) and not self._default_values.has_section(config_section):
             return None
-        if self._default_values.has_section(section):
-            _section: ConfigOptionsDictType = dict(self._default_values.items(section))
+        if self._default_values.has_section(config_section):
+            _section: ConfigOptionsDictType = dict(self._default_values.items(config_section))
         else:
             _section = {}
 
-        if self.has_section(section):
-            _section.update(self.items(section))
+        if self.has_section(config_section):
+            _section.update(self.items(config_section))
 
-        section_prefix = self._env_var_name(section, "")
+        # Use section (not config_section) for env var lookup - team_name is handled by _env_var_name
+        section_prefix = self._env_var_name(section, "", team_name=team_name)
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, "")
                 if key.endswith("_CMD"):
                     key = key[:-4]
                 key = key.lower()
-                _section[key] = self._get_env_var_option(section, key)
+                _section[key] = self._get_env_var_option(section, key, team_name=team_name)
 
         for key, val in _section.items():
             if val is None:
