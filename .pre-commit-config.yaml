@@ -444,7 +444,6 @@ repos:
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
-            ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
             ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
             ^airflow-core/tests/unit/models/test_deadline.py$|

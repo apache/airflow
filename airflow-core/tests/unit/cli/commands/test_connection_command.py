@@ -606,9 +606,7 @@ class TestCliAddConnections:
             "schema",
             "extra",
         ]
-        current_conn = (
-            session.execute(select(Connection).where(Connection.conn_id == conn_id)).scalars().first()
-        )
+        current_conn = session.scalars(select(Connection).where(Connection.conn_id == conn_id)).first()
         assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
 
     def test_cli_connections_add_duplicate(self):
@@ -716,7 +714,7 @@ class TestCliDeleteConnections:
         assert "Successfully deleted connection with `conn_id`=new1" in stdout.getvalue()
 
         # Check deletions
-        result = session.execute(select(Connection).where(Connection.conn_id == "new1")).scalars().first()
+        result = session.scalars(select(Connection).where(Connection.conn_id == "new1")).first()
 
         assert result is None
 
@@ -805,11 +803,9 @@ class TestCliImportConnections:
         expected_imported = {k: v for k, v in expected_connections.items() if k != "new3"}
 
         with create_session() as session:
-            current_conns = (
-                session.execute(select(Connection).where(Connection.conn_id.in_(["new0", "new1"])))
-                .scalars()
-                .all()
-            )
+            current_conns = session.scalars(
+                select(Connection).where(Connection.conn_id.in_(["new0", "new1"]))
+            ).all()
 
             comparable_attrs = [
                 "conn_id",
@@ -878,7 +874,7 @@ class TestCliImportConnections:
         assert "Could not import connection new3: connection already exists." in mock_print.call_args[0][0]
 
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.execute(select(Connection)).scalars().all()
+        current_conns = session.scalars(select(Connection)).all()
 
         comparable_attrs = [
             "conn_id",
@@ -949,7 +945,7 @@ class TestCliImportConnections:
             "Could not import connection new3: connection already exists." not in mock_print.call_args[0][0]
         )
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.execute(select(Connection)).scalars().all()
+        current_conns = session.scalars(select(Connection)).all()
         comparable_attrs = [
             "conn_id",
             "conn_type",
