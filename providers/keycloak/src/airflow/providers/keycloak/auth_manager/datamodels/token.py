@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import Field
+from typing import Annotated, Literal
+
+from pydantic import Field, RootModel, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
@@ -28,15 +30,35 @@ class TokenResponse(BaseModel):
     access_token: str
 
 
-class TokenBody(StrictBaseModel):
-    """Token serializer for post bodies."""
+class TokenPasswordBody(StrictBaseModel):
+    """Password Grant Token serializer for post bodies."""
 
+    grant_type: Literal["password"] = "password"
     username: str = Field()
     password: str = Field()
 
 
-class ClientCredentialsTokenBody(StrictBaseModel):
-    """Client Credentials Token serializer for post bodies."""
+class TokenClientCredentialsBody(StrictBaseModel):
+    """Client Credentials Grant Token serializer for post bodies."""
 
+    grant_type: Literal["client_credentials"]
     client_id: str = Field()
     client_secret: str = Field()
+
+
+TokenUnion = Annotated[
+    TokenPasswordBody | TokenClientCredentialsBody,
+    Field(discriminator="grant_type"),
+]
+
+
+class TokenBody(RootModel[TokenUnion]):
+    """Token request body."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def default_grant_type(cls, data):
+        """Add default grant_type for discrimination."""
+        if "grant_type" not in data:
+            data["grant_type"] = "password"
+        return data
