@@ -196,17 +196,6 @@ class C:
         return None
 
 
-@pytest.fixture(scope="class", autouse=True)
-def allow_test_classes_deserialization():
-    """
-    Allow test classes and airflow SDK classes to be deserialized. In airflow-core tests, this is provided by
-    unit_tests.cfg which sets allowed_deserialization_classes = airflow.* tests.*
-    SDK tests may not inherit that configuration, so we explicitly allow airflow.sdk.* and tests.* here.
-    """
-    with conf_vars({("core", "allowed_deserialization_classes"): "airflow.sdk.* tests.*"}):
-        yield
-
-
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):

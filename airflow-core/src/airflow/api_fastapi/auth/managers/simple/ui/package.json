@@ -59,5 +59,11 @@
     "@typescript-eslint/eslint-plugin": "8.50.0",
     "@typescript-eslint/utils": "^8.50.0",
     "@typescript-eslint/parser": "8.50.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@swc/core",
+      "esbuild"
+    ]
   }
 }
