@@ -445,10 +445,9 @@ def test_assign_unassigned(session, create_triggerer, create_trigger, use_trigge
     )
     # Check that unassigned trigger with a queue value which has no consuming triggerers remains unassigned
     assert (
-        session.query(Trigger)
-        .filter(Trigger.id == trigger_explicit_bad_queue_unassigned_to_triggerer.id)
-        .one()
-        .triggerer_id
+        session.scalar(
+            select(Trigger).where(Trigger.id == trigger_explicit_bad_queue_unassigned_to_triggerer.id)
+        ).triggerer_id
         is None
     )
     # Check that trigger on healthy triggerer still assigned to existing triggerer
