@@ -61,7 +61,7 @@ classifiers = [
 version = "3.2.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.1.0",
+    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     "apache-airflow-core==3.2.0",
 ]
 
@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.16",
+    "uv>=0.9.18",
 ]
 
 [project.urls]
@@ -1292,6 +1292,7 @@ dev = [
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1346,6 +1347,7 @@ apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
@@ -1468,6 +1470,7 @@ members = [
     "providers-summary-docs",
     "docker-stack-docs",
     "shared/configuration",
+    "shared/module_loading",
     "shared/logging",
     "shared/secrets_backend",
     "shared/secrets_masker",

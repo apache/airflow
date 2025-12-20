@@ -78,7 +78,7 @@ from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
@@ -4744,7 +4744,10 @@ class TestSchedulerJob:
         ):
             self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
-            assert caplog.messages == [
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.ERROR
+            ]
+            assert scheduler_messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
 
@@ -6907,7 +6910,7 @@ class TestSchedulerJob:
             pytest.param(
                 False,
                 False,
-                "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                "airflow.providers.standard.triggers.file.FileDeleteTrigger",
                 id="active",
             ),
             pytest.param(False, True, None, id="stale"),
@@ -6917,13 +6920,12 @@ class TestSchedulerJob:
     )
     @pytest.mark.need_serialized_dag(False)
     def test_delete_unreferenced_triggers(self, dag_maker, session, paused, stale, expected_classpath):
+        trigger = FileDeleteTrigger(mock.Mock())
+        classpath = "airflow.providers.standard.triggers.file.FileDeleteTrigger"
+
         self.job_runner = SchedulerJobRunner(job=Job())
 
-        classpath, kwargs = DateTimeTrigger(timezone.utcnow()).serialize()
-        asset1 = Asset(
-            name="test_asset_1",
-            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
-        )
+        asset1 = Asset(name="test_asset_1", watchers=[AssetWatcher(name="test", trigger=trigger)])
         with dag_maker(dag_id="dag", schedule=[asset1], session=session) as dag:
             EmptyOperator(task_id="task")
         dags = {"dag": LazyDeserializedDAG.from_dag(dag)}
@@ -7571,6 +7573,38 @@ class TestSchedulerJob:
         assert result == mock_executors[1]
 
     @conf_vars({("core", "multi_team"): "true"})
+    def test_multi_team_try_to_load_executor_no_explicit_executor_with_team_no_team_default(
+        self, dag_maker, mock_executors, session
+    ):
+        """Test executor selection when no explicit executor but team exists and team has no executors (should
+        fallback to the global executor)."""
+        clear_db_teams()
+        clear_db_dag_bundles()
+
+        team = Team(name="team_a")
+        session.add(team)
+        session.flush()
+
+        bundle = DagBundleModel(name="bundle_a")
+        bundle.teams.append(team)
+        session.add(bundle)
+        session.flush()
+
+        with dag_maker(dag_id="dag_a", bundle_name="bundle_a", session=session):
+            task = EmptyOperator(task_id="test_task")  # No explicit executor
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id, session)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        result = self.job_runner._try_to_load_executor(ti, session)
+
+        # Should return the team-specific default executor set above
+        assert result == mock_executors[0]
+
+    @conf_vars({("core", "multi_team"): "true"})
     def test_multi_team_try_to_load_executor_explicit_executor_matches_team(
         self, dag_maker, mock_executors, session
     ):
@@ -8139,6 +8173,7 @@ def test_mark_backfills_completed(dag_maker, session):
     assert b.completed_at.timestamp() > 0
 
 
+@pytest.mark.need_serialized_dag
 def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
     dag_maker,
     session,
@@ -8151,6 +8186,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert dr.partition_key == "abc123"
     [ti] = dr.get_task_instances(session=session)
     session.commit()
+    serialized_outlets = dag.get_task("hi").outlets
 
     with dag_maker(
         dag_id="asset_event_listener",
@@ -8162,7 +8198,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[asset.asprofile()],
+        task_outlets=[o.asprofile() for o in serialized_outlets],
         outlet_events=[],
         session=session,
     )

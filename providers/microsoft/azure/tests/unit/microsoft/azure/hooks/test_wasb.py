@@ -27,8 +27,8 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.storage.blob._models import BlobProperties
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 pytestmark = pytest.mark.db_test

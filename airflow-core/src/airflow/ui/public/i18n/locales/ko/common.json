@@ -25,6 +25,7 @@
     "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "모든 추가 JSON 접기",
   "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
@@ -73,6 +74,9 @@
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
+  "diff": "비교",
+  "diffCompareWith": "비교 대상",
+  "diffExit": "비교 종료",
   "direction": "방향",
   "docs": {
     "documentation": "문서",
@@ -100,6 +104,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
+  "expandAllExtra": "모든 추가 JSON 펼치기",
   "expression": {
     "all": "모두",
     "and": "그리고",
@@ -182,6 +187,7 @@
   },
   "selectLanguage": "언어 선택",
   "showDetailsPanel": "세부 정보 패널 펼치기",
+  "signedInAs": "로그인한 사용자",
   "source": {
     "hide": "소스 숨기기",
     "hotkey": "s",

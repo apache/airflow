@@ -27,6 +27,7 @@ import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, current_app, g
+from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
@@ -56,8 +57,9 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, DagModel, Pool, Variable
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     PERMISSIONS_CLEANUP_COMMAND,
@@ -297,6 +299,32 @@ class FabAuthManager(BaseAuthManager[User]):
             and self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
             or (not user.is_anonymous and user.is_active)
         )
+
+    def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User:
+        """
+        Create a new token from a payload.
+
+        By default, it uses basic authentication (username and password).
+        Override this method to use a different authentication method (e.g. oauth).
+
+        :param headers: request headers
+        :param body: request body
+        """
+        if not body.get("username") or not body.get("password"):
+            raise ValueError("Username and password must be provided")
+
+        user: User | None = None
+
+        if self.security_manager.auth_type == AUTH_LDAP:
+            user = self.security_manager.auth_user_ldap(
+                body["username"], body["password"], rotate_session_id=False
+            )
+        if user is None:
+            user = self.security_manager.auth_user_db(
+                body["username"], body["password"], rotate_session_id=False
+            )
+
+        return user
 
     def is_authorized_configuration(
         self,
