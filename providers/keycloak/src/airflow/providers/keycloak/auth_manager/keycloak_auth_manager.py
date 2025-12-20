@@ -166,6 +166,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return None
 
     def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        if not user.refresh_token:
+            # It is a service account. It used the client credentials flow and no refresh token is issued.
+            return {}
+
         try:
             log.debug("Refreshing the token")
             client = self.get_keycloak_client()
