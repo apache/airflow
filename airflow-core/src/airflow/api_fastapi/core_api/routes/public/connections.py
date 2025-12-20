@@ -217,7 +217,6 @@ def patch_connection(
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(
     test_body: ConnectionBody,
-    session: SessionDep,
 ) -> ConnectionTestResponse:
     """
     Test an API connection.
