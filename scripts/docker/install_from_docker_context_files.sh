@@ -122,7 +122,11 @@ function install_airflow_and_providers_from_docker_context_files(){
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
-    pip check
+    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+    # between `pip` and `uv` installations
+    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+    uv pip check
 }
 
 # Simply install all other (non-apache-airflow) distributions placed in docker-context files

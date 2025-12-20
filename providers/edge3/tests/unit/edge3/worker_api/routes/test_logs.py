@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import pytest
+from sqlalchemy import delete, select
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
@@ -45,7 +47,7 @@ class TestLogsApiRoutes:
             EmptyOperator(task_id=TASK_ID)
         dag_maker.create_dagrun(run_id=RUN_ID)
 
-        session.query(EdgeLogsModel).delete()
+        session.execute(delete(EdgeLogsModel))
         session.commit()
 
     def test_logfile_path(self, session: Session):
@@ -68,7 +70,7 @@ class TestLogsApiRoutes:
                 body=log_data,
                 session=session,
             )
-        logs: list[EdgeLogsModel] = session.query(EdgeLogsModel).all()
+        logs: Sequence[EdgeLogsModel] = session.scalars(select(EdgeLogsModel)).all()
         assert len(logs) == 1
         assert logs[0].dag_id == DAG_ID
         assert logs[0].task_id == TASK_ID

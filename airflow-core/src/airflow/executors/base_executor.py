@@ -117,6 +117,21 @@ class ExecutorConf:
     def getboolean(self, *args, **kwargs) -> bool:
         return conf.getboolean(*args, **kwargs, team_name=self.team_name)
 
+    def getjson(self, *args, **kwargs):
+        return conf.getjson(*args, **kwargs, team_name=self.team_name)
+
+    def getint(self, *args, **kwargs):
+        return conf.getint(*args, **kwargs, team_name=self.team_name)
+
+    def getsection(self, section: str) -> dict[str, str | int | float | bool] | None:
+        return conf.getsection(section, team_name=self.team_name)
+
+    def has_option(self, *args, **kwargs) -> bool:
+        return conf.has_option(*args, **kwargs, team_name=self.team_name)
+
+    def get_mandatory_value(self, *args, **kwargs) -> str:
+        return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
+
 
 class BaseExecutor(LoggingMixin):
     """

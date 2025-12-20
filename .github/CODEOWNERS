@@ -35,6 +35,9 @@
 # UI
 /airflow-core/src/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @shubhamraj-git @guan404ming @vatsrahul1001
 
+# UI e2e tests
+/airflow-core/src/airflow/ui/tests/e2e/ @vatsrahul1001
+
 # Translation Owners (i18n)
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
 # See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/public/i18n/README.md#43-engaged-translator

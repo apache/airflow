@@ -125,6 +125,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
                 <TriggerDAGForm
                   dagDisplayName={dagDisplayName}
                   dagId={dagId}
+                  hasSchedule={hasSchedule}
                   isPaused={isPaused}
                   onClose={onClose}
                   open={open}

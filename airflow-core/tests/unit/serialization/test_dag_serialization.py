@@ -4102,6 +4102,18 @@ class TestSchemaDefaults:
         overlap = optional_fields & required_fields
         assert not overlap, f"Optional fields should not overlap with required fields: {overlap}"
 
+    def test_json_schema_load_dag_schema_dict(self, monkeypatch):
+        """Test error handling when schema file is missing."""
+        from airflow.exceptions import AirflowException
+
+        monkeypatch.setattr(
+            "airflow.serialization.json_schema.pkgutil.get_data", lambda __name__, fname: None
+        )
+
+        with pytest.raises(AirflowException) as ctx:
+            load_dag_schema_dict()
+        assert "Schema file schema.json does not exists" in str(ctx.value)
+
 
 class TestDeserializationDefaultsResolution:
     """Test defaults resolution during deserialization."""

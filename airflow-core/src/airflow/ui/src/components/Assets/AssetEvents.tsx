@@ -91,7 +91,7 @@ export const AssetEvents = ({
             width={130}
           >
             <Select.Trigger>
-              <Select.ValueText placeholder="Sort by" />
+              <Select.ValueText placeholder={translate("dashboard:sortBy.placeholder")} />
             </Select.Trigger>
 
             <Select.Content>

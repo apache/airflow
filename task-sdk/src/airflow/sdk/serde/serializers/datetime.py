@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow._shared.timezones.timezone import parse_timezone
+from airflow.sdk._shared.timezones.timezone import parse_timezone
 from airflow.sdk.module_loading import qualname
 from airflow.sdk.serde.serializers.timezone import (
     deserialize as deserialize_timezone,
