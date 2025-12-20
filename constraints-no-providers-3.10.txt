@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-12T14:22:51.088913
+# This constraints file was automatically generated on 2025-12-19T18:47:22.810844
 # via `uv sync --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -16,7 +16,7 @@ PyJWT==2.10.1
 PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
-SQLAlchemy-Utils==0.42.0
+SQLAlchemy-Utils==0.42.1
 SQLAlchemy==1.4.54
 a2wsgi==1.10.10
 aiosqlite==0.21.0
@@ -28,7 +28,7 @@ asgiref==3.11.0
 attrs==25.4.0
 babel==2.17.0
 backports.strenum==1.3.1
-cadwyn==5.4.5
+cadwyn==5.4.6
 certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
@@ -89,20 +89,20 @@ pygtrie==2.5.0
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
-python-multipart==0.0.20
+python-multipart==0.0.21
 python-slugify==8.0.4
 pytz==2025.2
 referencing==0.36.2
 requests==2.32.5
 rich-argparse==1.7.2
-rich-toolkit==0.17.0
+rich-toolkit==0.17.1
 rich==13.9.4
 rpds-py==0.30.0
 setproctitle==1.3.7
 shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
-sqlparse==0.5.4
+sqlparse==0.5.5
 starlette==0.48.0
 structlog==25.5.0
 svcs==25.1.0
@@ -111,15 +111,15 @@ tenacity==9.1.2
 termcolor==3.2.0
 text-unidecode==1.3
 tomli==2.3.0
-typer==0.20.0
+typer==0.20.1
 typing-inspection==0.4.2
 typing_extensions==4.15.0
-tzdata==2025.2
+tzdata==2025.3
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.17
+uv==0.9.18
 uvicorn==0.38.0
 uvloop==0.22.1
 watchfiles==1.1.1
