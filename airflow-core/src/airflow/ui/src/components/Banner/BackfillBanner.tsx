@@ -102,7 +102,15 @@ const BackfillBanner = ({ dagId }: Props) => {
   }
 
   return (
-    <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
+    <Box
+      bg="info.solid"
+      borderRadius="full"
+      color="info.contrast"
+      data-testid="backfill-status"
+      my="1"
+      px="2"
+      py="1"
+    >
       <HStack alignItems="center" ml={3}>
         <RiArrowGoBackFill />
         <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
