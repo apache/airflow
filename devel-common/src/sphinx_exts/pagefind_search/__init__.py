@@ -28,32 +28,33 @@ if TYPE_CHECKING:
 from sphinx_exts.pagefind_search.builder import build_index_finished, copy_static_files
 
 
-def inject_search_html(app: Sphinx, pagename: str, templatename: str, context: dict, doctree) -> None:
-    """Inject Pagefind search modal and button HTML into page context."""
-    template_dir = Path(__file__).parent / "templates"
+def register_templates(app: Sphinx, config) -> None:
+    """Register template directory for searchbox override."""
+    template_dir = str(Path(__file__).parent / "templates")
+    # Prepend so our template overrides Sphinx's default searchbox
+    if template_dir not in config.templates_path:
+        config.templates_path.insert(0, template_dir)
 
+
+def inject_search_html(app: Sphinx, pagename: str, templatename: str, context: dict, doctree) -> None:
+    """Inject Pagefind search modal HTML into page context."""
+    template_dir = Path(__file__).parent / "templates"
     modal_file = template_dir / "search-modal.html"
-    button_file = template_dir / "search-button.html"
 
     if not modal_file.exists():
         return
 
     modal_content = modal_file.read_text()
-    button_content = button_file.read_text() if button_file.exists() else ""
 
     from jinja2 import Template
 
     modal_template = Template(modal_content)
-    button_template = Template(button_content)
-
     search_modal_html = modal_template.render(pathto=context.get("pathto"))
-    search_button_html = button_template.render(pathto=context.get("pathto"))
 
     context["pagefind_search_modal"] = search_modal_html
-    context["pagefind_search_button"] = search_button_html
 
     if "body" in context:
-        context["body"] = search_modal_html + search_button_html + context["body"]
+        context["body"] = search_modal_html + context["body"]
 
 
 def setup(app: Sphinx) -> dict[str, Any]:
@@ -89,6 +90,8 @@ def setup(app: Sphinx) -> dict[str, Any]:
     app.add_css_file("css/pagefind.css")
     app.add_js_file("js/search.js")
 
+    # Register template directory for searchbox override
+    app.connect("config-inited", register_templates)
     app.connect("html-page-context", inject_search_html)
     app.connect("build-finished", copy_static_files, priority=100)
     app.connect("build-finished", build_index_finished, priority=900)

@@ -463,7 +463,67 @@
   }
 }
 
+/* Sidebar Search Button - Replaces Sphinx searchbox */
+.sidebar-search-container {
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+.sidebar-search-button {
+  position: static;
+  width: 100%;
+  justify-content: center;
+  padding: 10px 12px;
+  border-radius: 6px;
+}
+
+.sidebar-search-button .pagefind-search-button__text {
+  flex: 1;
+}
+
+/* Light mode - subtle styling */
+[data-bs-theme="light"] .sidebar-search-button {
+  background: white;
+  border-color: #dee2e6;
+  color: #495057;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+[data-bs-theme="light"] .sidebar-search-button:hover {
+  background: #f8f9fa;
+  border-color: #adb5bd;
+  color: #212529;
+}
+
+[data-bs-theme="light"] .sidebar-search-button .pagefind-search-button__icon {
+  stroke: #6c757d;
+}
+
+[data-bs-theme="light"] .sidebar-search-button .pagefind-search-button__text {
+  color: #495057;
+}
+
+[data-bs-theme="light"] .sidebar-search-button .pagefind-search-button__shortcut {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+[data-bs-theme="light"] .sidebar-search-button .pagefind-search-button__shortcut span {
+  color: #495057;
+}
+
+/* Dark mode - keep blue for visibility */
+[data-bs-theme="dark"] .sidebar-search-button {
+  background: #0166c7;
+}
+
+[data-bs-theme="dark"] .sidebar-search-button:hover {
+  background: #017cee;
+}
+
+/* Hide floating button when sidebar button exists */
 body:has(header .search-button) .pagefind-search-button,
-body:has(nav .search-button) .pagefind-search-button {
+body:has(nav .search-button) .pagefind-search-button,
+body:has(.sidebar-search-button) .pagefind-search-button:not(.sidebar-search-button) {
   display: none;
 }
