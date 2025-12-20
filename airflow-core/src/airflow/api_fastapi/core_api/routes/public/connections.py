@@ -56,6 +56,7 @@ from airflow.api_fastapi.core_api.services.public.connections import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
@@ -238,10 +239,8 @@ def test_connection(
         data = test_body.model_dump(by_alias=True)
         data["conn_id"] = transient_conn_id
 
-        existing_conn = session.scalar(
-            select(Connection).where(Connection.conn_id == test_body.connection_id).limit(1)
-        )
-        if existing_conn:
+        try:
+            existing_conn = Connection.get_connection_from_secrets(test_body.connection_id)
             if data.get("password") is not None and existing_conn.password is not None:
                 data["password"] = merge(data["password"], existing_conn.password, "password")
             if data.get("extra") is not None and existing_conn.extra is not None:
@@ -251,6 +250,9 @@ def test_connection(
                 except json.JSONDecodeError:
                     # Can't merge unstructured extra, keep the submitted value
                     pass
+        except AirflowNotFoundException:
+            # Connection doesn't exist in any backend, proceed with test_body data only
+            pass
 
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
