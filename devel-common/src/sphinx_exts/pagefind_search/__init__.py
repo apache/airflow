@@ -63,12 +63,28 @@ def setup(app: Sphinx) -> dict[str, Any]:
     app.add_config_value("pagefind_root_selector", "main", "html", [str])
     app.add_config_value(
         "pagefind_exclude_selectors",
-        [".headerlink", ".toctree-wrapper", "nav", "footer"],
+        [
+            ".headerlink",
+            ".toctree-wrapper",
+            "nav",
+            "footer",
+            ".td-sidebar",
+            ".breadcrumb",
+            ".navbar",
+            ".dropdown-menu",
+            ".docs-version-selector",
+            "[role='navigation']",
+            ".d-print-none",
+            ".pagefind-search-button",
+        ],
         "html",
         [list],
     )
     app.add_config_value("pagefind_glob", "**/*.html", "html", [str])
+    app.add_config_value("pagefind_exclude_patterns", [], "html", [list])
     app.add_config_value("pagefind_custom_records", [], "html", [list])
+    app.add_config_value("pagefind_content_weighting", True, "html", [bool])
+    app.add_config_value("pagefind_enable_playground", False, "html", [bool])
 
     app.add_css_file("css/pagefind.css")
     app.add_js_file("js/search.js")

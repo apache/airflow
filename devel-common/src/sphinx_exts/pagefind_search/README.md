@@ -26,6 +26,9 @@ A Sphinx extension providing fast, self-hosted search for Apache Airflow documen
 - **Automatic indexing** when docs are built
 - **Cmd+K search** with modern UI and keyboard shortcuts
 - **Self-hosted** - No third-party services
+- **Content weighting** - Prioritizes titles and headings for better relevance
+- **Optimized ranking** - Tuned for exact phrase matching and title matches
+- **Playground support** - Debug and tune search behavior
 
 ## Usage
 
@@ -50,10 +53,43 @@ pagefind_verbose = False
 pagefind_root_selector = "main"
 
 # Exclude selectors (default: see below)
-pagefind_exclude_selectors = [".headerlink", ".toctree-wrapper", "nav", "footer"]
+# These elements won't be included in the search index
+pagefind_exclude_selectors = [
+    ".headerlink",  # Permalink icons
+    ".toctree-wrapper",  # Table of contents navigation
+    "nav",  # All navigation elements
+    "footer",  # Footer content
+    ".td-sidebar",  # Left sidebar
+    ".breadcrumb",  # Breadcrumb navigation
+    ".navbar",  # Top navigation bar
+    ".dropdown-menu",  # Dropdown menus (version selector, etc.)
+    ".docs-version-selector",  # Version selector widget
+    "[role='navigation']",  # ARIA navigation landmarks
+    ".d-print-none",  # Print-hidden elements (usually UI controls)
+    ".pagefind-search-button",  # Search button itself
+]
 
 # File pattern (default: "**/*.html")
 pagefind_glob = "**/*.html"
+
+# Exclude patterns (default: [])
+# Path patterns to exclude from indexing (e.g., auto-generated API docs)
+# Note: File-by-file indexing is used when patterns are specified (slightly slower but precise)
+# Pagefind does NOT automatically exclude underscore-prefixed directories
+pagefind_exclude_patterns = [
+    "_api/**",  # Exclude API documentation
+    "_modules/**",  # Exclude source code modules
+    "release_notes.html",  # Exclude specific files
+    "genindex.html",  # Exclude generated index
+]
+
+# Content weighting (default: True)
+# Uses lightweight regex to add data-pagefind-weight attributes to titles and headings
+pagefind_content_weighting = True
+
+# Enable playground (default: False)
+# Creates a playground at /_pagefind/playground/ for debugging search
+pagefind_enable_playground = False
 
 # Custom records for non-HTML content (default: [])
 pagefind_custom_records = [
@@ -66,6 +102,17 @@ pagefind_custom_records = [
 ]
 ```
 
+### Ranking Optimization
+
+The extension uses optimized ranking parameters in `search.js`:
+
+- **termFrequency: 1.0** - Standard term occurrence weighting
+- **termSaturation: 0.7** - Moderate saturation to prevent over-rewarding repetition
+- **termSimilarity: 7.5** - Maximum boost for exact phrase matches and similar terms
+- **pageLength: 0** - No penalty for longer pages (important for reference documentation)
+
+Combined with content weighting (10x for titles, 9x for h1, 7x for h2), these settings ensure exact title matches rank highly even for very long pages.
+
 ## Architecture
 
 ### Build Process
@@ -73,7 +120,8 @@ pagefind_custom_records = [
 1. Sphinx builds HTML documentation
 2. Extension copies CSS/JS to `_static/`
 3. Extension injects search modal HTML into pages
-4. Extension builds Pagefind index (if Python API available)
+4. (Optional) Extension adds content weights to HTML files
+5. Extension builds Pagefind index with configured options
 
 ### Runtime
 
@@ -95,3 +143,23 @@ pagefind_custom_records = [
 - Ensure `pagefind_enabled = True` in `conf.py`
 - Check build logs for errors
 - If `pagefind[bin]` unavailable, use: `npx pagefind --site <build-dir>`
+
+### Poor search ranking
+
+1. Enable playground: `pagefind_enable_playground = True` in `conf.py`
+2. Rebuild docs and access playground at `/_pagefind/playground/`
+3. Test queries and analyze ranking scores
+4. Ensure `pagefind_content_weighting = True` (default)
+5. Check that titles and headings contain expected keywords
+
+### Debugging with Playground
+
+The playground provides detailed insights:
+
+- View all indexed pages
+- See ranking scores for each result
+- Analyze impact of different search terms
+- Verify content weighting is applied
+- Test ranking parameter changes
+
+Example, access at: `http://localhost:8000/docs/apache-airflow/stable/_pagefind/playground/`

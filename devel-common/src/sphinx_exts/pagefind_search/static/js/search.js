@@ -33,8 +33,9 @@ async function initPagefind() {
         excerptLength: 15,
         ranking: {
           termFrequency: 1.0,
-          termSaturation: 1.2,
-          pageLength: 0.5
+          termSaturation: 0.7,
+          termSimilarity: 7.5,  // Maximum boost for exact/similar matches
+          pageLength: 0         // No penalty for long pages
         }
       });
     } catch (e) {
