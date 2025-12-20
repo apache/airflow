@@ -173,8 +173,8 @@ export const XCom = () => {
       <Flex alignItems="center" justifyContent="space-between">
         <XComFilters />
         <ExpandCollapseButtons
-          collapseLabel={translate("collapseAllExtra")}
-          expandLabel={translate("expandAllExtra")}
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
           onCollapse={onClose}
           onExpand={onOpen}
         />

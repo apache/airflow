@@ -25,6 +25,7 @@
     "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "모든 추가 JSON 접기",
   "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
@@ -93,6 +94,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
+  "expandAllExtra": "모든 추가 JSON 펼치기",
   "expression": {
     "all": "모두",
     "and": "그리고",
