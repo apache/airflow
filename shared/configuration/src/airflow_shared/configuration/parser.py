@@ -129,6 +129,7 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+        ("api", "base_url"): ("webserver", "base_url", "3.0"),
         ("api", "host"): ("webserver", "web_server_host", "3.0"),
         ("api", "port"): ("webserver", "web_server_port", "3.0"),
         ("api", "workers"): ("webserver", "workers", "3.0"),
