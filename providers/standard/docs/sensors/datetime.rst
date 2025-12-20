@@ -24,22 +24,13 @@ TimeDeltaSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` to end sensing after specific time.
 
-
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor]
     :end-before: [END example_time_delta_sensor]
 
-
-.. _howto/operator:TimeDeltaSensorAsync:
-
-TimeDeltaSensorAsync
-====================
-
-Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAsync` to end sensing after specific time.
-It is an async version of the operator and requires Triggerer to run.
-
+To run the sensor in deferrable mode, set ``deferrable=True``. See :ref:`concepts:deferring` for more information.
 
 .. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
     :language: python
