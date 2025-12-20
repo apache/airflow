@@ -25,8 +25,9 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.datamodels.token import (
-    ClientCredentialsTokenBody,
     TokenBody,
+    TokenClientCredentialsBody,
+    TokenPasswordBody,
     TokenResponse,
 )
 from airflow.providers.keycloak.auth_manager.services.token import (
@@ -43,8 +44,16 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token(body: TokenBody) -> TokenResponse:
-    token = create_token_for(body.username, body.password)
+def create_token(
+    body: TokenBody,
+) -> TokenResponse:
+    credentials = body.root
+    if isinstance(credentials, TokenPasswordBody):
+        token = create_token_for(credentials.username, credentials.password)
+    elif isinstance(credentials, TokenClientCredentialsBody):
+        token = create_client_credentials_token(credentials.client_id, credentials.client_secret)
+    else:
+        raise ValueError("Unsupported grant_type")
     return TokenResponse(access_token=token)
 
 
@@ -53,20 +62,10 @@ def create_token(body: TokenBody) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token_cli(body: TokenBody) -> TokenResponse:
+def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
     token = create_token_for(
         body.username,
         body.password,
         expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time")),
     )
-    return TokenResponse(access_token=token)
-
-
-@token_router.post(
-    "/token/client-credentials",
-    status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
-)
-def create_token_client_credentials(body: ClientCredentialsTokenBody) -> TokenResponse:
-    token = create_client_credentials_token(body.client_id, body.client_secret)
     return TokenResponse(access_token=token)
