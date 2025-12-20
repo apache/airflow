@@ -30,13 +30,7 @@ Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` 
     :start-after: [START example_time_delta_sensor]
     :end-before: [END example_time_delta_sensor]
 
-To run the sensor in deferrable mode, set ``deferrable=True``. See :ref:`concepts:deferring` for more information.
-
-.. exampleinclude:: /../src/airflow/providers/standard/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_time_delta_sensor_async]
-    :end-before: [END example_time_delta_sensor_async]
+To run the sensor in deferrable mode, set ``deferrable=True``. See :ref:`deferring/writing` for more information.
 
 
 
