@@ -20,22 +20,15 @@ import { Box, Button, Heading, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetExtraLinks, useTaskServiceGetTask } from "openapi/queries";
-import { useAutoRefresh } from "src/utils";
+import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
-export const ExtraLinks = () => {
+type ExtraLinksProps = {
+  readonly refetchInterval: false | number;
+};
+
+export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
-
-  const refetchInterval = useAutoRefresh({ dagId });
-
-  // First, check if this task type has extra links configured
-  const { data: task } = useTaskServiceGetTask({
-    dagId,
-    taskId,
-  });
-
-  const taskHasExtraLinks = (task?.extra_links?.length ?? 0) > 0;
 
   const { data } = useTaskInstanceServiceGetExtraLinks(
     {
@@ -46,19 +39,7 @@ export const ExtraLinks = () => {
     },
     undefined,
     {
-      // Only enable polling if the task is configured to have extra links
-      enabled: taskHasExtraLinks,
-      refetchInterval: (query) => {
-        // Stop polling if we already have extra links data
-        const hasLinksData =
-          query.state.data?.extra_links && Object.keys(query.state.data.extra_links).length > 0;
-
-        // Continue polling only if:
-        // 1. Task is configured to have extra links (taskHasExtraLinks)
-        // 2. We haven't received the links data yet (!hasLinksData)
-        // 3. Auto-refresh is enabled (refetchInterval)
-        return taskHasExtraLinks && !hasLinksData && refetchInterval ? refetchInterval : false;
-      },
+      refetchInterval,
     },
   );
 
