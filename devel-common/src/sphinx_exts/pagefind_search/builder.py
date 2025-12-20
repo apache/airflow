@@ -165,7 +165,7 @@ async def build_pagefind_index(app: Sphinx) -> dict[str, int]:
                     except Exception as e:
                         logger.warning("Failed to add custom record: %s", e)
 
-            return result
+            return {"page_count": page_count}
 
 
 def build_index_finished(app: Sphinx, exception: Exception | None) -> None:

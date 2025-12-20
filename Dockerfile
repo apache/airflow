@@ -1235,9 +1235,9 @@ function install_airflow_when_building_images() {
     set +x
     common::install_packaging_tools
     echo
-    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo "${COLOR_BLUE}Running 'uv pip check'${COLOR_RESET}"
     echo
-    pip check
+    uv pip check
 }
 
 common::get_colors
