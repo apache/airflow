@@ -381,4 +381,4 @@ The ``pre_execute`` and ``post_execute`` methods include the task instance's con
 Difference between pre-/post-execute and setup/teardown
 -------------------------------------------------------
 
-The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to beform setup or cleanup operations before and after multiple task instances are executed within a Dag run.
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to before setup or cleanup operations before and after multiple task instances are executed within a Dag run.
