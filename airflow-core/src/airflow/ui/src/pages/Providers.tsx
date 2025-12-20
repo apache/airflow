@@ -33,22 +33,29 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { urlRegex } from "src/constants/urlRegex";
 
 const createColumns = (translate: TFunction): Array<ColumnDef<ProviderResponse>> => [
-  {
-    accessorKey: "package_name",
-    cell: ({ row: { original } }) => (
+{
+  accessorKey: "package_name",
+  cell: ({ row: { original } }) => {
+    const documentationUrl =
+      original?.project_urls?.documentation ??
+      `https://airflow.apache.org/docs/${original.package_name}/${original.version}/`;
+
+    return (
       <Link
         aria-label={original.package_name}
         color="fg.info"
-        href={`https://airflow.apache.org/docs/${original.package_name}/${original.version}/`}
+        href={documentationUrl}
         rel="noopener noreferrer"
         target="_blank"
       >
         {original.package_name}
       </Link>
-    ),
-    enableSorting: false,
-    header: translate("providers.columns.packageName"),
+    );
   },
+  enableSorting: false,
+  header: translate("providers.columns.packageName"),
+},
+
   {
     accessorKey: "version",
     cell: ({ row: { original } }) => original.version,
