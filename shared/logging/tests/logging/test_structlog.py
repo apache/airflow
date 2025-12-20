@@ -367,3 +367,44 @@ def test_logger_filtering(structlog_config, levels):
         [other.logger] Hello key1=value4
         [my.logger.sub] Hello key1=value5
         """)
+
+
+def test_root_logger_respects_configured_log_level(structlog_config):
+    """Test that root logger level is set to the configured log level, not hardcoded to INFO."""
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="DEBUG",
+    ) as sio:
+        # User code in tasks typically uses stdlib logging.getLogger
+        user_logger = logging.getLogger("user.task.code")
+        user_logger.debug("Debug message from user code")
+        user_logger.info("Info message from user code")
+        user_logger.warning("Warning message from user code")
+
+    written = sio.getvalue()
+    # All three messages should appear since log_level="DEBUG"
+    assert "[user.task.code] Debug message from user code" in written
+    assert "[user.task.code] Info message from user code" in written
+    assert "[user.task.code] Warning message from user code" in written
+
+
+def test_root_logger_with_info_level(structlog_config):
+    """Test that root logger at INFO level doesn't show DEBUG messages."""
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="INFO",
+    ) as sio:
+        user_logger = logging.getLogger("user.task.code")
+        user_logger.debug("Debug message should not appear")
+        user_logger.info("Info message should appear")
+        user_logger.warning("Warning message should appear")
+
+    written = sio.getvalue()
+    # Debug message should NOT appear
+    assert "Debug message should not appear" not in written
+    # Info and warning should appear
+    assert "[user.task.code] Info message should appear" in written
+    assert "[user.task.code] Warning message should appear" in written
+

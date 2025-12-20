@@ -547,7 +547,7 @@ def configure_logging(
     )
     config["root"] = {
         "handlers": ["default"],
-        "level": "INFO",
+        "level": log_level.upper(),
         "propagate": True,
     }
 
