@@ -25,6 +25,7 @@
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
+  "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
@@ -99,6 +100,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
   },
+  "expandAllExtra": "Tüm ek JSON'ları genişlet",
   "expression": {
     "all": "Tümü",
     "and": "VE",

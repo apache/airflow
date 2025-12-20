@@ -31,6 +31,7 @@
     "requiredActions": "Ações Necessárias",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Recolher todos os extra json",
   "collapseDetailsPanel": "Recolher Painel de Detalhes",
   "createdAssetEvent_many": "Eventos de Asset Criados",
   "createdAssetEvent_one": "Evento de Asset Criado",
@@ -105,6 +106,7 @@
     "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção"
   },
+  "expandAllExtra": "Expandir todos os extra json",
   "expression": {
     "all": "Todos",
     "and": "E",
