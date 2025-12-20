@@ -44,8 +44,8 @@ export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: 
       onValueChange={onPausedChange}
       value={[showPaused ?? defaultShowPaused]}
     >
-      <Select.Trigger colorPalette="brand" isActive={Boolean(showPaused)}>
-        <Select.ValueText width={20} />
+      <Select.Trigger colorPalette="brand" isActive={Boolean(showPaused)} width="100%">
+        <Select.ValueText />
       </Select.Trigger>
       <Select.Content>
         {enabledOptions.items.map((option) => (

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, HStack, VStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -189,8 +189,8 @@ export const DagsFilters = () => {
   });
 
   return (
-    <HStack justifyContent="space-between">
-      <HStack gap={4}>
+    <VStack alignItems="stretch" gap={2}>
+      <HStack justifyContent="space-between">
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
@@ -200,30 +200,36 @@ export const DagsFilters = () => {
           needsReview={needsReview === "true"}
           onStateChange={handleStateChange}
         />
-        <PausedFilter
-          defaultShowPaused={defaultShowPaused}
-          onPausedChange={handlePausedChange}
-          showPaused={showPaused}
-        />
-        <TagFilter
-          onMenuScrollToBottom={() => {
-            void fetchNextPage();
-          }}
-          onMenuScrollToTop={() => {
-            void fetchPreviousPage();
-          }}
-          onSelectTagsChange={handleSelectTagsChange}
-          onTagModeChange={handleTagModeChange}
-          onUpdate={setPattern}
-          selectedTags={selectedTags}
-          tagFilterMode={tagFilterMode}
-          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
-        />
-        <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
-      </HStack>
-      <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
-      </Box>
-    </HStack>
+      </HStack>
+      <HStack alignItems="flex-start" gap={1} justifyContent="flex-start">
+        <Box flexShrink={0} width={24}>
+          <PausedFilter
+            defaultShowPaused={defaultShowPaused}
+            onPausedChange={handlePausedChange}
+            showPaused={showPaused}
+          />
+        </Box>
+        <Box flexShrink={0} width={64}>
+          <TagFilter
+            onMenuScrollToBottom={() => {
+              void fetchNextPage();
+            }}
+            onMenuScrollToTop={() => {
+              void fetchPreviousPage();
+            }}
+            onSelectTagsChange={handleSelectTagsChange}
+            onTagModeChange={handleTagModeChange}
+            onUpdate={setPattern}
+            selectedTags={selectedTags}
+            tagFilterMode={tagFilterMode}
+            tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+          />
+        </Box>
+        <Box flexShrink={0} width={24}>
+          <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
+        </Box>
+      </HStack>
+    </VStack>
   );
 };
