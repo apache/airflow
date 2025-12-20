@@ -268,6 +268,14 @@ global_substitutions = {
     "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
 
+# Pagefind search configuration
+pagefind_exclude_patterns = [
+    "_api/**",  # Exclude auto-generated API documentation
+    "_modules/**",  # Exclude source code modules
+    "release_notes.html",  # Exclude changelog aggregation page
+    "genindex.html",  # Exclude generated index
+]
+
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
 
