@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow._shared.definitions.node import GenericDAGNode
+from airflow._shared.dagnode.node import GenericDAGNode
 
 if TYPE_CHECKING:
     from typing import TypeAlias

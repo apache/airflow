@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from airflow.sdk._shared.definitions.node import GenericDAGNode
+from airflow.sdk._shared.dagnode.node import GenericDAGNode
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 
 if TYPE_CHECKING:

@@ -16,8 +16,8 @@
 # under the License.
 
 [project]
-name = "apache-airflow-shared-definitions"
-description = "Shared definitions for Airflow distributions"
+name = "apache-airflow-shared-dagnode"
+description = "Shared DAGNode logic for Airflow distributions"
 version = "0.0"
 classifiers = [
     "Private :: Do Not Upload",

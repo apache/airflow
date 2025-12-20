@@ -116,7 +116,7 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
-"../shared/definitions/src/airflow_shared/definitions" = "src/airflow/sdk/_shared/definitions"
+"../shared/dagnode/src/airflow_shared/dagnode" = "src/airflow/sdk/_shared/dagnode"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
 "../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/sdk/_shared/module_loading"
 "../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
@@ -265,7 +265,7 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-configuration",
-    "apache-airflow-shared-definitions",
+    "apache-airflow-shared-dagnode",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",

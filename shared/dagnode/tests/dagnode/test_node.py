@@ -23,7 +23,7 @@ import attrs
 import pytest
 from structlog.typing import FilteringBoundLogger
 
-from airflow_shared.definitions.node import GenericDAGNode
+from airflow_shared.dagnode.node import GenericDAGNode
 
 
 class Task:
@@ -65,7 +65,7 @@ class TestDAGNode:
         with mock.patch("structlog.get_logger") as mock_get_logger:
             log = node.log
         assert log is node._cached_logger
-        assert mock_get_logger.mock_calls == [mock.call("tests.definitions.test_node.ConcreteDAGNode")]
+        assert mock_get_logger.mock_calls == [mock.call("tests.dagnode.test_node.ConcreteDAGNode")]
 
     def test_dag_id(self, node: ConcreteDAGNode) -> None:
         assert node.dag is None
