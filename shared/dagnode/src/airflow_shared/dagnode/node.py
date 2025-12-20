@@ -24,13 +24,14 @@ import structlog
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable
 
+    from ..logging.types import Logger
+
 Dag = TypeVar("Dag")
 Task = TypeVar("Task")
 TaskGroup = TypeVar("TaskGroup")
-Logger = TypeVar("Logger")
 
 
-class GenericDAGNode(Generic[Dag, Task, TaskGroup, Logger]):
+class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
     """
     Generic class for a node in the graph of a workflow.
 

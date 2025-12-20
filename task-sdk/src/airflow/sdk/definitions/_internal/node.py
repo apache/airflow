@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
     from airflow.sdk.definitions.taskgroup import TaskGroup  # noqa: F401
-    from airflow.sdk.types import Logger, Operator  # noqa: F401
+    from airflow.sdk.types import Operator  # noqa: F401
     from airflow.serialization.enums import DagAttributeTypes
 
 
@@ -64,7 +64,7 @@ def validate_group_key(k: str, max_length: int = 200):
         )
 
 
-class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup", "Logger"], DependencyMixin, metaclass=ABCMeta):
+class DAGNode(GenericDAGNode["DAG", "Operator", "TaskGroup"], DependencyMixin, metaclass=ABCMeta):
     """
     A base class for a node in the graph of a workflow.
 

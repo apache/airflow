@@ -21,7 +21,6 @@ from unittest import mock
 
 import attrs
 import pytest
-from structlog.typing import FilteringBoundLogger
 
 from airflow_shared.dagnode.node import GenericDAGNode
 
@@ -44,7 +43,7 @@ class Dag:
     dag_id = "test_dag_id"
 
 
-class ConcreteDAGNode(GenericDAGNode[Dag, Task, TaskGroup, FilteringBoundLogger]):
+class ConcreteDAGNode(GenericDAGNode[Dag, Task, TaskGroup]):
     """Concrete DAGNode variant for tests."""
 
     dag = None

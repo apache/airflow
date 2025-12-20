@@ -24,7 +24,6 @@ from airflow._shared.dagnode.node import GenericDAGNode
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from airflow._shared.logging.types import Logger  # noqa: F401
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup  # noqa: F401
     from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG  # noqa: F401
@@ -32,7 +31,7 @@ if TYPE_CHECKING:
     Operator: TypeAlias = SerializedBaseOperator | MappedOperator
 
 
-class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup", "Logger"]):
+class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"]):
     """
     Base class for a node in the graph of a workflow.
 
