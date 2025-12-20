@@ -76,6 +76,7 @@ dependencies = [
     "rich-click>=1.7.1",
     "click>=8.1.8",
     "docutils>=0.21",
+    "pagefind[bin]",
     "sphinx-airflow-theme@https://github.com/apache/airflow-site/releases/download/0.3.0/sphinx_airflow_theme-0.3.0-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3",
