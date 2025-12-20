@@ -7059,20 +7059,27 @@
                     "type": "boolean",
                     "default": true
                 },
-                "cacheSize": {
-                    "description": "Maximum number of metric mappings to cache in memory. Higher values improve performance for frequently used metrics but consume more memory.",
-                    "type": "integer",
-                    "default": 1000
-                },
-                "cacheType": {
-                    "description": "Cache eviction strategy for metric mappings. `lru` (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
-                    "type": "string",
-                    "default": "lru"
-                },
-                "ttl": {
-                    "description": "Time-to-live for cached metric mappings. Determines how long mappings remain in cache before expiring. Set to '0s' to disable expiration.",
-                    "type": "string",
-                    "default": "0s"
+                "cache": {
+                    "description": "StatsD cache configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "size": {
+                            "description": "Maximum number of metric mappings to cache in memory. Higher values improve performance for frequently used metrics but consume more memory.",
+                            "type": "integer",
+                            "default": 1000
+                        },
+                        "type": {
+                            "description": "Cache eviction strategy for metric mappings. `lru` (Least Recently Used) evicts oldest accessed items, 'random' evicts randomly selected items.",
+                            "type": "string",
+                            "default": "lru"
+                        },
+                        "ttl": {
+                            "description": "Time-to-live for cached metric mappings. Determines how long mappings remain in cache before expiring. Set to '0s' to disable expiration.",
+                            "type": "string",
+                            "default": "0s"
+                        }
+                    }
                 },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",

@@ -27,7 +27,7 @@ class TestStatsd:
 
     def test_should_create_statsd_default(self):
         docs = render_chart(
-            values={"statsd": {"enabled": True, "cacheSize": 1000, "cacheType": "lru", "ttl": "0s"}},
+            values={"statsd": {"enabled": True, "cache": {"size": 1000, "type": "lru", "ttl": "0s"}}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
@@ -309,7 +309,7 @@ class TestStatsd:
             "--statsd.mapping-config=/custom/path",
          ]
         docs = render_chart(
-            values={"statsd": {"enabled": True, "args": args, "cacheSize": 0, "cacheType": "", "ttl": ""}},
+            values={"statsd": {"enabled": True, "args": args, "cache": {"size": 0, "type": "", "ttl": ""}}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 

@@ -279,36 +279,6 @@ ingress:
     # Enable web ingress resource
     enabled: false
 
-    # If you ever need to fully override the entire args list, you can
-    # supply your own array here; if set, all below flag-specific values
-    # (mappingConfig, cacheSize, cacheType, ttl) are ignored.
-    # args:
-    #  - "--statsd.cache-size=1000"
-    #  - "--statsd.cache-type=random"
-    #  - "--ttl=10m"
-    # -------------------------------------------------------------------
-
-    # Path in the container to the mapping config file.
-
-    # Maximum number of metric‐mapping entries to keep in cache.
-    # When you send more distinct metric names than this, older entries
-    # will be evicted according to cacheType.
-    # Default: 1000
-    cacheSize: 1000
-
-    # Metrics Eviction policy for the mapping cache.
-    #   - lru    → Least‐Recently‐Used eviction
-    #   - random → Random eviction
-    # Default: lru
-    cacheType: lru
-
-    # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
-    # series that hasn't received an update in this interval will be dropped
-    # from the exported /metrics output.
-    # Format: Go duration string (e.g. "30s", "5m", "1h")
-    # Default: "0s" (disabled, never expires)
-    ttl: "0s"
-
     # Annotations for the statsd Ingress
     annotations: {}
 
@@ -2372,6 +2342,37 @@ statsd:
 
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
+
+      # If you ever need to fully override the entire args list, you can
+    # supply your own array here; if set, all below flag-specific values
+    # (mappingConfig, cache-size, cache-type, ttl) are ignored.
+    # args:
+    #  - "--statsd.cache-size=1000"
+    #  - "--statsd.cache-type=random"
+    #  - "--ttl=10m"
+    # -------------------------------------------------------------------
+
+    # Path in the container to the mapping config file.
+
+  cache:
+    # Maximum number of metric‐mapping entries to keep in cache.
+    # When you send more distinct metric names than this, older entries
+    # will be evicted according to cacheType.
+    # Default: 1000
+    size: 1000
+
+    # Metrics Eviction policy for the mapping cache.
+    #   - lru    → Least‐Recently‐Used eviction
+    #   - random → Random eviction
+    # Default: lru
+    type: lru
+
+    # Per‐metric time‐to‐live. When set to a non‐zero duration, any metric
+    # series that hasn't received an update in this interval will be dropped
+    # from the exported /metrics output.
+    # Format: Go duration string (e.g. "30s", "5m", "1h")
+    # Default: "0s" (disabled, never expires)
+    ttl: "0s"
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}

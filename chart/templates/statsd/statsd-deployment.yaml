@@ -96,15 +96,15 @@ spec:
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
           args:
-            {{- if .Values.statsd.cacheSize }}
-            - "--statsd.cache-size={{ .Values.statsd.cacheSize }}"
-            {{- end }}
-            {{- if .Values.statsd.cacheType }}
-            - "--statsd.cache-type={{ .Values.statsd.cacheType }}"
-            {{- end }}
-            {{- if .Values.statsd.ttl }}
-            - "--ttl={{ .Values.statsd.ttl }}"
-            {{- end }}
+          {{- if .Values.statsd.cache.size }}
+            - "--statsd.cache-size={{ .Values.statsd.cache.size }}"
+          {{- end }}
+          {{- if .Values.statsd.cache.type }}
+            - "--statsd.cache-type={{ .Values.statsd.cache.type }}"
+          {{- end }}
+          {{- if .Values.statsd.cache.ttl }}
+            - "--ttl={{ .Values.statsd.cache.ttl }}"
+          {{- end }}
           {{- if .Values.statsd.args }}
             {{- range $arg := .Values.statsd.args }}
             - {{ $arg | quote }}
