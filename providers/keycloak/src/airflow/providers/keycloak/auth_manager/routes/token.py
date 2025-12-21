@@ -26,13 +26,8 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.configuration import conf
 from airflow.providers.keycloak.auth_manager.datamodels.token import (
     TokenBody,
-    TokenClientCredentialsBody,
     TokenPasswordBody,
     TokenResponse,
-)
-from airflow.providers.keycloak.auth_manager.services.token import (
-    create_client_credentials_token,
-    create_token_for,
 )
 
 log = logging.getLogger(__name__)
@@ -44,16 +39,10 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token(
-    body: TokenBody,
-) -> TokenResponse:
-    credentials = body.root
-    if isinstance(credentials, TokenPasswordBody):
-        token = create_token_for(credentials.username, credentials.password)
-    elif isinstance(credentials, TokenClientCredentialsBody):
-        token = create_client_credentials_token(credentials.client_id, credentials.client_secret)
-    else:
-        raise ValueError("Unsupported grant_type")
+def create_token(body: TokenBody) -> TokenResponse:
+    token = body.root.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_expiration_time"))
+    )
     return TokenResponse(access_token=token)
 
 
@@ -63,9 +52,7 @@ def create_token(
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
 def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
-    token = create_token_for(
-        body.username,
-        body.password,
-        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time")),
+    token = body.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time"))
     )
     return TokenResponse(access_token=token)
