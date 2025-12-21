@@ -22,8 +22,7 @@ import re
 import textwrap
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
-from contextlib import suppress
-from functools import cached_property, partial, update_wrapper
+from functools import cached_property, update_wrapper
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
@@ -639,51 +638,6 @@ class TaskDecorator(Protocol):
         """For the decorator factory ``@task()`` case."""
 
     def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
-
-
-def unwrap_partial(fn):
-    while isinstance(fn, partial):
-        fn = fn.func
-    return fn
-
-
-def unwrap_callable(func):
-    from airflow.sdk.definitions.mappedoperator import OperatorPartial
-
-    # Airflow-specific unwrap
-    if isinstance(func, (_TaskDecorator, OperatorPartial)):
-        func = getattr(func, "function", getattr(func, "_func", func))
-
-    # Unwrap functools.partial
-    func = unwrap_partial(func)
-
-    # Unwrap @functools.wraps chains
-    with suppress(Exception):
-        func = inspect.unwrap(func)
-
-    return func
-
-
-def is_async_callable(func):
-    """Detect if a callable (possibly wrapped) is an async function."""
-    func = unwrap_callable(func)
-
-    if not callable(func):
-        return False
-
-    # Direct async function
-    if inspect.iscoroutinefunction(func):
-        return True
-
-    # Callable object with async __call__
-    if not inspect.isfunction(func):
-        call = type(func).__call__  # Bandit-safe
-        with suppress(Exception):
-            call = inspect.unwrap(call)
-        if inspect.iscoroutinefunction(call):
-            return True
-
-    return False
 
 
 def task_decorator_factory(

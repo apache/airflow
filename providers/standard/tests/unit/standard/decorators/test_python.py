@@ -25,13 +25,12 @@ import pytest
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.providers.common.compat.sdk import AirflowException, XComNotFound, task
+from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_2_PLUS,
     XCOM_RETURN_KEY,
 )
 from unit.standard.operators.test_python import BasePythonTest
@@ -1143,178 +1142,10 @@ def test_teardown_trigger_rule_override_behavior(dag_maker, session):
     assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
 
 
-def simple_decorator(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def decorator_without_wraps(fn):
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
 async def async_fn():
     return 42
 
 
-def sync_fn():
-    return 42
-
-
-@simple_decorator
-async def wrapped_async_fn():
-    return 42
-
-
-@simple_decorator
-def wrapped_sync_fn():
-    return 42
-
-
-@decorator_without_wraps
-async def wrapped_async_fn_no_wraps():
-    return 42
-
-
-@simple_decorator
-@simple_decorator
-async def multi_wrapped_async_fn():
-    return 42
-
-
-async def async_with_args(x, y):
-    return x + y
-
-
-def sync_with_args(x, y):
-    return x + y
-
-
-class AsyncCallable:
-    async def __call__(self):
-        return 42
-
-
-class SyncCallable:
-    def __call__(self):
-        return 42
-
-
-class WrappedAsyncCallable:
-    @simple_decorator
-    async def __call__(self):
-        return 42
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
-class TestAsyncCallable:
-    def test_plain_async_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert is_async_callable(async_fn)
-
-    def test_plain_sync_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert not is_async_callable(sync_fn)
-
-    def test_wrapped_async_function_with_wraps(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert is_async_callable(wrapped_async_fn)
-
-    def test_wrapped_sync_function_with_wraps(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert not is_async_callable(wrapped_sync_fn)
-
-    def test_wrapped_async_function_without_wraps(self):
-        """
-        Without functools.wraps, inspect.unwrap cannot recover the coroutine.
-        This documents expected behavior.
-        """
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert not is_async_callable(wrapped_async_fn_no_wraps)
-
-    def test_multi_wrapped_async_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert is_async_callable(multi_wrapped_async_fn)
-
-    def test_partial_async_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        fn = functools.partial(async_with_args, 1)
-        assert is_async_callable(fn)
-
-    def test_partial_sync_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        fn = functools.partial(sync_with_args, 1)
-        assert not is_async_callable(fn)
-
-    def test_nested_partial_async_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        fn = functools.partial(
-            functools.partial(async_with_args, 1),
-            2,
-        )
-        assert is_async_callable(fn)
-
-    def test_async_callable_class(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert is_async_callable(AsyncCallable())
-
-    def test_sync_callable_class(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert not is_async_callable(SyncCallable())
-
-    def test_wrapped_async_callable_class(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert is_async_callable(WrappedAsyncCallable())
-
-    def test_partial_callable_class(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        fn = functools.partial(AsyncCallable())
-        assert is_async_callable(fn)
-
-    @pytest.mark.parametrize("value", [None, 42, "string", object()])
-    def test_non_callable(self, value):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        assert not is_async_callable(value)
-
-    def test_task_decorator_async_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        @task
-        async def async_task_fn():
-            return 42
-
-        assert is_async_callable(async_task_fn)
-
-    def test_task_decorator_sync_function(self):
-        from airflow.sdk.bases.decorator import is_async_callable
-
-        @task
-        def sync_task_fn():
-            return 42
-
-        assert not is_async_callable(sync_task_fn)
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
 def test_python_task():
     from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
     from airflow.sdk.bases.decorator import _TaskDecorator

@@ -1704,7 +1704,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
 
 class BaseAsyncOperator(BaseOperator):
-    """Base class for async-capable operators."""
+    """
+    Base class for async-capable operators.
+
+    As opposed to deferred operators which are executed on the triggerer, async operators are executed
+    on the worker.
+    """
 
     @property
     def is_async(self) -> bool:
