@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-20T14:12:03.966603
+# This constraints file was automatically generated on 2025-12-21T15:02:43.665119
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -397,7 +397,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
 huggingface_hub==1.2.3
-humanize==4.14.0
+humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
 ibm-cloud-sdk-core==3.24.2
@@ -416,7 +416,7 @@ isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
-jaraco.functools==4.3.0
+jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
 jiter==0.12.0
@@ -678,7 +678,7 @@ uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
 uv==0.9.18
-uvicorn==0.38.0
+uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0

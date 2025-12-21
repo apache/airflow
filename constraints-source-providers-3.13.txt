@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-20T14:08:44.652462
+# This constraints file was automatically generated on 2025-12-21T14:58:10.139751
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -284,7 +284,7 @@ httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
 huggingface_hub==1.2.3
-humanize==4.14.0
+humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
 hyperlink==21.0.0
@@ -297,7 +297,7 @@ idna==3.11
 ijson==3.4.0.post0
 imagesize==1.4.1
 immutabledict==4.2.2
-importlib_metadata==8.7.0
+importlib_metadata==8.7.1
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
@@ -311,7 +311,7 @@ isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
-jaraco.functools==4.3.0
+jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
 jiter==0.12.0
@@ -389,7 +389,7 @@ neo4j==6.0.3
 nest-asyncio==1.6.0
 networkx==3.6.1
 nh3==0.3.2
-nodeenv==1.9.1
+nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
 openai==2.14.0
@@ -418,6 +418,8 @@ orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
+pagefind==1.4.0
+pagefind_bin==1.4.0
 pagerduty==6.1.0
 pandas-gbq==0.32.0
 pandas-stubs==2.3.3.251219
@@ -647,7 +649,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2025.2.0.20251108
 types-redis==4.6.0.20241004
 types-requests==2.32.4.20250913
-types-setuptools==80.9.0.20250822
+types-setuptools==80.9.0.20251221
 types-tabulate==0.9.0.20241207
 types-toml==0.10.8.20240310
 typing-inspect==0.9.0
@@ -662,7 +664,7 @@ urllib3==2.6.2
 userpath==1.9.2
 uuid6==2025.0.1
 uv==0.9.18
-uvicorn==0.38.0
+uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
