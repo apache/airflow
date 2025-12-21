@@ -412,48 +412,6 @@ class TestKiotaRequestAdapterHook:
             assert isinstance(actual, list)
             assert actual == [users, next_users]
 
-    def test_register_proxy_secrets_with_credentials(self):
-        """Test that proxy credentials are registered as secrets."""
-        proxies = {
-            "http": "http://user:secret_pass@proxy.example.com:3128",
-            "https": "https://admin:super_secret@proxy.example.com:3128",
-        }
-
-        with patch("airflow.providers.microsoft.azure.hooks.msgraph.mask_secret") as mock_mask_secret:
-            KiotaRequestAdapterHook._register_proxy_secrets(proxies)
-
-            assert mock_mask_secret.call_count == 4
-            mock_mask_secret.assert_any_call("secret_pass")
-            mock_mask_secret.assert_any_call("user")
-            mock_mask_secret.assert_any_call("super_secret")
-            mock_mask_secret.assert_any_call("admin")
-
-    def test_register_proxy_secrets_without_credentials(self):
-        """Test that no secrets are registered when proxies have no credentials."""
-        proxies = {
-            "http": "http://proxy.example.com:3128",
-            "https": "https://proxy.example.com:3128",
-        }
-
-        with patch("airflow.providers.microsoft.azure.hooks.msgraph.mask_secret") as mock_mask_secret:
-            KiotaRequestAdapterHook._register_proxy_secrets(proxies)
-
-            mock_mask_secret.assert_not_called()
-
-    def test_register_proxy_secrets_with_none(self):
-        """Test that no error occurs when proxies is None."""
-        with patch("airflow.providers.microsoft.azure.hooks.msgraph.mask_secret") as mock_mask_secret:
-            KiotaRequestAdapterHook._register_proxy_secrets(None)
-
-            mock_mask_secret.assert_not_called()
-
-    def test_register_proxy_secrets_with_empty_dict(self):
-        """Test that no error occurs when proxies is an empty dict."""
-        with patch("airflow.providers.microsoft.azure.hooks.msgraph.mask_secret") as mock_mask_secret:
-            KiotaRequestAdapterHook._register_proxy_secrets({})
-
-            mock_mask_secret.assert_not_called()
-
     @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
@@ -464,16 +422,15 @@ class TestKiotaRequestAdapterHook:
                 proxies={"http": "http://user:pass@proxy:3128"},
             )
         ):
-            with patch("airflow.providers.microsoft.azure.hooks.msgraph.mask_secret") as mock_mask_secret:
-                with patch("airflow.providers.microsoft.azure.hooks.msgraph.redact") as mock_redact:
-                    mock_redact.side_effect = lambda x, name=None: "***" if x else x
+            with patch("airflow.providers.microsoft.azure.hooks.msgraph.redact") as mock_redact:
+                mock_redact.side_effect = lambda x, name=None: "***" if x else x
 
-                    hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-                    await hook.get_async_conn()
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
 
-                    mock_mask_secret.assert_any_call("pass")
-                    mock_mask_secret.assert_any_call("user")
-                    assert mock_redact.call_count >= 3
+                assert mock_redact.call_count >= 3
+                mock_redact.assert_any_call({"http": "http://user:pass@proxy:3128"}, name="proxies")
+                mock_redact.assert_any_call("my_secret_password", name="client_secret")
 
 
 class TestResponseHandler:

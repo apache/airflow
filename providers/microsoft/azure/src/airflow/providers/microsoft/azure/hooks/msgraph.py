@@ -58,16 +58,15 @@ if TYPE_CHECKING:
     from kiota_abstractions.serialization import ParsableFactory
 
     from airflow.providers.common.compat.sdk import Connection
-    from airflow.sdk._shared.secrets_masker import mask_secret, redact
+    from airflow.sdk._shared.secrets_masker import redact
 else:
     try:
         from airflow.sdk._shared.secrets_masker import redact
-        from airflow.sdk.log import mask_secret
     except ImportError:
         try:
-            from airflow.sdk._shared.secrets_masker import mask_secret, redact
+            from airflow.sdk._shared.secrets_masker import redact
         except ImportError:
-            from airflow.utils.log.secrets_masker import mask_secret, redact
+            from airflow.utils.log.secrets_masker import redact
 
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
@@ -271,19 +270,6 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
-    @staticmethod
-    def _register_proxy_secrets(proxies: dict | None) -> None:
-        """Extract and register proxy credentials as secrets to be masked in logs."""
-        if not proxies:
-            return
-        for value in proxies.values():
-            if isinstance(value, str):
-                parsed = urlparse(value)
-                if parsed.password:
-                    mask_secret(parsed.password)
-                if parsed.username:
-                    mask_secret(parsed.username)
-
     def to_msal_proxies(self, authority: str | None, proxies: dict | None) -> dict | None:
         self.log.debug("authority: %s", authority)
         if authority and proxies:
@@ -318,8 +304,6 @@ class KiotaRequestAdapterHook(BaseHook):
         trust_env = config.get("trust_env", False)
         allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
 
-        self._register_proxy_secrets(proxies)
-
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",
             api_version,
@@ -336,8 +320,8 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Trust env: %s", trust_env)
         self.log.info("Authority: %s", authority)
         self.log.info("Allowed hosts: %s", allowed_hosts)
-        self.log.info("Proxies: %s", redact(proxies))
-        self.log.info("HTTPX Proxies: %s", redact(httpx_proxies))
+        self.log.info("Proxies: %s", redact(proxies, name="proxies"))
+        self.log.info("HTTPX Proxies: %s", redact(httpx_proxies, name="proxies"))
         credentials = self.get_credentials(
             login=connection.login,
             password=connection.password,
@@ -453,13 +437,12 @@ class KiotaRequestAdapterHook(BaseHook):
         certificate_data = config.get("certificate_data")
         disable_instance_discovery = config.get("disable_instance_discovery", False)
         msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
-        self._register_proxy_secrets(msal_proxies)
         self.log.info("Tenant id: %s", tenant_id)
         self.log.info("Certificate path: %s", certificate_path)
         self.log.info("Certificate data: %s", certificate_data is not None)
         self.log.info("Authority: %s", authority)
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
-        self.log.info("MSAL Proxies: %s", redact(msal_proxies))
+        self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
             return CertificateCredential(
                 tenant_id=tenant_id,
