@@ -37,7 +37,7 @@ class ConnectionResponse(BaseModel):
     description: str | None
     host: str | None
     login: str | None
-    schema_: str | None = Field(alias="schema")
+    schema: str | None
     port: int | None
     password: str | None
     extra: str | None
