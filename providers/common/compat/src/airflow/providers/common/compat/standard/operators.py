@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.common.compat._compat_utils import create_module_getattr
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
 
@@ -31,7 +33,9 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "_SERIALIZERS": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
 }
 
-if AIRFLOW_V_3_2_PLUS:
+if TYPE_CHECKING:
+    from airflow.sdk.bases.operator import BaseAsyncOperator
+elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
     import asyncio
