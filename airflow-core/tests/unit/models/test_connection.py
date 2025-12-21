@@ -159,6 +159,17 @@ class TestConnection:
                 {"int_param": 123, "bool_param": True, "float_param": 1.5, "str_param": "some_str"},
                 None,
             ),
+            (
+                "type://host?__extra__=%7B%22foo%22%3A+%22bar%22%7D",
+                "type",
+                "host",
+                None,
+                None,
+                None,
+                "",
+                {"foo": "bar"},
+                None,
+            ),
         ],
     )
     def test_parse_from_uri(
