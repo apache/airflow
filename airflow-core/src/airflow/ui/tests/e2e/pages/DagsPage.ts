@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -111,6 +111,43 @@ export class DagsPage extends BasePage {
     const dagRunId = await this.handleTriggerDialog();
 
     return dagRunId;
+  }
+
+  /**
+   * Navigate to details tab and verify Dag details are displayed correctly
+   */
+  public async verifyDagDetails(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+
+    const detailsTab = this.page.locator('a[href$="/details"]');
+
+    await detailsTab.waitFor({ state: "visible" });
+    await detailsTab.click();
+
+    // Verify the details table is present
+    const detailsTable = this.page.locator('[data-testid="dag-details-table"]');
+
+    await expect(detailsTable).toBeVisible();
+
+    // Verify all metadata fields are present
+    await expect(this.page.locator('[data-testid="dag-id-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="description-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="timezone-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="file-location-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-parsed-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-parse-duration-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="latest-dag-version-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="start-date-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="end-date-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-expired-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="has-task-concurrency-limits-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="dag-run-timeout-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-active-runs-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-active-tasks-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-consecutive-failed-dag-runs-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="catchup-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="default-args-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
   }
 
   public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
