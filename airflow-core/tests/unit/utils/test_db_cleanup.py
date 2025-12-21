@@ -495,6 +495,93 @@ class TestDBCleanup:
             run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
 
+    def test_dag_version_with_active_references_not_deleted(self):
+        """
+        Test that dag_version rows are not deleted when they are still referenced by task_instance or dag_run.
+        
+        This test reproduces the issue where:
+        1. A dag_version was created long ago (old created_at)
+        2. A task_instance was started recently (recent start_date) and references the old dag_version
+        3. Running db clean with a cutoff between these dates should NOT delete the dag_version
+           because it is still referenced by the recent task_instance with ON DELETE RESTRICT constraint.
+        
+        Without the fix, this would fail with:
+        IntegrityError: Cannot delete or update a parent row: a foreign key constraint fails
+        (airflow.task_instance, CONSTRAINT task_instance_dag_version_id_fkey ...)
+        """
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        
+        with create_session() as session:
+            # Create a DAG with bundle
+            bundle_name = "test_bundle"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            
+            dag_id = f"test_dag_{uuid4()}"
+            dag = DAG(dag_id=dag_id)
+            dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            session.add(dm)
+            
+            # Create a serialized dag and dag_version
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+            dag_version = DagVersion.get_latest_version(dag_id)
+            
+            # Manually set the dag_version created_at to 60 days ago (old)
+            old_date = base_date
+            session.execute(
+                text("UPDATE dag_version SET created_at = :created_at WHERE id = :id"),
+                {"created_at": old_date, "id": dag_version.id},
+            )
+            session.flush()
+            
+            # Create a recent task_instance (5 days ago) that references the old dag_version
+            recent_date = base_date.add(days=55)  # Recent compared to dag_version
+            dag_run = DagRun(
+                dag_id=dag_id,
+                run_id="test_run",
+                run_type=DagRunType.SCHEDULED,
+                start_date=recent_date,
+            )
+            dag_run.dag_version_id = dag_version.id
+            session.add(dag_run)
+            session.flush()
+            
+            ti = TaskInstance(
+                PythonOperator(task_id="test_task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
+            )
+            ti.dag_id = dag_id
+            ti.start_date = recent_date
+            session.add(ti)
+            session.commit()
+            
+            # Run cleanup with a cutoff date between the old dag_version and recent task_instance
+            # This should delete old dag_version (created 60 days ago) but NOT the recent task_instance
+            # However, it MUST NOT delete the dag_version because it's still referenced
+            clean_before_date = base_date.add(days=30)  # 30 days - between old and recent
+            
+            # Before the fix, this would raise IntegrityError
+            # After the fix, this should succeed without deleting the dag_version
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["dag_version"],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+            
+            # Verify: dag_version should NOT be deleted because task_instance still references it
+            remaining_dag_versions = session.query(DagVersion).filter(DagVersion.id == dag_version.id).all()
+            assert len(remaining_dag_versions) == 1, (
+                "dag_version should not be deleted when it has active task_instance references, "
+                "even if the dag_version is older than the cleanup threshold"
+            )
+            
+            # Verify: task_instance and dag_run should still exist
+            assert session.query(TaskInstance).filter(TaskInstance.dag_version_id == dag_version.id).count() == 1
+            assert session.query(DagRun).filter(DagRun.dag_version_id == dag_version.id).count() == 1
+
     @pytest.mark.parametrize(
         "drop_archive",
         [True, False],
