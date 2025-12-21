@@ -60,7 +60,7 @@ class AsyncExecutionCallableRunner(Protocol):
         func: Callable[P, R],
         outlet_events: OutletEventAccessorsProtocol,
         *,
-        logger: logging.Logger | logging.Logger,
+        logger: logging.Logger | Logger,
     ) -> _AsyncExecutionCallableRunner[P, R]: ...
 
 
