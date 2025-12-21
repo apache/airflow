@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat._compat_utils import create_module_getattr
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_2_PLUS
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
@@ -50,7 +50,10 @@ else:
     from contextlib import suppress
     from functools import partial
 
-    from airflow.sdk import BaseOperator
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import BaseOperator
+    else:
+        from airflow.models import BaseOperator
 
     @contextlib.contextmanager
     def event_loop() -> Generator[AbstractEventLoop]:
