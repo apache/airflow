@@ -914,7 +914,9 @@ class Client(httpx.Client):
     def request(self, *args, **kwargs):
         """Implement a convenience for httpx.Client.request with a retry layer."""
         # Set content type as convenience if not already set
-        if "content" in kwargs and "headers" not in kwargs:
+        if kwargs.get("content", None) is not None and "content-type" not in (
+            kwargs.get("headers", {}) or {}
+        ):
             kwargs["headers"] = {"content-type": "application/json"}
 
         return super().request(*args, **kwargs)
