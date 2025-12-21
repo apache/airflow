@@ -110,6 +110,7 @@
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
   "taskTries": "Task Tries",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
@@ -149,6 +150,7 @@
     "versionId": "Version ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

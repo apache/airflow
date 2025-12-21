@@ -86,7 +86,8 @@ dependencies = [
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     # limited due to changes needed https://github.com/fastapi/fastapi/pull/14434
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, !=0.123.5",
+    # and the bug in fastapi 0.126.0 https://github.com/fastapi/fastapi/pull/14575#issuecomment-3678581316
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, !=0.123.5, !=0.126.0",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",

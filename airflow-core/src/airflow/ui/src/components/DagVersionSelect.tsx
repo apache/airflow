@@ -72,7 +72,7 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
       ) : undefined}
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder="All Versions">
+          <Select.ValueText placeholder={translate("versionSelect.allVersions")}>
             {selectedVersion === undefined ? undefined : (
               <Flex justifyContent="space-between" width="175px">
                 <Text>
