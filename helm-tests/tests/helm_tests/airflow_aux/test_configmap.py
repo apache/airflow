@@ -303,6 +303,52 @@ metadata:
             )
 
     @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key_secret", "expected_volume"),
+        [
+            (True, "my-secret", True),
+            (True, None, False),
+            (False, "my-secret", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key_secret_name(
+        self, git_sync_enabled, ssh_key_secret, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKeySecret": ssh_key_secret}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key", "expected_volume"),
+        [
+            (True, "my-key", True),
+            (True, None, False),
+            (False, "my-key", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key(
+        self, git_sync_enabled, ssh_key, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKey": ssh_key}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
         ("scheduler_cpu_limit", "expected_sync_parallelism"),
         [
             ("1m", "1"),
