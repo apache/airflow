@@ -44,7 +44,6 @@ else:
     import asyncio
     import contextlib
     import inspect
-
     from asyncio import AbstractEventLoop
     from collections.abc import Generator
     from contextlib import suppress
@@ -75,12 +74,10 @@ else:
                     loop.close()
                     asyncio.set_event_loop(None)
 
-
     def unwrap_partial(fn):
         while isinstance(fn, partial):
             fn = fn.func
         return fn
-
 
     def unwrap_callable(func):
         from airflow.sdk.bases.decorator import _TaskDecorator
@@ -98,7 +95,6 @@ else:
             func = inspect.unwrap(func)
 
         return func
-
 
     def is_async_callable(func):
         """Detect if a callable (possibly wrapped) is an async function."""
