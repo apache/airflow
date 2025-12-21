@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Σύμπτυξη όλων των επιπλέον json",
-      "expandAllExtra": "Ανάπτυξη όλων των επιπλέον json"
-    },
     "columns": {
       "event": "Συμβάν",
       "extra": "Επιπλέον",

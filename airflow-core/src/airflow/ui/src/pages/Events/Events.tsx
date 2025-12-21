@@ -221,8 +221,8 @@ export const Events = () => {
       <Flex alignItems="center" justifyContent="space-between">
         <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
         <ExpandCollapseButtons
-          collapseLabel={translate("collapseAllExtra")}
-          expandLabel={translate("expandAllExtra")}
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
           onCollapse={onClose}
           onExpand={onOpen}
         />
