@@ -74,9 +74,11 @@
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
+  "delete": "삭제",
   "diff": "비교",
   "diffCompareWith": "비교 대상",
   "diffExit": "비교 종료",
+  "diffSelectVersionToCompare": "비교할 버전 선택",
   "direction": "방향",
   "docs": {
     "documentation": "문서",
@@ -89,6 +91,7 @@
     "tooltip": "{{hotkey}} 키를 눌러 로그를 다운로드하세요."
   },
   "duration": "기간",
+  "edit": "편집",
   "endDate": "종료일",
   "error": {
     "back": "뒤로",
@@ -128,12 +131,14 @@
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
   "mapIndex": "맵 인덱스",
   "modal": {
+    "add": "추가",
     "cancel": "취소",
     "confirm": "확인",
     "delete": {
       "button": "삭제",
       "confirmation": "{{resourceName}}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-    }
+    },
+    "save": "저장"
   },
   "nav": {
     "admin": "관리자",
