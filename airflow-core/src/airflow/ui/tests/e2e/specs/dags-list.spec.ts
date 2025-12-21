@@ -100,7 +100,7 @@ test.describe("Dag Trigger Workflow", () => {
 });
 
 /*
-  DAG verify details tab E2E test
+  Dag verify details tab E2E test
 */
 test.describe("Dag Details Tab", () => {
   let loginPage: LoginPage;
