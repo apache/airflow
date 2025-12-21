@@ -63,10 +63,7 @@ else:
     try:
         from airflow.sdk._shared.secrets_masker import redact
     except ImportError:
-        try:
-            from airflow.sdk._shared.secrets_masker import redact
-        except ImportError:
-            from airflow.utils.log.secrets_masker import redact
+        from airflow.sdk.execution_time.secrets_masker import redact
 
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
