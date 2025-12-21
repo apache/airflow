@@ -27,6 +27,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "BaseOperator": "airflow.providers.common.compat.sdk",
     "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
     "get_current_context": "airflow.providers.common.compat.sdk",
+    "is_async_callable": "airflow.providers.common.compat.sdk",
     # Standard provider items with direct fallbacks
     "PythonOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
     "ShortCircuitOperator": ("airflow.providers.standard.operators.python", "airflow.operators.python"),
@@ -34,14 +35,20 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
 }
 
 if TYPE_CHECKING:
+    from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
 elif AIRFLOW_V_3_2_PLUS:
+    from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
     import asyncio
     import contextlib
+    import inspect
+
     from asyncio import AbstractEventLoop
     from collections.abc import Generator
+    from contextlib import suppress
+    from functools import partial
 
     from airflow.sdk import BaseOperator
 
@@ -64,6 +71,52 @@ else:
                 with contextlib.suppress(AttributeError):
                     loop.close()
                     asyncio.set_event_loop(None)
+
+
+    def unwrap_partial(fn):
+        while isinstance(fn, partial):
+            fn = fn.func
+        return fn
+
+
+    def unwrap_callable(func):
+        from airflow.sdk.bases.decorator import _TaskDecorator
+        from airflow.sdk.definitions.mappedoperator import OperatorPartial
+
+        # Airflow-specific unwrap
+        if isinstance(func, (_TaskDecorator, OperatorPartial)):
+            func = getattr(func, "function", getattr(func, "_func", func))
+
+        # Unwrap functools.partial
+        func = unwrap_partial(func)
+
+        # Unwrap @functools.wraps chains
+        with suppress(Exception):
+            func = inspect.unwrap(func)
+
+        return func
+
+
+    def is_async_callable(func):
+        """Detect if a callable (possibly wrapped) is an async function."""
+        func = unwrap_callable(func)
+
+        if not callable(func):
+            return False
+
+        # Direct async function
+        if inspect.iscoroutinefunction(func):
+            return True
+
+        # Callable object with async __call__
+        if not inspect.isfunction(func):
+            call = type(func).__call__  # Bandit-safe
+            with suppress(Exception):
+                call = inspect.unwrap(call)
+            if inspect.iscoroutinefunction(call):
+                return True
+
+        return False
 
     class BaseAsyncOperator(BaseOperator):
         """

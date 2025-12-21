@@ -46,6 +46,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingR
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, task
+from airflow.providers.common.compat.standard.operators import is_async_callable
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -57,7 +58,7 @@ from airflow.providers.standard.operators.python import (
     ShortCircuitOperator,
     _parse_version_info,
     _PythonVersionInfo,
-    get_current_context, is_async_callable,
+    get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import _execute_in_subprocess, prepare_virtualenv
 from airflow.utils.session import create_session
