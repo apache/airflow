@@ -48,7 +48,7 @@ from airflow.exceptions import (
 )
 from airflow.models.variable import Variable
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
-from airflow.providers.common.compat.standard.operators import is_async_callable
+from airflow.providers.common.compat.standard.operators import BaseAsyncOperator, is_async_callable
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
@@ -56,7 +56,6 @@ from airflow.providers.standard.utils.python_virtualenv import (
     write_python_script,
 )
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sdk import BaseAsyncOperator
 from airflow.utils import hashlib_wrapper
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
