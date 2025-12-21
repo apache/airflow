@@ -114,7 +114,7 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Navigate to details tab and verify DAG details are displayed correctly
+   * Navigate to details tab and verify Dag details are displayed correctly
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
     await this.navigateToDagDetail(dagName);
