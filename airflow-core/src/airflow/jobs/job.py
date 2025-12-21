@@ -77,6 +77,8 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     elif job_type == "TriggererJob":
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    elif job_type == "DagProcessorJob":
+        health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
