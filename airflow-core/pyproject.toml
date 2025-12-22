@@ -41,7 +41,7 @@ license-files = ["LICENSE", "NOTICE"]
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
 # and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
 # also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -77,14 +77,20 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=5.2.1",
+    "cadwyn>=5.6.1",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.116.0,<0.118.0",
+    # Limited due to backwards incompatible (but deliberate) changes in FastAPI 0.126.0
+    # which break Cadwyn way of copying classes and break serialization. As explained
+    # in https://github.com/fastapi/fastapi/pull/14582#issuecomment-3682792249, Cadwyn
+    # needs to adapt to those changes and we cannot move to newer version of FastAPI
+    # This is tracked in Cadwyn in https://github.com/zmievsa/cadwyn/issues/314
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, <0.126.0",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
