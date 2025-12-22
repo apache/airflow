@@ -1636,23 +1636,35 @@ paths:
       tags:
       - Connection
       summary: Test Connection
-      description: 'Test an API connection.
-
-
-        This method first creates an in-memory transient conn_id & exports that to
-        an env var,
-
-        as some hook classes tries to find out the `conn` from their __init__ method
-        & errors out if not found.
-
-        It also deletes the conn id env connection after the test.'
+      description: "Test an API connection.\n\nThis method first creates an in-memory\
+        \ transient conn_id & exports that to an env var,\nas some hook classes tries\
+        \ to find out the `conn` from their __init__ method & errors out if not found.\n\
+        It also deletes the conn id env connection after the test.\n\nArgs:\n    test_body:\
+        \ Connection parameters to test\n    use_existing_credentials: Whether to\
+        \ merge credentials from existing connection.\n                          \
+        \  If True, password and extra fields will be merged with existing connection.\n\
+        \                            If False, only the provided credentials will\
+        \ be used."
       operationId: test_connection
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: use_existing_credentials
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Merge with existing connection credentials
+          default: false
+          title: Use Existing Credentials
+        description: Merge with existing connection credentials
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ConnectionBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -1661,26 +1673,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConnectionTestResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /api/v2/connections/defaults:
     post:
       tags:
