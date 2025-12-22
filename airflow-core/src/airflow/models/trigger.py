@@ -165,7 +165,7 @@ class Trigger(Base):
                 get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8")
             )
 
-        return deserialize(decrypted_kwargs)
+        return deserialize(decrypted_kwargs)  # type: ignore[return-value] # mypy is wrong here, passing dict[str, Any] to deserialize will return the same type
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
