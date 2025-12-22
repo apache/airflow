@@ -4450,7 +4450,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
+        actual = self.job_runner._finished_and_automated(
             dag=dag,
             dag_model=dag_maker.dag_model,
             active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
@@ -4496,7 +4496,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
+        actual = self.job_runner._finished_and_automated(
             dag=dag,
             dag_model=dag_model,
             last_dag_run=run,
