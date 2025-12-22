@@ -739,6 +739,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(scheduler_job)
 
         ti1 = dr.get_task_instance("dummy_task")
+        if TYPE_CHECKING:
+            assert isinstance(ti1, TaskInstance)
         ti1.state = State.FAILED
         session.merge(ti1)
         session.commit()
@@ -755,6 +757,8 @@ class TestSchedulerJob:
         context = callback.context_from_server
         assert context is not None
 
+        if TYPE_CHECKING:
+            assert isinstance(context.dag_run, DagRun)
         events = context.dag_run.consumed_asset_events
         assert len(events) == 1
         assert events[0].asset is not None
