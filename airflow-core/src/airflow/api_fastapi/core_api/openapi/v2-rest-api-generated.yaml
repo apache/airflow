@@ -1636,15 +1636,19 @@ paths:
       tags:
       - Connection
       summary: Test Connection
-      description: "Test an API connection.\n\nThis method first creates an in-memory\
-        \ transient conn_id & exports that to an env var,\nas some hook classes tries\
-        \ to find out the `conn` from their __init__ method & errors out if not found.\n\
-        It also deletes the conn id env connection after the test.\n\nArgs:\n    test_body:\
-        \ Connection parameters to test\n    use_existing_credentials: Whether to\
-        \ merge credentials from existing connection.\n                          \
-        \  If True, password and extra fields will be merged with existing connection.\n\
-        \                            If False, only the provided credentials will\
-        \ be used."
+      description: |
+        Test an API connection.
+
+
+        This method first creates an in-memory transient conn_id & exports that to an env var,
+        as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+        It also deletes the conn id env connection after the test.
+
+        Args:
+            test_body: Connection parameters to test
+            use_existing_credentials: Whether to merge credentials from existing connection.
+                                      If True, password and extra fields will be merged with existing connection.
+                                      If False, only the provided credentials will be used.
       operationId: test_connection
       security:
       - OAuth2PasswordBearer: []
