@@ -694,7 +694,9 @@ class TestCLIDBClean:
         coerced to tz-aware with default timezone
         """
         timestamp = "2021-01-01 00:00:00"
-        with patch("airflow._shared.timezones.timezone.TIMEZONE", pendulum.timezone(timezone)):
+        with patch(
+            "airflow._shared.timezones.timezone._Timezone.initialized_timezone", pendulum.timezone(timezone)
+        ):
             args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
