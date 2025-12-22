@@ -51,13 +51,6 @@ export class BackfillPage extends BasePage {
     await this.page.waitForTimeout(1000);
   }
 
-  public async isBackfillPaused(): Promise<boolean> {
-    await this.pauseButton.waitFor({ state: "visible", timeout: 10_000 });
-    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
-
-    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
-  }
-
   public async createBackfill(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
 
@@ -84,6 +77,13 @@ export class BackfillPage extends BasePage {
     await runButton.click({ force: true });
 
     await this.page.waitForTimeout(2000);
+  }
+
+  public async isBackfillPaused(): Promise<boolean> {
+    await this.pauseButton.waitFor({ state: "visible", timeout: 10_000 });
+    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
+
+    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
   }
 
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
