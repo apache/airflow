@@ -438,13 +438,14 @@ def collect_dags(dag_folder=None):
     excluded_patterns = [
         f"{AIRFLOW_REPO_ROOT_PATH}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()
     ]
-    for pattern in patterns:
-        for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
-            if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
-                continue
-            dagbag = DagBag(directory, include_examples=False)
-            dags.update(dagbag.dags)
-            import_errors.update(dagbag.import_errors)
+    with mock.patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout", return_value=60):
+        for pattern in patterns:
+            for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
+                if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
+                    continue
+                dagbag = DagBag(directory, include_examples=False)
+                dags.update(dagbag.dags)
+                import_errors.update(dagbag.import_errors)
     return dags, import_errors
 
 
