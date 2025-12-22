@@ -127,9 +127,7 @@ def merge(
     return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
-_global_secrets_masker: SecretsMasker | None = None
-
-
+@cache
 def _secrets_masker() -> SecretsMasker:
     """
     Get or create the module-level secrets masker instance.
@@ -139,10 +137,7 @@ def _secrets_masker() -> SecretsMasker:
     airflow.sdk._shared) will have separate global variables and thus separate
     masker instances.
     """
-    global _global_secrets_masker
-    if _global_secrets_masker is None:
-        _global_secrets_masker = SecretsMasker()
-    return _global_secrets_masker
+    return SecretsMasker()
 
 
 def reset_secrets_masker() -> None:
