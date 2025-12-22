@@ -993,13 +993,84 @@ class TestConnection(TestConnectionEndpoint):
             {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
         ],
     )
-    def test_should_respond_403_by_default(self, test_client, body):
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.conf.get")
+    def test_should_respond_403_by_default(self, mock_conf_get, test_client, body):
+        mock_conf_get.return_value = "Disabled"
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 403
         assert response.json() == {
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_password_with_existing_credentials(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="sqlite",
+            password="existing_password",
+        )
+        session.add(connection)
+        session.commit()
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "sqlite",
+            "password": "***",
+        }
+        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_extra_with_existing_credentials(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_merge_both_password_and_extra(self, test_client, session):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            password="existing_password",
+            extra='{"path": "/", "existing_key": "existing_value"}',
+        )
+        session.add(connection)
+        session.commit()
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "fs",
+            "password": "***",
+            "extra": '{"path": "/", "new_key": "new_value"}',
+        }
+        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        assert response.status_code == 200
+        assert response.json()["status"] is True
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_handle_missing_connection_with_use_existing_credentials(self, test_client):
+        body = {
+            "connection_id": "non_existent_conn",
+            "conn_type": "sqlite",
+        }
+        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        assert response.status_code == 200
+        assert response.json()["status"] is True
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):
