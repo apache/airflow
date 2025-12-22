@@ -57,14 +57,7 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-    from airflow.providers.common.compat.sdk import Connection
-    from airflow.sdk._shared.secrets_masker import redact
-else:
-    try:
-        from airflow.sdk._shared.secrets_masker import redact
-    except ImportError:
-        from airflow.sdk.execution_time.secrets_masker import redact
-
+from airflow.providers.common.compat.sdk import Connection, redact
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
 
