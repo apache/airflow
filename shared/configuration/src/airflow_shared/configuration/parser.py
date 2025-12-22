@@ -1081,7 +1081,8 @@ class AirflowConfigParser(ConfigParser):
         val = self.get(section, key, **kwargs)
 
         if isinstance(val, list) or val is None:
-            # Given a fallback that was already a list, don't try to parse it
+            # `get` will always return a (possibly-empty) string, so the only way we can
+            # have these types is with `fallback=` was specified. So just return it.
             return val
 
         if val == "":
