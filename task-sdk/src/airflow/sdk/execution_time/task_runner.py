@@ -1386,7 +1386,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
         kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})  # type: ignore # mypy is wrong here, passing dict[str, Any] to deserialize will lead to dict[str, Any]
 
-        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
+        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs) # type: ignore # mypy is wrong here, passing dict[str, Any] to deserialize will lead to dict[str, Any]
 
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain
