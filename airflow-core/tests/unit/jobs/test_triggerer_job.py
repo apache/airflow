@@ -309,7 +309,7 @@ class TestTriggerRunner:
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
@@ -322,7 +322,7 @@ class TestTriggerRunner:
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.run.side_effect = asyncio.CancelledError()
@@ -1200,6 +1200,7 @@ class TestTriggererMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
             "GetTaskBreadcrumbs",
@@ -1223,6 +1224,7 @@ class TestTriggererMessageTypes:
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "SentFDs",
             "StartupDetails",
             "TaskBreadcrumbsResult",

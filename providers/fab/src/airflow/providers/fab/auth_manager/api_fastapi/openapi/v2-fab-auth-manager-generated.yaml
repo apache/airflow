@@ -17,7 +17,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginBody'
+              additionalProperties: true
+              type: object
+              title: Body
         required: true
       responses:
         '201':
@@ -55,7 +57,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginBody'
+              additionalProperties: true
+              type: object
+              title: Body
         required: true
       responses:
         '201':
@@ -440,20 +444,6 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    LoginBody:
-      properties:
-        username:
-          type: string
-          title: Username
-        password:
-          type: string
-          title: Password
-      type: object
-      required:
-      - username
-      - password
-      title: LoginBody
-      description: API Token serializer for requests.
     LoginResponse:
       properties:
         access_token:

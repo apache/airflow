@@ -172,6 +172,7 @@ from airflow_breeze.utils.provider_dependencies import (
     get_provider_dependencies,
     get_related_providers,
     load_constraints,
+    regenerate_provider_dependencies_once,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
@@ -254,11 +255,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.16"
+AIRFLOW_UV_VERSION = "0.9.18"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.1.45"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.19"
+PREK_VERSION = "0.2.23"
 HATCH_VERSION = "1.16.2"
 PYYAML_VERSION = "6.0.3"
 
@@ -851,6 +852,7 @@ def prepare_provider_documentation(
         PrepareReleaseDocsUserQuitException,
         PrepareReleaseDocsUserSkippedException,
         update_changelog,
+        update_index_rst,
         update_min_airflow_version_and_build_files,
         update_release_notes,
     )
@@ -923,6 +925,12 @@ def prepare_provider_documentation(
                         only_min_version_update=only_min_version_update,
                         with_min_airflow_version_bump=with_min_airflow_version_bump,
                     )
+            update_index_rst(
+                provider_id=provider_id,
+                with_breaking_changes=with_breaking_changes,
+                maybe_with_new_features=maybe_with_new_features,
+            )
+
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
         except PrepareReleaseDocsChangesOnlyException:
@@ -3028,6 +3036,8 @@ def update_providers_next_version():
     """
     from airflow_breeze.utils.packages import update_providers_with_next_version_comment
 
+    # make sure dependencies are regenerated before we start
+    regenerate_provider_dependencies_once()
     get_console().print("\n[info]Scanning for providers with '# use next version' comments...\n")
 
     updates_made = update_providers_with_next_version_comment()
@@ -3042,6 +3052,9 @@ def update_providers_next_version():
             f"\n[success]Updated {len(updates_made)} provider(s) with "
             f"{sum(len(deps) for deps in updates_made.values())} dependency change(s).[/]"
         )
+        # Regenerate provider dependencies after some of them changed
+        regenerate_provider_dependencies_once.cache_clear()
+        regenerate_provider_dependencies_once()
     else:
         get_console().print(
             "\n[info]No updates needed. All providers with '# use next version' "
@@ -4320,9 +4333,8 @@ def version_check(
 @click.option(
     "--packages-file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False, resolve_path=True, path_type=Path),
-    default="packages.txt",
     show_default=True,
-    help="File containing list of packages to check (for providers only).",
+    help="File containing list of packages to check (for providers only). use path to local packages.txt for providers releases.",
 )
 @click.argument(
     "release_type",
@@ -4335,7 +4347,7 @@ def check_release_files(
     path_to_airflow_svn: Path,
     version: str | None,
     release_date: str | None,
-    packages_file: Path,
+    packages_file: Path | None,
     release_type: str,
 ):
     """
@@ -4381,7 +4393,7 @@ def check_release_files(
         if release_type == "airflow":
             directory = path_to_airflow_svn / version
         elif release_type == "task-sdk":
-            directory = path_to_airflow_svn / version
+            directory = path_to_airflow_svn / "task-sdk" / version
         elif release_type == "airflow-ctl":
             directory = path_to_airflow_svn / "airflow-ctl" / version
         elif release_type == "python-client":
@@ -4401,6 +4413,9 @@ def check_release_files(
     missing_files = []
 
     if release_type == "providers":
+        if not packages_file:
+            console.print(f"[error]--packages-file is required for {release_type}[/]")
+            sys.exit(1)
         packages = get_packages(packages_file)
         missing_files = check_providers(files, release_date, packages)
         pips = [f"{name}=={ver}" for name, ver in packages]
@@ -4410,10 +4425,17 @@ def check_release_files(
         )
     elif release_type == "airflow":
         missing_files = check_airflow_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version), dockerfile_path)
+        create_docker(AIRFLOW_DOCKER.format(version, version), dockerfile_path)
     elif release_type == "task-sdk":
         missing_files = check_task_sdk_release(files, version)
-        create_docker(TASK_SDK_DOCKER.format(version), dockerfile_path)
+        if not version:
+            get_console().print("[error]--version is required for task-sdk[/]")
+            sys.exit(1)
+        airflow_version = version.replace("1", "3", 1)
+        create_docker(
+            TASK_SDK_DOCKER.format(version, airflow_version, airflow_version, airflow_version),
+            dockerfile_path,
+        )
     elif release_type == "airflow-ctl":
         missing_files = check_airflow_ctl_release(files, version)
         create_docker(AIRFLOW_CTL_DOCKER.format(version), dockerfile_path)

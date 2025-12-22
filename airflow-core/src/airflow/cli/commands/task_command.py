@@ -215,7 +215,6 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task, pool_override=pool)
 
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip

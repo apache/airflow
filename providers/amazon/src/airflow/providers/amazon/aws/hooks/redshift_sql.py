@@ -25,8 +25,8 @@ from redshift_connector import Connection as RedshiftConnection, InterfaceError,
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:

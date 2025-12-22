@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models import Trigger
 from airflow.models.callback import (
@@ -118,7 +119,7 @@ class TestTriggererCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, TriggererCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_ASYNC_CALLBACK.serialize()
@@ -188,7 +189,7 @@ class TestExecutorCallback:
         session.add(callback)
         session.commit()
 
-        retrieved = session.query(Callback).filter_by(id=callback.id).one()
+        retrieved = session.scalar(select(Callback).where(Callback.id == callback.id))
         assert isinstance(retrieved, ExecutorCallback)
         assert retrieved.fetch_method == CallbackFetchMethod.IMPORT_PATH
         assert retrieved.data == TEST_SYNC_CALLBACK.serialize()

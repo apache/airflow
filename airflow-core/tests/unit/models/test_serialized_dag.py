@@ -24,7 +24,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 import airflow.example_dags as example_dags_module
 from airflow.dag_processing.dagbag import DagBag
@@ -59,7 +59,12 @@ def make_example_dags(module):
     from airflow.utils.session import create_session
 
     with create_session() as session:
-        if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+        if (
+            session.scalar(
+                select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+            )
+            == 0
+        ):
             testing = DagBundleModel(name="testing")
             session.add(testing)
 
@@ -101,7 +106,7 @@ class TestSerializedDagModel:
         with create_session() as session:
             for dag in example_dags.values():
                 assert SDM.has_dag(dag.dag_id)
-                result = session.query(SDM).filter(SDM.dag_id == dag.dag_id).one()
+                result = session.scalar(select(SDM).where(SDM.dag_id == dag.dag_id))
 
                 assert result.dag_version.dag_code.fileloc == dag.fileloc
                 # Verifies JSON schema.
@@ -118,7 +123,7 @@ class TestSerializedDagModel:
         with dag_maker("dag1"):
             PythonOperator(task_id="task1", python_callable=lambda x: None)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
-        assert len(session.query(DagVersion).all()) == 2
+        assert len(session.scalars(select(DagVersion)).all()) == 2
 
         with dag_maker("dag2"):
 
@@ -136,7 +141,7 @@ class TestSerializedDagModel:
                 pass
 
             my_callable2()
-        assert len(session.query(DagVersion).all()) == 4
+        assert len(session.scalars(select(DagVersion)).all()) == 4
 
     def test_serialized_dag_is_updated_if_dag_is_changed(self, testing_dag_bundle):
         """Test Serialized DAG is updated if DAG is changed"""
@@ -212,7 +217,7 @@ class TestSerializedDagModel:
         dag.doc_md = "new doc string"
         SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
         serialized_dags2 = SDM.read_all_dags()
-        sdags = session.query(SDM).all()
+        sdags = session.scalars(select(SDM)).all()
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
 
@@ -334,7 +339,7 @@ class TestSerializedDagModel:
     def test_new_dag_versions_are_not_created_if_no_dagruns(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
-        assert session.query(SDM).count() == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
         sdm1 = SDM.get(dag.dag_id, session=session)
         dag_hash = sdm1.dag_hash
         created_at = sdm1.created_at
@@ -347,21 +352,21 @@ class TestSerializedDagModel:
         assert sdm2.dag_hash != dag_hash  # first recorded serdag
         assert sdm2.created_at == created_at
         assert sdm2.last_updated != last_updated
-        assert session.query(DagVersion).count() == 1
-        assert session.query(SDM).count() == 1
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
 
     def test_new_dag_versions_are_created_if_there_is_a_dagrun(self, dag_maker, session):
         with dag_maker("dag1") as dag:
             PythonOperator(task_id="task1", python_callable=lambda: None)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
-        assert session.query(SDM).count() == 1
-        assert session.query(DagVersion).count() == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
         # new task
         PythonOperator(task_id="task2", python_callable=lambda: None, dag=dag)
         SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="dag_maker")
 
-        assert session.query(DagVersion).count() == 2
-        assert session.query(SDM).count() == 2
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
+        assert session.scalar(select(func.count()).select_from(SDM)) == 2
 
     def test_example_dag_sorting_serialised_dag(self, session):
         """
@@ -517,14 +522,14 @@ class TestSerializedDagModel:
         # Create TIs
         dag_maker.create_dagrun(run_id="test_run")
 
-        assert session.query(DagVersion).count() == 1
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
 
         # Write the same DAG (no changes, so hash is the same) with a new bundle_name
         new_bundle = "bundleB"
         SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=new_bundle)
 
         # There should now be two versions of the DAG
-        assert session.query(DagVersion).count() == 2
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
 
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
@@ -554,6 +559,59 @@ class TestSerializedDagModel:
         assert "fileloc" in test_data["dag"]
         assert test_data["dag"]["fileloc"] == "/different/path/to/dag.py"
 
+    def test_hash_method_consistent_with_dict_ordering_in_template_fields(self, dag_maker):
+        from airflow.sdk.bases.operator import BaseOperator
+
+        class MyCustomOp(BaseOperator):
+            template_fields = ("env_vars",)
+
+            def __init__(self, *, task_id: str, **kwargs):
+                super().__init__(task_id=task_id, **kwargs)
+                self.env_vars = {"KEY1": "value1", "KEY2": "value2", "KEY3": "value3"}
+
+        # Create first DAG with env_vars in one order
+        with dag_maker("test_dag") as dag1:
+            MyCustomOp(task_id="task1")
+
+        serialized_dag_1 = SerializedDAG.to_dict(dag1)
+
+        # Create second DAG with env_vars in different order
+        with dag_maker("test_dag") as dag2:
+            task = MyCustomOp(task_id="task1")
+            # Recreate dict with different insertion order
+            task.env_vars = {"KEY3": "value3", "KEY1": "value1", "KEY2": "value2"}
+
+        serialized_dag_2 = SerializedDAG.to_dict(dag2)
+
+        # Verify that the original env_vars have different ordering
+        env_vars_1 = None
+        env_vars_2 = None
+        for task in serialized_dag_1["dag"]["tasks"]:
+            if task["__var"]["task_id"] == "task1":
+                env_vars_1 = task["__var"].get("env_vars")
+        for task in serialized_dag_2["dag"]["tasks"]:
+            if task["__var"]["task_id"] == "task1":
+                env_vars_2 = task["__var"].get("env_vars")
+
+        assert env_vars_1 is not None, "serialized_dag_1 should have env_vars"
+        assert env_vars_2 is not None, "serialized_dag_2 should have env_vars"
+        # The serialized env_vars should be sorted dicts (or strings if truncated)
+        # If they're dicts, verify they're sorted; if strings, they should be equal due to sorting
+        if isinstance(env_vars_1, dict) and isinstance(env_vars_2, dict):
+            # Both should be sorted dictionaries with same content
+            assert list(env_vars_1.keys()) == sorted(env_vars_1.keys())
+            assert list(env_vars_2.keys()) == sorted(env_vars_2.keys())
+            assert env_vars_1 == env_vars_2, "Sorted dicts should be equal regardless of original order"
+        elif isinstance(env_vars_1, str) and isinstance(env_vars_2, str):
+            # If truncated to strings, they should be equal due to sorting
+            assert env_vars_1 == env_vars_2, "String representations should be equal due to sorting"
+
+        hash_1 = SDM.hash(serialized_dag_1)
+        hash_2 = SDM.hash(serialized_dag_2)
+
+        # Hashes should be identical
+        assert hash_1 == hash_2, "Hashes should be identical when dicts are sorted consistently"
+
     def test_dynamic_dag_update_preserves_null_check(self, dag_maker, session):
         """
         Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
@@ -579,7 +637,7 @@ class TestSerializedDagModel:
         assert dag_version is not None
 
         # Manually delete SerializedDagModel (simulates edge case)
-        session.query(SDM).filter(SDM.dag_id == "test_missing_serdag").delete()
+        session.execute(delete(SDM).where(SDM.dag_id == "test_missing_serdag"))
         session.commit()
 
         # Verify no SerializedDagModel exists
@@ -656,7 +714,9 @@ class TestSerializedDagModel:
             EmptyOperator(task_id="task1")
 
         dag = dag_maker.dag
-        initial_version_count = session.query(DagVersion).filter(DagVersion.dag_id == dag.dag_id).count()
+        initial_version_count = session.scalar(
+            select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
+        )
         assert initial_version_count == 1, "Should have one DagVersion after initial write"
         dag_maker.create_dagrun()  # ensure the second dag version is created
 
@@ -679,8 +739,8 @@ class TestSerializedDagModel:
             # Verify that no new DagVersion was committed
             # Use a fresh session to ensure we're reading from committed data
             with create_session() as fresh_session:
-                final_version_count = (
-                    fresh_session.query(DagVersion).filter(DagVersion.dag_id == dag.dag_id).count()
+                final_version_count = fresh_session.scalar(
+                    select(func.count()).select_from(DagVersion).where(DagVersion.dag_id == dag.dag_id)
                 )
                 assert final_version_count == initial_version_count, (
                     "DagVersion should not be committed when DagCode.write_code fails"

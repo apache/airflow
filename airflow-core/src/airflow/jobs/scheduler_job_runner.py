@@ -1452,8 +1452,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if self._is_metrics_enabled():
             timers.call_regular_interval(
-                conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
-                self._emit_running_ti_metrics,
+                conf.getfloat("scheduler", "ti_metrics_interval", fallback=30.0),
+                self._emit_ti_metrics,
             )
 
             timers.call_regular_interval(
@@ -1679,6 +1679,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
         for apdr in apdrs:
+            if TYPE_CHECKING:
+                assert apdr.target_dag_id
             partition_dag_ids.add(apdr.target_dag_id)
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
@@ -1829,6 +1831,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # and continue to the next serdag.
                 except Exception:
                     self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
+                    # todo: continuing here does not work because session needs rollback
+                    #  but you need either to make smaller transactions and commit after every dag run
+                    #  or to use savepoints.
+                    #  https://github.com/apache/airflow/issues/59120
                     continue
             if self._should_update_dag_next_dagruns(
                 serdag,
@@ -2439,36 +2445,48 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         count_result: int | None = query.count()
         return count_result if count_result is not None else 0
 
-    previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
+    previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_running_ti_metrics(self, session: Session = NEW_SESSION) -> None:
-        running = (
-            session.query(
+    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
+        stmt = (
+            select(
+                TaskInstance.state,
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.queue,
-                func.count(TaskInstance.task_id).label("running_count"),
+                func.count(TaskInstance.task_id).label("count"),
             )
-            .filter(TaskInstance.state == State.RUNNING)
-            .group_by(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
-            .all()
+            .filter(TaskInstance.state.in_(metric_states))
+            .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
         )
+        all_states_metric = session.execute(stmt).all()
 
-        ti_running_metrics = {(row.dag_id, row.task_id, row.queue): row.running_count for row in running}
+        for state in metric_states:
+            if state not in self.previous_ti_metrics:
+                self.previous_ti_metrics[state] = {}
 
-        for (dag_id, task_id, queue), count in ti_running_metrics.items():
-            Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", count)
-            Stats.gauge("ti.running", count, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+            ti_metrics = {
+                (dag_id, task_id, queue): count
+                for row_state, dag_id, task_id, queue, count in all_states_metric
+                if row_state == state
+            }
 
-        for prev_key in self.previous_ti_running_metrics:
-            # reset stats which are not running anymore
-            if prev_key not in ti_running_metrics:
-                dag_id, task_id, queue = prev_key
-                Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", 0)
-                Stats.gauge("ti.running", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+            for (dag_id, task_id, queue), count in ti_metrics.items():
+                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", float(count))
+                Stats.gauge(
+                    f"ti.{state}", float(count), tags={"queue": queue, "dag_id": dag_id, "task_id": task_id}
+                )
 
-        self.previous_ti_running_metrics = ti_running_metrics
+            for prev_key in self.previous_ti_metrics[state]:
+                # Reset previously exported stats that are no longer present in current metrics to zero
+                if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
+                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", 0)
+                    Stats.gauge(f"ti.{state}", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+
+            self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
     def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
@@ -2935,6 +2953,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
                         executor = _executor
+                        break
+                else:
+                    # No executor found for that team, fall back to global default
+                    executor = self.job.executor
         else:
             # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
             for _executor in self.job.executors:
