@@ -389,11 +389,29 @@ metrics:
     legacy_name: "triggerer.capacity_left.{hostname}"
     name_variables: ["hostname"]
 
+  - name: "ti.scheduled"
+    description: "Number of scheduled tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.scheduled.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.queued"
+    description: "Number of queued tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.queued.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
   - name: "ti.running"
     description: "Number of running tasks in a given Dag. As ti.start and ti.finish can run
     out of sync this metric shows all running tis."
     type: "gauge"
     legacy_name: "ti.running.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.deferred"
+    description: "Number of deferred tasks in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
   - name: "edge_worker.connected"
