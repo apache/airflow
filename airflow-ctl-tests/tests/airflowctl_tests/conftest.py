@@ -32,7 +32,9 @@ from airflowctl_tests.constants import (
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
 
-docker_client = None
+
+class _CtlTestState:
+    docker_client: DockerClient | None = None
 
 
 # Pytest hook to run at the start of the session
@@ -145,8 +147,6 @@ def docker_compose_up(tmp_path_factory):
     """Fixture to spin up Docker Compose environment for the test session."""
     from shutil import copyfile
 
-    global docker_client
-
     tmp_dir = tmp_path_factory.mktemp("airflow-ctl-test")
     console.print(f"[yellow]Tests are run in {tmp_dir}")
 
@@ -174,14 +174,18 @@ def docker_compose_up(tmp_path_factory):
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Initialize Docker client
-    docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+    _CtlTestState.docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-        docker_client.compose.up(detach=True, wait=True)
+        _CtlTestState.docker_client.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for airflowctl test\n")
     except Exception:
-        print_diagnostics(docker_client.compose, docker_client.compose.version(), docker.version())
+        print_diagnostics(
+            _CtlTestState.docker_client.compose,
+            _CtlTestState.docker_client.compose.version(),
+            docker.version(),
+        )
         debug_environment()
         docker_compose_down()
         raise
@@ -189,8 +193,8 @@ def docker_compose_up(tmp_path_factory):
 
 def docker_compose_down():
     """Tear down Docker Compose environment."""
-    if docker_client:
-        docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
+    if _CtlTestState.docker_client:
+        _CtlTestState.docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
 
 
 def pytest_sessionfinish(session, exitstatus):
