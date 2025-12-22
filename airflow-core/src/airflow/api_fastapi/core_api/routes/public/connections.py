@@ -228,11 +228,8 @@ def test_connection(
     as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
     It also deletes the conn id env connection after the test.
 
-    Args:
-        test_body: Connection parameters to test
-        use_existing_credentials: Whether to merge credentials from existing connection.
-                                If True, password and extra fields will be merged with existing connection.
-                                If False, only the provided credentials will be used.
+    If use_existing_credentials is True, password and extra fields from the existing connection will be merged with the provided credentials.
+    Otherwise, only the provided credentials will be used.
     """
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         raise HTTPException(
