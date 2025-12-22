@@ -66,12 +66,14 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, trigger_queue: str | None = None, **kwargs):
+    def __init__(self, **kwargs):
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance: TaskInstance | None = None
         self.trigger_id = None
-        self.trigger_queue = trigger_queue
+        self.trigger_queue: str | None = None
+        if kwargs and "trigger_queue" in kwargs:
+            self.trigger_queue = kwargs.get("trigger_queue")
 
     def _set_context(self, context):
         """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
