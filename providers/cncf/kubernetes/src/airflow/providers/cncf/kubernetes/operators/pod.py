@@ -918,12 +918,12 @@ class KubernetesPodOperator(BaseOperator):
             self.trigger_reentry(
                 context=context,
                 event={
-                    "status": "success" if container_state == ContainerState.TERMINATED else "failed",
+                    "status": "failed" if container_state == ContainerState.FAILED else "success",
                     "namespace": trigger.pod_namespace,
                     "name": trigger.pod_name,
-                    "message": "Container succeeded"
-                    if container_state == ContainerState.TERMINATED
-                    else "Container failed",
+                    "message": "Container failed"
+                    if container_state == ContainerState.FAILED
+                    else "Container succeeded",
                     "last_log_time": last_log_time,
                     **(self.trigger_kwargs or {}),
                 },
