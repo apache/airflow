@@ -707,16 +707,18 @@ class DeferTask(TIDeferredStatePayload):
 
     @field_serializer("trigger_kwargs", "next_kwargs", check_fields=True)
     def _serde_kwarg_fields(self, val: str | dict[str, Any] | None, _info):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import serialize
 
         if not isinstance(val, dict):
             # None, or an encrypted string
             return val
 
+        # Checking if already serialized to avoid double serialization
         if val.keys() == {"__type", "__var"}:
             # Already encoded.
             return val
-        return BaseSerialization.serialize(val or {})
+
+        return serialize(val)
 
 
 class RetryTask(TIRetryStatePayload):
