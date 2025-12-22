@@ -1721,6 +1721,7 @@ export const useConnectionServicePostConnection = <TData = Common.ConnectionServ
 * Test Connection
 * Test an API connection.
 *
+*
 * This method first creates an in-memory transient conn_id & exports that to an env var,
 * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
 * It also deletes the conn id env connection after the test.
@@ -1730,6 +1731,7 @@ export const useConnectionServicePostConnection = <TData = Common.ConnectionServ
 * use_existing_credentials: Whether to merge credentials from existing connection.
 * If True, password and extra fields will be merged with existing connection.
 * If False, only the provided credentials will be used.
+*
 * @param data The data for the request.
 * @param data.requestBody
 * @param data.useExistingCredentials Merge with existing connection credentials
