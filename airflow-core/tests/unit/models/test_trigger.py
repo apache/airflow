@@ -335,9 +335,8 @@ def create_trigger(create_task_instance):
         triggerer_id: int | None = None,
         trigger_queue: str | None = None,
     ) -> Trigger:
-        trig = Trigger(
-            classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, trigger_queue=trigger_queue
-        )
+        trig_kwargs = {"trigger_queue": trigger_queue} if trigger_queue else {}
+        trig = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=trig_kwargs)
         trig.triggerer_id = triggerer_id
         session.add(trig)
         ti = create_task_instance(task_id=f"ti_{name}", logical_date=logical_date, run_id=f"{name}_run_id")
@@ -474,10 +473,10 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
     # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
     consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
+    trig_kwargs = {"trigger_queue": trigger_queue} if trigger_queue else {}
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=old_logical_date + datetime.timedelta(seconds=30),
     )
     session.add(trigger_old)
@@ -495,8 +494,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
     )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=new_logical_date + datetime.timedelta(seconds=30),
     )
     session.add(trigger_new)
@@ -510,22 +508,19 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
     session.add(TI_new)
     trigger_orphan = Trigger(
         classpath="airflow.triggers.testing.TriggerOrphan",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=new_logical_date,
     )
     session.add(trigger_orphan)
     trigger_asset = Trigger(
         classpath="airflow.triggers.testing.TriggerAsset",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=new_logical_date,
     )
     session.add(trigger_asset)
     trigger_callback = Trigger(
         classpath="airflow.triggers.testing.TriggerCallback",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=new_logical_date,
     )
     session.add(trigger_callback)
@@ -567,10 +562,11 @@ def test_get_sorted_triggers_different_priority_weights(
     # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
     consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
+    trig_kwargs = {"trigger_queue": trigger_queue} if trigger_queue else {}
     callback_triggers = [
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue),
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue),
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs=trig_kwargs),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs=trig_kwargs),
+        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs=trig_kwargs),
     ]
     session.add_all(callback_triggers)
     session.flush()
@@ -589,8 +585,7 @@ def test_get_sorted_triggers_different_priority_weights(
     )
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=old_logical_date + datetime.timedelta(seconds=30),
     )
     session.add(trigger_old)
@@ -608,8 +603,7 @@ def test_get_sorted_triggers_different_priority_weights(
     )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        trigger_queue=trigger_queue,
+        kwargs=trig_kwargs,
         created_date=new_logical_date + datetime.timedelta(seconds=30),
     )
     session.add(trigger_new)
@@ -649,12 +643,11 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
     # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
     trigger_queue = "fake_trigger_q_name" if use_trigger_queues else None
     consume_trigger_queues = {trigger_queue} if isinstance(trigger_queue, str) else None
+    trig_kwargs = {"trigger_queue": trigger_queue} if trigger_queue else {}
     # Create 20 callback triggers with different priorities
     callback_triggers = []
     for i in range(20):
-        trigger = Trigger(
-            classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}, trigger_queue=trigger_queue
-        )
+        trigger = Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs=trig_kwargs)
         session.add(trigger)
         session.flush()
         callback = TriggererCallback(
@@ -670,8 +663,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
         logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
             classpath="airflow.triggers.testing.SuccessTrigger",
-            kwargs={},
-            trigger_queue=trigger_queue,
+            kwargs=trig_kwargs,
             created_date=logical_date,
         )
         session.add(trigger)
@@ -692,8 +684,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
         logical_date = datetime.datetime(2023, 5, 9, 13, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
             classpath="airflow.triggers.testing.AssetTrigger",
-            kwargs={},
-            trigger_queue=trigger_queue,
+            kwargs=trig_kwargs,
             created_date=logical_date,
         )
         session.add(trigger)
