@@ -144,6 +144,7 @@ These authorization methods are:
 * ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``).
 * ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 * ``filter_authorized_menu_items``: Given the list of menu items in the UI, return the list of menu items the user has access to.
+
 It should be noted that the ``method`` parameter listed above may only have relevance for a specific subset of the auth manager's authorization methods.
 For example, the ``configuration`` resource is by definition read-only, so only the ``GET`` parameter is relevant in the context of ``is_authorized_configuration``.
 
