@@ -509,6 +509,6 @@ class TestRBAC:
             "test-rbac-api-server",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
-            "test-rbac-create-user-job"
+            "test-rbac-create-user-job",
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)
