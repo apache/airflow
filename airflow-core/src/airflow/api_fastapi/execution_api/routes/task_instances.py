@@ -412,7 +412,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
         query = query.values(state=(updated_state := TaskInstanceState.FAILED))
@@ -462,7 +462,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -544,22 +544,22 @@ def _create_ti_state_update_query_and_update_state(
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                ti = session.get(TI, ti_id_str)
-                if ti is not None:
-                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
+                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
+                # in SQLA2. The task is marked as FAILED regardless.
                 return query, TaskInstanceState.FAILED
 
-        task_instance = session.get(TI, ti_id_str)
+        # We can directly use ti_id_str instead of fetching the TaskInstance object to avoid SQLA2
+        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
-        if task_instance is not None and task_instance.id is not None:
-            session.add(
-                TaskReschedule(
-                    UUID(str(task_instance.id)),
-                    actual_start_date,
-                    ti_patch_payload.end_date,
-                    ti_patch_payload.reschedule_date,
-                )
+        session.add(
+            TaskReschedule(
+                ti_id_str,
+                actual_start_date,
+                ti_patch_payload.end_date,
+                ti_patch_payload.reschedule_date,
             )
+        )
 
         query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
