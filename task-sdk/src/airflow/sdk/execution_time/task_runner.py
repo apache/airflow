@@ -1382,11 +1382,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from typing import cast
-
         from airflow.sdk.serde import deserialize
 
-        kwargs = cast("dict[str, Any]", deserialize(ti._ti_context_from_server.next_kwargs or {}))
+        kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})  # type: ignore[assignment]
 
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
