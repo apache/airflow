@@ -37,11 +37,11 @@ import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { getTriggerConf } from "src/utils/trigger";
+import type { DagRunTriggerParams } from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
-import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
 import { getInlineMessage } from "./inlineMessage";
 

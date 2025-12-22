@@ -29,7 +29,15 @@ import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
-import { getTriggerConf } from "src/utils/trigger";
+import {
+  getTriggerConf,
+  mergeUrlParams,
+  getUpdatedParamsDict,
+  type DagRunTriggerParams,
+  dataIntervalModeOptions,
+  extractParamValues,
+  type TriggerDAGFormProps,
+} from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -37,48 +45,6 @@ import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
-
-type TriggerDAGFormProps = {
-  readonly dagDisplayName: string;
-  readonly dagId: string;
-  readonly hasSchedule: boolean;
-  readonly isPaused: boolean;
-  readonly onClose: () => void;
-  readonly open: boolean;
-};
-
-type DataIntervalMode = "auto" | "manual";
-
-export type DagRunTriggerParams = {
-  conf: string;
-  dagRunId: string;
-  dataIntervalEnd: string;
-  dataIntervalMode: DataIntervalMode;
-  dataIntervalStart: string;
-  logicalDate: string;
-  note: string;
-  params?: Record<string, unknown>;
-  partitionKey: string | undefined;
-};
-const extractParamValues = (obj: Record<string, unknown>) => {
-  const out: Record<string, unknown> = {};
-  Object.entries(obj).forEach(([key, val]) => {
-    if (val !== null && typeof val === "object" && "value" in val) {
-      out[key] = (val as { value: unknown }).value;
-    } else if (val !== null && typeof val === "object" && "default" in val) {
-      out[key] = (val as { default: unknown }).default;
-    } else {
-      out[key] = val;
-    }
-  });
-
-  return out;
-};
-
-const dataIntervalModeOptions: Array<{ label: string; value: DataIntervalMode }> = [
-  { label: "components:triggerDag.dataIntervalAuto", value: "auto" },
-  { label: "components:triggerDag.dataIntervalManual", value: "manual" },
-];
 
 const TriggerDAGForm = ({
   dagDisplayName,
@@ -156,34 +122,17 @@ const TriggerDAGForm = ({
       return;
     }
 
-    let parsed: Record<string, unknown> = {};
-
-    try {
-      parsed = JSON.parse(urlConf) as Record<string, unknown>;
-    } catch {
-      /* empty */
-    }
-    const mergedValues = { ...defaultsRef.current.params, ...parsed };
-    const mergedConfJson = JSON.stringify(mergedValues, undefined, 2);
+    const mergedValues = mergeUrlParams(urlConf, defaultsRef.current.params ?? {});
 
     reset({
       ...defaultsRef.current,
-      conf: mergedConfJson,
-      dagRunId: Boolean(urlRunId) ? urlRunId : defaultsRef.current.dagRunId,
+      conf: JSON.stringify(mergedValues, undefined, 2),
+      dagRunId: urlRunId || defaultsRef.current.dagRunId,
       logicalDate: urlDate ?? defaultsRef.current.logicalDate,
-      note: Boolean(urlNote) ? urlNote : defaultsRef.current.note,
-      partitionKey: undefined,
+      note: urlNote || defaultsRef.current.note,
     });
 
-    const updatedParamsDict = structuredClone(initialParamsDict.paramsDict);
-
-    Object.entries(mergedValues).forEach(([key, val]) => {
-      if (updatedParamsDict[key]) {
-        updatedParamsDict[key].value = val;
-      }
-    });
-    setParamsDict(updatedParamsDict);
-
+    setParamsDict(getUpdatedParamsDict(initialParamsDict.paramsDict, mergedValues));
     isSyncedRef.current = true;
   }, [urlConf, urlRunId, urlDate, urlNote, initialParamsDict, reset, setParamsDict, conf]);
 
@@ -201,15 +150,7 @@ const TriggerDAGForm = ({
       togglePause({ dagId, requestBody: { is_paused: false } });
     }
 
-    const finalParams = { ...data.params };
-
-    try {
-      const manualJson = JSON.parse(data.conf) as Record<string, unknown>;
-
-      Object.assign(finalParams, manualJson);
-    } catch {
-      /* empty */
-    }
+    const finalParams = mergeUrlParams(data.conf, data.params ?? {});
 
     triggerDagRun({
       ...data,
