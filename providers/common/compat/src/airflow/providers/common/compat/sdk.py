@@ -243,7 +243,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Secrets Masking
     # ============================================================================
-    "redact": ("airflow.sdk.log", "airflow.utils.log.secrets_masker"),
+    "redact": (
+        "airflow.sdk.log",
+        "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
