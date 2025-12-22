@@ -2138,6 +2138,174 @@ class TestGetCount:
         assert response.json() == expected_count
 
 
+class TestGetPreviousTI:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_get_previous_ti_basic(self, client, session, create_task_instance):
+        """Test basic get_previous_ti without filters."""
+        # Create TIs with different logical dates
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+        )
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["task_id"] == "test_task"
+        assert data["dag_id"] == "dag"
+        assert data["run_id"] == "run1"
+        assert data["state"] == State.SUCCESS
+
+    def test_get_previous_ti_with_state_filter(self, client, session, create_task_instance):
+        """Test get_previous_ti with state filter."""
+        # Create TIs with different states
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 3),
+            run_id="run3",
+        )
+        session.commit()
+
+        # Query for previous successful TI before 2025-01-03
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-03T00:00:00Z",
+                "state": State.SUCCESS,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["task_id"] == "test_task"
+        assert data["run_id"] == "run2"
+        assert data["state"] == State.SUCCESS
+
+    def test_get_previous_ti_with_run_id_filter(self, client, session, create_task_instance):
+        """Test get_previous_ti with run_id filter."""
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="specific_run",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="other_run",
+        )
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "run_id": "specific_run",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["run_id"] == "specific_run"
+
+    def test_get_previous_ti_not_found(self, client, session):
+        """Test get_previous_ti when no previous TI exists."""
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+        )
+        assert response.status_code == 200
+        assert response.json() is None
+
+    def test_get_previous_ti_returns_most_recent(self, client, session, create_task_instance):
+        """Test that get_previous_ti returns the most recent matching TI."""
+        # Create multiple TIs
+        for i in range(5):
+            create_task_instance(
+                task_id="test_task",
+                state=State.SUCCESS,
+                logical_date=timezone.datetime(2025, 1, i + 1),
+                run_id=f"run{i + 1}",
+            )
+        session.commit()
+
+        # Query for TI before 2025-01-05
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-05T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Should return the most recent one (2025-01-04)
+        assert data["run_id"] == "run4"
+
+    def test_get_previous_ti_with_all_filters(self, client, session, create_task_instance):
+        """Test get_previous_ti with all filters combined."""
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="target_run_1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="target_run_2",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 3),
+            run_id="target_run_3",
+        )
+        session.commit()
+
+        # Query for previous successful TI before 2025-01-03 with run_id filter
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-03T00:00:00Z",
+                "state": State.SUCCESS,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["run_id"] == "target_run_1"
+        assert data["state"] == State.SUCCESS
+
+
 class TestGetTaskStates:
     def setup_method(self):
         clear_db_runs()

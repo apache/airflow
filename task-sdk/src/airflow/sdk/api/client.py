@@ -82,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -321,6 +322,34 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
+
+    def get_previous(
+        self,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None = None,
+        run_id: str | None = None,
+        state: TaskInstanceState | str | None = None,
+    ) -> PreviousTIResult:
+        """
+        Get the previous task instance matching the given criteria.
+
+        :param dag_id: DAG ID
+        :param task_id: Task ID
+        :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+        :param run_id: If provided, filters by run_id
+        :param state: If provided, filters by TaskInstance state
+        """
+        params = {}
+        if logical_date:
+            params["logical_date"] = logical_date.isoformat()
+        if run_id:
+            params["run_id"] = run_id
+        if state:
+            params["state"] = state.value if isinstance(state, TaskInstanceState) else state
+
+        resp = self.client.get(f"task-instances/previous/{dag_id}/{task_id}", params=params)
+        return PreviousTIResult(task_instance=resp.json())
 
     def get_task_states(
         self,

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from pydantic import AwareDatetime, JsonValue
 
     from airflow.sdk._shared.logging.types import Logger as Logger
-    from airflow.sdk.api.datamodels._generated import TaskInstanceState
+    from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
@@ -91,6 +91,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        run_id: str | None = None,
+    ) -> PreviousTIResponse | None: ...
 
     @staticmethod
     def get_ti_count(

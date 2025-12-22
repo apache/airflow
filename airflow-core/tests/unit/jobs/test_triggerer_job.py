@@ -1203,6 +1203,7 @@ class TestTriggererMessageTypes:
             "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
+            "GetPreviousTI",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
             "GetXComCount",
@@ -1236,6 +1237,7 @@ class TestTriggererMessageTypes:
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
+            "PreviousTIResult",
             "HITLDetailRequestResult",
         }
 
