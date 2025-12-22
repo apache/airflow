@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
@@ -25,6 +26,13 @@ export type CreateBackfillOptions = {
   fromDate: string;
   reprocessBehavior: ReprocessBehavior;
   toDate: string;
+};
+
+export type VerifyBackfillOptions = {
+  dagName: string;
+  expectedFromDate: string;
+  expectedToDate: string;
+  reprocessBehavior: ReprocessBehavior;
 };
 
 export class BackfillPage extends BasePage {
@@ -115,5 +123,29 @@ export class BackfillPage extends BasePage {
 
     await radioItem.waitFor({ state: "visible", timeout: 5000 });
     await radioItem.click();
+  }
+
+  public async verifyBackfillCreated(options: VerifyBackfillOptions): Promise<void> {
+    const { dagName, expectedFromDate, expectedToDate, reprocessBehavior } = options;
+    // Verify backfill status banner is visible
+    const backfillStatus = this.page.locator('[data-testid="backfill-status"]');
+
+    await expect(backfillStatus).toBeVisible();
+
+    // Navigate to backfills tab
+    await this.navigateToBackfillsTab(dagName);
+    await this.waitForPageLoad();
+
+    // Verify at least one backfill row exists
+    const backfillRows = await this.getBackfillsTableRows();
+
+    expect(backfillRows).toBeGreaterThanOrEqual(1);
+
+    // Verify specific backfill row exists with matching dates and behavior
+    const backfillRow = this.page.locator(
+      `table tbody tr:has(td:has-text("${expectedFromDate}")):has(td:has-text("${expectedToDate}")):has(td:has-text("${reprocessBehavior}"))`,
+    );
+
+    await expect(backfillRow.first()).toBeVisible();
   }
 }

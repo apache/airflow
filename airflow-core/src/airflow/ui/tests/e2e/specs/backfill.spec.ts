@@ -33,13 +33,14 @@ const getPastDate = (daysAgo: number): string => {
   return date.toISOString().slice(0, 16);
 };
 
-// Run backfill tests serially to avoid conflicts with other tests using the same DAG
 test.describe.serial("Backfill Tabs", () => {
   let loginPage: LoginPage;
   let backfillPage: BackfillPage;
 
   const testCredentials = testConfig.credentials;
-  const testDagId = testConfig.testDag.id;
+  const allRunsDagId = testConfig.testDag.id;
+  const missingRunsDagId = "example_branch_labels";
+  const missingAndErroredRunsDagId = "example_skip_dag";
 
   test.beforeEach(async ({ page }) => {
     loginPage = new LoginPage(page);
@@ -53,7 +54,7 @@ test.describe.serial("Backfill Tabs", () => {
     const fromDate = getPastDate(1);
     const toDate = getPastDate(7);
 
-    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.navigateToDagDetail(allRunsDagId);
     await backfillPage.openBackfillDialog();
 
     await backfillPage.backfillFromDateInput.fill(fromDate);
@@ -72,26 +73,50 @@ test.describe.serial("Backfill Tabs", () => {
     const expectedFromDate = fromDate.replace("T", " ");
     const expectedToDate = toDate.replace("T", " ");
 
-    await backfillPage.createBackfill(testDagId, { fromDate, reprocessBehavior: "All Runs", toDate });
+    await backfillPage.createBackfill(allRunsDagId, { fromDate, reprocessBehavior: "All Runs", toDate });
+    await backfillPage.verifyBackfillCreated({
+      dagName: allRunsDagId,
+      expectedFromDate,
+      expectedToDate,
+      reprocessBehavior: "All Runs",
+    });
+  });
 
-    // Verify backfill status is visible (indicates a backfill is running/queued)
-    const backfillStatus = backfillPage.page.locator('[data-testid="backfill-status"]');
+  test("should create backfill with 'Missing Runs' behavior", async () => {
+    const fromDate = getPastDate(40);
+    const toDate = getPastDate(30);
+    const expectedFromDate = fromDate.replace("T", " ");
+    const expectedToDate = toDate.replace("T", " ");
 
-    await expect(backfillStatus).toBeVisible();
+    await backfillPage.createBackfill(missingRunsDagId, {
+      fromDate,
+      reprocessBehavior: "Missing Runs",
+      toDate,
+    });
+    await backfillPage.verifyBackfillCreated({
+      dagName: missingRunsDagId,
+      expectedFromDate,
+      expectedToDate,
+      reprocessBehavior: "Missing Runs",
+    });
+  });
 
-    // Navigate to backfills tab and verify our specific backfill appears in the list
-    await backfillPage.navigateToBackfillsTab(testDagId);
-    await backfillPage.waitForPageLoad();
+  test("should create backfill with 'Missing and Errored Runs' behavior", async () => {
+    const fromDate = getPastDate(55);
+    const toDate = getPastDate(50);
+    const expectedFromDate = fromDate.replace("T", " ");
+    const expectedToDate = toDate.replace("T", " ");
 
-    const backfillRows = await backfillPage.getBackfillsTableRows();
-
-    expect(backfillRows).toBeGreaterThanOrEqual(1);
-
-    // Verify our specific backfill exists (matching from date, to date, and reprocess behavior)
-    const backfillRow = backfillPage.page.locator(
-      `table tbody tr:has(td:has-text("${expectedFromDate}")):has(td:has-text("${expectedToDate}")):has(td:has-text("All Runs"))`,
-    );
-
-    await expect(backfillRow.first()).toBeVisible();
+    await backfillPage.createBackfill(missingAndErroredRunsDagId, {
+      fromDate,
+      reprocessBehavior: "Missing and Errored Runs",
+      toDate,
+    });
+    await backfillPage.verifyBackfillCreated({
+      dagName: missingAndErroredRunsDagId,
+      expectedFromDate,
+      expectedToDate,
+      reprocessBehavior: "Missing and Errored Runs",
+    });
   });
 });
