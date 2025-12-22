@@ -61,16 +61,16 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, AssetAlias, BaseHook, WeightRule, teardown
+from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
-from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.security import permissions
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
@@ -438,13 +438,14 @@ def collect_dags(dag_folder=None):
     excluded_patterns = [
         f"{AIRFLOW_REPO_ROOT_PATH}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()
     ]
-    for pattern in patterns:
-        for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
-            if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
-                continue
-            dagbag = DagBag(directory, include_examples=False)
-            dags.update(dagbag.dags)
-            import_errors.update(dagbag.import_errors)
+    with mock.patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout", return_value=60):
+        for pattern in patterns:
+            for directory in glob(f"{AIRFLOW_REPO_ROOT_PATH}/{pattern}"):
+                if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
+                    continue
+                dagbag = DagBag(directory, include_examples=False)
+                dags.update(dagbag.dags)
+                import_errors.update(dagbag.import_errors)
     return dags, import_errors
 
 
@@ -762,6 +763,8 @@ class TestStringifiedDAGs:
             assert isinstance(serialized_task, SerializedBaseOperator)
             fields_to_check = task.get_serialized_fields() - {
                 # Checked separately
+                "inlets",
+                "outlets",
                 "task_type",
                 "_operator_name",
                 # Type is excluded, so don't check it
@@ -791,6 +794,8 @@ class TestStringifiedDAGs:
                 "template_ext",
                 "template_fields",
                 # Checked separately.
+                "inlets",
+                "outlets",
                 "operator_class",
                 "partial_kwargs",
                 "expand_input",
@@ -813,6 +818,9 @@ class TestStringifiedDAGs:
             assert task.resources is None or task.resources == []
         else:
             assert serialized_task.resources == task.resources
+
+        assert [ensure_serialized_asset(i) for i in task.inlets] == serialized_task.inlets
+        assert [ensure_serialized_asset(o) for o in task.outlets] == serialized_task.outlets
 
         # `deps` are set in the Scheduler's BaseOperator as that is where we need to evaluate deps
         # so only serialized tasks that are sensors should have the ReadyToRescheduleDep.
@@ -1861,7 +1869,10 @@ class TestStringifiedDAGs:
 
             other_asset_writer.expand(x=[1, 2])
 
-        testing_asset_key_strs = [AssetUniqueKey.from_asset(asset).to_str() for asset in testing_assets]
+        testing_asset_key_strs = [
+            SerializedAssetUniqueKey.from_asset(ensure_serialized_asset(asset)).to_str()
+            for asset in testing_assets
+        ]
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -1960,7 +1971,10 @@ class TestStringifiedDAGs:
 
             other_asset_writer.expand(x=[1, 2])
 
-        testing_asset_key_strs = [AssetUniqueKey.from_asset(asset).to_str() for asset in testing_assets]
+        testing_asset_key_strs = [
+            SerializedAssetUniqueKey.from_asset(ensure_serialized_asset(asset)).to_str()
+            for asset in testing_assets
+        ]
 
         dag = SerializedDAG.to_dict(dag)
         actual = sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values()))
@@ -4088,6 +4102,18 @@ class TestSchemaDefaults:
         }
         overlap = optional_fields & required_fields
         assert not overlap, f"Optional fields should not overlap with required fields: {overlap}"
+
+    def test_json_schema_load_dag_schema_dict(self, monkeypatch):
+        """Test error handling when schema file is missing."""
+        from airflow.exceptions import AirflowException
+
+        monkeypatch.setattr(
+            "airflow.serialization.json_schema.pkgutil.get_data", lambda __name__, fname: None
+        )
+
+        with pytest.raises(AirflowException) as ctx:
+            load_dag_schema_dict()
+        assert "Schema file schema.json does not exists" in str(ctx.value)
 
 
 class TestDeserializationDefaultsResolution:

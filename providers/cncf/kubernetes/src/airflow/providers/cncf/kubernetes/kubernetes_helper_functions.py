@@ -27,6 +27,7 @@ import tenacity
 from kubernetes.client.rest import ApiException as SyncApiException
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
+from sqlalchemy import select
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
@@ -175,15 +176,14 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
 
-        task_instance_run_id = (
-            session.query(TaskInstance.run_id)
+        task_instance_run_id = session.scalar(
+            select(TaskInstance.run_id)
             .join(TaskInstance.dag_run)
-            .filter(
+            .where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
                 getattr(DagRun, logical_date_key) == logical_date,
             )
-            .scalar()
         )
     else:
         task_instance_run_id = annotation_run_id

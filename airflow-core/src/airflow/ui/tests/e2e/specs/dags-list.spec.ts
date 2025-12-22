@@ -16,41 +16,71 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { LoginPage } from "tests/e2e/pages/LoginPage";
 
-/**
- * Dag Trigger E2E Tests
- */
-
-test.describe("Dag Trigger Workflow", () => {
-  let loginPage: LoginPage;
+test.describe("Dags Pagination", () => {
   let dagsPage: DagsPage;
 
-  // Test configuration from centralized config
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
 
-  const testCredentials = testConfig.credentials;
+  test("should verify pagination works on the Dags list page", async () => {
+    await dagsPage.navigate();
 
+    await expect(dagsPage.paginationNextButton).toBeVisible();
+    await expect(dagsPage.paginationPrevButton).toBeVisible();
+
+    const initialDagNames = await dagsPage.getDagNames();
+
+    expect(initialDagNames.length).toBeGreaterThan(0);
+
+    await dagsPage.clickNextPage();
+
+    const dagNamesAfterNext = await dagsPage.getDagNames();
+
+    expect(dagNamesAfterNext.length).toBeGreaterThan(0);
+    expect(dagNamesAfterNext).not.toEqual(initialDagNames);
+
+    await dagsPage.clickPrevPage();
+
+    const dagNamesAfterPrev = await dagsPage.getDagNames();
+
+    expect(dagNamesAfterPrev).toEqual(initialDagNames);
+  });
+});
+
+test.describe("Dag Trigger Workflow", () => {
+  let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;
 
   test.beforeEach(({ page }) => {
-    loginPage = new LoginPage(page);
     dagsPage = new DagsPage(page);
   });
 
   test("should successfully trigger a Dag run", async () => {
     test.setTimeout(7 * 60 * 1000);
 
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-
-    await loginPage.expectLoginSuccess();
-
     const dagRunId = await dagsPage.triggerDag(testDagId);
 
     if (Boolean(dagRunId)) {
       await dagsPage.verifyDagRunStatus(testDagId, dagRunId);
     }
+  });
+});
+
+test.describe("Dag Details Tab", () => {
+  let dagsPage: DagsPage;
+
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should successfully verify details tab", async () => {
+    await dagsPage.verifyDagDetails(testDagId);
   });
 });

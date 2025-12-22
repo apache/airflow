@@ -36,10 +36,10 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
-from airflow._shared.module_loading import qualname
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.definitions.param import Param, ParamsDict
-from airflow.serialization.serde import CLASSNAME, DATA, VERSION, _stringify, decode, deserialize, serialize
-from airflow.serialization.serializers import builtin
+from airflow.sdk.serde import CLASSNAME, DATA, VERSION, decode, deserialize, serialize
+from airflow.sdk.serde.serializers import builtin
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -170,12 +170,12 @@ class TestSerializers:
         }
 
     def test_bignum_serialize_non_decimal(self):
-        from airflow.serialization.serializers.bignum import serialize
+        from airflow.sdk.serde.serializers.bignum import serialize
 
         assert serialize(12345) == ("", "", 0, False)
 
     def test_bignum_deserialize_decimal(self):
-        from airflow.serialization.serializers.bignum import deserialize
+        from airflow.sdk.serde.serializers.bignum import deserialize
 
         res = deserialize(decimal.Decimal, 1, decimal.Decimal(12345))
         assert res == decimal.Decimal(12345)
@@ -198,7 +198,7 @@ class TestSerializers:
         ],
     )
     def test_bignum_deserialize_errors(self, klass, version, payload, msg):
-        from airflow.serialization.serializers.bignum import deserialize
+        from airflow.sdk.serde.serializers.bignum import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
@@ -221,7 +221,7 @@ class TestSerializers:
         assert type(value) is type(d)
 
     def test_numpy_serializers(self):
-        from airflow.serialization.serializers.numpy import serialize
+        from airflow.sdk.serde.serializers.numpy import serialize
 
         numpy_version = metadata.version("numpy")
         is_numpy_2 = version.parse(numpy_version).major == 2
@@ -240,7 +240,7 @@ class TestSerializers:
         ],
     )
     def test_numpy_deserialize_errors(self, klass, ver, value, msg):
-        from airflow.serialization.serializers.numpy import deserialize
+        from airflow.sdk.serde.serializers.numpy import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, ver, value)
@@ -260,7 +260,7 @@ class TestSerializers:
         assert i.equals(d)
 
     def test_pandas_serializers(self):
-        from airflow.serialization.serializers.pandas import serialize
+        from airflow.sdk.serde.serializers.pandas import serialize
 
         assert serialize(123) == ("", "", 0, False)
 
@@ -278,7 +278,7 @@ class TestSerializers:
         ],
     )
     def test_pandas_deserialize_errors(self, klass, version, data, msg):
-        from airflow.serialization.serializers.pandas import deserialize
+        from airflow.sdk.serde.serializers.pandas import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
@@ -337,7 +337,7 @@ class TestSerializers:
             assert d._storage_options is None
 
     def test_deltalake_serialize_deserialize(self):
-        from airflow.serialization.serializers.deltalake import serialize
+        from airflow.sdk.serde.serializers.deltalake import serialize
 
         assert serialize(object()) == ("", "", 0, False)
 
@@ -359,14 +359,14 @@ class TestSerializers:
         ],
     )
     def test_deltalake_deserialize_errors(self, klass, version, payload, msg):
-        from airflow.serialization.serializers.deltalake import deserialize
+        from airflow.sdk.serde.serializers.deltalake import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
 
     def test_kubernetes_serializer(self, monkeypatch):
         from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        from airflow.serialization.serializers.kubernetes import serialize
+        from airflow.sdk.serde.serializers.kubernetes import serialize
 
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
         monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
@@ -394,7 +394,7 @@ class TestSerializers:
         ],
     )
     def test_pydantic_deserialize_errors(self, klass, version, data, msg):
-        from airflow.serialization.serializers.pydantic import deserialize
+        from airflow.sdk.serde.serializers.pydantic import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
@@ -560,17 +560,17 @@ class TestSerializers:
         assert deserialize(ser_value) == expected
 
     def test_timezone_serialize_fixed(self):
-        from airflow.serialization.serializers.timezone import serialize
+        from airflow.sdk.serde.serializers.timezone import serialize
 
         assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
 
     def test_timezone_serialize_no_name(self):
-        from airflow.serialization.serializers.timezone import serialize
+        from airflow.sdk.serde.serializers.timezone import serialize
 
         assert serialize(NoNameTZ()) == ("", "", 0, False)
 
     def test_timezone_deserialize_zoneinfo(self):
-        from airflow.serialization.serializers.timezone import deserialize
+        from airflow.sdk.serde.serializers.timezone import deserialize
 
         zi = deserialize(ZoneInfo, 1, "Asia/Taipei")
         assert isinstance(zi, ZoneInfo)
@@ -584,7 +584,7 @@ class TestSerializers:
         ],
     )
     def test_timezone_deserialize_errors(self, klass, version, data, msg):
-        from airflow.serialization.serializers.timezone import deserialize
+        from airflow.sdk.serde.serializers.timezone import deserialize
 
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, data)
@@ -598,21 +598,9 @@ class TestSerializers:
         ],
     )
     def test_timezone_get_tzinfo_name(self, tz_obj, expected):
-        from airflow.serialization.serializers.timezone import _get_tzinfo_name
+        from airflow.sdk.serde.serializers.timezone import _get_tzinfo_name
 
         assert _get_tzinfo_name(tz_obj) == expected
-
-    def test_json_schema_load_dag_schema_dict(self, monkeypatch):
-        from airflow.exceptions import AirflowException
-        from airflow.serialization.json_schema import load_dag_schema_dict
-
-        monkeypatch.setattr(
-            "airflow.serialization.json_schema.pkgutil.get_data", lambda __name__, fname: None
-        )
-
-        with pytest.raises(AirflowException) as ctx:
-            load_dag_schema_dict()
-        assert "Schema file schema.json does not exists" in str(ctx.value)
 
     @pytest.mark.parametrize(
         ("klass", "version", "data"),
@@ -673,13 +661,3 @@ class TestSerializers:
         bad = {CLASSNAME: "", VERSION: 1, DATA: {}}
         with pytest.raises(TypeError, match="classname cannot be empty"):
             deserialize(bad)
-
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            (123, "dummy@version=1(123)"),
-            ([1], "dummy@version=1([,1,])"),
-        ],
-    )
-    def test_serde_stringify_primitives(self, value, expected):
-        assert _stringify("dummy", 1, value) == expected

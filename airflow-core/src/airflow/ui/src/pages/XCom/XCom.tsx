@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link, Flex, useDisclosure } from "@chakra-ui/react";
+import { Box, Flex, Heading, Link, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,6 +33,9 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
 
+import AddXComButton from "./AddXComButton";
+import DeleteXComButton from "./DeleteXComButton";
+import EditXComButton from "./EditXComButton";
 import { XComEntry } from "./XComEntry";
 import { XComFilters } from "./XComFilters";
 
@@ -44,7 +47,12 @@ const {
   TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const columns = (translate: (key: string) => string, open: boolean): Array<ColumnDef<XComResponse>> => [
+type ColumnsProps = {
+  readonly open: boolean;
+  readonly translate: (key: string) => string;
+};
+
+const columns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -116,6 +124,17 @@ const columns = (translate: (key: string) => string, open: boolean): Array<Colum
     enableSorting: false,
     header: translate("xcom.columns.value"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <EditXComButton xcom={original} />
+        <DeleteXComButton xcom={original} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+  },
 ];
 
 export const XCom = () => {
@@ -162,7 +181,16 @@ export const XCom = () => {
 
   const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
 
-  const memoizedColumns = useMemo(() => columns(translate, open), [translate, open]);
+  const memoizedColumns = useMemo(
+    () =>
+      columns({
+        open,
+        translate,
+      }),
+    [open, translate],
+  );
+
+  const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
   return (
     <Box>
@@ -172,12 +200,22 @@ export const XCom = () => {
 
       <Flex alignItems="center" justifyContent="space-between">
         <XComFilters />
-        <ExpandCollapseButtons
-          collapseLabel={translate("collapseAllExtra")}
-          expandLabel={translate("expandAllExtra")}
-          onCollapse={onClose}
-          onExpand={onOpen}
-        />
+        <Flex gap={2}>
+          {isTaskInstancePage ? (
+            <AddXComButton
+              dagId={dagId}
+              mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+              runId={runId}
+              taskId={taskId}
+            />
+          ) : undefined}
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
+        </Flex>
       </Flex>
 
       <ErrorAlert error={error} />

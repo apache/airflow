@@ -1371,6 +1371,8 @@ class DAG:
                             log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
+                    session.expire_all()
+
                     from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
                     from airflow.models.dagbag import DBDagBag
 
