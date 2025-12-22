@@ -496,7 +496,6 @@ class TestRBAC:
                 "redis": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
-                "webserver": {"defaultUser": {"enabled": False}},
             },
         )
         list_of_sa_names = [
@@ -510,5 +509,6 @@ class TestRBAC:
             "test-rbac-api-server",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
+            "test-rbac-create-user-job"
         ]
         assert sorted(list_of_sa_names) == sorted(service_account_names)
