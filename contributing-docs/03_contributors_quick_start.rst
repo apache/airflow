@@ -357,7 +357,7 @@ It will run prek hooks automatically before committing and stops the commit on f
 
 .. code-block:: bash
 
-https://apache-airflow.slack.com/archives/CQ9QHSFQX/p1765778581290659  cd ~/Projects/airflow
+  cd ~/Projects/airflow
   prek uninstall
 
 - For more information on this visit |08_static_code_checks.rst|
