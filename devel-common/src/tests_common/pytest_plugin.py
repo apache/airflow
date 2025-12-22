@@ -35,15 +35,15 @@ from unittest import mock
 
 import pytest
 import time_machine
-try:
-    from _pytest.config.findpaths import ConfigValue
-except ImportError:
-    # Fallback for newer pytest where ConfigValue might be removed or private
-    class ConfigValue:
-        def __init__(self, value, origin, mode):
-            self.value = value
-            self.origin = origin
-            self.mode = mode
+
+# Custom ConfigValue class that works with all pytest versions.
+# The _pytest.config.findpaths module is considered private and may change,
+# so we provide our own implementation.
+class ConfigValue:
+    def __init__(self, value, origin, mode):
+        self.value = value
+        self.origin = origin
+        self.mode = mode
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -799,12 +799,12 @@ def frozen_sleep(monkeypatch):
 
 
 @pytest.fixture(name="time_machine")
-def time_machine_fixture():
+def time_machine_fixture() -> Any:
     """
     Provide a time_machine fixture for controlling time in tests.
 
     time-machine 3.0 removed the built-in pytest fixture, so we provide our own.
-    This fixture returns a coordinator object with move_to() and shift() methods.
+    This fixture returns a Traveller object with move_to() and shift() methods.
 
     Usage:
         def test_something(time_machine):
@@ -812,12 +812,11 @@ def time_machine_fixture():
             # Test code here
             time_machine.shift(10)  # Move forward 10 seconds
     """
-    import time_machine as tm_module
+    travel_context = time_machine.travel(datetime.now(tz=timezone.utc), tick=False)
+    traveller = travel_context.start()
+    yield traveller
 
-    coordinator = tm_module.travel(datetime.now(tz=timezone.utc), tick=False)
-    yield coordinator.start()
-
-    coordinator.stop()
+    travel_context.stop()
 
 
 class DagMaker(Generic[Dag], Protocol):
