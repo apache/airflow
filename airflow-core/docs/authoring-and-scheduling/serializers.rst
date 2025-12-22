@@ -28,18 +28,19 @@ like ``str`` and ``int`` and it loops over iterables. When things become more co
 
 Airflow supports custom serialization using a well-defined resolution order:
 
-First, primitive values (such as ``str`` or ``int``) and iterables of primitives
-are returned as-is, without additional encoding.
+1. Primitive values (such as ``str`` or ``int``) and iterables of primitives
+   are returned as-is, without additional encoding.
 
-If the object is not a primitive, Airflow looks for a registered serializer and
-deserializer in the ``airflow.sdk.serde.serializers`` namespace.
+2. If the object is not a primitive, Airflow looks for a registered serializer
+   and deserializer in the ``airflow.sdk.serde.serializers`` namespace.
 
-If no registered serializer is found, Airflow then checks whether the object
-defines a ``serialize()`` method (and, for deserialization, a corresponding
-``deserialize(data, version: int)`` method).
+3. If no registered serializer is found, Airflow then checks whether the object
+   defines a ``serialize()`` method (and, for deserialization, a corresponding
+   ``deserialize(data, version: int)`` method).
 
-Finally, if the object is decorated with ``@dataclass`` or ``@attr.define``,
-Airflow serializes the object using the public fields provided by those decorators.
+4. Finally, if the object is decorated with ``@dataclass`` or ``@attr.define``,
+   Airflow serializes the object using the public fields provided by those
+   decorators.
 
 If you are looking to extend Airflow with a new serializer, it is good to know when to choose what way of serialization.
 Objects that are under the control of Airflow, i.e. residing under the namespace of ``airflow.*`` like
