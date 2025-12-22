@@ -1132,10 +1132,10 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_execution_timeout_if_needed(self):
         """Handle task execution timeout by sending SIGTERM, then SIGKILL if needed."""
         # Only check timeout if we have received timeout configuration and task is still running
-        if not self._execution_timeout_seconds or self._terminal_state:
+        if self._execution_timeout_seconds is None or self._terminal_state:
             return
 
-        if not self._task_execution_start_time:
+        if self._task_execution_start_time is None:
             return
 
         elapsed_time = time.monotonic() - self._task_execution_start_time

@@ -758,8 +758,9 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     timeout = ti.task.execution_timeout
     if isinstance(timeout, timedelta):
         timeout_seconds = timeout.total_seconds()
-        SUPERVISOR_COMMS.send(TaskExecutionTimeout(timeout_seconds=timeout_seconds))
-        log.debug("Sent execution timeout to supervisor", timeout_seconds=timeout_seconds)
+        if timeout_seconds > 0:
+            SUPERVISOR_COMMS.send(TaskExecutionTimeout(timeout_seconds=timeout_seconds))
+            log.debug("Sent execution timeout to supervisor", timeout_seconds=timeout_seconds)
 
     run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
         "core", "default_impersonation", fallback=None
