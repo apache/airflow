@@ -2330,6 +2330,10 @@ export type BulkConnectionsResponse = BulkResponse;
 
 export type TestConnectionData = {
     requestBody: ConnectionBody;
+    /**
+     * Merge with existing connection credentials
+     */
+    useExistingCredentials?: boolean;
 };
 
 export type TestConnectionResponse = ConnectionTestResponse;
