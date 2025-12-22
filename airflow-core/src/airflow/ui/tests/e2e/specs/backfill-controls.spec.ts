@@ -19,24 +19,17 @@
 import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { BackfillPage } from "tests/e2e/pages/BackfillPage";
-import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 test.describe("Backfill Controls", () => {
   let backfillPage: BackfillPage;
-  let loginPage: LoginPage;
 
-  const testCredentials = testConfig.credentials;
   const testDagId = testConfig.testDag.id;
 
   test.beforeEach(({ page }) => {
     backfillPage = new BackfillPage(page);
-    loginPage = new LoginPage(page);
   });
 
   test("should pause and resume a running backfill", async () => {
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
-
     await backfillPage.navigateToBackfillsTab(testDagId);
 
     await backfillPage.createBackfill(testDagId);
@@ -55,9 +48,6 @@ test.describe("Backfill Controls", () => {
   });
 
   test("should cancel an active backfill", async () => {
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
-
     await backfillPage.navigateToBackfillsTab(testDagId);
 
     await backfillPage.createBackfill(testDagId);
@@ -70,9 +60,6 @@ test.describe("Backfill Controls", () => {
   });
 
   test("should not be able to resume a cancelled backfill", async () => {
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
-
     await backfillPage.navigateToBackfillsTab(testDagId);
 
     await backfillPage.createBackfill(testDagId);
