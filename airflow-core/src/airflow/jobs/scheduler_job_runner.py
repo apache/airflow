@@ -2281,6 +2281,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         exceeds_max, active_runs = self._exceeds_max_active_runs(
             dag_model=dag_model,
             active_non_backfill_runs=active_non_backfill_runs,
+            session=session,
         )
         if exceeds_max:
             self.log.info(
@@ -2294,7 +2295,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_model.next_dagrun_create_after = None
             return
 
-        if not self._finished_and_automated(serdag, dag_model, last_dag_run=dag_run, session=session):
+        if not self._finished_and_automated(dag=serdag, last_dag_run=dag_run):
             return
 
         interval = get_run_data_interval(serdag.timetable, dag_run)
