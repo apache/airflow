@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-21T09:51:41.600147
+# This constraints file was automatically generated on 2025-12-22T15:51:44.339016
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -30,7 +30,7 @@
 #
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]=N.M.O"
 #
-APScheduler==3.11.1
+APScheduler==3.11.2
 Authlib==1.6.6
 Deprecated==1.3.1
 Events==0.5
@@ -187,7 +187,7 @@ asttokens==3.0.1
 async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.31.0
-asyncssh==2.21.1
+asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
@@ -380,7 +380,7 @@ ibmcloudant==0.11.2
 idna==3.11
 ijson==3.4.0.post0
 immutabledict==4.2.2
-importlib_metadata==8.7.0
+importlib_metadata==8.7.1
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
@@ -421,7 +421,7 @@ looker_sdk==25.20.0
 lxml==5.4.0
 lz4==4.4.5
 markdown-it-py==4.0.0
-marshmallow==3.26.1
+marshmallow==3.26.2
 matplotlib-inline==0.2.1
 mdit-py-plugins==0.5.0
 mdurl==0.1.2
@@ -534,13 +534,13 @@ pymongo==4.15.5
 pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.2.5
+pyparsing==3.3.0
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyroaring==1.0.3
 pyspark==4.1.0
 pyspnego==0.12.0
-python-arango==8.2.4
+python-arango==8.2.5
 python-daemon==3.1.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
@@ -648,7 +648,7 @@ uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
 uv==0.9.18
-uvicorn==0.38.0
+uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
