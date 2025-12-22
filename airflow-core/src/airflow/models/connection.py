@@ -28,6 +28,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
+from sqlalchemy.util.langhelpers import NoneType
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
@@ -342,7 +343,7 @@ class Connection(Base, LoggingMixin):
                     break
 
             try:
-                query = urlencode(extra_dict)
+                query: str | None = urlencode(extra_dict)
             except TypeError:
                 query = None
 
