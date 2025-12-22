@@ -932,8 +932,9 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
     # Send execution timeout to supervisor if configured
-    if hasattr(ti.task, "execution_timeout") and ti.task.execution_timeout:
-        timeout_seconds = ti.task.execution_timeout.total_seconds()
+    timeout = ti.task.execution_timeout
+    if isinstance(timeout, timedelta):
+        timeout_seconds = timeout.total_seconds()
         SUPERVISOR_COMMS.send(TaskExecutionTimeout(timeout_seconds=timeout_seconds))
         log.debug("Sent execution timeout to supervisor", timeout_seconds=timeout_seconds)
 
