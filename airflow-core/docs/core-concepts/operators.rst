@@ -364,9 +364,6 @@ For example, you can use the ``pre_execute`` method to elegantly determine if a 
             raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
 
 
-    ...
-
-
     @task(pre_execute=_check_skipped)
     def test():
         """
