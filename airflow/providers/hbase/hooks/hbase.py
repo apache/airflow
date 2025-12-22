@@ -25,6 +25,7 @@ from typing import Any
 import happybase
 
 from airflow.hooks.base import BaseHook
+from airflow.providers.hbase.auth import AuthenticatorFactory
 
 
 class HBaseHook(BaseHook):
@@ -64,7 +65,14 @@ class HBaseHook(BaseHook):
             if conn.extra_dejson:
                 connection_args.update(conn.extra_dejson)
             
-            self.log.info("Connecting to HBase at %s:%s", connection_args["host"], connection_args["port"])
+            # Setup authentication
+            auth_method = conn.extra_dejson.get("auth_method", "simple") if conn.extra_dejson else "simple"
+            authenticator = AuthenticatorFactory.create(auth_method)
+            auth_kwargs = authenticator.authenticate(conn.extra_dejson or {})
+            connection_args.update(auth_kwargs)
+            
+            self.log.info("Connecting to HBase at %s:%s with %s authentication", 
+                         connection_args["host"], connection_args["port"], auth_method)
             self._connection = happybase.Connection(**connection_args)
         
         return self._connection

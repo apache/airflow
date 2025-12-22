@@ -322,3 +322,65 @@ class TestHBaseHook:
         
         with pytest.raises(subprocess.CalledProcessError):
             hook.execute_hbase_command("backup set list")
+
+    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch.object(HBaseHook, "get_connection")
+    def test_get_conn_with_simple_auth(self, mock_get_connection, mock_happybase_connection):
+        """Test get_conn with simple authentication (default)."""
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+            extra='{"timeout": 30000}'
+        )
+        mock_get_connection.return_value = mock_conn
+        mock_hbase_conn = MagicMock()
+        mock_happybase_connection.return_value = mock_hbase_conn
+        
+        hook = HBaseHook()
+        result = hook.get_conn()
+        
+        mock_happybase_connection.assert_called_once()
+        call_args = mock_happybase_connection.call_args[1]
+        assert call_args["host"] == "localhost"
+        assert call_args["port"] == 9090
+        assert call_args["timeout"] == 30000
+        assert result == mock_hbase_conn
+
+    @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
+    @patch.object(HBaseHook, "get_connection")
+    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
+    @patch("airflow.providers.hbase.auth.base.subprocess.run")
+    @patch("os.path.exists")
+    def test_get_conn_with_kerberos_auth(self, mock_exists, mock_subprocess, mock_get_connection, mock_happybase_connection):
+        """Test get_conn with Kerberos authentication."""
+        mock_exists.return_value = True
+        mock_subprocess.return_value = MagicMock()
+        
+        mock_conn = Connection(
+            conn_id="hbase_default",
+            conn_type="hbase",
+            host="localhost",
+            port=9090,
+            extra='{"auth_method": "kerberos", "principal": "test@EXAMPLE.COM", "keytab_path": "/path/to/test.keytab", "timeout": 30000}'
+        )
+        mock_get_connection.return_value = mock_conn
+        mock_hbase_conn = MagicMock()
+        mock_happybase_connection.return_value = mock_hbase_conn
+        
+        hook = HBaseHook()
+        result = hook.get_conn()
+        
+        # Verify kinit was called
+        mock_subprocess.assert_called_once_with(
+            ["kinit", "-kt", "/path/to/test.keytab", "test@EXAMPLE.COM"],
+            capture_output=True, text=True, check=True
+        )
+        
+        # Verify connection was created
+        mock_happybase_connection.assert_called_once()
+        call_args = mock_happybase_connection.call_args[1]
+        assert call_args["host"] == "localhost"
+        assert call_args["port"] == 9090
+        assert result == mock_hbase_conn

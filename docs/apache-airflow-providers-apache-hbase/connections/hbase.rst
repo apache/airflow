@@ -45,6 +45,18 @@ Extra (optional)
     The extra parameters (as json dictionary) that can be used in HBase
     connection. The following parameters are supported:
 
+    **Authentication**
+    
+    * ``auth_method`` - Authentication method ('simple' or 'kerberos'). Default is 'simple'.
+    
+    **For Kerberos authentication (auth_method=kerberos):**
+    
+    * ``principal`` - **Required** Kerberos principal (e.g., 'hbase_user@EXAMPLE.COM').
+    * ``keytab_path`` - Path to keytab file (e.g., '/path/to/hbase.keytab').
+    * ``keytab_secret_key`` - Alternative to keytab_path: Airflow Variable/Secret key containing base64-encoded keytab.
+    
+    **Connection parameters:**
+    
     * ``timeout`` - Socket timeout in milliseconds. Default is None (no timeout).
     * ``autoconnect`` - Whether to automatically connect when creating the connection. Default is True.
     * ``table_prefix`` - Prefix to add to all table names. Default is None.
@@ -84,32 +96,46 @@ Extra (required for backup operations)
 Examples for the **Extra** field
 --------------------------------
 
-1. Specifying timeout and transport options
+1. Simple authentication (default)
 
 .. code-block:: json
 
     {
+      "auth_method": "simple",
       "timeout": 30000,
-      "transport": "framed",
-      "protocol": "compact"
+      "transport": "framed"
     }
 
-2. Specifying table prefix
+2. Kerberos authentication with keytab file
+
+.. code-block:: json
+
+    {
+      "auth_method": "kerberos",
+      "principal": "hbase_user@EXAMPLE.COM",
+      "keytab_path": "/path/to/hbase.keytab",
+      "timeout": 30000
+    }
+
+3. Kerberos authentication with keytab from secrets
+
+.. code-block:: json
+
+    {
+      "auth_method": "kerberos",
+      "principal": "hbase_user@EXAMPLE.COM",
+      "keytab_secret_key": "hbase_keytab_b64",
+      "timeout": 30000
+    }
+
+4. Connection with table prefix
 
 .. code-block:: json
 
     {
       "table_prefix": "airflow",
-      "table_prefix_separator": "_"
-    }
-
-3. Compatibility mode for older HBase versions
-
-.. code-block:: json
-
-    {
-      "compat": "0.96",
-      "autoconnect": false
+      "table_prefix_separator": "_",
+      "compat": "0.96"
     }
 
 SSH Connection Examples
