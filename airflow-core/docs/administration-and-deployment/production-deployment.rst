@@ -90,7 +90,7 @@ e.g. metadata DB, password, etc. You can accomplish this using the format :envva
 .. code-block:: bash
 
  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_id
- AIRFLOW__WEBSERVER__BASE_URL=http://host:port
+ AIRFLOW__API__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 

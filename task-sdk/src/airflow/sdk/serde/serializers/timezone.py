@@ -20,10 +20,10 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow._shared.module_loading import qualname
+from airflow.sdk.module_loading import qualname
 
 if TYPE_CHECKING:
-    from airflow.serialization.serde import U
+    from airflow.sdk.serde import U
 
 
 serializers = [
@@ -70,7 +70,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 def deserialize(cls: type, version: int, data: object) -> Any:
     from zoneinfo import ZoneInfo
 
-    from airflow._shared.timezones.timezone import parse_timezone
+    from airflow.sdk._shared.timezones.timezone import parse_timezone
 
     if not isinstance(data, (str, int)):
         raise TypeError(f"{data} is not of type int or str but of {type(data)}")

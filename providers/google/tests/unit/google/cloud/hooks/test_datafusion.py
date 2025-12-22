@@ -21,6 +21,7 @@ import logging
 from unittest import mock
 
 import aiohttp
+import google.auth.transport
 import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
@@ -340,42 +341,38 @@ class TestDataFusionHook:
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline(self, mock_request, hook):
         run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=f'{{"runId":{run_id}}}'
+        )
 
-        hook.start_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS)
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        result = hook.start_pipeline(
+            pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
+        )
+        assert result == str(run_id)
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            method="POST",
+            body=RUNTIME_ARGS,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_start_pipeline_stream(self, mock_request, hook):
-        run_id = 1234
-        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+        run_id = "test-run-123"
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=f'{{"runId":"{run_id}"}}'
+        )
 
-        hook.start_pipeline(
+        result = hook.start_pipeline(
             pipeline_name=PIPELINE_NAME,
             instance_url=INSTANCE_URL,
             runtime_args=RUNTIME_ARGS,
             pipeline_type=DataFusionPipelineType.STREAM,
         )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "spark",
-                "programId": "DataStreamsSparkStreaming",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
+        assert result == run_id
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/sparks/DataStreamsSparkStreaming/start",
+            method="POST",
+            body=RUNTIME_ARGS,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -390,16 +387,10 @@ class TestDataFusionHook:
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            method="POST",
+            body=RUNTIME_ARGS,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -409,16 +400,31 @@ class TestDataFusionHook:
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
             )
-        body = [
-            {
-                "appId": PIPELINE_NAME,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
-                "runtimeargs": RUNTIME_ARGS,
-            }
-        ]
         mock_request.assert_called_once_with(
-            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            method="POST",
+            body=RUNTIME_ARGS,
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_start_pipeline_should_fail_if_no_run_id(self, mock_request, hook):
+        """Test that start_pipeline fails gracefully when response doesn't contain runId."""
+        error_response = '{"error": "Invalid runtime arguments"}'
+        mock_request.return_value = mock.MagicMock(
+            spec=google.auth.transport.Response, status=200, data=error_response
+        )
+        with pytest.raises(
+            AirflowException,
+            match=r"Failed to start pipeline 'shrubberyPipeline'. "
+            r"The response does not contain a runId. Error: Invalid runtime arguments",
+        ):
+            hook.start_pipeline(
+                pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
+            )
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            method="POST",
+            body=RUNTIME_ARGS,
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))

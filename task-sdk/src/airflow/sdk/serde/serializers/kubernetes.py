@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from airflow._shared.module_loading import qualname
+from airflow.sdk.module_loading import qualname
 
 # lazy loading for performance reasons
 serializers = [
@@ -29,7 +29,7 @@ serializers = [
 ]
 
 if TYPE_CHECKING:
-    from airflow.serialization.serde import U
+    from airflow.sdk.serde import U
 
 __version__ = 1
 
