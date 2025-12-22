@@ -140,6 +140,13 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
+    if conn_id.startswith("__"):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+
+        raise AirflowRuntimeError(
+            ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+        )
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -177,6 +184,13 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
+    if conn_id.startswith("__"):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+
+        raise AirflowRuntimeError(
+            ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
+        )
+
     from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.cache import SecretCache
@@ -222,6 +236,11 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
+    if key.startswith("__"):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+
+        raise AirflowRuntimeError(ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key}))
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -498,6 +517,11 @@ class _AssetRefResolutionMixin:
     # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
     @staticmethod
     def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        if name and name.startswith("__"):
+            from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+
+            raise AirflowRuntimeError(ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail={"name": name}))
+
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,

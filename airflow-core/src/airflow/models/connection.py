@@ -480,6 +480,8 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def get_connection_from_secrets(cls, conn_id: str) -> Connection:
+        if conn_id.startswith("__"):
+            raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
         """
         Get connection by conn_id.
 

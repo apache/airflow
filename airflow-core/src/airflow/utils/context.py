@@ -83,6 +83,17 @@ KNOWN_CONTEXT_KEYS: set[str] = {
 class VariableAccessor(VariableAccessorSDK):
     """Wrapper to access Variable values in template."""
 
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
+
     def __getattr__(self, key: str) -> Any:
         # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
         # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
@@ -104,6 +115,17 @@ class VariableAccessor(VariableAccessorSDK):
 
 class ConnectionAccessor(ConnectionAccessorSDK):
     """Wrapper to access Connection entries in template."""
+
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __getattr__(self, conn_id: str) -> Any:
         # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
@@ -135,6 +157,9 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
 
     @staticmethod
     def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        if name and name.startswith("__"):
+            raise ValueError(f"No active asset found with name {name!r}")
+
         if name:
             with create_session() as session:
                 asset = session.scalar(

@@ -141,6 +141,10 @@ class Variable(Base, LoggingMixin):
         deserialize_json: bool = False,
         team_name: str | None = None,
     ) -> Any:
+        if key.startswith("__"):
+            if default_var is not cls.__NO_DEFAULT_SENTINEL:
+                return default_var
+            raise KeyError(f"Variable {key} does not exist")
         """
         Get a value for an Airflow Variable Key.
 
