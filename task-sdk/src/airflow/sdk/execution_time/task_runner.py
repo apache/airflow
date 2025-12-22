@@ -962,10 +962,12 @@ def _defer_task(
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
 
+    from typing import cast
+
     from airflow.sdk.serde import serialize as serde_serialize
 
-    trigger_kwargs = serde_serialize(trigger_kwargs)
-    next_kwargs = serde_serialize(defer.kwargs or {})
+    trigger_kwargs = cast("dict[str, Any]", serde_serialize(trigger_kwargs))
+    next_kwargs = cast("dict[str, Any]", serde_serialize(defer.kwargs or {}))
 
     msg = DeferTask(
         classpath=classpath,
@@ -1380,9 +1382,11 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
+        from typing import cast
+
         from airflow.sdk.serde import deserialize
 
-        kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})
+        kwargs = cast("dict[str, Any]", deserialize(ti._ti_context_from_server.next_kwargs or {}))
 
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
