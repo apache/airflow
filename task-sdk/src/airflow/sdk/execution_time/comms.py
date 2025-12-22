@@ -60,7 +60,7 @@ from uuid import UUID
 import attrs
 import msgspec
 import structlog
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
@@ -704,21 +704,6 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
-
-    @field_serializer("trigger_kwargs", "next_kwargs", check_fields=True)
-    def _serde_kwarg_fields(self, val: str | dict[str, Any] | None, _info):
-        from airflow.sdk.serde import serialize
-
-        if not isinstance(val, dict):
-            # None, or an encrypted string
-            return val
-
-        # Checking if already serialized to avoid double serialization
-        if val.keys() == {"__type", "__var"}:
-            # Already encoded.
-            return val
-
-        return serialize(val)
 
 
 class RetryTask(TIRetryStatePayload):

@@ -142,9 +142,9 @@ class Trigger(Base):
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import serialize
 
-        serialized_kwargs = BaseSerialization.serialize(kwargs)
+        serialized_kwargs = serialize(kwargs)
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -153,7 +153,7 @@ class Trigger(Base):
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import deserialize
 
         # We weren't able to encrypt the kwargs in all migration paths,
         # so we need to handle the case where they are not encrypted.
@@ -165,7 +165,7 @@ class Trigger(Base):
                 get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8")
             )
 
-        return BaseSerialization.deserialize(decrypted_kwargs)
+        return deserialize(decrypted_kwargs)
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
@@ -417,21 +417,13 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
+    from airflow.sdk.serde import serialize
     from airflow.utils.state import TaskInstanceState
 
-    # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
     next_kwargs = task_instance.next_kwargs or {}
-
-    # Add the event's payload into the kwargs for the task
-    next_kwargs["event"] = event.payload
-
-    # Update the next kwargs of the task instance
+    next_kwargs["event"] = serialize(event.payload)
     task_instance.next_kwargs = next_kwargs
-
-    # Remove ourselves as its trigger
     task_instance.trigger_id = None
-
-    # Set the state of the task instance to scheduled
     task_instance.state = TaskInstanceState.SCHEDULED
     task_instance.scheduled_dttm = timezone.utcnow()
     session.flush()
