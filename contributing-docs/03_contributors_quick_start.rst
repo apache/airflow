@@ -353,7 +353,7 @@ It will run prek hooks automatically before committing and stops the commit on f
   prek install
   git commit -m "Added xyz"
 
-8. To disable prek hooks
+8. If you want to disable prek hooks
 
 .. code-block:: bash
 

@@ -425,10 +425,22 @@ repos:
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/models/test_serialized_dag.py$|
+            ^airflow-core/tests/unit/models/test_pool.py$|
+            ^airflow-core/tests/unit/models/test_trigger.py$|
+            ^airflow-core/tests/unit/models/test_callback.py$|
+            ^airflow-core/tests/unit/models/test_cleartasks.py$|
+            ^airflow-core/tests/unit/models/test_xcom.py$|
+            ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
             ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
             ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
+            ^airflow-core/tests/unit/models/test_deadline.py$|
             ^airflow-core/tests/unit/models/test_renderedtifields.py$|
             ^airflow-core/tests/unit/models/test_timestamp.py$|
             ^airflow-core/tests/unit/utils/test_cli_util.py$|
@@ -439,6 +451,8 @@ repos:
             ^airflow-core/tests/unit/models/test_dagwarning.py$|
             ^airflow-core/tests/integration/otel/test_otel.py$|
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
+            ^airflow-core/tests/unit/utils/test_state.py$|
+            ^airflow-core/tests/unit/utils/test_log_handlers.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
