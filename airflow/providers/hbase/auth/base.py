@@ -26,12 +26,6 @@ import tempfile
 from abc import ABC, abstractmethod
 from typing import Any
 
-try:
-    import kerberos
-    KERBEROS_AVAILABLE = True
-except ImportError:
-    KERBEROS_AVAILABLE = False
-
 
 class HBaseAuthenticator(ABC):
     """Base class for HBase authentication methods."""
@@ -60,11 +54,6 @@ class KerberosAuthenticator(HBaseAuthenticator):
 
     def authenticate(self, config: dict[str, Any]) -> dict[str, Any]:
         """Perform Kerberos authentication via kinit."""
-        if not KERBEROS_AVAILABLE:
-            raise ImportError(
-                "Kerberos libraries not available. Install with: pip install pykerberos"
-            )
-
         principal = config.get("principal")
         if not principal:
             raise ValueError("Kerberos principal is required when auth_method=kerberos")

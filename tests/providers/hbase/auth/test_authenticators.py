@@ -66,21 +66,12 @@ class TestSimpleAuthenticator:
 class TestKerberosAuthenticator:
     """Test KerberosAuthenticator."""
 
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", False)
-    def test_authenticate_kerberos_not_available(self):
-        """Test authentication fails when kerberos not available."""
-        authenticator = KerberosAuthenticator()
-        with pytest.raises(ImportError, match="Kerberos libraries not available"):
-            authenticator.authenticate({})
-
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
     def test_authenticate_missing_principal(self):
         """Test authentication fails when principal missing."""
         authenticator = KerberosAuthenticator()
         with pytest.raises(ValueError, match="Kerberos principal is required"):
             authenticator.authenticate({})
 
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
     @patch("airflow.providers.hbase.auth.base.subprocess.run")
     @patch("os.path.exists")
     def test_authenticate_with_keytab_path(self, mock_exists, mock_subprocess):
@@ -102,7 +93,6 @@ class TestKerberosAuthenticator:
             capture_output=True, text=True, check=True
         )
 
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
     @patch("airflow.providers.hbase.auth.base.subprocess.run")
     @patch("os.path.exists")
     def test_authenticate_keytab_not_found(self, mock_exists, mock_subprocess):
@@ -118,7 +108,6 @@ class TestKerberosAuthenticator:
         with pytest.raises(ValueError, match="Keytab file not found"):
             authenticator.authenticate(config)
 
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
     @patch("airflow.providers.hbase.auth.base.subprocess.run")
     def test_authenticate_kinit_failure(self, mock_subprocess):
         """Test authentication fails when kinit fails."""

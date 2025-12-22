@@ -350,7 +350,6 @@ class TestHBaseHook:
 
     @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
     @patch.object(HBaseHook, "get_connection")
-    @patch("airflow.providers.hbase.auth.base.KERBEROS_AVAILABLE", True)
     @patch("airflow.providers.hbase.auth.base.subprocess.run")
     @patch("os.path.exists")
     def test_get_conn_with_kerberos_auth(self, mock_exists, mock_subprocess, mock_get_connection, mock_happybase_connection):
