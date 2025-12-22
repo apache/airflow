@@ -601,6 +601,21 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     f"The package '{package_name}' from packaging information "
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
+
+            # issue-59576: Retrieve the project.urls.documentation from dist.metadata
+            project_urls = dist.metadata.get_all("Project-URL")
+            documentation_url: str | None = None
+
+            if project_urls:
+                for entry in project_urls:
+                    if "," in entry:
+                        name, url = entry.split(",")
+                        if name.strip().lower() == "documentation":
+                            documentation_url = url
+                            break
+
+            provider_info["documentation-url"] = documentation_url
+
             if package_name not in self._provider_dict:
                 self._provider_dict[package_name] = ProviderInfo(version, provider_info)
             else:

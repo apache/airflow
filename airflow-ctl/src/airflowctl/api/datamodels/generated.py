@@ -658,6 +658,7 @@ class ProviderResponse(BaseModel):
     package_name: Annotated[str, Field(title="Package Name")]
     description: Annotated[str, Field(title="Description")]
     version: Annotated[str, Field(title="Version")]
+    documentation_url: Annotated[str | None, Field(title="Documentation Url")] = None
 
 
 class QueuedEventResponse(BaseModel):
