@@ -210,8 +210,8 @@ export const XCom = () => {
             />
           ) : undefined}
           <ExpandCollapseButtons
-            collapseLabel={translate("collapseAllExtra")}
-            expandLabel={translate("expandAllExtra")}
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
             onCollapse={onClose}
             onExpand={onOpen}
           />
