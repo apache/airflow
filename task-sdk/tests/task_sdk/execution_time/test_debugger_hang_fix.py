@@ -121,3 +121,20 @@ class TestDebuggerHangFix:
         # This should work - it's a normal attribute access
         result = conn.test_conn
         assert result.conn_id == "test_conn"
+
+    def test_low_level_dunder_lookups_short_circuit(self, mock_supervisor_comms):
+        """
+        Ensure low-level lookup functions never turn debugger dunder probes into supervisor/API calls.
+        """
+        from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.context import _get_connection, _get_variable
+
+        with pytest.raises(AirflowNotFoundException):
+            _get_connection("__iter__")
+
+        with pytest.raises(AirflowRuntimeError) as e:
+            _get_variable("__iter__", deserialize_json=False)
+        assert e.value.error.error == ErrorType.VARIABLE_NOT_FOUND
+
+        # Most importantly: no comms should happen for dunder probes.
+        mock_supervisor_comms.send.assert_not_called()

@@ -141,10 +141,6 @@ class Variable(Base, LoggingMixin):
         deserialize_json: bool = False,
         team_name: str | None = None,
     ) -> Any:
-        if key.startswith("__"):
-            if default_var is not cls.__NO_DEFAULT_SENTINEL:
-                return default_var
-            raise KeyError(f"Variable {key} does not exist")
         """
         Get a value for an Airflow Variable Key.
 
@@ -153,6 +149,12 @@ class Variable(Base, LoggingMixin):
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
         """
+        # Debuggers and other tooling probe dunder attributes like "__iter__". These should never be treated
+        # as real variable keys.
+        if key.startswith("__"):
+            if default_var is not cls.__NO_DEFAULT_SENTINEL:
+                return default_var
+            raise KeyError(f"Variable {key} does not exist")
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
         # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
         # back-compat layer

@@ -141,11 +141,12 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 def _get_connection(conn_id: str) -> Connection:
     if conn_id.startswith("__"):
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+        # Debuggers and other tooling probe dunder methods (e.g. __iter__) via getattr().
+        # Never treat those probes as real connection IDs, and crucially never turn them into
+        # supervisor/API calls.
+        from airflow.sdk.exceptions import AirflowNotFoundException
 
-        raise AirflowRuntimeError(
-            ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
-        )
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
@@ -185,11 +186,10 @@ def _get_connection(conn_id: str) -> Connection:
 
 async def _async_get_connection(conn_id: str) -> Connection:
     if conn_id.startswith("__"):
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+        # See comment in _get_connection.
+        from airflow.sdk.exceptions import AirflowNotFoundException
 
-        raise AirflowRuntimeError(
-            ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND, detail={"conn_id": conn_id})
-        )
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     from asgiref.sync import sync_to_async
 
@@ -237,7 +237,8 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
     if key.startswith("__"):
-        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
 
         raise AirflowRuntimeError(ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key}))
 
@@ -518,7 +519,8 @@ class _AssetRefResolutionMixin:
     @staticmethod
     def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
         if name and name.startswith("__"):
-            from airflow.sdk.exceptions import AirflowRuntimeError, ErrorResponse, ErrorType
+            from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+            from airflow.sdk.execution_time.comms import ErrorResponse
 
             raise AirflowRuntimeError(ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail={"name": name}))
 
