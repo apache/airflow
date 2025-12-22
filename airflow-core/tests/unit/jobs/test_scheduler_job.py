@@ -208,7 +208,7 @@ def task_maker(
     with dag_maker(dag_id=dag_id):
         for i in range(task_num):
             # Assign priority weight to certain tasks.
-            if (i % 10) == 0:  # 10, 20, 30, 40, 50, ...
+            if (i % 10) == 0:  # 0, 10, 20, 30, 40, 50, ...
                 weight = int(i / 2)
                 dag_tasks[f"op{i}"] = EmptyOperator(task_id=f"dummy{i}", priority_weight=weight)
             else:
