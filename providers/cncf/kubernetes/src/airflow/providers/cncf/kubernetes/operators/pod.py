@@ -264,7 +264,7 @@ class KubernetesPodOperator(BaseOperator):
     KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
-    BASE_CONTAINER_NAME_ANNOTATION_KEY = "airflow.apache.org/base-container-name"
+    BASE_CONTAINER_NAME_ANNOTATION_KEY = "org.apache.airflow/base-container-name"
 
     template_fields: Sequence[str] = (
         "image",
