@@ -151,7 +151,6 @@ class Trigger(Base):
     def _decrypt_kwargs(encrypted_kwargs: str) -> dict[str, Any]:
         """Decrypt the kwargs of the trigger."""
         import json
-        from typing import cast
 
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import deserialize
@@ -167,7 +166,10 @@ class Trigger(Base):
             )
 
         try:
-            return cast("dict[str, Any]", deserialize(decrypted_kwargs))
+            result = deserialize(decrypted_kwargs)
+            if TYPE_CHECKING:
+                assert isinstance(result, dict)
+            return result
         except (ImportError, KeyError, AttributeError, TypeError):
             # Backward compatibility: fall back to BaseSerialization for old format
             from airflow.serialization.serialized_objects import BaseSerialization
