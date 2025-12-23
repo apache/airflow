@@ -39,13 +39,13 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.file_task_handler import FileTaskHandler, RawLogStream
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.utils.log.file_task_handler import LogMessages, LogSourceInfo
+    from airflow.utils.log.file_task_handler import LogResponse, RawLogStream, StreamingLogResponse
 
 _DEFAULT_SCOPESS = frozenset(
     [
@@ -149,11 +149,21 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             exc, "resp", {}
         ).get("status") == "404"
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
-        messages = []
+    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+        messages, log_streams = self.stream(relative_path, ti)
+
+        # for each log_stream, exhaust the generator into a string
         logs = []
+        for log_stream in log_streams:
+            log_content = "".join(line for line in log_stream)
+            logs.append(log_content)
+        return messages, logs
+
+    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+        messages: list[str] = []
+        log_streams: RawLogStream = []
         remote_loc = os.path.join(self.remote_base, relative_path)
-        uris = []
+        uris: list[str] = []
         bucket, prefix = _parse_gcs_url(remote_loc)
         blobs = list(self.client.list_blobs(bucket_or_name=bucket, prefix=prefix))
 
@@ -169,13 +179,24 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             for key in sorted(uris):
                 blob = storage.Blob.from_string(key, self.client)
-                remote_log = blob.download_as_bytes().decode()
-                if remote_log:
-                    logs.append(remote_log)
+                log_streams.append(self._get_log_stream(blob))
         except Exception as e:
             if not AIRFLOW_V_3_0_PLUS:
                 messages.append(f"Unable to read remote log {e}")
-        return messages, logs
+        return messages, log_streams
+
+    def _get_log_stream(self, blob: storage.Blob) -> RawLogStream:
+        """
+        Yield lines from the given GCS blob.
+
+        :param blob: The GCS blob to read from.
+        :yield: Lines of the log file.
+        """
+        stream = blob.open("r")
+        try:
+            yield from stream
+        finally:
+            stream.close()
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
@@ -273,7 +294,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[LogSourceInfo, LogMessages]:
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> LogResponse:
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
