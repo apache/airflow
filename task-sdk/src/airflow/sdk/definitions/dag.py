@@ -1428,6 +1428,7 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.sdk.serde import deserialize
                 from airflow.utils.session import create_session
 
                 # API Server expects the task instance to be in QUEUED state before
@@ -1435,7 +1436,11 @@ def _run_task(
                 ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
-                trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
+                # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
+                deserialized_kwargs = deserialize(msg.trigger_kwargs)
+                if TYPE_CHECKING:
+                    assert isinstance(deserialized_kwargs, dict)
+                trigger = import_string(msg.classpath)(**deserialized_kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
