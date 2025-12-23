@@ -38,8 +38,11 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Rename is_active to is_stale column in DAG table."""
+    # Ensure no NULL values exist before applying NOT NULL constraint
+    op.execute("UPDATE dag SET is_active = true WHERE is_active IS NULL")
+
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_active", new_column_name="is_stale", type_=sa.Boolean)
+        batch_op.alter_column("is_active", new_column_name="is_stale", type_=sa.Boolean, nullable=False)
 
     op.execute("UPDATE dag SET is_stale = NOT is_stale")
 
@@ -47,6 +50,6 @@ def upgrade():
 def downgrade():
     """Revert renaming of is_active to is_stale column in DAG table."""
     with op.batch_alter_table("dag", schema=None) as batch_op:
-        batch_op.alter_column("is_stale", new_column_name="is_active", type_=sa.Boolean)
+        batch_op.alter_column("is_stale", new_column_name="is_active", type_=sa.Boolean, nullable=True)
 
     op.execute("UPDATE dag SET is_active = NOT is_active")
