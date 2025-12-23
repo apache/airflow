@@ -23,10 +23,10 @@ from alembic import command
 from sqlalchemy import inspect
 
 from airflow import settings
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from alembic.script import ScriptDirectory

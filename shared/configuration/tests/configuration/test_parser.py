@@ -30,8 +30,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow._shared.configuration.exceptions import AirflowConfigException
-from airflow._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow_shared.configuration.exceptions import AirflowConfigException
+from airflow_shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
 
 
 class AirflowConfigParser(_SharedAirflowConfigParser):
@@ -154,11 +154,9 @@ key2 = 1.23
     def test_getlist(self):
         """Test AirflowConfigParser.getlist"""
         test_config = """
-[empty]
-key0 = willbereplacedbymock
-
 [single]
 key1 = str
+empty =
 
 [many]
 key2 = one,two,three
@@ -168,19 +166,19 @@ key3 = one;two;three
 """
         test_conf = AirflowConfigParser(default_config=test_config)
         single = test_conf.getlist("single", "key1")
-        assert isinstance(single, list)
-        assert len(single) == 1
+        assert single == ["str"]
+
+        empty = test_conf.getlist("single", "empty")
+        assert empty == []
+
         many = test_conf.getlist("many", "key2")
-        assert isinstance(many, list)
-        assert len(many) == 3
+        assert many == ["one", "two", "three"]
+
         semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
-        assert isinstance(semicolon, list)
-        assert len(semicolon) == 3
-        with patch.object(test_conf, "get", return_value=None):
-            with pytest.raises(
-                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
-            ):
-                test_conf.getlist("empty", "key0")
+        assert semicolon == ["one", "two", "three"]
+
+        assert test_conf.getlist("empty", "key0", fallback=None) is None
+        assert test_conf.getlist("empty", "key0", fallback=[]) == []
 
     @pytest.mark.parametrize(
         ("config_str", "expected"),

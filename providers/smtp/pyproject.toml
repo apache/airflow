@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-smtp"
-version = "2.3.2"
+version = "2.4.1"
 description = "Provider package apache-airflow-providers-smtp for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,8 +58,8 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",
     "aiosmtplib>=0.1.6",
 ]
 
@@ -98,8 +98,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.3.2"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.3.2/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.4.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-smtp/2.4.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

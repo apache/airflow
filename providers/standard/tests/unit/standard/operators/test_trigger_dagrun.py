@@ -26,11 +26,12 @@ import time_machine
 from sqlalchemy import update
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
+from airflow.exceptions import DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.utils.session import create_session
@@ -41,7 +42,7 @@ from tests_common.test_utils.db import parse_and_sync_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DagRunTriggerException
+    from airflow.providers.common.compat.sdk import DagRunTriggerException
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import timezone
 else:
@@ -66,6 +67,8 @@ dag = DAG(
 
 task = EmptyOperator(task_id='test', dag=dag)
 """
+OL_UTILS_PATH = "airflow.providers.standard.utils.openlineage"
+TRIGGER_OP_PATH = "airflow.providers.standard.operators.trigger_dagrun"
 
 
 class TestDagRunOperator:
@@ -137,9 +140,10 @@ class TestDagRunOperator:
             ).rsplit("_", 1)[0]
             # rsplit because last few characters are random.
             assert exc_info.value.dag_run_id == expected_run_id
+            assert task.trigger_run_id == expected_run_id  # run_id is saved as attribute
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
-    @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_one")
+    @mock.patch(f"{TRIGGER_OP_PATH}.XCom.get_one")
     def test_extra_operator_link(self, mock_xcom_get_one, dag_maker):
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
             task = TriggerDagRunOperator(
@@ -255,6 +259,44 @@ class TestDagRunOperator:
                 ),
             )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3")
+    def test_trigger_dag_run_execute_complete_re_set_run_id_attribute(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+        assert operator.trigger_run_id is None
+
+        try:
+            operator.execute_complete(
+                {},
+                (
+                    "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+                    {"run_ids": ["run_id_1"], "run_id_1": "success"},
+                ),
+            )
+        except Exception as e:
+            pytest.fail(f"Error: {e}")
+
+        assert operator.trigger_run_id == "run_id_1"
+
+    def test_trigger_dag_run_execute_complete_fails_with_dict_as_input_type(self):
+        operator = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            wait_for_completion=True,
+            poke_interval=10,
+            failed_states=[],
+        )
+
+        with pytest.raises(ValueError, match="too many values to unpack"):
+            operator.execute_complete(
+                {}, {"dag_id": "dag_id", "run_ids": ["run_id_1"], "poll_interval": 15, "run_id_1": "success"}
+            )
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dag_run_with_fail_when_dag_is_paused_should_fail(self):
         with pytest.raises(
@@ -301,6 +343,191 @@ class TestDagRunOperator:
             with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
                 task.execute(context={})
 
+    @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @mock.patch(f"{TRIGGER_OP_PATH}.safe_inject_openlineage_properties_into_dagrun_conf")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_with_explicit_false_arg(
+        self, mock_inject, original_conf
+    ):
+        """Test that conf is not modified when openlineage_inject_parent_info=False."""
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+                openlineage_inject_parent_info=False,
+            )
+
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={"ti": mock.MagicMock()})
+
+            # Injection function should not be called
+            mock_inject.assert_not_called()
+            # Conf should remain unchanged
+            assert exc_info.value.conf == original_conf
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_when_ol_not_accessible(
+        self, mock_is_accessible
+    ):
+        """Test that conf is not modified when OpenLineage provider is not accessible."""
+        original_conf = {"foo": "bar"}
+        # Simulate OL provider being disabled/not accessible
+        mock_is_accessible.return_value = False
+
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            # openlineage_inject_parent_info defaults to True
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+
+            ti = mock.MagicMock()
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={"ti": ti})
+
+            # Conf should remain unchanged when OL is unavailable
+            assert exc_info.value.conf == original_conf
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @pytest.mark.parametrize(
+        ("provider_version", "should_modify"),
+        [
+            ("2.7.0", False),  # Below minimum - conf not modified
+            ("2.7.9", False),  # Below minimum - conf not modified
+            ("2.8.0", True),  # Exactly minimum - conf modified
+            ("2.8.1", True),  # Above minimum - conf modified
+        ],
+    )
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    @mock.patch("importlib.metadata.version")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_for_older_ol_providers(
+        self, mock_version, mock_is_accessible, provider_version, should_modify
+    ):
+        """Test that conf is only modified when OpenLineage provider version is sufficient."""
+        original_conf = {"foo": "bar"}
+        ol_parent_info = {
+            "parentRunId": "test-run-id",
+            "parentJobName": "test-job",
+            "parentJobNamespace": "test-ns",
+            "rootParentRunId": "test-root-run-id",
+            "rootParentJobName": "test-root-job",
+            "rootParentJobNamespace": "test-root-ns",
+        }
+        injected_conf = {
+            "foo": "bar",
+            "openlineage": ol_parent_info,
+        }
+
+        def _mock_version(package):
+            if package == "apache-airflow-providers-openlineage":
+                return provider_version
+            raise Exception(f"Unexpected package: {package}")
+
+        mock_version.side_effect = _mock_version
+        mock_is_accessible.return_value = True
+
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+
+            mock_ti = mock.MagicMock()
+            if should_modify:
+                # When version is sufficient, mock _get_openlineage_parent_info to return data
+                with mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info", return_value=ol_parent_info):
+                    with pytest.raises(DagRunTriggerException) as exc_info:
+                        task.execute(context={"ti": mock_ti})
+                    # Conf should be modified
+                    assert exc_info.value.conf == injected_conf
+            else:
+                # When version is insufficient, _get_openlineage_parent_info will raise
+                with pytest.raises(DagRunTriggerException) as exc_info:
+                    task.execute(context={"ti": mock_ti})
+                # Conf should remain unchanged
+                assert exc_info.value.conf == original_conf
+
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            Exception("Generic error during injection"),
+            ValueError("Invalid data format"),
+            RuntimeError("Runtime issue"),
+        ],
+    )
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    def test_trigger_dagrun_conf_openlineage_injection_preserves_conf_on_exception(
+        self, mock_is_accessible, exception
+    ):
+        """Test that original conf is preserved when any exception occurs during injection."""
+        original_conf = {"foo": "bar"}
+        mock_is_accessible.return_value = True
+
+        # Simulate any exception during injection (version check failure, runtime error, etc.)
+        with (
+            mock.patch(
+                f"{OL_UTILS_PATH}._inject_openlineage_parent_info_to_dagrun_conf",
+                side_effect=exception,
+            ),
+            time_machine.travel("2025-02-18T08:04:46Z", tick=False),
+        ):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+
+            mock_ti = mock.MagicMock()
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={"ti": mock_ti})
+
+            # Conf should remain unchanged when any exception occurs during injection
+            assert exc_info.value.conf == original_conf
+
+    @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    @mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info")
+    def test_trigger_dagrun_conf_openlineage_injection_valid_data(
+        self, mock_get_parent_info, mock_is_accessible, original_conf
+    ):
+        """Test that OpenLineage injection works when OL is available and flag is True."""
+        ol_parent_info = {
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "parentns",
+            "parentJobName": "parentjob",
+        }
+        injected_conf = {
+            **(original_conf or {}),
+            "openlineage": ol_parent_info,
+        }
+        mock_is_accessible.return_value = True
+        mock_get_parent_info.return_value = ol_parent_info
+
+        with time_machine.travel("2025-02-18T08:04:46Z", tick=False):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+
+            mock_ti = mock.MagicMock()
+            with pytest.raises(DagRunTriggerException) as exc_info:
+                task.execute(context={"ti": mock_ti})
+
+            # Conf should contain injected OpenLineage metadata
+            assert exc_info.value.conf == injected_conf
+            # Verify _get_openlineage_parent_info was called with ti
+            mock_get_parent_info.assert_called_once_with(ti=mock_ti)
+
 
 # TODO: To be removed once the provider drops support for Airflow 2
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
@@ -343,6 +570,17 @@ class TestDagRunOperatorAF2:
             dagrun = dag_maker.session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+
+    def test_explicitly_provided_trigger_run_id_is_saved_as_attr(self, dag_maker, session):
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, trigger_run_id="test_run_id"
+            )
+            assert task.trigger_run_id == "test_run_id"
+        dag_maker.create_dagrun()
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        assert task.trigger_run_id == "test_run_id"
 
     def test_extra_operator_link(self, dag_maker, session):
         """Asserts whether the correct extra links url will be created."""
@@ -819,3 +1057,200 @@ class TestDagRunOperatorAF2:
         dag_maker.create_dagrun()
         with pytest.raises(AirflowException, match=f"^Dag {TRIGGERED_DAG_ID} is paused$"):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
+    @mock.patch(f"{TRIGGER_OP_PATH}.safe_inject_openlineage_properties_into_dagrun_conf")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_with_explicit_false_arg(
+        self, mock_inject, original_conf, dag_maker
+    ):
+        """Test that conf is not modified when openlineage_inject_parent_info=False."""
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+                openlineage_inject_parent_info=False,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Injection function should not be called
+        mock_inject.assert_not_called()
+
+        # Verify conf was not modified by checking the triggered DAG run
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.conf == (original_conf if original_conf is not None else {})
+
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_when_ol_not_accessible(
+        self, mock_is_accessible, dag_maker
+    ):
+        """Test that conf is not modified when OpenLineage provider is not accessible."""
+        original_conf = {"foo": "bar"}
+        # Simulate OL provider being disabled/not accessible
+        mock_is_accessible.return_value = False
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            # openlineage_inject_parent_info defaults to True
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Verify conf was not modified
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.conf == original_conf
+
+    @pytest.mark.parametrize(
+        ("provider_version", "should_modify"),
+        [
+            ("2.7.0", False),  # Below minimum - conf not modified
+            ("2.7.9", False),  # Below minimum - conf not modified
+            ("2.8.0", True),  # Exactly minimum - conf modified
+            ("2.8.1", True),  # Above minimum - conf modified
+        ],
+    )
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    @mock.patch("importlib.metadata.version")
+    def test_trigger_dagrun_conf_openlineage_injection_disabled_for_older_ol_providers(
+        self, mock_version, mock_is_accessible, provider_version, should_modify, dag_maker
+    ):
+        """Test that conf is only modified when OpenLineage provider version is sufficient."""
+        original_conf = {"foo": "bar"}
+        ol_parent_info = {
+            "parentRunId": "test-run-id",
+            "parentJobName": "test-job",
+            "parentJobNamespace": "test-ns",
+            "rootParentRunId": "test-root-run-id",
+            "rootParentJobName": "test-root-job",
+            "rootParentJobNamespace": "test-root-ns",
+        }
+        injected_conf = {
+            "foo": "bar",
+            "openlineage": ol_parent_info,
+        }
+
+        def _mock_version(package):
+            if package == "apache-airflow-providers-openlineage":
+                return provider_version
+            raise Exception(f"Unexpected package: {package}")
+
+        mock_version.side_effect = _mock_version
+        mock_is_accessible.return_value = True
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+
+        if should_modify:
+            # When version is sufficient, mock _get_openlineage_parent_info to return data
+            with mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info", return_value=ol_parent_info):
+                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        else:
+            # When version is insufficient, _get_openlineage_parent_info will raise
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            if should_modify:
+                # When version is sufficient, conf should be modified
+                assert dagrun.conf == injected_conf
+            else:
+                # When version is insufficient, conf should remain unchanged
+                assert dagrun.conf == original_conf
+
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            Exception("Generic error during injection"),
+            ValueError("Invalid data format"),
+            RuntimeError("Runtime issue"),
+        ],
+    )
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    def test_trigger_dagrun_conf_openlineage_injection_preserves_conf_on_exception(
+        self, mock_is_accessible, exception, dag_maker
+    ):
+        """Test that original conf is preserved when any exception occurs during injection."""
+        original_conf = {"foo": "bar"}
+        mock_is_accessible.return_value = True
+
+        # Simulate any exception during injection (version check failure, runtime error, etc.)
+        with mock.patch(
+            f"{OL_UTILS_PATH}._inject_openlineage_parent_info_to_dagrun_conf",
+            side_effect=exception,
+        ):
+            with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+                task = TriggerDagRunOperator(
+                    task_id="test_task",
+                    trigger_dag_id=TRIGGERED_DAG_ID,
+                    conf=original_conf,
+                )
+            dag_maker.sync_dagbag_to_db()
+            parse_and_sync_to_db(self.f_name)
+            dag_maker.create_dagrun()
+
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            # Verify conf was not modified when any exception occurs during injection
+            with create_session() as session:
+                dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+                assert dagrun.conf == original_conf
+
+    @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))
+    @mock.patch(f"{OL_UTILS_PATH}._is_openlineage_provider_accessible")
+    @mock.patch(f"{OL_UTILS_PATH}._get_openlineage_parent_info")
+    def test_trigger_dagrun_conf_openlineage_injection_valid_data(
+        self, mock_get_parent_info, mock_is_accessible, original_conf, dag_maker
+    ):
+        """Test that OpenLineage injection works when OL is available and flag is True."""
+        ol_parent_info = {
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "parentns",
+            "parentJobName": "parentjob",
+        }
+        injected_conf = {
+            **(original_conf or {}),
+            "openlineage": ol_parent_info,
+        }
+        mock_is_accessible.return_value = True
+        mock_get_parent_info.return_value = ol_parent_info
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                conf=original_conf,
+            )
+        dag_maker.sync_dagbag_to_db()
+        parse_and_sync_to_db(self.f_name)
+        dag_maker.create_dagrun()
+
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Verify conf contains injected OpenLineage metadata
+        with create_session() as session:
+            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
+            assert dagrun.conf == injected_conf
+            # Verify _get_openlineage_parent_info was called
+            mock_get_parent_info.assert_called_once()

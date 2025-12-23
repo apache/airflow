@@ -26,6 +26,61 @@
 Changelog
 ---------
 
+9.18.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler display error (#54054)``
+* ``Retry on 'RedshiftSQLHook.get_conn' (#59017)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Add pandas as an optional dependency to the AMPP (#58984)``
+* ``Fix remaining mypy issues in amazon provider (#58950)``
+* ``Fix mypy errors in sql_to_s3 due to pandas stub bump (#58923)``
+* ``Conditionally import from task sdk (#59254)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Import empty operator from compat module for AF2/AF3 support (#59222)``
+   * ``Remove tags from AWS system tests (#59206)``
+   * ``Remove global from providers amazon tests (#59178)``
+
+9.18.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Catch and log pandas import errors (#58744)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove the limitation for sagemaker for Python 3.13 (#58388)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Check for cluster stability just before the transfer (#58690)``
+   * ``Increase wait for redshift clusters (#58645)``
+   * ``Remove global from lineage.hook (#58285)``
+   * ``Increase waiter delay for ecs run tasks in system tests (#58338)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
 9.17.0
 ......
 

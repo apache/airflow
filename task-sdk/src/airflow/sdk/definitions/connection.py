@@ -25,8 +25,7 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 import attrs
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowException, AirflowNotFoundException, AirflowRuntimeError, ErrorType
 
 log = logging.getLogger(__name__)
 
@@ -190,7 +189,7 @@ class Connection:
     def get_hook(self, *, hook_params=None):
         """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
-        from airflow.sdk.module_loading import import_string
+        from airflow.sdk._shared.module_loading import import_string
 
         hook = ProvidersManager().hooks.get(self.conn_type, None)
 
@@ -293,12 +292,6 @@ class Connection:
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
         kwargs = json.loads(value)
-        conn_type = kwargs.get("conn_type", None)
-        if not conn_type:
-            raise ValueError(
-                "Connection type (conn_type) is required but missing from connection configuration. "
-                "Please add 'conn_type' field to your connection definition."
-            )
         extra = kwargs.pop("extra", None)
         if extra:
             kwargs["extra"] = extra if isinstance(extra, str) else json.dumps(extra)

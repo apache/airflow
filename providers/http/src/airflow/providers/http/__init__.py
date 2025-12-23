@@ -29,11 +29,11 @@ from airflow import __version__ as airflow_version
 
 __all__ = ["__version__"]
 
-__version__ = "5.5.0"
+__version__ = "5.6.1"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.10.0"
+    "2.11.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-http:{__version__}` needs Apache Airflow 2.10.0+"
+        f"The package `apache-airflow-providers-http:{__version__}` needs Apache Airflow 2.11.0+"
     )

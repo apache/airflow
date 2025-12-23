@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -83,6 +84,7 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
@@ -136,9 +138,9 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.secrets import BaseSecretsBackend
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -910,15 +912,25 @@ def _remote_logging_conn(client: Client):
 
     if conn:
         key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
+        old_conn = os.getenv(key)
+        old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
         os.environ[key] = conn.get_uri()
+        # Set process context to "client" so that Connection deserialization uses SDK Connection class
+        # which has from_uri() method, instead of core Connection class
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         try:
             yield
         finally:
-            if old is None:
+            if old_conn is None:
                 del os.environ[key]
             else:
-                os.environ[key] = old
+                os.environ[key] = old_conn
+
+            if old_context is None:
+                del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
 
 
 @attrs.define(kw_only=True)
@@ -1359,6 +1371,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.logical_date,
                 msg.reset_dag_run,
             )
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)
@@ -1855,10 +1870,10 @@ def process_log_messages_from_subprocess(
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
 
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        if level := NAME_TO_LEVEL.get(event.pop("level")):
+            msg = event.pop("event", None)
+            for target in loggers:
+                target.log(level, msg, **event)
 
 
 def forward_to_log(

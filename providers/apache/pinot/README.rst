@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-pinot``
 
-Release: ``4.8.4``
+Release: ``4.9.1``
 
 
 `Apache Pinot <https://pinot.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.pinot`` provider. All classes for this p
 are in ``airflow.providers.apache.pinot`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-pinot/4.8.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-pinot/4.9.1/>`_.
 
 Installation
 ------------
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``pinotdb``                              ``>=5.1.0``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``pinotdb``                                 ``>=5.1.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -78,14 +79,5 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
 ==================================================================================================================  =================
 
-Optional dependencies
-----------------------
-
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-pinot/4.8.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-pinot/4.9.1/changelog.html>`_.

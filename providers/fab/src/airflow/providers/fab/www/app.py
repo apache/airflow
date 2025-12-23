@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from functools import cache
 from os.path import isabs
 
 from flask import Flask
@@ -43,8 +44,6 @@ from airflow.providers.fab.www.extensions.init_views import (
 )
 from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-app: Flask | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
@@ -96,7 +95,7 @@ def create_app(enable_plugins: bool):
     with flask_app.app_context():
         AirflowAppBuilder(
             app=flask_app,
-            session=db.session,
+            session=db.session(),
             base_template="airflow/main.html",
             enable_plugins=enable_plugins,
         )
@@ -119,15 +118,12 @@ def create_app(enable_plugins: bool):
     return flask_app
 
 
+@cache
 def cached_app():
     """Return cached instance of Airflow WWW app."""
-    global app
-    if not app:
-        app = create_app()
-    return app
+    return create_app()
 
 
 def purge_cached_app():
     """Remove the cached version of the app in global state."""
-    global app
-    app = None
+    cached_app.cache_clear()

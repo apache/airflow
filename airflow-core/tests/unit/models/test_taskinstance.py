@@ -37,10 +37,16 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
-    AirflowFailException,
     AirflowSkipException,
 )
-from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import (
+    AssetActive,
+    AssetAliasModel,
+    AssetEvent,
+    AssetModel,
+    AssetPartitionDagRun,
+    PartitionedAssetKeyLog,
+)
 from airflow.models.connection import Connection
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -59,6 +65,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
+from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
@@ -71,17 +78,17 @@ from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetRespo
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.sdk.execution_time.comms import (
-    AssetEventsResult,
-)
+from airflow.sdk.execution_time.comms import AssetEventsResult
+from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.span_status import SpanStatus
@@ -139,26 +146,25 @@ class CallbackWrapper:
         self.task_state_in_callback = context["ti"].state
 
 
+@pytest.fixture(autouse=True)
+def clean_db():
+    db.clear_db_dags()
+    db.clear_db_pools()
+    db.clear_db_runs()
+    db.clear_rendered_ti_fields()
+    db.clear_db_task_reschedule()
+    db.clear_db_assets()
+    db.clear_db_xcom()
+    db.clear_db_pakl()
+    db.clear_db_apdr()
+    db.clear_db_assets()
+
+
 class TestTaskInstance:
-    @staticmethod
-    def clean_db():
-        db.clear_db_dags()
-        db.clear_db_pools()
-        db.clear_db_runs()
-        db.clear_rendered_ti_fields()
-        db.clear_db_task_reschedule()
-        db.clear_db_assets()
-        db.clear_db_xcom()
-
     def setup_method(self):
-        self.clean_db()
-
         # We don't want to store any code for (test) dags created in this file
         with patch.object(settings, "STORE_DAG_CODE", False):
             yield
-
-    def teardown_method(self):
-        self.clean_db()
 
     @pytest.mark.need_serialized_dag(False)
     def test_set_task_dates(self, dag_maker):
@@ -1761,7 +1767,7 @@ class TestTaskInstance:
         alias_name_1 = "test_outlet_asset_alias_test_case_asset_alias_1"
 
         asm = AssetModel(id=1, uri=asset_uri)
-        session.add_all([asm, AssetActive.for_asset(asm.to_public())])
+        session.add_all([asm, AssetActive.for_asset(asm)])
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
@@ -1810,7 +1816,7 @@ class TestTaskInstance:
         asset_alias_name_3 = "test_outlet_maa_asset_alias_3"
 
         asm = AssetModel(id=1, uri=asset_uri)
-        session.add_all([asm, AssetActive.for_asset(asm.to_public())])
+        session.add_all([asm, AssetActive.for_asset(asm)])
         session.commit()
 
         with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
@@ -1913,9 +1919,8 @@ class TestTaskInstance:
         assert len(asset_alias_obj.assets) == 1
         assert asset_alias_obj.assets[0].uri == asset_uri
 
+    @pytest.mark.need_serialized_dag
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
-
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
         asset_uri = "does_not_exist"
 
@@ -1925,7 +1930,7 @@ class TestTaskInstance:
         assert session.scalar(asset_model_chheck_stmt) is None
         assert session.scalar(asset_event_check_stmt) is None
 
-        with dag_maker(dag_id="producer_dag", schedule=None, serialized=True, session=session):
+        with dag_maker(dag_id="producer_dag", schedule=None, session=session):
 
             @task(outlets=AssetAlias(asset_alias_name))
             def producer(*, outlet_events):
@@ -1934,7 +1939,6 @@ class TestTaskInstance:
             producer()
 
         (ti,) = dag_maker.create_dagrun().get_task_instances(session=session)
-
         ti.run(session=session)
 
         asset_model = session.scalars(asset_model_chheck_stmt).one()
@@ -1943,12 +1947,10 @@ class TestTaskInstance:
         assert session.scalars(asset_event_check_stmt).one().uri == asset_uri
 
     def test_outlet_asset_alias_asset_inactive(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset
-
-        asset1 = Asset("asset1")
-        asset2 = Asset("asset2")
-        asm1 = AssetModel.from_public(asset1)
-        asm2 = AssetModel.from_public(asset2)
+        asset1 = SerializedAsset("asset1", "asset1", "", {}, [])
+        asset2 = SerializedAsset("asset2", "asset2", "", {}, [])
+        asm1 = AssetModel.from_serialized(asset1)
+        asm2 = AssetModel.from_serialized(asset2)
         session.add_all([asm1, asm2, AssetActive.for_asset(asm1)])
         session.flush()
 
@@ -2556,22 +2558,6 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
-    def test_does_not_retry_on_airflow_fail_exception(self, dag_maker):
-        def fail():
-            raise AirflowFailException("hopeless")
-
-        with dag_maker(dag_id="test_does_not_retry_on_airflow_fail_exception"):
-            task = PythonOperator(
-                task_id="test_raise_airflow_fail_exception",
-                python_callable=fail,
-                retries=1,
-            )
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
-        ti.task = task
-        with contextlib.suppress(AirflowException):
-            ti.run()
-        assert ti.state == State.FAILED
-
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
@@ -2857,28 +2843,6 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
     ti.max_tries = expected_max_tries
     ti.refresh_from_task(task)
     assert ti.max_tries == expected_max_tries
-
-
-class TestRunRawTaskQueriesCount:
-    """
-    These tests are designed to detect changes in the number of queries executed
-    when calling _run_raw_task
-    """
-
-    @staticmethod
-    def _clean():
-        db.clear_db_runs()
-        db.clear_db_pools()
-        db.clear_db_dags()
-        db.clear_db_sla_miss()
-        db.clear_db_import_errors()
-        db.clear_db_assets()
-
-    def setup_method(self) -> None:
-        self._clean()
-
-    def teardown_method(self) -> None:
-        self._clean()
 
 
 class TestTaskInstanceRecordTaskMapXComPush:
@@ -3269,3 +3233,86 @@ def test_find_relevant_relatives(dag_maker, session, normal_tasks, mapped_tasks,
         session=session,
     )
     assert result == expected
+
+
+def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, session):
+    """Test that specifying a non-mapped task as a tuple doesn't raise NotMapped exception."""
+    # t1 -> t2 (non-mapped) -> t3
+    with dag_maker(session=session) as dag:
+        t1 = EmptyOperator(task_id="t1")
+        t2 = EmptyOperator(task_id="t2")
+        t3 = EmptyOperator(task_id="t3")
+        t1 >> t2 >> t3
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    # Specifying t2 as a tuple (t2, 0) even though it's not mapped should not raise NotMapped
+    # It should treat t2 as a normal task and return its upstream t1
+    result = find_relevant_relatives(
+        normal_tasks=[],
+        mapped_tasks=[("t2", 0)],
+        direction="upstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+    # Should return t1 as the upstream of t2
+    assert result == {"t1"}
+
+
+def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    actual_event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id))
+    assert actual_event.partition_key == "abc123"
+    assert not session.scalar(select(PartitionedAssetKeyLog))
+    assert not session.scalar(select(AssetPartitionDagRun))
+
+
+def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
+    dag_maker,
+    session,
+):
+    asset = Asset(name="hello")
+    with dag_maker(dag_id="asset_event_tester", schedule=None, session=session) as dag:
+        EmptyOperator(task_id="hi", outlets=[asset])
+    dag1_id = dag.dag_id
+    dr = dag_maker.create_dagrun(partition_key="abc123", session=session)
+    assert dr.partition_key == "abc123"
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    with dag_maker(
+        dag_id="asset_event_listener",
+        schedule=PartitionedAssetTimetable(assets=asset, partition_mapper=IdentityMapper()),
+        session=session,
+    ):
+        EmptyOperator(task_id="hi")
+    session.commit()
+
+    TaskInstance.register_asset_changes_in_db(
+        ti=ti,
+        task_outlets=[ensure_serialized_asset(asset).asprofile()],
+        outlet_events=[],
+        session=session,
+    )
+    session.commit()
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == dag1_id))
+    assert event.partition_key == "abc123"
+    pakl = session.scalar(select(PartitionedAssetKeyLog))
+    apdr = session.scalar(select(AssetPartitionDagRun))
+    assert pakl.asset_event_id == event.id
+    assert pakl.asset_partition_dag_run_id == apdr.id
+    assert pakl.source_partition_key == "abc123"
+    assert pakl.target_dag_id == "asset_event_listener"

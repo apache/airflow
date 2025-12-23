@@ -23,9 +23,9 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.module_loading import import_string
 from airflow.models import DagRun
 from airflow.task.trigger_rule import TriggerRule
-from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils.compat import PythonOperator

@@ -54,8 +54,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk import Asset, AssetAlias
-from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef, BaseAsset
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetNameRef,
+    SerializedAssetUriRef,
+)
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
 from airflow.triggers.base import BaseEventTrigger
@@ -72,7 +76,7 @@ if TYPE_CHECKING:
     from airflow.models.dagwarning import DagWarning
     from airflow.typing_compat import Self
 
-AssetT = TypeVar("AssetT", bound=BaseAsset)
+    AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
 
@@ -285,21 +289,22 @@ def _update_import_errors(
 ):
     from airflow.listeners.listener import get_listener_manager
 
-    # We can remove anything from files parsed in this batch that doesn't have an error. We need to remove old
-    # errors (i.e. from files that are removed) separately
-
-    session.execute(
-        delete(ParseImportError).where(
-            tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_parsed)
-        )
-    )
-
-    # the below query has to match (bundle_name, filename) tuple in that order since the
-    # import_errors list is a dict with keys as (bundle_name, relative_fileloc)
+    # Check existing import errors BEFORE deleting, so we can determine if we should update or create
     existing_import_error_files = set(
         session.execute(select(ParseImportError.bundle_name, ParseImportError.filename))
     )
-    # Add the errors of the processed files
+
+    # Delete errors for files that were parsed but don't have errors in import_errors
+    # (i.e., files that were successfully parsed without errors)
+    files_to_clear = files_parsed.difference(import_errors)
+    if files_to_clear:
+        session.execute(
+            delete(ParseImportError).where(
+                tuple_(ParseImportError.bundle_name, ParseImportError.filename).in_(files_to_clear)
+            )
+        )
+
+    # Add or update the errors of the processed files
     for key, stacktrace in import_errors.items():
         bundle_name_, relative_fileloc = key
 
@@ -371,6 +376,7 @@ def update_dag_parsing_results_in_db(
     session: Session,
     *,
     warning_types: tuple[DagWarningType] = (DagWarningType.NONEXISTENT_POOL,),
+    files_parsed: set[tuple[str, str]] | None = None,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -388,6 +394,10 @@ def update_dag_parsing_results_in_db(
     then all warnings and errors related to this file will be removed.
 
     ``import_errors`` will be updated in place with an new errors
+
+    :param files_parsed: Set of (bundle_name, relative_fileloc) tuples for all files that were parsed.
+        If None, will be inferred from dags and import_errors. Passing this explicitly ensures that
+        import errors are cleared for files that were parsed but no longer contain DAGs.
     """
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
     # of any Operational Errors
@@ -423,16 +433,8 @@ def update_dag_parsing_results_in_db(
             import_errors.update(serialize_errors)
     # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
     try:
-        # TODO: This won't clear errors for files that exist that no longer contain DAGs. Do we need to pass
-        # in the list of file parsed?
-
-        good_dag_filelocs = {
-            (bundle_name, dag.relative_fileloc)
-            for dag in dags
-            if dag.relative_fileloc is not None and (bundle_name, dag.relative_fileloc) not in import_errors
-        }
         _update_import_errors(
-            files_parsed=good_dag_filelocs,
+            files_parsed=files_parsed if files_parsed is not None else set(),
             bundle_name=bundle_name,
             import_errors=import_errors,
             session=session,
@@ -645,19 +647,19 @@ def _get_dag_assets(
                 yield task["task_id"], obj
 
 
-def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Asset]:
+def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAsset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for _, asset in _get_dag_assets(dag, of=Asset):
+        for _, asset in _get_dag_assets(dag, of=SerializedAsset):
             yield asset
 
 
-def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
-        for _, alias in _get_dag_assets(dag, of=AssetAlias):
+        for _, alias in _get_dag_assets(dag, of=SerializedAssetAlias):
             yield alias
 
 
@@ -679,14 +681,14 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
 class AssetModelOperation(NamedTuple):
     """Collect asset/alias objects from DAGs and perform database operations for them."""
 
-    schedule_asset_references: dict[str, list[Asset]]
-    schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    schedule_asset_references: dict[str, list[SerializedAsset]]
+    schedule_asset_alias_references: dict[str, list[SerializedAssetAlias]]
     schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
     schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
-    inlet_references: dict[str, list[tuple[str, Asset]]]
-    outlet_references: dict[str, list[tuple[str, Asset]]]
-    assets: dict[tuple[str, str], Asset]
-    asset_aliases: dict[str, AssetAlias]
+    inlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    outlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    assets: dict[tuple[str, str], SerializedAsset]
+    asset_aliases: dict[str, SerializedAssetAlias]
 
     @classmethod
     def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
@@ -703,20 +705,20 @@ class AssetModelOperation(NamedTuple):
                 (dag_id, ref.name)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetNameRef)
+                if isinstance(ref, SerializedAssetNameRef)
             },
             schedule_asset_uri_references={
                 (dag_id, ref.uri)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetUriRef)
+                if isinstance(ref, SerializedAssetUriRef)
             },
             inlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=True, outlets=False))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=True, outlets=False))
                 for dag_id, dag in dags.items()
             },
             outlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=False, outlets=True))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},
@@ -936,7 +938,7 @@ class AssetModelOperation(NamedTuple):
     def add_asset_trigger_references(
         self, assets: dict[tuple[str, str], AssetModel], *, session: Session
     ) -> None:
-        from airflow.serialization.serialized_objects import _encode_trigger
+        from airflow.serialization.encoders import encode_trigger
 
         # Update references from assets being used
         refs_to_add: dict[tuple[str, str], set[int]] = {}
@@ -950,7 +952,7 @@ class AssetModelOperation(NamedTuple):
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watcher_triggers = (
                 [
-                    {**_encode_trigger(watcher.trigger), "watcher_name": watcher.name}
+                    {**encode_trigger(watcher.trigger), "watcher_name": watcher.name}
                     for watcher in asset.watchers
                 ]
                 if name_uri in active_assets

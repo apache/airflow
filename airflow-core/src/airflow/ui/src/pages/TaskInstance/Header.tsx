@@ -32,15 +32,9 @@ import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
 import { renderDuration, useContainerWidth } from "src/utils";
 
-export const Header = ({
-  isRefreshing,
-  taskInstance,
-}: {
-  readonly isRefreshing?: boolean;
-  readonly taskInstance: TaskInstanceResponse;
-}) => {
+export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>();
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const containerWidth = useContainerWidth(containerRef);
 
   const stats = [
@@ -127,7 +121,6 @@ export const Header = ({
           </>
         }
         icon={<MdOutlineTask />}
-        isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}

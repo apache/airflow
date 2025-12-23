@@ -704,6 +704,7 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore
@@ -1043,6 +1044,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1252,6 +1254,7 @@ od
 odbc
 odps
 ok
+oklch
 Okta
 okta
 onboarded
@@ -1520,6 +1523,7 @@ replicaSet
 repo
 repos
 repr
+reprocessed
 req
 reqs
 requeue
@@ -1623,6 +1627,8 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
 ServicePrincipalCredentials
 ServiceResource
 SES
@@ -1819,8 +1825,10 @@ tasksetmeta
 tasksState
 taskTree
 tblproperties
+tbuild
 TCP
 tcp
+tdload
 teardown
 teardowns
 templatable
@@ -1875,6 +1883,7 @@ toolchain
 Tooltip
 tooltip
 tooltips
+tpt
 traceback
 tracebacks
 tracemalloc

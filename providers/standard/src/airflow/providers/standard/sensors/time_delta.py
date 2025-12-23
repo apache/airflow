@@ -26,8 +26,8 @@ from deprecated.classic import deprecated
 from packaging.version import Version
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
 

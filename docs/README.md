@@ -28,6 +28,7 @@
 - [Typical workflows](#typical-workflows)
   - [Publishing the documentation by the release manager](#publishing-the-documentation-by-the-release-manager)
   - [Publishing changes to the website (including theme)](#publishing-changes-to-the-website-including-theme)
+- [Publishing changes manually](#publishing-changes-manually)
 - [Fixing historical documentation](#fixing-historical-documentation)
   - [Manually publishing documentation directly to S3](#manually-publishing-documentation-directly-to-s3)
   - [Manually publishing documentation via `apache-airflow-site-archive` repo](#manually-publishing-documentation-via-apache-airflow-site-archive-repo)
@@ -53,7 +54,7 @@ Documentation in separate distributions:
 
 Documentation for a general overview and summaries not connected with any specific distribution:
 
-* `docker-stack-docs` - documentation for Docker Stack'
+* `docker-stack-docs` - documentation for Docker Stack
 * `providers-summary-docs` - documentation for the provider summary page
 
 # Architecture of documentation for Airflow
@@ -78,7 +79,19 @@ There are a few repositories under `apache` organization that are used to build 
 We have two S3 buckets where we can publish the documentation generated from the `apache-airflow` repository:
 
 * `s3://live-docs-airflow-apache-org/docs/` - live, [official documentation](https://airflow.apache.org/docs/)
-* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/) TODO: make it work
+* `s3://staging-docs-airflow-apache-org/docs/` - staging documentation [official documentation](https://staging-airflow.apache.org/docs/)
+
+Note that those S3 buckets are not served directly to Apache Server, but they are served via Cloudfront
+in order to provide caching and automated resolution of folders into index.html files.
+
+The cloudfront distributions of ours are:
+
+* Live cloudfront url: https://d7fnmbhf26p21.cloudfront.net
+* Staging cloudfront url: https://d3a2du7x0n8ydr.cloudfront.net
+
+Those cloudfront caches are automatically invalidated when we publish new documentation to S3 using
+GitHub Actions workflows, but you can also manually invalidate them using the AWS Console if needed.
+
 
 # Diagrams of the documentation architecture
 
@@ -196,6 +209,21 @@ The version of sphinx theme is fixed in both repositories:
 In case of bigger changes to the theme, we can first iterate on the website and merge a new theme version,
 and only after that can we switch to the new version of the theme.
 
+# Publishing changes manually
+
+Sometimes you do not want to use Publishing workflows to publish individual files and caches might get
+into the way as both Cloudfront and Fastly caches might take some time to invalidate. In such a case, when
+you manually upload the files to S3 bucket, you can immediately invalidate the caches:
+
+1) Manually run invalidation request in Cloudfront for the documentation S3 bucket you uploaded the files
+   to via AWS Console or AWS CLI (You can use `/*` to invalidate all files).
+
+![Cloudfront invalidation](images/cloudfront_invalidation.png)
+
+2) Run the `Build docs` workflow in `airflow-site` repository to invalidate Fastly cache for the website.
+   Use `main` branch to rebuild site for `live` site and `staging` to rebuild the `staging` site:
+
+![Build docs](images/build-docs.png)
 
 # Fixing historical documentation
 
@@ -223,8 +251,8 @@ bad links or when we change some of the structure in the documentation. This can
 7. In case you specify `full_sync`, you can also synchronize `all` docs or only selected documentation
    packages (for example `apache-airflow` or `docker-stack` or `amazon` or `helm-chart`) - you can specify
    more than one package separated by spaces.
-8. The workflow will invalidate Cloudflare cache for "live" or "staging" bucket respectively.
-9. Run the "Build docs" workflow in `airflow-site` repository to make sure that Fastly cache of the
+8. The workflow will invalidate Cloudfront cache for "live" or "staging" bucket respectively.
+9. Run the `Build docs` workflow in `airflow-site` repository to make sure that Fastly cache of the
    https://airflow.apache.org or https://airflow.staged.apache.org/ invalidated. Use `main` to rebuild site
    for `live` site and `staging` to rebuild the `staging` site:
    ![Build docs](images/build-docs.png)

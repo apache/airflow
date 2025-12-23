@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-beam``
 
-Release: ``6.1.7``
+Release: ``6.2.1``
 
 
 `Apache Beam <https://beam.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.beam`` provider. All classes for this pr
 are in ``airflow.providers.apache.beam`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.7/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1/>`_.
 
 Installation
 ------------
@@ -50,16 +50,17 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
-==================  ==================================================================
-PIP package         Version required
-==================  ==================================================================
-``apache-airflow``  ``>=2.10.0``
-``apache-beam``     ``>=2.60.0; python_version < "3.13"``
-``pyarrow``         ``>=16.1.0; python_version < "3.13"``
-``numpy``           ``>=1.22.4; python_version < "3.11"``
-``numpy``           ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
-``numpy``           ``>=1.26.0; python_version >= "3.12" and python_version < "3.13"``
-==================  ==================================================================
+==========================================  ==================================================================
+PIP package                                 Version required
+==========================================  ==================================================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-beam``                             ``>=2.60.0; python_version < "3.13"``
+``pyarrow``                                 ``>=16.1.0; python_version < "3.13"``
+``numpy``                                   ``>=1.22.4; python_version < "3.11"``
+``numpy``                                   ``>=1.23.2; python_version < "3.12" and python_version >= "3.11"``
+``numpy``                                   ``>=1.26.0; python_version >= "3.12" and python_version < "3.13"``
+==========================================  ==================================================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -84,12 +85,11 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-=================  ===================================================================
-Extra              Dependencies
-=================  ===================================================================
-``google``         ``apache-beam[gcp]>=2.60.0; python_version < "3.13"``
-``common.compat``  ``apache-airflow-providers-common-compat; python_version < '3.13'``
-=================  ===================================================================
+==========  =====================================================
+Extra       Dependencies
+==========  =====================================================
+``google``  ``apache-beam[gcp]>=2.60.0; python_version < "3.13"``
+==========  =====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.7/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1/changelog.html>`_.

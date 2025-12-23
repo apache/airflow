@@ -49,5 +49,6 @@ Reference
 ---------
 
 For further information, look at:
+
 * `oracledb Documentation <https://python-oracledb.readthedocs.io/en/latest/>`__
 * `Google Cloud Storage Documentation <https://cloud.google.com/storage/>`__

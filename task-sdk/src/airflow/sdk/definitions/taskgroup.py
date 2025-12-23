@@ -30,14 +30,13 @@ from typing import TYPE_CHECKING, Any
 import attrs
 import methodtools
 
-from airflow.exceptions import (
-    AirflowException,
+from airflow.sdk import TriggerRule
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk import TriggerRule
-from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -247,14 +246,14 @@ class TaskGroup(DAGNode):
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
-                    raise RuntimeError(
+                    raise ValueError(
                         "Cannot mix TaskGroups from different Dags: %s and %s",
                         self.dag,
                         task.dag,
                     )
                 task.dag = self.dag
             if task.children:
-                raise AirflowException("Cannot add a non-empty TaskGroup")
+                raise ValueError("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
         return task
@@ -315,7 +314,7 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and a task
             for task in other.roots:
                 if not isinstance(task, DAGNode):
-                    raise AirflowException(
+                    raise RuntimeError(
                         "Relationships can only be set between TaskGroup "
                         f"or operators; received {task.__class__.__name__}"
                     )

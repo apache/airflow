@@ -58,10 +58,10 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -314,10 +314,9 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
-            # no longer present in the file. We have a stale_dag_threshold configured to prevent a
-            # significant delay in deactivation of stale dags when a large timeout is configured
+            # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
+            # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
+            # This is especially relevant for Dag files that generate Dags in a dynamic manner.
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
@@ -631,7 +630,7 @@ class DagFileProcessorManager(LoggingMixin):
                         if might_contain_dag(info.filename, True, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s %s", abs_path)
+                self.log.exception("There was an error accessing ZIP file %s", abs_path)
 
         rel_filelocs: list[str] = []
         for info in present:
@@ -858,6 +857,7 @@ class DagFileProcessorManager(LoggingMixin):
                 parsing_result=proc.parsing_result,
                 session=session,
                 is_callback_only=is_callback_only,
+                relative_fileloc=str(file.rel_path),
             )
 
         for file in finished:
@@ -1147,6 +1147,7 @@ def process_parse_results(
     session: Session,
     *,
     is_callback_only: bool = False,
+    relative_fileloc: str | None = None,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     if is_callback_only:
@@ -1181,6 +1182,14 @@ def process_parse_results(
             import_errors = {
                 (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
             }
+
+        # Build the set of files that were parsed. This includes the file that was parsed,
+        # even if it no longer contains DAGs, so we can clear old import errors.
+        files_parsed: set[tuple[str, str]] | None = None
+        if relative_fileloc is not None:
+            files_parsed = {(bundle_name, relative_fileloc)}
+            files_parsed.update(import_errors.keys())
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
@@ -1189,6 +1198,7 @@ def process_parse_results(
             parse_duration=run_duration,
             warnings=set(parsing_result.warnings or []),
             session=session,
+            files_parsed=files_parsed,
         )
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:

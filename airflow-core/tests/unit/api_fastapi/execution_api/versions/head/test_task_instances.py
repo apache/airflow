@@ -98,7 +98,6 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
             raise RuntimeError("Fake auth denied")
         return claims
 
-    # validator.avalidated_claims.side_effect = [{}, RuntimeError("fail for tests"), claims, claims]
     validator.avalidated_claims.side_effect = side_effect
 
     lifespan.registry.register_value(JWTValidator, validator)
@@ -113,7 +112,7 @@ def test_id_matches_sub_claim(client, session, create_task_instance):
 
     resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
     assert resp.status_code == 403
-    validator.avalidated_claims.assert_called_with(
+    assert validator.avalidated_claims.call_args_list[1] == mock.call(
         mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
     )
     validator.avalidated_claims.reset_mock()
@@ -1145,7 +1144,7 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-        tis = session.query(TaskInstance).all()
+        tis = session.scalars(select(TaskInstance)).all()
         assert len(tis) == 1
 
         assert tis[0].state == TaskInstanceState.DEFERRED
@@ -1156,7 +1155,7 @@ class TestTIUpdateState:
         }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
-        t = session.query(Trigger).all()
+        t = session.scalars(select(Trigger)).all()
         assert len(t) == 1
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
@@ -1193,14 +1192,14 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-        tis = session.query(TaskInstance).all()
+        tis = session.scalars(select(TaskInstance)).all()
         assert len(tis) == 1
         assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
         assert tis[0].next_method is None
         assert tis[0].next_kwargs is None
         assert tis[0].duration == 129600
 
-        trs = session.query(TaskReschedule).all()
+        trs = session.scalars(select(TaskReschedule)).all()
         assert len(trs) == 1
         assert trs[0].task_instance.dag_id == "dag"
         assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
@@ -1274,11 +1273,11 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
-        tih = (
-            session.query(TaskInstanceHistory)
-            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id)
-            .one()
-        )
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id
+            )
+        ).one()
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
 
@@ -1681,7 +1680,7 @@ class TestTIPutRTIF:
 
         session.expire_all()
 
-        rtifs = session.query(RenderedTaskInstanceFields).all()
+        rtifs = session.scalars(select(RenderedTaskInstanceFields)).all()
         assert len(rtifs) == 1
 
         assert rtifs[0].dag_id == "dag"

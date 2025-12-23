@@ -279,9 +279,14 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-I have cut the first release candidate for the Apache Airflow Python Client ${VERSION}.
-This email is calling for a vote on the release,
-which will last for 72 hours. Consider this my (binding) +1.
+The release candidate for Apache Airflow Python Client ${VERSION_RC} is now available for testing!
+
+This email is calling for a vote on the release, which will last at least 72 hours, from Friday, October 8, 2025 at 4:00 pm UTC
+until Monday, October 11, 2025 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
+
+https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
+
+Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION_RC}/
@@ -651,10 +656,19 @@ python /opt/airflow/clients/python/test_python_client.py
 
 ## Summarize the voting for the Apache Airflow client release
 
+Subject:
+
+```
+[RESULT][VOTE] Release Airflow Python Client 3.1.3 from 3.1.3rc1
+```
+
 ```shell script
 Hello,
 
-Apache Airflow Python Client 2.5.0 (based on RC1) has been accepted.
+The vote to release Apache Airflow Python Client version 3.1.3 based on 3.1.3rc1 is now closed.
+
+The vote PASSED with 3 binding "+1", 1 non-binding "+1" and 0 "-1" votes:
+
 
 3 "+1" binding votes received:
 - Ephraim Anierobi
@@ -722,13 +736,13 @@ We need to upload the packages to PyPI. Note that we are not copying the generat
 
 ```shell script
 cd ${VERSION}
-twine check *.tar.gz *.whl
+twine check *${VERSION}.tar.gz *.whl
 ```
 
 - Upload the package to PyPi's production environment:
 
 ```shell script
-twine upload -r pypi *.tar.gz *.whl
+twine upload -r pypi *${VERSION}.tar.gz *.whl
 ```
 
 - Confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow-client
@@ -772,7 +786,7 @@ Dear Airflow community,
 I'm happy to announce that Apache Airflow Python Client ${VERSION} was just released.
 
 We made this version available on PyPI for convenience:
-\`pip install apache-airflow-client\`
+\`pip install apache-airflow-client==${VERSION}\`
 https://pypi.org/project/apache-airflow-client/${VERSION}/
 
 The documentation is available at:

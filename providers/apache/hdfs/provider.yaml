@@ -23,12 +23,14 @@ description: |
   and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 state: ready
-source-date-epoch: 1763068384
+source-date-epoch: 1765298771
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.11.1
+  - 4.11.0
   - 4.10.5
   - 4.10.4
   - 4.10.3

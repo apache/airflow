@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.serialization.serialized_objects import SerializedDAG, SerializedOperator
 
 
-@attrs.define(kw_only=True, repr=False)
+@attrs.define(eq=False, hash=False, kw_only=True)
 class SerializedTaskGroup(DAGNode):
     """Serialized representation of a TaskGroup used in protected processes."""
 

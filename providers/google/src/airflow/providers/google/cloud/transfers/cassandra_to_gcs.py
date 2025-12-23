@@ -30,8 +30,8 @@ from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 

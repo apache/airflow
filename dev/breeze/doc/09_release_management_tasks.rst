@@ -94,6 +94,32 @@ When testing from HEAD of the branch when the tag
   :width: 100%
   :alt: Breeze release-management prepare-tarball
 
+Validating Release Candidate for PMC
+"""""""""""""""""""""""""""""""""""""
+
+PMC members can use Breeze to automate verification of release candidates instead of manually
+running multiple verification steps. This command validates SVN files, GPG signatures, SHA512
+checksums, Apache RAT licenses, and reproducible builds.
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc --distribution airflow --version 3.1.3rc1 --task-sdk-version 1.1.3rc1 --svn-path ~/asf-dist/dev/airflow
+
+You can run individual checks by specifying the ``--checks`` flag:
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc \
+      --distribution airflow \
+      --version 3.1.3rc1 \
+      --svn-path ~/asf-dist/dev/airflow \
+      --checks svn,signatures,checksums,licenses
+
+.. image:: ./images/output_release-management_validate-rc-by-pmc.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_validate-rc-by-pmc.svg
+  :width: 100%
+  :alt: Breeze release-management validate-rc-by-pmc
+
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
 
@@ -774,11 +800,6 @@ properties of the dependencies. This is done by the ``export-dependency-informat
   :width: 100%
   :alt: Breeze sbom export dependency information
 
------
-
-Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
-learn more about Breeze internals.
-
 Preparing Airflow Task SDK distributions
 """""""""""""""""""""""""""""""""""
 
@@ -1002,3 +1023,8 @@ Example usage:
 .. code-block:: bash
 
      breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+
+
+-----
+
+Next step: Follow the `UI Tasks <10_ui_tasks.rst>`_ to learn more about UI tasks.

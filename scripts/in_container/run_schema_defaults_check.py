@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -89,16 +90,18 @@ def get_server_side_operator_defaults() -> dict[str, Any]:
 
     except ImportError as e:
         print(f"Error importing SerializedBaseOperator: {e}")
+        traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         print(f"Error getting server-side defaults: {e}")
+        traceback.print_exc()
         sys.exit(1)
 
 
 def get_server_side_dag_defaults() -> dict[str, Any]:
     """Get default values from server-side SerializedDAG class."""
     try:
-        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.serialization.definitions.dag import SerializedDAG
 
         # DAG defaults are set in __init__, so we create a temporary instance
         temp_dag = SerializedDAG(dag_id="temp")
@@ -121,9 +124,11 @@ def get_server_side_dag_defaults() -> dict[str, Any]:
 
     except ImportError as e:
         print(f"Error importing SerializedDAG: {e}")
+        traceback.print_exc()
         sys.exit(1)
     except Exception as e:
         print(f"Error getting server-side DAG defaults: {e}")
+        traceback.print_exc()
         sys.exit(1)
 
 

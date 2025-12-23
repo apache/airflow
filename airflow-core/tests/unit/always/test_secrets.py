@@ -142,8 +142,8 @@ class TestVariableFromSecrets:
 
         Variable.get_variable_from_secrets("fake_var_key")
 
-        mock_meta_get.assert_called_once_with(key="fake_var_key")
-        mock_env_get.assert_called_once_with(key="fake_var_key")
+        mock_meta_get.assert_called_once_with(key="fake_var_key", team_name=None)
+        mock_env_get.assert_called_once_with(key="fake_var_key", team_name=None)
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
@@ -154,7 +154,7 @@ class TestVariableFromSecrets:
         """
         mock_env_get.return_value = "something"
         Variable.get_variable_from_secrets("fake_var_key")
-        mock_env_get.assert_called_once_with(key="fake_var_key")
+        mock_env_get.assert_called_once_with(key="fake_var_key", team_name=None)
         mock_meta_get.assert_not_called()
 
     def test_backend_fallback_to_default_var(self):
@@ -194,13 +194,13 @@ class TestVariableFromSecrets:
         mock_meta_get.return_value = None
 
         assert Variable.get(key="MYVAR") == "a_venv_value"
-        mock_secret_get.assert_called_with(key="MYVAR")
+        mock_secret_get.assert_called_with(key="MYVAR", team_name=None)
         mock_meta_get.assert_not_called()
 
         mock_secret_get.return_value = None
         mock_meta_get.return_value = "a_metastore_value"
         assert Variable.get(key="not_myvar") == "a_metastore_value"
-        mock_meta_get.assert_called_once_with(key="not_myvar")
+        mock_meta_get.assert_called_once_with(key="not_myvar", team_name=None)
 
         mock_secret_get.return_value = "a_secret_value"
         assert Variable.get(key="not_myvar") == "a_secret_value"

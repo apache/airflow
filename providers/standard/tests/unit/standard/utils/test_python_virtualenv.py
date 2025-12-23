@@ -94,7 +94,8 @@ class TestPrepareVirtualenv:
         )
         assert python_bin == "/VENV/bin/python"
         mock_execute_in_subprocess.assert_called_once_with(
-            ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", "/VENV"]
+            ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", "/VENV"],
+            env=mock.ANY,
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
@@ -125,7 +126,8 @@ class TestPrepareVirtualenv:
                 "pythonVER",
                 "--system-site-packages",
                 "/VENV",
-            ]
+            ],
+            env=mock.ANY,
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
@@ -204,6 +206,48 @@ class TestPrepareVirtualenv:
             ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"],
             env=mock.ANY,
         )
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._generate_pip_conf")
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_venv_creation_with_index_urls(
+        self, mock_execute_in_subprocess, mock_generate_pip_conf, tmp_path: Path
+    ):
+        """
+        Test that uv venv creation passes UV_DEFAULT_INDEX env var.
+
+        When package-index connections are available, UV_DEFAULT_INDEX and UV_INDEX
+        environment variables are passed to uv venv command to ensure packages can be
+        downloaded from the specified index during venv creation (e.g., when installing
+        seed packages like pip, setuptools, wheel).
+        """
+        venv_dir = str(tmp_path / "venv")
+        python_bin = prepare_virtualenv(
+            venv_directory=venv_dir,
+            python_bin="pythonVER",
+            system_site_packages=False,
+            requirements=["somepackage"],
+            index_urls=["https://private.package.index"],
+        )
+        assert python_bin == f"{venv_dir}/bin/python"
+
+        # First call: venv creation should have UV_DEFAULT_INDEX in env
+        venv_call_args = mock_execute_in_subprocess.call_args_list[0]
+        venv_cmd = venv_call_args[0][0]
+        venv_kwargs = venv_call_args[1]
+
+        assert venv_cmd == ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", venv_dir]
+        assert "env" in venv_kwargs
+        assert venv_kwargs["env"]["UV_DEFAULT_INDEX"] == "https://private.package.index"
+
+        # Second call: pip install should also have UV_DEFAULT_INDEX
+        pip_call_args = mock_execute_in_subprocess.call_args_list[1]
+        pip_cmd = pip_call_args[0][0]
+        pip_kwargs = pip_call_args[1]
+
+        assert pip_cmd == ["uv", "pip", "install", "--python", f"{venv_dir}/bin/python", "somepackage"]
+        assert "env" in pip_kwargs
+        assert pip_kwargs["env"]["UV_DEFAULT_INDEX"] == "https://private.package.index"
 
     @pytest.mark.parametrize(
         ("decorators", "expected_decorators"),

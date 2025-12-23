@@ -23,12 +23,14 @@ description: |
     `GitHub <https://www.github.com/>`__
 
 state: ready
-source-date-epoch: 1763069564
+source-date-epoch: 1765299152
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.10.1
+  - 2.10.0
   - 2.9.4
   - 2.9.3
   - 2.9.2

@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -583,6 +583,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,

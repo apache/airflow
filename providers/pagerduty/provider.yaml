@@ -22,12 +22,14 @@ description: |
     `Pagerduty <https://www.pagerduty.com/>`__
 
 state: ready
-source-date-epoch: 1763070105
+source-date-epoch: 1765299326
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.2.1
+  - 5.2.0
   - 5.1.1
   - 5.1.0
   - 5.0.2

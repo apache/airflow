@@ -103,7 +103,7 @@ distributions together.
 the versions of Airflow that are not applicable anymore.
 
 2. Check if Breeze unit tests in `dev/breeze/tests/test_packages.py` need adjustments. This is done by simply
-searching and replacing old version occurrences with newer one. For example 2.10.0 to 3.0.0
+searching and replacing old version occurrences with newer one. For example 2.10.0 to 2.11.0
 
 3. Update minimum airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
 in `src/airflow_breeze/utils/packages.py` and run the `breeze release-management prepare-provider-documentation --only-min-version-update`
@@ -384,7 +384,7 @@ mkdir -p ${RELEASE_DATE}
 mv ${AIRFLOW_REPO_ROOT}/dist/* "${RELEASE_DATE}"
 
 # Add and commit
-svn add ${RELEASE_DATA}
+svn add ${RELEASE_DATE}
 svn commit -m "Add artifacts for Airflow Providers ${RELEASE_DATE}"
 
 cd ${AIRFLOW_REPO_ROOT}
@@ -661,10 +661,10 @@ Set expected release tag (the same as announced in the vote email):
 export RELEASE_DATE=2025-11-03
 ````
 
-Go to the directory where you have airflow checked out and set AIRFLOW_ROOT_PATH variable
+Go to the directory where you have airflow checked out and set AIRFLOW_REPO_ROOT variable
 
 ```shell
-export AIRFLOW_ROOT_PATH=$(pwd -P)
+export AIRFLOW_REPO_ROOT=$(pwd -P)
 ```
 
 ### SVN check
@@ -688,9 +688,9 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 Or update it if you already checked it out:
 
 ```shell script
-cd asf-dist/dev/airflow
-svn update .
+svn update --set-depth=infinity asf-dist/dev/airflow
 ```
+
 
 Set environment variables: PATH_TO_AIRFLOW_SVN to the root of folder where you have providers and RELEASE_DATE to
 the release date you are verifying.
@@ -709,9 +709,9 @@ in the email to a file called `packages.txt` in the $AIRFLOW_REPO_ROOT/dev
 directory.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}/dev
+cd ${AIRFLOW_REPO_ROOT}
 # Copy packages.txt extracted from the mail sent by the release manager here
-breeze release-management check-release-files providers --release-date ${RELEASE_DATE}
+breeze release-management check-release-files providers --release-date "${RELEASE_DATE}" --packages-file ./dev/packages.txt --path-to-airflow-svn "${PATH_TO_AIRFLOW_SVN}"
 ```
 
 After the above command completes you can build `Dockerfile.pmc` to trigger an installation of each provider

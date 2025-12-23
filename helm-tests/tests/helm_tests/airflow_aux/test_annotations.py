@@ -42,6 +42,7 @@ class TestServiceAccountAnnotations:
         [
             (
                 {
+                    "executor": "KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -54,6 +55,22 @@ class TestServiceAccountAnnotations:
                 "templates/cleanup/cleanup-serviceaccount.yaml",
                 {
                     "example": "cleanup",
+                },
+            ),
+            (
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "database-cleanup",
+                            },
+                        },
+                    },
+                },
+                "templates/database-cleanup/database-cleanup-serviceaccount.yaml",
+                {
+                    "example": "database-cleanup",
                 },
             ),
             (
@@ -434,16 +451,31 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
                         "example": "cleanup",
                     },
-                }
+                },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {
                 "example": "cleanup",
+            },
+        ),
+        (
+            {
+                "databaseCleanup": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "database-cleanup",
+                    },
+                }
+            },
+            "templates/database-cleanup/database-cleanup-cronjob.yaml",
+            {
+                "example": "database-cleanup",
             },
         ),
         (

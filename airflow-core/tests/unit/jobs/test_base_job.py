@@ -27,7 +27,7 @@ from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
 from airflow.executors.local_executor import LocalExecutor
-from airflow.jobs.job import Job, most_recent_job, perform_heartbeat, run_job
+from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -78,8 +78,8 @@ class TestJob:
         job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))
         run_job(job=job, execute_callable=job_runner._execute)
 
-        assert lifecycle_listener.started_component is job
-        assert lifecycle_listener.stopped_component is job
+        assert lifecycle_listener.get_listener_state().started_component is job
+        assert lifecycle_listener.get_listener_state().stopped_component is job
 
     def test_state_failed(self):
         def abort():
@@ -200,7 +200,7 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob"])
+    @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob", "DagProcessorJob"])
     def test_is_alive_scheduler(self, job_type):
         job = Job(heartrate=10, state=State.RUNNING, job_type=job_type)
         assert job.is_alive() is True
@@ -282,3 +282,18 @@ class TestJob:
             hb_callback.reset_mock()
             perform_heartbeat(job=job, heartbeat_callback=hb_callback, only_if_necessary=True)
             assert hb_callback.called is False
+
+    @pytest.mark.parametrize(
+        ("job_type", "config_section", "config_key", "threshold_value"),
+        [
+            ("DagProcessorJob", "dag_processor", "health_check_threshold", 120),
+            ("SchedulerJob", "scheduler", "scheduler_health_check_threshold", 180),
+            ("TriggererJob", "triggerer", "triggerer_health_check_threshold", 90),
+        ],
+    )
+    def test_health_check_threshold(self, job_type, config_section, config_key, threshold_value):
+        with conf_vars({(config_section, config_key): str(threshold_value)}):
+            assert health_check_threshold(job_type, 30) == threshold_value
+
+    def test_health_check_threshold_unknown_job_uses_heartrate_fallback(self):
+        assert health_check_threshold("UnknownJob", 30) == 30 * 2.1
