@@ -27,6 +27,7 @@ from airflow.exceptions import (
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
+    BigQueryTableStreamingBufferEmptySensor,
 )
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -255,3 +256,75 @@ def context():
     """
     context = {}
     return context
+
+
+class TestBigQueryTableStreamingBufferEmptySensor:
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_when_no_streaming_buffer(self, mock_hook):
+        """Test sensor returns True when table has no streaming buffer."""
+        task = BigQueryTableStreamingBufferEmptySensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+
+        # Mock table with no streaming buffer
+        mock_table = mock.MagicMock()
+        mock_table.streaming_buffer = None
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock_table
+
+        result = task.poke(mock.MagicMock())
+
+        assert result is True
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_poke_when_streaming_buffer_exists(self, mock_hook):
+        """Test sensor returns False when table has active streaming buffer."""
+        task = BigQueryTableStreamingBufferEmptySensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+
+        # Mock table with streaming buffer
+        mock_table = mock.MagicMock()
+        mock_streaming_buffer = mock.MagicMock()
+        mock_streaming_buffer.estimated_rows = 1000
+        mock_table.streaming_buffer = mock_streaming_buffer
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock_table
+
+        result = task.poke(mock.MagicMock())
+
+        assert result is False
+
+    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
+    def test_sensor_with_correct_table_reference(self, mock_hook):
+        """Test sensor constructs correct table reference."""
+        task = BigQueryTableStreamingBufferEmptySensor(
+            task_id="task-id",
+            project_id=TEST_PROJECT_ID,
+            dataset_id=TEST_DATASET_ID,
+            table_id=TEST_TABLE_ID,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+
+        mock_table = mock.MagicMock()
+        mock_table.streaming_buffer = None
+        mock_hook.return_value.get_client.return_value.get_table.return_value = mock_table
+
+        task.poke(mock.MagicMock())
+
+        # Verify correct table reference format
+        mock_hook.return_value.get_client.return_value.get_table.assert_called_once_with(
+            f"{TEST_PROJECT_ID}.{TEST_DATASET_ID}.{TEST_TABLE_ID}"
+        )
+
