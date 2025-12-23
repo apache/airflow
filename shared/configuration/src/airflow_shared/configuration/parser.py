@@ -248,7 +248,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
-        self.upgraded_values = {}
+        self.upgraded_values: dict[tuple[str, str], str] = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -281,12 +281,6 @@ class AirflowConfigParser(ConfigParser):
         }
         sensitive.update(depr_section, depr_option)
         return sensitive
-
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
