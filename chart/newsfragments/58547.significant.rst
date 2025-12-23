@@ -19,6 +19,6 @@ Enhancement: This change improves the configuration merge logic, allowing indivi
 Changes
 New Feature: Added ``workers.enableDefault`` (default: true) to values.yaml.
 Enhancement: Updated worker-kedaautoscaler.yaml to use SQL IN clause for queue filtering, supporting multi-queue configurations (e.g., queue: "a,b" -> AND queue IN ('a','b')).
-Refactor: Standardized template rendering to ensure consistent behavior between the default worker and workers.celery.sets.
+Refactor: Standardized template rendering to ensure consistent behavior between the default ``workers`` and ``workers.celery.sets``.
 
 See `Helm PR #58547 <https://github.com/apache/airflow/pull/58547>`_ for details.
