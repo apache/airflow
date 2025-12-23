@@ -154,13 +154,20 @@ def update_hitl_detail(
         # FabAuthManager (ab_user) store user id as integer, but common interface is string type
         user_id = str(user_id)
     hitl_user = HITLUser(id=user_id, name=user_name)
+    # When using SimpleAuthManager with `simple_auth_manager_all_admins=True` the
+    # middleware injects an anonymous admin token. In that mode, treat all users
+    # as allowed to respond regardless of the assignees configured on the
+    # HITLDetail so ApprovalOperator(assigned_users=...) remains usable.
+    from airflow.configuration import conf
+
     if hitl_detail_model.assigned_users:
-        if hitl_user not in hitl_detail_model.assigned_users:
-            log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"User={user_name} (id={user_id}) is not a respondent for the task.",
-            )
+        if not conf.getboolean("core", "simple_auth_manager_all_admins", fallback=False):
+            if hitl_user not in hitl_detail_model.assigned_users:
+                log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    f"User={user_name} (id={user_id}) is not a respondent for the task.",
+                )
 
     hitl_detail_model.responded_by = hitl_user
     hitl_detail_model.responded_at = timezone.utcnow()
