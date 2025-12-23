@@ -59,20 +59,21 @@ export class BackfillPage extends BasePage {
 
     await this.page.waitForTimeout(1000);
 
-    const backfillRadio = this.page.locator('label:has-text("Backfill")');
+    const dialog = this.page.locator('[role="dialog"]');
+    const backfillRadio = dialog.locator('label:has-text("Backfill")');
 
     await backfillRadio.waitFor({ state: "visible", timeout: 10_000 });
     await backfillRadio.click();
 
-    const fromDateInput = this.page.locator('input[name="from_date"]');
-    const toDateInput = this.page.locator('input[name="to_date"]');
+    const fromDateInput = dialog.locator('input[name="from_date"]');
+    const toDateInput = dialog.locator('input[name="to_date"]');
 
     await fromDateInput.fill("2024-01-01T00:00");
     await toDateInput.fill("2024-01-02T00:00");
 
     await this.page.waitForTimeout(2000);
 
-    const runButton = this.page.locator('button:has-text("Run")').last();
+    const runButton = dialog.locator('button:has-text("Run")');
 
     await runButton.click({ force: true });
 
