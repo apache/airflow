@@ -49,7 +49,10 @@ def patch_mock_client_for_list_blobs(mock_client: MagicMock, blob_names: list[st
     mock_client.return_value.list_blobs.return_value = mock_blobs
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
+@mock.patch(
+    "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
+    return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
+)
 class TestGCSRemoteLogIO:
     @pytest.fixture(autouse=True)
     def setup_tests(self, create_runtime_ti):
@@ -82,11 +85,12 @@ class TestGCSRemoteLogIO:
         mock_rmtree,
         mock_blob,
         mock_client,
-        tmp_path: Path,
-        is_absolute: bool,
-        file_exists: bool,
-        delete_local_copy: bool,
+        mock_creds,
         mock_write_method_result: bool,
+        delete_local_copy: bool,
+        file_exists: bool,
+        is_absolute: bool,
+        tmp_path: Path,
     ):
         # setup
         gcs_remote_log_io = GCSRemoteLogIO(
@@ -121,16 +125,22 @@ class TestGCSRemoteLogIO:
                 mock_rmtree.assert_not_called()
 
     @pytest.mark.parametrize(
-        "old_log_exists",
-        [pytest.param(True, id="old-log-exists"), pytest.param(False, id="old-log-not-exists")],
-    )
-    @pytest.mark.parametrize(
         "upload_success",
         [pytest.param(True, id="upload-success"), pytest.param(False, id="upload-fail")],
     )
     @pytest.mark.parametrize(
+        "old_log_exists",
+        [
+            pytest.param(True, id="old-log-exists"),
+            pytest.param(False, id="old-log-not-exists"),
+        ],
+    )
+    @pytest.mark.parametrize(
         "old_log_read_error",
-        [pytest.param(None, id="no-read-error"), pytest.param(Exception("Read error"), id="read-error")],
+        [
+            pytest.param(None, id="old-log-read-success"),
+            pytest.param(Exception("Read error"), id="old-log-read-error"),
+        ],
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
@@ -138,8 +148,9 @@ class TestGCSRemoteLogIO:
         self,
         mock_blob,
         mock_client,
-        old_log_exists: bool,
+        mock_creds,
         upload_success: bool,
+        old_log_exists: bool,
         old_log_read_error: Exception | None,
     ):
         # setup
@@ -174,7 +185,7 @@ class TestGCSRemoteLogIO:
         assert result == upload_success
 
         # verify the content that was uploaded
-        if upload_success or not upload_success:  # upload_from_string is called regardless
+        if upload_success:
             call_args = mock_blob.from_string.return_value.upload_from_string.call_args
             if call_args:
                 uploaded_content = call_args[0][0]
@@ -206,9 +217,10 @@ class TestGCSRemoteLogIO:
         self,
         mock_blob,
         mock_client,
-        is_stream_method: bool,
-        blob_names: list[str],
+        mock_creds,
         read_success: bool,
+        blob_names: list[str],
+        is_stream_method: bool,
     ):
         # setup
         patch_mock_client_for_list_blobs(mock_client, blob_names)
@@ -226,27 +238,31 @@ class TestGCSRemoteLogIO:
         )
         # action
         if is_stream_method:
-            messages, logs = gcs_remote_log_io.stream("airflow/logs/task_1", self.ti)
+            messages, log_streams = gcs_remote_log_io.stream("airflow/logs/task_1", self.ti)
+            logs = log_streams  # type: ignore[assignment]
         else:
             messages, logs = gcs_remote_log_io.read("airflow/logs/task_1", self.ti)
 
         # early return for no blobs
         if not blob_names:
             assert messages == []
-            assert logs is None
+            if is_stream_method:
+                assert logs == []
+            else:
+                assert logs is None
             return
 
         # verify messages
-        expected_messages = [
+        expected_uris = [
             f"{self.gcs_log_folder}/task_1/attempt_1.log",
             f"{self.gcs_log_folder}/task_1/attempt_2.log",
         ]
-        if not AIRFLOW_V_3_0_PLUS:
-            expected_messages = messages.extend(
-                ["Found remote logs:", *[f"  * {x}" for x in sorted(expected_messages)]]
-            )
+        if AIRFLOW_V_3_0_PLUS:
+            expected_messages = expected_uris
+        else:
+            expected_messages = ["Found remote logs:", *[f"  * {x}" for x in sorted(expected_uris)]]
         if not read_success and not AIRFLOW_V_3_0_PLUS:
-            expected_messages + [f"Unable to read remote log {Exception('Read failed')}"]
+            expected_messages = expected_messages + ["Unable to read remote log Read failed"]
         assert messages == expected_messages
 
         # verify logs
@@ -259,7 +275,7 @@ class TestGCSRemoteLogIO:
             if read_success:
                 assert logs == expected_logs
             else:
-                assert logs == []
+                assert logs is None
 
 
 @pytest.mark.db_test

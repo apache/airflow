@@ -43,7 +43,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from io import IOBase
+    from io import TextIOWrapper
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -153,7 +153,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
-        if log_streams is None:
+        if not log_streams:
             return messages, None
 
         logs: list[str] = []
@@ -170,7 +170,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
         messages: list[str] = []
-        log_streams: RawLogStream = []
+        log_streams: list[RawLogStream] = []
         remote_loc = os.path.join(self.remote_base, relative_path)
         uris: list[str] = []
         bucket, prefix = _parse_gcs_url(remote_loc)
@@ -183,7 +183,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             else:
                 messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
-            return messages, None
+            return messages, []
 
         try:
             for key in sorted(uris):
@@ -195,7 +195,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
                 messages.append(f"Unable to read remote log {e}")
         return messages, log_streams
 
-    def _get_log_stream(self, stream: IOBase) -> RawLogStream:
+    def _get_log_stream(self, stream: TextIOWrapper) -> RawLogStream:
         """
         Yield lines from the given stream.
 
