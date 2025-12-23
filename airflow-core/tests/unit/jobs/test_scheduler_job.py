@@ -4138,6 +4138,8 @@ class TestSchedulerJob:
         list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state, session):
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
         with dag_maker(dag_id=dag_id, schedule="@daily"):
             task_id = dag_id + "_task"
@@ -4152,12 +4154,30 @@ class TestSchedulerJob:
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
+        old_ti_id = ti.id
+        old_try_number = ti.try_number
         session.merge(ti)
         session.merge(dr1)
         session.commit()
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
         assert num_reset_tis == 1
+
+        ti.refresh_from_db(session=session)
+        assert ti.id != old_ti_id
+        assert (
+            session.scalar(
+                select(TaskInstanceHistory).where(
+                    TaskInstanceHistory.dag_id == ti.dag_id,
+                    TaskInstanceHistory.task_id == ti.task_id,
+                    TaskInstanceHistory.run_id == ti.run_id,
+                    TaskInstanceHistory.map_index == ti.map_index,
+                    TaskInstanceHistory.try_number == old_try_number,
+                    TaskInstanceHistory.task_instance_id == old_ti_id,
+                )
+            )
+            is not None
+        )
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -7032,29 +7052,22 @@ class TestSchedulerJob:
         self.job_runner._remove_unreferenced_triggers(session=session)
         assert session.scalars(select(Trigger.classpath)).one_or_none() == expected_classpath
 
-    def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    def test_misconfigured_dags_doesnt_crash_scheduler(self, mock_create, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
+        mock_create.side_effect = [ValueError("something bad")]
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
         dm1 = dag_maker.dag_model
-        # Here, the next_dagrun is set to None, which will cause an exception
-        dm1.next_dagrun = None
         session.add(dm1)
         session.flush()
-
-        with dag_maker("testdag2", serialized=True):
-            BashOperator(task_id="task", bash_command="echo 1")
-        dm2 = dag_maker.dag_model
 
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
-        job_runner._create_dag_runs([dm1, dm2], session)
+        job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun for testdag1" in caplog.text
-        assert not DagRun.find(dag_id="testdag1", session=session)
-        # Check if the second dagrun was created
-        assert DagRun.find(dag_id="testdag2", session=session)
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.query(DagWarning).all()

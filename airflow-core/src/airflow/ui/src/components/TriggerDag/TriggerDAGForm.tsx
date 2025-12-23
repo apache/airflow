@@ -18,26 +18,16 @@
  */
 import { Button, Box, Spacer, HStack, Field, Stack, Text, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
-import { useSearchParams } from "react-router-dom";
 
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
 import { useTrigger } from "src/queries/useTrigger";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
-import {
-  getTriggerConf,
-  mergeUrlParams,
-  getUpdatedParamsDict,
-  type DagRunTriggerParams,
-  dataIntervalModeOptions,
-  extractParamValues,
-  type TriggerDAGFormProps,
-} from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
@@ -45,6 +35,33 @@ import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
+
+type TriggerDAGFormProps = {
+  readonly dagDisplayName: string;
+  readonly dagId: string;
+  readonly hasSchedule: boolean;
+  readonly isPaused: boolean;
+  readonly onClose: () => void;
+  readonly open: boolean;
+};
+
+type DataIntervalMode = "auto" | "manual";
+
+export type DagRunTriggerParams = {
+  conf: string;
+  dagRunId: string;
+  dataIntervalEnd: string;
+  dataIntervalMode: DataIntervalMode;
+  dataIntervalStart: string;
+  logicalDate: string;
+  note: string;
+  partitionKey: string | undefined;
+};
+
+const dataIntervalModeOptions: Array<{ label: string; value: DataIntervalMode }> = [
+  { label: "components:triggerDag.dataIntervalAuto", value: "auto" },
+  { label: "components:triggerDag.dataIntervalManual", value: "manual" },
+];
 
 const TriggerDAGForm = ({
   dagDisplayName,
@@ -59,84 +76,38 @@ const TriggerDAGForm = ({
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const { conf, setParamsDict } = useParamStore();
+  const { conf } = useParamStore();
   const [unpause, setUnpause] = useState(true);
-  const [searchParams] = useSearchParams();
-  const urlConf = getTriggerConf(searchParams, ["run_id", "logical_date", "note"]);
-  const urlRunId = searchParams.get("run_id") ?? "";
-  const urlDate = searchParams.get("logical_date");
-  const urlNote = searchParams.get("note") ?? "";
 
   const { mutate: togglePause } = useTogglePause({ dagId });
 
-  const defaultsRef = useRef<DagRunTriggerParams | undefined>(undefined);
-  const isSyncedRef = useRef(false);
-
-  const cleanInitialParams = useMemo(
-    () => extractParamValues(initialParamsDict.paramsDict as Record<string, unknown>),
-    [initialParamsDict.paramsDict],
-  );
-  const { control, getValues, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
+  const { control, handleSubmit, reset, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
-      ...initialParamsDict,
-      conf: urlConf === "{}" ? conf || "{}" : urlConf,
-      dagRunId: urlRunId,
+      conf,
+      dagRunId: "",
       dataIntervalEnd: "",
       dataIntervalMode: "auto",
       dataIntervalStart: "",
       // Default logical date to now, show it in the selected timezone
-      logicalDate: urlDate ?? dayjs().format(DEFAULT_DATETIME_FORMAT),
-      note: urlNote,
-      params: cleanInitialParams,
+      logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
+      note: "",
       partitionKey: undefined,
     },
   });
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    if (defaultsRef.current === undefined && Object.keys(cleanInitialParams).length > 0) {
-      const current = getValues();
-
-      defaultsRef.current = {
-        ...current,
-        params: cleanInitialParams,
-      };
+    if (conf) {
+      reset((prevValues) => ({
+        ...prevValues,
+        conf,
+      }));
     }
-  }, [getValues, cleanInitialParams]);
+  }, [conf, reset]);
 
-  useEffect(() => {
-    if (defaultsRef.current === undefined) {
-      return;
-    }
-
-    if (isSyncedRef.current) {
-      return;
-    }
-
-    if (urlConf === "{}") {
-      if (conf) {
-        reset((prev) => ({ ...prev, conf }));
-      }
-      isSyncedRef.current = true;
-
-      return;
-    }
-
-    const mergedValues = mergeUrlParams(urlConf, defaultsRef.current.params ?? {});
-
-    reset({
-      ...defaultsRef.current,
-      conf: JSON.stringify(mergedValues, undefined, 2),
-      dagRunId: urlRunId || defaultsRef.current.dagRunId,
-      logicalDate: urlDate ?? defaultsRef.current.logicalDate,
-      note: urlNote || defaultsRef.current.note,
-    });
-
-    setParamsDict(getUpdatedParamsDict(initialParamsDict.paramsDict, mergedValues));
-    isSyncedRef.current = true;
-  }, [urlConf, urlRunId, urlDate, urlNote, initialParamsDict, reset, setParamsDict, conf]);
-
-  const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
+  const resetDateError = () => {
+    setErrors((prev) => ({ ...prev, date: undefined }));
+  };
 
   const dataIntervalMode = watch("dataIntervalMode");
   const dataIntervalStart = watch("dataIntervalStart");
@@ -145,17 +116,17 @@ const TriggerDAGForm = ({
   const dataIntervalInvalid =
     dataIntervalMode === "manual" &&
     (noDataInterval || dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd)));
+
   const onSubmit = (data: DagRunTriggerParams) => {
     if (unpause && isPaused) {
-      togglePause({ dagId, requestBody: { is_paused: false } });
+      togglePause({
+        dagId,
+        requestBody: {
+          is_paused: false,
+        },
+      });
     }
-
-    const finalParams = mergeUrlParams(data.conf, data.params ?? {});
-
-    triggerDagRun({
-      ...data,
-      conf: JSON.stringify(finalParams),
-    });
+    triggerDagRun(data);
   };
 
   return (
@@ -248,7 +219,6 @@ const TriggerDAGForm = ({
           control={control}
           errors={errors}
           initialParamsDict={initialParamsDict}
-          openAdvanced={urlConf !== "{}" || Boolean(urlRunId) || Boolean(urlDate) || Boolean(urlNote)}
           setErrors={setErrors}
           setFormError={setFormError}
         >

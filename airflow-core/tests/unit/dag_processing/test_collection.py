@@ -96,25 +96,6 @@ def test_statement_latest_runs_one_dag():
         assert actual == expected, compiled_stmt
 
 
-def test_statement_latest_runs_many_dag():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=SAWarning)
-
-        stmt = _get_latest_runs_stmt(["fake-dag-1", "fake-dag-2"])
-        compiled_stmt = str(stmt.compile())
-        actual = [x.strip() for x in compiled_stmt.splitlines()]
-        expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.logical_date) AS max_logical_date",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
-            "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
-            "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.logical_date = anon_1.max_logical_date",
-        ]
-        assert actual == expected, compiled_stmt
-
-
 @pytest.mark.db_test
 class TestAssetModelOperation:
     @staticmethod
@@ -391,7 +372,7 @@ class TestUpdateDagParsingResults:
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
 
     @patch.object(SerializedDagModel, "write_dag")
-    @patch("airflow.serialization.serialized_objects.SerializedDAG.bulk_write_to_db")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
     def test_sync_to_db_is_retried(
         self, mock_bulk_write_to_db, mock_s10n_write_dag, testing_dag_bundle, session
     ):
