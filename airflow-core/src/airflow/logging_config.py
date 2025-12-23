@@ -35,19 +35,28 @@ log = logging.getLogger(__name__)
 class _ActiveLoggingConfig:
     """Private class to hold active logging config variables."""
 
+    logging_config_loaded: bool = False
     remote_task_log: RemoteLogIO | None
     default_remote_conn_id: str | None = None
 
 
 def get_remote_task_log() -> RemoteLogIO | None:
-    load_logging_config()
+    if not _ActiveLoggingConfig.logging_config_loaded:
+        load_logging_config()
     return _ActiveLoggingConfig.remote_task_log
+
+
+def get_default_remote_conn_id() -> str | None:
+    if not _ActiveLoggingConfig.logging_config_loaded:
+        load_logging_config()
+    return _ActiveLoggingConfig.default_remote_conn_id
 
 
 def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
+    _ActiveLoggingConfig.logging_config_loaded = True
 
     # Sometimes we end up with `""` as the value!
     logging_class_path = logging_class_path or fallback
