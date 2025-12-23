@@ -102,6 +102,29 @@ export class DagsPage extends BasePage {
   }
 
   /**
+ * Open the Code tab on a DAG detail page
+ */
+public async openCodeTab(): Promise<void> {
+  const codeTab = this.page.locator('[data-testid="dag-code-tab"]');
+  await codeTab.waitFor({ state: "visible", timeout: 10_000 });
+  await codeTab.click();
+}
+
+/**
+ * Get the DAG code container (<pre>)
+ */
+public getCodeContainer(): Locator {
+  return this.page.locator('[data-testid="dag-code-container"]');
+}
+
+/**
+ * Get the text of the DAG code
+ */
+public async getDagCodeText(): Promise<string | null> {
+  return this.getCodeContainer().textContent();
+}
+
+  /**
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
