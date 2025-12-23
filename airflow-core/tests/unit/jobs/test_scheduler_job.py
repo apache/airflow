@@ -4476,7 +4476,10 @@ class TestSchedulerJob:
             DagRunType.ASSET_TRIGGERED.name,
         ],
     )
-    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
+    @patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields")
+    def test_should_update_dag_next_dagruns_after_run_type(
+        self, mock_calculate, run_type, expected, session, dag_maker
+    ):
         """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
             schedule="*/1 * * * *",
@@ -4499,13 +4502,13 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._finished_and_automated(
-            dag=dag,
+        self.job_runner._update_next_dagrun_fields(
+            serdag=dag,
             dag_model=dag_model,
-            last_dag_run=run,
+            dag_run=run,
             session=session,
         )
-        assert actual == expected
+        assert mock_calculate.called == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
