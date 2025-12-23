@@ -487,21 +487,20 @@ class PodManager(LoggingMixin):
                                 message_timestamp = line_timestamp
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                if message_to_log is not None:
-                                    for callback in self._callbacks:
-                                        callback.progress_callback(
-                                            line=message_to_log,
-                                            client=self._client,
-                                            mode=ExecutionMode.SYNC,
-                                            container_name=container_name,
-                                            timestamp=message_timestamp,
-                                        )
-                                    self._log_message(
-                                        message_to_log,
-                                        container_name,
-                                        container_name_log_prefix_enabled,
-                                        log_formatter,
+                                for callback in self._callbacks:
+                                    callback.progress_callback(
+                                        line=message_to_log,
+                                        client=self._client,
+                                        mode=ExecutionMode.SYNC,
+                                        container_name=container_name,
+                                        timestamp=message_timestamp,
                                     )
+                                self._log_message(
+                                    message_to_log,
+                                    container_name,
+                                    container_name_log_prefix_enabled,
+                                    log_formatter,
+                                )
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
