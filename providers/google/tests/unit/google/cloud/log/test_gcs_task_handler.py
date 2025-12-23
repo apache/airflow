@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
-from airflow.sdk import BaseOperator
+from airflow.providers.google.version_compat import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -49,6 +49,7 @@ def patch_mock_client_for_list_blobs(mock_client: MagicMock, blob_names: list[st
     mock_client.return_value.list_blobs.return_value = mock_blobs
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
 @mock.patch(
     "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
     return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
@@ -241,7 +242,7 @@ class TestGCSRemoteLogIO:
             messages, log_streams = gcs_remote_log_io.stream("airflow/logs/task_1", self.ti)
             logs = log_streams  # type: ignore[assignment]
         else:
-            messages, logs = gcs_remote_log_io.read("airflow/logs/task_1", self.ti)
+            messages, logs = gcs_remote_log_io.read("airflow/logs/task_1", self.ti)  # type: ignore[assignment]
 
         # early return for no blobs
         if not blob_names:
