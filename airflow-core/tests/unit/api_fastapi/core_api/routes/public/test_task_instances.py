@@ -3956,7 +3956,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
 
@@ -4302,7 +4302,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_update_mask_should_call_mocked_api(
         self,
         mock_set_ti_state,
@@ -4614,7 +4614,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response_ti["note"] == new_note_value
         _check_task_instance_note(session, response_ti["id"], {"content": new_note_value, "user_id": "test"})
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_raise_409_for_updating_same_task_instance_state(
         self, mock_set_ti_state, test_client, session
     ):
@@ -4640,7 +4640,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
     RUN_ID = "TEST_DAG_RUN_ID"
     DAG_DISPLAY_NAME = "example_python_operator"
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
 
@@ -4998,7 +4998,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_update_mask_should_call_mocked_api(
         self,
         mock_set_ti_state,
@@ -5031,7 +5031,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == expected_json
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.set_task_instance_state")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_return_empty_list_for_updating_same_task_instance_state(
         self, mock_set_ti_state, test_client, session
     ):

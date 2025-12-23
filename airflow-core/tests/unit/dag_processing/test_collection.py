@@ -391,7 +391,7 @@ class TestUpdateDagParsingResults:
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
 
     @patch.object(SerializedDagModel, "write_dag")
-    @patch("airflow.serialization.serialized_objects.SerializedDAG.bulk_write_to_db")
+    @patch("airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db")
     def test_sync_to_db_is_retried(
         self, mock_bulk_write_to_db, mock_s10n_write_dag, testing_dag_bundle, session
     ):

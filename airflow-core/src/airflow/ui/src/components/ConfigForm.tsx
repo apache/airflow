@@ -35,6 +35,7 @@ type ConfigFormProps<T extends FieldValues = FieldValues> = {
     date?: unknown;
   };
   readonly initialParamsDict: { paramsDict: ParamsSpec };
+  readonly openAdvanced?: boolean;
   readonly setErrors: React.Dispatch<
     React.SetStateAction<{
       conf?: string;
@@ -49,6 +50,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   control,
   errors,
   initialParamsDict,
+  openAdvanced = false,
   setErrors,
   setFormError,
 }: ConfigFormProps<T>) => {
@@ -83,7 +85,9 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
   return (
     <Accordion.Root
       collapsible
-      defaultValue={[flexibleFormDefaultSection]}
+      defaultValue={
+        openAdvanced ? [flexibleFormDefaultSection, "advancedOptions"] : [flexibleFormDefaultSection]
+      }
       mb={4}
       overflow="visible"
       size="lg"

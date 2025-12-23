@@ -2682,7 +2682,7 @@ profiling:
         memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
         ```
         This is an expensive operation and generally should not be used except for debugging purposes.
-      version_added: 3.1.2
+      version_added: 3.2.0
       type: string
       example: "scheduler,api,dag_processor"
-      default: ""
+      default: ~

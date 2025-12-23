@@ -45,7 +45,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey as UKey
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -55,6 +55,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql.elements import ColumnElement
+
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 
 log = logging.getLogger(__name__)
@@ -568,14 +571,14 @@ class SerializedDagModel(Base):
     @property
     def dag(self) -> SerializedDAG:
         """The DAG deserialized from the ``data`` column."""
-        SerializedDAG._load_operator_extra_links = self.load_op_links
+        DagSerialization._load_operator_extra_links = self.load_op_links
         if isinstance(self.data, dict):
             data = self.data
         elif isinstance(self.data, str):
             data = json.loads(self.data)
         else:
             raise ValueError("invalid or missing serialized DAG data")
-        return SerializedDAG.from_dict(data)
+        return DagSerialization.from_dict(data)
 
     @classmethod
     @provide_session
