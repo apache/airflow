@@ -1052,10 +1052,8 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     _task_display_name: str | None
     _weight_rule: str | PriorityWeightStrategy = "downstream"
 
-    # TODO (GH-52141): These should contain serialized containers, but currently
-    # this class inherits from an SDK one.
-    dag: SerializedDAG | None = None  # type: ignore[assignment]
-    task_group: SerializedTaskGroup | None = None  # type: ignore[assignment]
+    dag: SerializedDAG | None = None
+    task_group: SerializedTaskGroup | None = None
 
     allow_nested_operators: bool = True
     depends_on_past: bool = False

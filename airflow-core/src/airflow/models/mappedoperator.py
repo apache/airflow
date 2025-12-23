@@ -84,7 +84,6 @@ def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator |
     getstate_setstate=False,
     repr=False,
 )
-# TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
@@ -110,11 +109,6 @@ class MappedOperator(DAGNode):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
     _needs_expansion: bool = True
-
-    # TODO (GH-52141): These should contain serialized containers, but currently
-    # this class inherits from an SDK one.
-    dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
-    task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
 
     doc: str | None = attrs.field(init=False)
     doc_json: str | None = attrs.field(init=False)
