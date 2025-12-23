@@ -1437,10 +1437,8 @@ def _run_task(
 
                 log.info("[DAG TEST] running trigger in line")
                 # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
-                deserialized_kwargs = deserialize(msg.trigger_kwargs)
-                if TYPE_CHECKING:
-                    assert isinstance(deserialized_kwargs, dict)
-                trigger = import_string(msg.classpath)(**deserialized_kwargs)
+                kwargs = deserialize(msg.trigger_kwargs)
+                trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
                 ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
