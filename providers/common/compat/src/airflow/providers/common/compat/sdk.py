@@ -91,7 +91,7 @@ if TYPE_CHECKING:
         XComNotFound as XComNotFound,
     )
     from airflow.sdk.log import redact as redact
-    from airflow.sdk.observability.stats import Stats  # noqa: F401
+    from airflow.sdk.observability.stats import Stats as Stats
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:

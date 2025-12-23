@@ -1,1 +1,1 @@
-Add ``proxies`` to ``DEFAULT_SENSITIVE_FIELDS`` in secrets_masker to treat proxy configurations as sensitive by default
+Add ``proxy`` and ``proxies`` to ``DEFAULT_SENSITIVE_FIELDS`` in secrets_masker to treat proxy configurations as sensitive by default
