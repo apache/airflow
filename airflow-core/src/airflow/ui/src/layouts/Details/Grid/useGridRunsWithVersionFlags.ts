@@ -53,16 +53,16 @@ export const useGridRunsWithVersionFlags = ({
 
       const isBundleVersionChange = Boolean(
         prevRun &&
-          run.bundle_version !== null &&
-          prevRun.bundle_version !== null &&
-          run.bundle_version !== prevRun.bundle_version,
+        run.bundle_version !== null &&
+        prevRun.bundle_version !== null &&
+        run.bundle_version !== prevRun.bundle_version,
       );
 
       const isDagVersionChange = Boolean(
         prevRun &&
-          run.dag_version_number !== null &&
-          prevRun.dag_version_number !== null &&
-          run.dag_version_number !== prevRun.dag_version_number,
+        run.dag_version_number !== null &&
+        prevRun.dag_version_number !== null &&
+        run.dag_version_number !== prevRun.dag_version_number,
       );
 
       return { ...run, isBundleVersionChange, isDagVersionChange };
