@@ -26,7 +26,7 @@ from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
-from keycloak import KeycloakOpenID
+from keycloak import KeycloakOpenID, KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -149,14 +149,28 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
         if self._token_expired(user.access_token):
-            log.debug("Refreshing the token")
-            client = self.get_keycloak_client()
-            tokens = client.refresh_token(user.refresh_token)
-            user.refresh_token = tokens["refresh_token"]
-            user.access_token = tokens["access_token"]
-            return user
+            tokens = self.refresh_tokens(user=user)
+
+            if tokens:
+                user.refresh_token = tokens["refresh_token"]
+                user.access_token = tokens["access_token"]
+                return user
 
         return None
+
+    def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        try:
+            log.debug("Refreshing the token")
+            client = self.get_keycloak_client()
+            return client.refresh_token(user.refresh_token)
+        except KeycloakPostError as exc:
+            log.warning(
+                "KeycloakPostError encountered during token refresh. "
+                "Suppressing the exception and returning None.",
+                exc_info=exc,
+            )
+
+        return {}
 
     def is_authorized_configuration(
         self,

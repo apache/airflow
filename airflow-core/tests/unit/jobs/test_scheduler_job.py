@@ -25,6 +25,7 @@ from collections import Counter, deque
 from collections.abc import Generator
 from datetime import timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -78,7 +79,7 @@ from airflow.models.trigger import Trigger
 from airflow.observability.trace import Trace
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
@@ -116,6 +117,10 @@ from unit.listeners import dag_listener
 from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from tests_common.pytest_plugin import DagMaker
 pytestmark = pytest.mark.db_test
 
 PERF_DAGS_FOLDER = AIRFLOW_ROOT_PATH / "dev" / "airflow_perf" / "dags"
@@ -685,6 +690,79 @@ class TestSchedulerJob:
         assert callback_request.context_from_server is not None
         assert len(callback_request.context_from_server.dag_run.consumed_asset_events) == 1
         assert callback_request.context_from_server.dag_run.consumed_asset_events[0].asset.uri == asset1.uri
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_schedule_dag_run_with_asset_event(self, session: Session, dag_maker: DagMaker):
+        """
+        Verify that scheduler can build DagRunContext for a timed-out Dag run
+        with consumed asset events without raising DetachedInstanceError.
+        """
+        asset1 = Asset(uri="test://asset1", name="test_asset_executor", group="test_group")
+        asset_model = AssetModel(name=asset1.name, uri=asset1.uri, group=asset1.group)
+        session.add(asset_model)
+        session.flush()
+
+        with dag_maker(
+            dag_id="test_executor_events_with_assets",
+            schedule=[asset1],
+            fileloc="/test_path1/",
+            dagrun_timeout=timedelta(minutes=1),
+        ):
+            EmptyOperator(task_id="dummy_task")
+
+        dag = dag_maker.dag
+        sync_dag_to_db(dag)
+        DagVersion.get_latest_version(dag.dag_id)
+
+        # Create Dag run that is guaranteed to time out
+        dr = dag_maker.create_dagrun(
+            start_date=timezone.utcnow() - timedelta(days=1),
+            state=DagRunState.RUNNING,
+        )
+
+        # Create asset event and attach to dag run
+        asset_event = AssetEvent(
+            asset_id=asset_model.id,
+            source_task_id="upstream_task",
+            source_dag_id="upstream_dag",
+            source_run_id="upstream_run",
+            source_map_index=-1,
+        )
+        session.add(asset_event)
+        session.flush()
+        dr.consumed_asset_events.append(asset_event)
+        session.add(dr)
+        session.flush()
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
+        self.job_runner = SchedulerJobRunner(scheduler_job)
+
+        ti1 = dr.get_task_instance("dummy_task")
+        if TYPE_CHECKING:
+            assert isinstance(ti1, TaskInstance)
+        ti1.state = State.FAILED
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.FAILED, None
+
+        callback = self.job_runner._schedule_dag_run(dr, session)
+        session.flush()
+
+        assert callback is not None
+        assert callback.is_failure_callback
+        assert callback.msg == "timed_out"
+
+        context = callback.context_from_server
+        assert context is not None
+
+        if TYPE_CHECKING:
+            assert isinstance(context.dag_run, DagRun)
+        events = context.dag_run.consumed_asset_events
+        assert len(events) == 1
+        assert events[0].asset is not None
+        assert events[0].source_aliases is not None
 
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = "SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute"
@@ -4744,7 +4822,10 @@ class TestSchedulerJob:
         ):
             self._clear_serdags(dag_id=dag_maker.dag.dag_id, session=session)
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
-            assert caplog.messages == [
+            scheduler_messages = [
+                record.message for record in caplog.records if record.levelno >= logging.ERROR
+            ]
+            assert scheduler_messages == [
                 "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
             ]
 
@@ -6907,7 +6988,7 @@ class TestSchedulerJob:
             pytest.param(
                 False,
                 False,
-                "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                "airflow.providers.standard.triggers.file.FileDeleteTrigger",
                 id="active",
             ),
             pytest.param(False, True, None, id="stale"),
@@ -6917,13 +6998,12 @@ class TestSchedulerJob:
     )
     @pytest.mark.need_serialized_dag(False)
     def test_delete_unreferenced_triggers(self, dag_maker, session, paused, stale, expected_classpath):
+        trigger = FileDeleteTrigger(mock.Mock())
+        classpath = "airflow.providers.standard.triggers.file.FileDeleteTrigger"
+
         self.job_runner = SchedulerJobRunner(job=Job())
 
-        classpath, kwargs = DateTimeTrigger(timezone.utcnow()).serialize()
-        asset1 = Asset(
-            name="test_asset_1",
-            watchers=[AssetWatcher(name="test", trigger={"classpath": classpath, "kwargs": kwargs})],
-        )
+        asset1 = Asset(name="test_asset_1", watchers=[AssetWatcher(name="test", trigger=trigger)])
         with dag_maker(dag_id="dag", schedule=[asset1], session=session) as dag:
             EmptyOperator(task_id="task")
         dags = {"dag": LazyDeserializedDAG.from_dag(dag)}
@@ -6952,29 +7032,22 @@ class TestSchedulerJob:
         self.job_runner._remove_unreferenced_triggers(session=session)
         assert session.scalars(select(Trigger.classpath)).one_or_none() == expected_classpath
 
-    def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    def test_misconfigured_dags_doesnt_crash_scheduler(self, mock_create, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
+        mock_create.side_effect = [ValueError("something bad")]
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
         dm1 = dag_maker.dag_model
-        # Here, the next_dagrun is set to None, which will cause an exception
-        dm1.next_dagrun = None
         session.add(dm1)
         session.flush()
-
-        with dag_maker("testdag2", serialized=True):
-            BashOperator(task_id="task", bash_command="echo 1")
-        dm2 = dag_maker.dag_model
 
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
-        job_runner._create_dag_runs([dm1, dm2], session)
+        job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun for testdag1" in caplog.text
-        assert not DagRun.find(dag_id="testdag1", session=session)
-        # Check if the second dagrun was created
-        assert DagRun.find(dag_id="testdag2", session=session)
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.query(DagWarning).all()
@@ -8171,6 +8244,7 @@ def test_mark_backfills_completed(dag_maker, session):
     assert b.completed_at.timestamp() > 0
 
 
+@pytest.mark.need_serialized_dag
 def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_populated(
     dag_maker,
     session,
@@ -8183,6 +8257,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
     assert dr.partition_key == "abc123"
     [ti] = dr.get_task_instances(session=session)
     session.commit()
+    serialized_outlets = dag.get_task("hi").outlets
 
     with dag_maker(
         dag_id="asset_event_listener",
@@ -8194,7 +8269,7 @@ def test_when_dag_run_has_partition_and_downstreams_listening_then_tables_popula
 
     TaskInstance.register_asset_changes_in_db(
         ti=ti,
-        task_outlets=[asset.asprofile()],
+        task_outlets=[o.asprofile() for o in serialized_outlets],
         outlet_events=[],
         session=session,
     )

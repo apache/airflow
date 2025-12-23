@@ -129,6 +129,7 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
+        ("api", "base_url"): ("webserver", "base_url", "3.0"),
         ("api", "host"): ("webserver", "web_server_host", "3.0"),
         ("api", "port"): ("webserver", "web_server_port", "3.0"),
         ("api", "workers"): ("webserver", "workers", "3.0"),
@@ -156,6 +157,7 @@ class AirflowConfigParser(ConfigParser):
         ("api", "require_confirmation_dag_change"): ("webserver", "require_confirmation_dag_change", "3.1.0"),
         ("api", "instance_name"): ("webserver", "instance_name", "3.1.0"),
         ("api", "log_config"): ("api", "access_logfile", "3.1.0"),
+        ("scheduler", "ti_metrics_interval"): ("scheduler", "running_metrics_interval", "3.2.0"),
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -1077,13 +1079,15 @@ class AirflowConfigParser(ConfigParser):
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
         """Get config value as list."""
         val = self.get(section, key, **kwargs)
-        if val is None:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
-            raise AirflowConfigException(
-                f"Failed to convert value None to list. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
+
+        if isinstance(val, list) or val is None:
+            # `get` will always return a (possibly-empty) string, so the only way we can
+            # have these types is with `fallback=` was specified. So just return it.
+            return val
+
+        if val == "":
+            return []
+
         try:
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
@@ -1117,7 +1121,9 @@ class AirflowConfigParser(ConfigParser):
 
     def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
         """Get config value as list of enums."""
+        kwargs.setdefault("fallback", [])
         string_list = self.getlist(section, key, delimiter, **kwargs)
+
         enum_names = [enum_item.name for enum_item in enum_class]
         enum_list = []
 
@@ -1126,8 +1132,9 @@ class AirflowConfigParser(ConfigParser):
                 enum_list.append(enum_class[val])
             except KeyError:
                 log.warning(
-                    "Failed to convert value. Please check %s key in %s section. "
+                    "Failed to convert value %r. Please check %s key in %s section. "
                     "it must be one of %s, if not the value is ignored",
+                    val,
                     key,
                     section,
                     ", ".join(enum_names),
@@ -1276,7 +1283,7 @@ class AirflowConfigParser(ConfigParser):
         )
         return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
-    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True) -> bool:
+    def has_option(self, section: str, option: str, lookup_from_deprecated: bool = True, **kwargs) -> bool:
         """
         Check if option is defined.
 
@@ -1286,6 +1293,7 @@ class AirflowConfigParser(ConfigParser):
         :param section: section to get option from
         :param option: option to get
         :param lookup_from_deprecated: If True, check if the option is defined in deprecated sections
+        :param kwargs: additional keyword arguments to pass to get(), such as team_name
         :return:
         """
         try:
@@ -1296,6 +1304,7 @@ class AirflowConfigParser(ConfigParser):
                 _extra_stacklevel=1,
                 suppress_warnings=True,
                 lookup_from_deprecated=lookup_from_deprecated,
+                **kwargs,
             )
             if value is None:
                 return False
@@ -1518,32 +1527,37 @@ class AirflowConfigParser(ConfigParser):
         """
         return _is_template(self.configuration_description, section, key)
 
-    def getsection(self, section: str) -> ConfigOptionsDictType | None:
+    def getsection(self, section: str, team_name: str | None = None) -> ConfigOptionsDictType | None:
         """
         Return the section as a dict.
 
         Values are converted to int, float, bool as required.
 
         :param section: section from the config
+        :param team_name: optional team name for team-specific configuration lookup
         """
-        if not self.has_section(section) and not self._default_values.has_section(section):
+        # Handle team-specific section lookup for config file
+        config_section = f"{team_name}={section}" if team_name else section
+
+        if not self.has_section(config_section) and not self._default_values.has_section(config_section):
             return None
-        if self._default_values.has_section(section):
-            _section: ConfigOptionsDictType = dict(self._default_values.items(section))
+        if self._default_values.has_section(config_section):
+            _section: ConfigOptionsDictType = dict(self._default_values.items(config_section))
         else:
             _section = {}
 
-        if self.has_section(section):
-            _section.update(self.items(section))
+        if self.has_section(config_section):
+            _section.update(self.items(config_section))
 
-        section_prefix = self._env_var_name(section, "")
+        # Use section (not config_section) for env var lookup - team_name is handled by _env_var_name
+        section_prefix = self._env_var_name(section, "", team_name=team_name)
         for env_var in sorted(os.environ.keys()):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, "")
                 if key.endswith("_CMD"):
                     key = key[:-4]
                 key = key.lower()
-                _section[key] = self._get_env_var_option(section, key)
+                _section[key] = self._get_env_var_option(section, key, team_name=team_name)
 
         for key, val in _section.items():
             if val is None:

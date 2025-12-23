@@ -29,8 +29,8 @@ import {
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
-import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
+import type { DagRunTriggerParams } from "src/utils/trigger";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -80,9 +80,20 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
     const parsedConfig = JSON.parse(dagRunRequestBody.conf) as Record<string, unknown>;
 
     const logicalDate = dagRunRequestBody.logicalDate ? new Date(dagRunRequestBody.logicalDate) : undefined;
-
     // eslint-disable-next-line unicorn/no-null
     const formattedLogicalDate = logicalDate?.toISOString() ?? null;
+
+    const dataIntervalStart = dagRunRequestBody.dataIntervalStart
+      ? new Date(dagRunRequestBody.dataIntervalStart)
+      : undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedDataIntervalStart = dataIntervalStart?.toISOString() ?? null;
+
+    const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
+      ? new Date(dagRunRequestBody.dataIntervalEnd)
+      : undefined;
+    // eslint-disable-next-line unicorn/no-null
+    const formattedDataIntervalEnd = dataIntervalEnd?.toISOString() ?? null;
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
@@ -92,9 +103,11 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
       requestBody: {
         conf: parsedConfig,
         dag_run_id: checkDagRunId,
+        data_interval_end: formattedDataIntervalEnd,
+        data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? null,
+        partition_key: dagRunRequestBody.partitionKey ?? undefined,
       },
     });
   };

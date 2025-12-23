@@ -68,9 +68,10 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
-from airflow.sdk.definitions.asset import Asset, AssetUniqueKey
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
@@ -247,11 +248,7 @@ def ti_run(
 
             xcom_keys = list(session.scalars(xcom_query))
         task_reschedule_count = (
-            session.query(
-                func.count(TaskReschedule.id)  # or any other primary key column
-            )
-            .filter(TaskReschedule.ti_id == ti_id_str)
-            .scalar()
+            session.scalar(select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == ti_id_str))
             or 0
         )
 
@@ -303,7 +300,7 @@ def _get_upstream_map_indexes(
         if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task.get_closest_mapped_task_group() == upstream_mapped_group:
+        elif task.get_closest_mapped_task_group() is upstream_mapped_group:
             # tasks in the same mapped task group hierarchy
             map_indexes = ti.map_index
         else:
@@ -415,10 +412,10 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
-        query = query.values(state=TaskInstanceState.FAILED)
+        query = query.values(state=(updated_state := TaskInstanceState.FAILED))
         if ti is not None:
             _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
 
@@ -465,7 +462,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -482,7 +479,7 @@ def _create_ti_state_update_query_and_update_state(
             if ti is not None:
                 TI.register_asset_changes_in_db(
                     ti,
-                    ti_patch_payload.task_outlets,  # type: ignore
+                    ti_patch_payload.task_outlets,
                     ti_patch_payload.outlet_events,
                     session,
                 )
@@ -532,7 +529,7 @@ def _create_ti_state_update_query_and_update_state(
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
         # set the value to milliseconds instead of seconds. There's another check when
         # we actually try to reschedule to ensure database coherence.
-        if session.get_bind().dialect.name == "mysql":
+        if get_dialect_name(session) == "mysql":
             # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
             _MYSQL_TIMESTAMP_MAX = timezone.datetime(2038, 1, 19, 3, 14, 7)
             if ti_patch_payload.reschedule_date > _MYSQL_TIMESTAMP_MAX:
@@ -547,22 +544,22 @@ def _create_ti_state_update_query_and_update_state(
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                ti = session.get(TI, ti_id_str)
-                if ti is not None:
-                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
+                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
+                # in SQLA2. The task is marked as FAILED regardless.
                 return query, TaskInstanceState.FAILED
 
-        task_instance = session.get(TI, ti_id_str)
+        # We can directly use ti_id_str instead of fetching the TaskInstance object to avoid SQLA2
+        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
-        if task_instance is not None and task_instance.id is not None:
-            session.add(
-                TaskReschedule(
-                    UUID(str(task_instance.id)),
-                    actual_start_date,
-                    ti_patch_payload.end_date,
-                    ti_patch_payload.reschedule_date,
-                )
+        session.add(
+            TaskReschedule(
+                ti_id_str,
+                actual_start_date,
+                ti_patch_payload.end_date,
+                ti_patch_payload.reschedule_date,
             )
+        )
 
         query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
@@ -1010,17 +1007,25 @@ def validate_inlets_and_outlets(
             with contextlib.suppress(TaskNotFound):
                 ti.task = dag.get_task(ti.task_id)
 
-    inlets = [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, Asset)] if ti.task else []
-    outlets = [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, Asset)] if ti.task else []
+    inlets = (
+        [asset.asprofile() for asset in ti.task.inlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
+    outlets = (
+        [asset.asprofile() for asset in ti.task.outlets if isinstance(asset, SerializedAsset)]
+        if ti.task
+        else []
+    )
     if not (inlets or outlets):
         return InactiveAssetsResponse(inactive_assets=[])
 
-    all_asset_unique_keys: set[AssetUniqueKey] = {
-        AssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
+    all_asset_unique_keys: set[SerializedAssetUniqueKey] = {
+        SerializedAssetUniqueKey.from_asset(inlet_or_outlet)  # type: ignore
         for inlet_or_outlet in itertools.chain(inlets, outlets)
     }
     active_asset_unique_keys = {
-        AssetUniqueKey(name, uri)
+        SerializedAssetUniqueKey(name, uri)
         for name, uri in session.execute(
             select(AssetActive.name, AssetActive.uri).where(
                 tuple_(AssetActive.name, AssetActive.uri).in_(
@@ -1032,10 +1037,7 @@ def validate_inlets_and_outlets(
     different = all_asset_unique_keys - active_asset_unique_keys
 
     return InactiveAssetsResponse(
-        inactive_assets=[
-            asset_unique_key.to_asset().asprofile()  # type: ignore
-            for asset_unique_key in different
-        ]
+        inactive_assets=[asset_unique_key.asprofile() for asset_unique_key in different],
     )
 
 

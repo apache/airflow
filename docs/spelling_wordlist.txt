@@ -1044,6 +1044,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1522,6 +1523,7 @@ replicaSet
 repo
 repos
 repr
+reprocessed
 req
 reqs
 requeue
