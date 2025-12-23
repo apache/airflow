@@ -151,12 +151,17 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
-
-        # for each log_stream, exhaust the generator into a string
         logs = []
-        for log_stream in log_streams:
-            log_content = "".join(line for line in log_stream)
-            logs.append(log_content)
+
+        try:
+            # for each log_stream, exhaust the generator into a string
+            for log_stream in log_streams:
+                log_content = "".join(line for line in log_stream)
+                logs.append(log_content)
+        except Exception as e:
+            if not AIRFLOW_V_3_0_PLUS:
+                messages.append(f"Unable to read remote log {e}")
+
         return messages, logs
 
     def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:

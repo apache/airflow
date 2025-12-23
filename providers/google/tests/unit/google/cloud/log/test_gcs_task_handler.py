@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import logging
 import os
 from unittest import mock
@@ -24,13 +25,30 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
+from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
+from airflow.sdk import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
+class TestGCSRemoteLogIO:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self, create_runtime_ti):
+        # setup remote IO
+        self.base_log_folder = "local/airflow/logs"
+        self.gcs_log_folder = "gs://bucket/remote/log/location"
+        self.gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=self.base_log_folder,
+            delete_local_copy=True,
+        )
+        # setup task instance
+        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
 
 
 @pytest.mark.db_test
@@ -105,7 +123,9 @@ class TestGCSTaskHandler:
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
-        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+        mock_blob.from_string.return_value.open.return_value = io.TextIOWrapper(
+            io.BytesIO(b"CONTENT"), encoding="utf-8"
+        )
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
         session.add(ti)
@@ -137,7 +157,7 @@ class TestGCSTaskHandler:
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
-        mock_blob.from_string.return_value.download_as_bytes.side_effect = Exception("Failed to connect")
+        mock_blob.from_string.return_value.open.side_effect = Exception("Failed to connect")
 
         self.gcs_task_handler.set_context(self.ti)
         ti = copy.copy(self.ti)
@@ -297,7 +317,9 @@ class TestGCSTaskHandler:
         delete_local_copy,
         expected_existence_of_local_copy,
     ):
-        mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
+        mock_blob.from_string.return_value.open.return_value = io.TextIOWrapper(
+            io.BytesIO(b"CONTENT"), encoding="utf-8"
+        )
         with conf_vars({("logging", "delete_local_logs"): str(delete_local_copy)}):
             handler = GCSTaskHandler(
                 base_log_folder=local_log_location,
