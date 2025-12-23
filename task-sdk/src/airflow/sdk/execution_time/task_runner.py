@@ -1384,9 +1384,15 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
         from airflow.sdk.serde import deserialize
 
-        kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})  # type: ignore # mypy is wrong here, passing dict[str, Any] to deserialize will lead to dict[str, Any]
+        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+        try:
+            kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})  # type: ignore # mypy is wrong here, passing dict[str, Any] to deserialize will lead to dict[str, Any]
+        except (ImportError, KeyError, AttributeError, TypeError):
+            from airflow.serialization.serialized_objects import BaseSerialization
 
-        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs) # type: ignore # mypy is wrong here, passing dict[str, Any] to deserialize will lead to dict[str, Any]
+            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
+        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
     ctx = contextvars.copy_context()
     # Populate the context var so ExecutorSafeguard doesn't complain

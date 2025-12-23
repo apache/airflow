@@ -165,7 +165,13 @@ class Trigger(Base):
                 get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8")
             )
 
-        return deserialize(decrypted_kwargs)  # type: ignore[return-value] # mypy is wrong here, passing dict[str, Any] to deserialize will return the same type
+        try:
+            return deserialize(decrypted_kwargs)  # type: ignore[return-value]
+        except (ImportError, KeyError, AttributeError, TypeError):
+            # Backward compatibility: fall back to BaseSerialization for old format
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            return BaseSerialization.deserialize(decrypted_kwargs)
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
