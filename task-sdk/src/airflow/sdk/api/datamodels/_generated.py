@@ -181,10 +181,10 @@ class TIDeferredStatePayload(BaseModel):
     )
     state: Annotated[Literal["deferred"] | None, Field(title="State")] = "deferred"
     classpath: Annotated[str, Field(title="Classpath")]
-    trigger_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Trigger Kwargs")] = None
+    trigger_kwargs: Annotated[JsonValue | str | None, Field(title="Trigger Kwargs")] = None
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
     next_method: Annotated[str, Field(title="Next Method")]
-    next_kwargs: Annotated[dict[str, Any] | None, Field(title="Next Kwargs")] = None
+    next_kwargs: JsonValue | None = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
