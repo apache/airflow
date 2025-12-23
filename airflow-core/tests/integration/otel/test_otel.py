@@ -34,11 +34,12 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.models import DAG, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
 
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.otel_utils import (
     assert_parent_children_spans,
     assert_parent_children_spans_for_non_root,
@@ -673,7 +674,7 @@ class TestOtelIntegration:
                     SerializedDAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
-                    dag_dict[dag_id] = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+                    dag_dict[dag_id] = create_scheduler_dag(dag)
                 else:
                     dag.sync_to_db(session=session)
                     dag_dict[dag_id] = dag
