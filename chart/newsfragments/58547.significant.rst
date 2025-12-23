@@ -7,7 +7,7 @@ Why is this needed?
 1. Flexible Worker Topologies
 As Airflow adoption grows, platform teams often need to route tasks exclusively to specialized worker sets (e.g., GPU-optimized, Memory-optimized) without maintaining a generic "default" worker.
 
-Enhancement: The new workers.enableDefault flag allows users to configure a deployment consisting only of specialized worker sets defined in workers.celery.sets. This provides greater flexibility for teams to design their worker architecture exactly as needed.
+Enhancement: The new ``workers.enableDefault`` flag allows users to configure a deployment consisting only of specialized worker sets defined in ``workers.celery.sets``. This provides greater flexibility for teams to design their worker architecture exactly as needed.
 2. Multi-Queue Autoscaling Support
 Complex workflows often require a single worker set to handle tasks from multiple specific queues (e.g., queue: "high-priority,vip").
 
