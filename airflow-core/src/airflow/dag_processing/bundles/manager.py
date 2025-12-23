@@ -230,7 +230,7 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
-        stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
+        stored = {b.name: b for b in session.query(DagBundleModel).all()}
         bundle_to_team = {
             bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
             for bundle in stored.values()
