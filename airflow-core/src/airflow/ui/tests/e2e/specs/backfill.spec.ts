@@ -31,7 +31,7 @@ const getPastDate = (daysAgo: number): string => {
   return date.toISOString().slice(0, 16);
 };
 
-test.describe.serial("Backfill Tabs", () => {
+test.describe("Backfill Tabs", () => {
   let backfillPage: BackfillPage;
 
   const allRunsDagId = "example_nested_branch_dag";
