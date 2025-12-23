@@ -198,6 +198,7 @@ class KubernetesPodOperatorCallback:
         mode: str,
         container_name: str,
         timestamp: DateTime | None,
+        pod: k8s.V1Pod,
         **kwargs,
     ) -> None:
         """
@@ -208,5 +209,6 @@ class KubernetesPodOperatorCallback:
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         :param container_name: the name of the container from which the log line was read.
         :param timestamp: the timestamp of the log line.
+        :param pod: the pod from which the log line was read.
         """
         pass

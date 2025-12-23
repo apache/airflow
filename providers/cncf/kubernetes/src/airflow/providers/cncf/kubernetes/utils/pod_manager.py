@@ -494,6 +494,7 @@ class PodManager(LoggingMixin):
                                         mode=ExecutionMode.SYNC,
                                         container_name=container_name,
                                         timestamp=message_timestamp,
+                                        pod=pod,
                                     )
                                 self._log_message(
                                     message_to_log,
@@ -518,6 +519,7 @@ class PodManager(LoggingMixin):
                                 mode=ExecutionMode.SYNC,
                                 container_name=container_name,
                                 timestamp=message_timestamp,
+                                pod=pod,
                             )
                         self._log_message(
                             message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
