@@ -17,7 +17,7 @@ Different worker sets may require different operational strategies within the sa
 
 Enhancement: This change improves the configuration merge logic, allowing individual worker sets to override global settings. For example, a user can now enable KEDA globally but explicitly disable it for a specific worker set that requires a static number of replicas.
 Changes
-New Feature: Added workers.enableDefault (default: true) to values.yaml.
+New Feature: Added ``workers.enableDefault`` (default: true) to values.yaml.
 Enhancement: Updated worker-kedaautoscaler.yaml to use SQL IN clause for queue filtering, supporting multi-queue configurations (e.g., queue: "a,b" -> AND queue IN ('a','b')).
 Refactor: Standardized template rendering to ensure consistent behavior between the default worker and workers.celery.sets.
 
