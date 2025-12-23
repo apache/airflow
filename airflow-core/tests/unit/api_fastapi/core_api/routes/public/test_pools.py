@@ -991,7 +991,7 @@ class TestBulkPools(TestPoolsEndpoint):
         assert response_data["update"]["success"] == ["pool1"]
 
         # Assert: fetch from DB and check only masked field changed
-        updated_pool = session.scalars(select(Pool).where(Pool.pool == "pool1")).one()
+        updated_pool = session.execute(select(Pool).where(Pool.pool == "pool1")).scalar_one()
         assert updated_pool.slots == 50  # updated
         assert updated_pool.description is None  # unchanged
         assert updated_pool.include_deferred is True  # unchanged
