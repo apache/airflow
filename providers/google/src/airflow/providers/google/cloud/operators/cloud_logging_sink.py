@@ -25,7 +25,7 @@ import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.logging_v2.types import LogSink
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_logging import CloudLoggingHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 

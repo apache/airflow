@@ -31,7 +31,7 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook, DataProcJobBuilder
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version

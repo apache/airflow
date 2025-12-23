@@ -27,8 +27,8 @@ import pytest
 from requests import exceptions as requests_exceptions
 from requests.models import Response
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DBT_CAUSE_MAX_LENGTH,
     DbtCloudHook,

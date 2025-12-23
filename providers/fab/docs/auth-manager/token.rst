@@ -21,12 +21,17 @@ Generate JWT token with FAB auth manager
 .. note::
     This guide only applies if your environment is configured with FAB auth manager.
 
-In order to use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you need a JWT token for authentication.
-You can then include this token in your Airflow public API requests.
-To generate a JWT token, use the ``Create Token`` API in :doc:`/api-ref/fab-token-api-ref`.
+To use the :doc:`Airflow public API <apache-airflow:stable-rest-api-ref>`, you first need to obtain a JWT Token for
+authentication.
+Once you have the token, include it in the ``Authorization`` header when making requests to the public API.
+
+You can generate a JWT token using the ``Create Token`` API endpoint,
+documented in :doc:`/api-ref/fab-token-api-ref`.
 
 Example
 '''''''
+
+Use the following example to generate a token via username and password.
 
 .. code-block:: bash
 
@@ -39,7 +44,112 @@ Example
         "password": "<password>"
         }'
 
-This process will return a token that you can use in the Airflow public API requests.
+If successful, this request returns a JWT token that you can use for subsequent Airflow public API calls.
 
-Only users from database (`AUTH_TYPE = AUTH_DB`) or from LDAP (`AUTH_TYPE = AUTH_LDAP`) can be used to generate a token.
-See :doc:`Airflow public API <webserver-authentication>` for more details.
+Only users authenticated via the database (``AUTH_TYPE = AUTH_DB``) or LDAP
+(``AUTH_TYPE = AUTH_LDAP``) can generate tokens using this method.
+For more details, see :doc:`webserver-authentication`.
+
+If you need to generate a token using a different authentication mechanism, see the next section.
+
+Custom authentication implementation
+------------------------------------
+
+By default, JWT tokens for the Airflow public API can only be generated using
+basic authentication (username and password) for database or LDAP users.
+
+If you want to support another authentication mechanism, such as oauth, you can do so by overriding the
+``create_token`` method in the FAB auth manager.
+
+Example
+'''''''
+
+.. code-block:: python
+
+    class MyAuthManager(FabAuthManager):
+
+        def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User:
+            """
+            Return the authenticated user for a given payload.
+
+            Implement your own custom token creation logic here.
+            """
+            ...
+
+Oauth example
+'''''''''''''
+
+Below is an example implementation that uses OAuth to allow users to obtain a JWT token.
+This custom logic overrides the default ``create_token`` method from the FAB authentication manager.
+
+.. warning::
+    The example shown below disables signature verification (``verify_signature=False``).
+    This is **insecure** and should only be used for testing. Always validate tokens properly in production.
+    Furthermore you need to make sure that the claims of the JWT are valid.
+    Critical claims that you must verify are for example (but not limited to):
+    - ``iss`` (issuer)
+    - ``aud`` (audience)
+    - ``nbf`` (not before time)
+    - ``exp`` (expiration time)
+    Refer to the documentation of your identity provider for more information.
+
+.. code-block:: python
+
+    class MyAuthManager(FabAuthManager):
+
+        def create_token(self, headers: dict[str, str], body: dict[str, Any]) -> User:
+            """
+            Return the authenticated user derived from an OAuth access token.
+
+            Implement your own custom token validation and user mapping logic here.
+            """
+            user = None
+
+            # Handle OAuth-based authentication
+            if self.security_manager.auth_type == AUTH_OAUTH:
+                # Require a Bearer token
+                auth_header = headers.get("Authorization")
+                if not auth_header:
+                    return None
+
+                token = auth_header.replace("Bearer ", "")
+
+                # Example token decoding
+                #
+                # With signature validation (recommended):
+                # me = jwt.decode(
+                #     token,
+                #     public_key,
+                #     algorithms=['HS256', 'RS256'],
+                #     audience=CLIENT_ID,
+                #     issuer=ISSUER_URL,
+                # )
+                #
+                # Without signature validation (not recommended):
+                me = jwt.decode(token, options={"verify_signature": False})
+
+                # Extract groups/roles (example schema — adjust to your provider)
+                groups = me["resource_access"]["airflow"]["roles"]  # requires validation
+                if not groups:
+                    groups = ["airflow_public"]
+                else:
+                    groups = [g for g in groups if "airflow" in g]
+
+                # Build user info payload for FAB
+                userinfo = {
+                    "username": me.get("preferred_username"),
+                    "email": me.get("email"),
+                    "first_name": me.get("given_name"),
+                    "last_name": me.get("family_name"),
+                    "role_keys": groups,
+                }
+
+                user = self.security_manager.auth_user_oauth(userinfo, rotate_session_id=False)
+
+            # Fall back to the default implementation
+            else:
+                user = super().create_token(headers=headers, body=body)
+
+            log.info("User: %s", user)
+
+            return user

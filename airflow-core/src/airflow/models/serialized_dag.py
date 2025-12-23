@@ -43,9 +43,9 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
-from airflow.sdk.definitions.asset import AssetUniqueKey
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey as UKey
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -55,6 +55,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql.elements import ColumnElement
+
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 
 log = logging.getLogger(__name__)
@@ -67,7 +70,7 @@ class _DagDependenciesResolver:
         self.dag_id_dependencies = dag_id_dependencies
         self.session = session
 
-        self.asset_key_to_id: dict[AssetUniqueKey, int] = {}
+        self.asset_key_to_id: dict[UKey, int] = {}
         self.asset_ref_name_to_asset_id_name: dict[str, tuple[int, str]] = {}
         self.asset_ref_uri_to_asset_id_name: dict[str, tuple[int, str]] = {}
         self.alias_names_to_asset_ids_names: dict[str, list[tuple[int, str]]] = {}
@@ -97,7 +100,7 @@ class _DagDependenciesResolver:
                     # Replace asset_key with asset id if it's in source or target
                     for node_key in ("source", "target"):
                         if dep_data[node_key].startswith("asset:"):
-                            unique_key = AssetUniqueKey.from_str(dep_data[node_key].split(":")[1])
+                            unique_key = UKey.from_str(dep_data[node_key].split(":")[1])
                             asset_id = self.asset_key_to_id[unique_key]
                             dep_data[node_key] = f"asset:{asset_id}"
                             break
@@ -127,7 +130,7 @@ class _DagDependenciesResolver:
                 dep_type = dep_data["dependency_type"]
                 dep_id = dep_data["dependency_id"]
                 if dep_type == "asset":
-                    unique_key = AssetUniqueKey.from_str(dep_id)
+                    unique_key = UKey.from_str(dep_id)
                     asset_names_uris.add((unique_key.name, unique_key.uri))
                 elif dep_type == "asset-name-ref":
                     asset_ref_names.add(dep_id)
@@ -137,9 +140,9 @@ class _DagDependenciesResolver:
                     asset_alias_names.add(dep_id)
         return asset_names_uris, asset_ref_names, asset_ref_uris, asset_alias_names
 
-    def collect_asset_key_to_ids(self, asset_name_uris: set[tuple[str, str]]) -> dict[AssetUniqueKey, int]:
+    def collect_asset_key_to_ids(self, asset_name_uris: set[tuple[str, str]]) -> dict[UKey, int]:
         return {
-            AssetUniqueKey(name=name, uri=uri): asset_id
+            UKey(name=name, uri=uri): asset_id
             for name, uri, asset_id in self.session.execute(
                 select(AssetModel.name, AssetModel.uri, AssetModel.id).where(
                     tuple_(AssetModel.name, AssetModel.uri).in_(asset_name_uris)
@@ -177,7 +180,7 @@ class _DagDependenciesResolver:
 
     def resolve_asset_dag_dep(self, dep_data: dict) -> DagDependency:
         dep_id = dep_data["dependency_id"]
-        unique_key = AssetUniqueKey.from_str(dep_id)
+        unique_key = UKey.from_str(dep_id)
         return DagDependency(
             source=dep_data["source"],
             target=dep_data["target"],
@@ -568,14 +571,14 @@ class SerializedDagModel(Base):
     @property
     def dag(self) -> SerializedDAG:
         """The DAG deserialized from the ``data`` column."""
-        SerializedDAG._load_operator_extra_links = self.load_op_links
+        DagSerialization._load_operator_extra_links = self.load_op_links
         if isinstance(self.data, dict):
             data = self.data
         elif isinstance(self.data, str):
             data = json.loads(self.data)
         else:
             raise ValueError("invalid or missing serialized DAG data")
-        return SerializedDAG.from_dict(data)
+        return DagSerialization.from_dict(data)
 
     @classmethod
     @provide_session

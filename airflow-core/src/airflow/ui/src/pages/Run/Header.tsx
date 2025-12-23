@@ -65,7 +65,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
     setNote(dagRun.note ?? "");
   };
 
-  const containerRef = useRef<HTMLDivElement>();
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const containerWidth = useContainerWidth(containerRef);
 
   return (

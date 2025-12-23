@@ -28,13 +28,13 @@ import pytest
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,

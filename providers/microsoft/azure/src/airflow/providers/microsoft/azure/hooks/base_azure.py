@@ -22,8 +22,7 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,

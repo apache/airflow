@@ -40,17 +40,18 @@ export const DateFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
       displayValue={displayValue}
       filter={filter}
       hasValue={hasValue}
-      onChange={onChange}
       onRemove={onRemove}
-    >
-      <DateTimeInput
-        borderRadius="full"
-        onChange={handleDateChange}
-        placeholder={filter.config.placeholder}
-        size="sm"
-        value={typeof filter.value === "string" ? filter.value : ""}
-        width="200px"
-      />
-    </FilterPill>
+      renderInput={(props) => (
+        <DateTimeInput
+          {...props}
+          borderRadius="full"
+          onChange={handleDateChange}
+          placeholder={filter.config.placeholder}
+          size="sm"
+          value={typeof filter.value === "string" ? filter.value : ""}
+          width="200px"
+        />
+      )}
+    />
   );
 };

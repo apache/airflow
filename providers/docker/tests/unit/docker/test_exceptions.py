@@ -31,7 +31,7 @@ from airflow.providers.docker.exceptions import (
 from airflow.providers.docker.operators.docker import DockerOperator
 
 FAILED_MESSAGE = {"StatusCode": 1}
-FAILED_LOGS = ["unicode container log 😁   ", b"byte string container log"]
+FAILED_LOGS = ["unicode container log 😁   \n", b"byte string container log\n"]
 EXPECTED_MESSAGE = f"Docker container failed: {FAILED_MESSAGE}"
 FAILED_SKIP_MESSAGE = {"StatusCode": 2}
 SKIP_ON_EXIT_CODE = 2
@@ -77,4 +77,4 @@ class TestDockerContainerExceptions:
                 operator.execute(None)
 
         assert str(raised_exception.value) == expected_message
-        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
+        assert raised_exception.value.logs == [log_line[0].rstrip(), log_line[1].decode("utf-8").rstrip()]

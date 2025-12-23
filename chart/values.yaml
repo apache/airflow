@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.1.3"
+defaultAirflowTag: "3.1.5"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.1.3"
+airflowVersion: "3.1.5"
 
 # Images
 images:
@@ -692,6 +692,16 @@ workers:
   # Airflow Celery workers and pods created with pod-template-file
   containerLifecycleHooks: {}
 
+  # Worker pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
     # default value is true
@@ -1096,7 +1106,7 @@ scheduler:
 
   # Create ServiceAccount
   serviceAccount:
-    # only affect CeleryExecutor, default value is true
+    # affects all executors that launch pods, default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
     # Specifies whether a ServiceAccount should be created
@@ -1107,6 +1117,21 @@ scheduler:
 
     # Annotations to add to scheduler kubernetes service account.
     annotations: {}
+
+    # Service Account Token Volume configuration
+    # This is only used when automountServiceAccountToken is false
+    # and allows manual configuration of the service account token volume
+    serviceAccountTokenVolume:
+      # Enable manual service account token volume configuration
+      enabled: false
+      # Path where the service account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      # Name of the volume
+      volumeName: kube-api-access
+      # Token expiration in seconds (default: 1 hour)
+      expirationSeconds: 3600
+      # Audience for the token
+      audience: ~
 
   # Scheduler pod disruption budget
   podDisruptionBudget:
@@ -1212,6 +1237,8 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Whether the create user job should be created
+  enabled: true
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
@@ -1416,6 +1443,8 @@ migrateDatabaseJob:
 apiServer:
   enabled: true
   # Number of Airflow API servers in the deployment
+  # This setting is ignored when HPA (Horizontal Pod Autoscaler) is enabled,
+  # as HPA will automatically manage the number of replicas based on the configured metrics.
   replicas: 1
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1429,6 +1458,31 @@ apiServer:
   args: ["bash", "-c", "exec airflow api-server"]
   allowPodLogReading: true
   env: []
+
+  # Allow Horizontal Pod Autoscaler (HPA) configuration for apiServer. (optional)
+  # HPA automatically scales the number of apiServer pods based on observed metrics.
+  # HPA automatically adjusts apiServer replicas between minReplicaCount and maxReplicaCount based on metrics.
+  hpa:
+    enabled: false
+
+    # Minimum number of api-servers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of api-servers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 50
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   serviceAccount:
     # default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
@@ -1889,6 +1943,16 @@ triggerer:
     fixPermissions: false
     # Annotations to add to triggerer volumes
     annotations: {}
+
+  # Triggerer pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
 
   resources: {}
   #  limits:
@@ -3012,6 +3076,7 @@ config:
   celery:
     flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
+    sync_parallelism: '{{ include "cpu_count" (((.Values.scheduler).resources).limits).cpu }}'
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" (or (semverCompare ">=3.0.0" .Values.airflowVersion) (.Values.dagProcessor.enabled | default false)) }}'
     # statsd params included for Airflow 1.10 backward compatibility; moved to [metrics] in 2.0

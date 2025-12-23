@@ -37,13 +37,13 @@ repos:
         files: |
           (?x)
           ^src/airflow/providers/edge3/plugins/www/.*\.(js|ts|tsx|yaml|css|json)$|
-          ^src/airflow/providers/edge3/openapi/v2-edge-generated.yaml$
+          ^src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml$
         exclude: |
           (?x)
           ^src/airflow/providers/edge3/plugins/www/node-modules/.*|
           ^src/airflow/providers/edge3/plugins/www/.pnpm-store
         entry: ../../scripts/ci/prek/ts_compile_lint_edge.py
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
       - id: compile-edge-assets

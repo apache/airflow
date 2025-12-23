@@ -20,13 +20,13 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.kinesis_analytics import (
     KinesisAnalyticsV2ApplicationOperationCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

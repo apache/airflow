@@ -28,6 +28,12 @@ Defining Dags
 .. autoapiclass:: airflow.sdk.DAG
 
 
+Configuration
+-------------
+
+The ``conf`` object is available as part of the Task SDK. It provides an interface to the
+configurations, allowing you to read and interact with Airflow configuration values.
+
 Decorators
 ----------
 .. autoapifunction:: airflow.sdk.dag
@@ -157,6 +163,10 @@ Execution Time Components
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
+
+Observability
+-------------
+.. autoclass:: airflow.sdk.Trace
 
 Everything else
 ---------------

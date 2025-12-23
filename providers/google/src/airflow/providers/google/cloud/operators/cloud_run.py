@@ -25,7 +25,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.run_v2 import Job, Service
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook, CloudRunServiceHook
 from airflow.providers.google.cloud.links.cloud_run import CloudRunJobLoggingLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

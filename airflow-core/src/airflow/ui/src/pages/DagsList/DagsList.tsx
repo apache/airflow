@@ -291,10 +291,9 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
-          placeHolder={translate("dags:search.dags")}
+          placeholder={translate("dags:search.dags")}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

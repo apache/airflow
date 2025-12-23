@@ -16,9 +16,90 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+import argparse
+import importlib
+from unittest.mock import patch
+
+import pytest
+
+from airflow.cli import cli_parser
+from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS, Password
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestKeycloakCliDefinition:
-    def test_aws_auth_manager_cli_commands(self):
+    @classmethod
+    def setup_class(cls):
+        with conf_vars(
+            {
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
+            }
+        ):
+            importlib.reload(cli_parser)
+            cls.arg_parser = cli_parser.get_parser()
+
+    def test_keycloak_auth_manager_cli_commands(self):
         assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 4
+
+    @pytest.mark.parametrize(
+        "command",
+        ["create-scopes", "create-resources", "create-permissions", "create-all"],
+    )
+    def test_password_with_explicit_value(self, command):
+        """Test commands are defined correctly to allow passing password explicitly via --password value."""
+        params = [
+            "keycloak-auth-manager",
+            command,
+            "--username",
+            "test",
+            "--password",
+            "my_password",
+        ]
+        args = self.arg_parser.parse_args(params)
+        assert args.password == "my_password"
+
+    @pytest.mark.parametrize(
+        "command",
+        ["create-scopes", "create-resources", "create-permissions", "create-all"],
+    )
+    @patch("getpass.getpass", return_value="stdin_password")
+    def test_password_from_stdin(self, mock_getpass, command):
+        """Test commands are defined correctly to allow password prompting from stdin when --password has no value."""
+        params = [
+            "keycloak-auth-manager",
+            command,
+            "--username",
+            "test",
+            "--password",
+        ]
+        args = self.arg_parser.parse_args(params)
+        mock_getpass.assert_called_once_with(prompt="Password: ")
+        assert args.password == "stdin_password"
+
+
+class TestPasswordAction:
+    """Tests for the Password argparse action."""
+
+    def test_password_with_explicit_value(self):
+        """Test passing password explicitly via --password value."""
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--password", action=Password, nargs="?", dest="password")
+
+        args = parser.parse_args(["--password", "my_password"])
+        assert args.password == "my_password"
+
+    @patch("getpass.getpass", return_value="stdin_password")
+    def test_password_from_stdin(self, mock_getpass):
+        """Test password prompted from stdin when --password has no value."""
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--password", action=Password, nargs="?", dest="password")
+
+        args = parser.parse_args(["--password"])
+        mock_getpass.assert_called_once_with(prompt="Password: ")
+        assert args.password == "stdin_password"

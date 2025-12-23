@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -62,7 +62,11 @@ def delete_variable(
     session: SessionDep,
 ):
     """Delete a variable entry."""
-    if Variable.delete(variable_key, session) == 0:
+    # Like the other endpoints (get, patch), we do not use Variable.delete/get/set here because these methods
+    # are intended to be used in task execution environment (execution API)
+    result = session.execute(delete(Variable).where(Variable.key == variable_key))
+    rows = getattr(result, "rowcount", 0) or 0
+    if rows == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )

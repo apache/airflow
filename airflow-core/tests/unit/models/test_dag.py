@@ -36,6 +36,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
@@ -71,8 +72,9 @@ from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.param import Param
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import coerce_to_core_timetable
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -81,7 +83,6 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils.file import list_py_file_paths
-from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -391,10 +392,8 @@ class TestDag:
     def test_bulk_write_to_db(self, testing_dag_bundle):
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(4)
         ]
@@ -478,10 +477,8 @@ class TestDag:
         """
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(1)
         ]
@@ -509,10 +506,8 @@ class TestDag:
         """
         clear_db_dags()
         dags = [
-            SerializedDAG.deserialize_dag(
-                SerializedDAG.serialize_dag(
-                    DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
-                )
+            create_scheduler_dag(
+                DAG(f"dag-bulk-sync-{i}", schedule=None, start_date=DEFAULT_DATE, tags=["test-dag"])
             )
             for i in range(4)
         ]
@@ -544,14 +539,8 @@ class TestDag:
         mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
         with mock.patch.object(DagRun, "active_runs_of_dags", mock_active_runs_of_dags):
             dags_null_timetable = [
-                SerializedDAG.deserialize_dag(
-                    SerializedDAG.serialize_dag(DAG("dag-interval-None", schedule=None, start_date=TEST_DATE))
-                ),
-                SerializedDAG.deserialize_dag(
-                    SerializedDAG.serialize_dag(
-                        DAG("dag-interval-test", schedule=interval, start_date=TEST_DATE)
-                    )
-                ),
+                create_scheduler_dag(DAG("dag-interval-None", schedule=None, start_date=TEST_DATE)),
+                create_scheduler_dag(DAG("dag-interval-test", schedule=interval, start_date=TEST_DATE)),
             ]
             SerializedDAG.bulk_write_to_db("testing", None, dags_null_timetable)
             if interval:
@@ -690,7 +679,7 @@ class TestDag:
         )
 
         session = settings.Session()
-        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag1)).clear()
+        create_scheduler_dag(dag1).clear()
         SerializedDAG.bulk_write_to_db("testing", None, [dag1, dag2], session=session)
         session.commit()
         stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
@@ -959,6 +948,7 @@ class TestDag:
             dag_run.handle_dag_callback(dag=dag, success=False)
             dag_run.handle_dag_callback(dag=dag, success=True)
 
+    @time_machine.travel(timezone.datetime(2025, 11, 11))
     @pytest.mark.parametrize(("catchup", "expected_next_dagrun"), [(True, DEFAULT_DATE), (False, None)])
     def test_next_dagrun_after_fake_scheduled_previous(
         self, catchup, expected_next_dagrun, testing_dag_bundle
@@ -994,11 +984,9 @@ class TestDag:
             model = session.get(DagModel, dag.dag_id)
 
         if expected_next_dagrun is None:
-            # For catchup=False, next_dagrun should be based on the current date
-            current_time = timezone.utcnow()
             # Verify it's not using the old default date
-            assert model.next_dagrun.year == current_time.year
-            assert model.next_dagrun.month == current_time.month
+            assert model.next_dagrun.year == 2025
+            assert model.next_dagrun.month == 11
             # Verify next_dagrun_create_after is scheduled after next_dagrun
             assert model.next_dagrun_create_after > model.next_dagrun
         else:
@@ -2757,12 +2745,12 @@ def test_iter_dagrun_infos_between_error(caplog):
 
     assert caplog.record_tuples == [
         (
-            "airflow.serialization.serialized_objects",
+            "airflow.serialization.definitions.dag",
             logging.ERROR,
             f"Failed to fetch run info after data interval {DataInterval(start, end)} for DAG {dag.dag_id!r}",
         ),
     ]
-    assert caplog.entries[0].get("exc_info") is not None, "should contain exception context"
+    assert caplog.entries[0].get("exception"), "should contain exception context"
 
 
 @pytest.mark.parametrize(
@@ -2941,7 +2929,7 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
             f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
         ),
     ):
-        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag)).create_dagrun(
+        create_scheduler_dag(dag).create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
             logical_date=DEFAULT_DATE,

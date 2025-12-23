@@ -41,6 +41,7 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+    team_name: str | None
 
     @field_validator("password", mode="after")
     @classmethod
@@ -136,6 +137,7 @@ class ConnectionBody(StrictBaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+    team_name: str | None = Field(max_length=50, default=None)
 
     @field_validator("extra")
     @classmethod

@@ -29,7 +29,8 @@
   "poolSlots": "Pool Slots",
   "sortBy": {
     "newestFirst": "Newest First",
-    "oldestFirst": "Oldest First"
+    "oldestFirst": "Oldest First",
+    "placeholder": "Sort by"
   },
   "source": "Source",
   "stats": {

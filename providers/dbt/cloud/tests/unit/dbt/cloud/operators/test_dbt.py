@@ -22,9 +22,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,

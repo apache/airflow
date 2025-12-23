@@ -195,7 +195,7 @@ spec:
                 {{- else }}
                   {{- include "dag_processor_liveness_check_command" . | indent 14 }}
                 {{- end }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
+        {{- if .Values.dags.gitSync.enabled }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.logGroomerSidecar.enabled }}

@@ -35,8 +35,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, add_debug_span
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -77,6 +77,8 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     elif job_type == "TriggererJob":
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    elif job_type == "DagProcessorJob":
+        health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value

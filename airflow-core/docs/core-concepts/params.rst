@@ -409,3 +409,55 @@ Disabling Runtime Param Modification
 
 The ability to update params while triggering a Dag depends on the flag ``core.dag_run_conf_overrides_params``.
 Setting this config to ``False`` will effectively turn your default params into constants.
+
+Pre-populating Trigger Form via URL
+-----------------------------------
+
+To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger/single`` or ``/dags/<dag_name>/trigger/backfill``,
+and add query parameters to the URL.
+
+There are two trigger form URLs available, each supporting a different set of query parameters:
+
+* ``/trigger/single``:
+  - ``conf`` - JSON configuration.
+  - ``run_id`` - run identifier.
+  - ``logical_date`` - execution date in ``YYYY-MM-DDTHH:mm:ss.SSS`` format. Defaults to the current timestamp if not provided.
+  - ``note`` - note attached to the DAG run.
+
+* ``/trigger/backfill``:
+  - ``conf`` - JSON configuration, applied to all runs.
+  - ``from_date`` - start of the backfill window in ``YYYY-MM-DDTHH:mm:ss`` format.
+  - ``to_date`` - end of the backfill window in ``YYYY-MM-DDTHH:mm:ss`` format.
+  - ``max_active_runs`` - maximum concurrent runs. Defaults to ``1``.
+  - ``reprocess_behavior`` - determines how existing runs are reprocessed. Supported values are:
+
+    * ``failed`` - Missing and Errored Runs
+    * ``completed`` - All Runs
+    * ``none`` - Missing Runs
+
+  - ``run_backwards`` - if set to true, the backfill is scheduled in reverse order. Defaults to ``false``.
+
+The trigger form supports two different ways of providing ``conf`` values. The available input methods are summarized in the table below:
+
+.. list-table:: ``conf`` parameter usage
+   :header-rows: 1
+   :widths: 15 35 55
+
+   * - Form
+     - Usage
+     - Example
+   * - JSON (explicit)
+     - Provide the entire configuration as a JSON object.
+       This form has higher priority if present.
+     - ``/dags/{dag_id}/trigger/single?conf={"foo":"bar","x":123}``
+   * - Key-value (implicit)
+     - If ``conf`` is not specified, any query parameter that is not a reserved keyword
+       will be automatically collected into ``conf``.
+     - ``/dags/{dag_id}/trigger/single?run_id=myrun&foo=bar&x=123``
+       results in ``conf={"foo":"bar","x":"123"}``
+
+For example, you can pass the pathname and query like below:
+
+``/dags/{dag_id}/trigger/single?run_id=my_run_dag&logical_date=2025-09-06T12:34:56.789&conf={"foo":"bar"}&note=run_note``
+
+``/dags/{dag_id}/trigger/backfill?from_date=2025-09-01T00:00:00&to_date=2025-09-03T23:59:59&conf={"abc":"loo"}&max_active_runs=2&reprocess_behavior=failed&run_backwards=true``

@@ -98,7 +98,7 @@ type Props = {
 
 export const TrendCountChart = ({ endDate, events, startDate }: Props) => {
   const { colorMode } = useColorMode();
-  const chartRef = useRef<ChartJS<"line">>();
+  const chartRef = useRef<ChartJS<"line">>(null);
 
   // Get raw color values instead of CSS variables
   const [bgLightGreen, bgDarkGreen, lineLightGreen, lineDarkGreen] = useToken("colors", [

@@ -116,9 +116,17 @@ export const DagsFilters = () => {
         searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
         searchParams.delete(NEEDS_REVIEW_PARAM);
       } else if (value === "needs_review") {
-        searchParams.set(NEEDS_REVIEW_PARAM, "true");
+        if (needsReview === "true") {
+          searchParams.delete(NEEDS_REVIEW_PARAM);
+        } else {
+          searchParams.set(NEEDS_REVIEW_PARAM, "true");
+        }
       } else {
-        searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
+        if (state === value) {
+          searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+        } else {
+          searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
+        }
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -127,7 +135,7 @@ export const DagsFilters = () => {
       searchParams.delete(OFFSET_PARAM);
       setSearchParams(searchParams);
     },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [pagination, searchParams, setSearchParams, setTableURLState, sorting, needsReview, state],
   );
 
   const handleSelectTagsChange = useCallback(

@@ -57,14 +57,30 @@ section ol li p:last-child, section ul li p:last-child {
   margin-bottom: 0 !important;
 }
 
-a.headerlink {
-  content: "" !important;
-  font-size: 75% !important;
+/* Fix for broken permalink icon */
+
+/* Remove the "[link]" text pseudo-element produced by legacy code */
+a.headerlink::after {
+  content: none !important;
+  display: none !important;
 }
 
-a.headerlink::after {
-  content: " [link]" !important;  /* Theme image not existing */
-  visibility: visible !important;
+/* Set link styles */
+a.headerlink {
+  font-size: 1rem !important;
+  visibility: visible !important; /* Always visible */
+  color: #017cee;             /* Airflow Blue */
+  text-decoration: none;
+  padding-left: 0.2em;
+}
+
+/* Set the SVG icon size and positioning */
+a.headerlink svg {
+  width: 1.5em;
+  height: 1.5em;
+  vertical-align: middle;
+  display: inline-block;
+  fill: currentColor;
 }
 
 /* compensate for sticky headers for anchored links */

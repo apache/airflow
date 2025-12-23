@@ -21,8 +21,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
 if TYPE_CHECKING:

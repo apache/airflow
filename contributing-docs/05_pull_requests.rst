@@ -213,7 +213,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -224,7 +224,7 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 

@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor, JobStatus
+from airflow.providers.common.compat.sdk import AirflowException
 
 SUCCEEDED = "Succeeded"
 IN_PROGRESS = "InProgress"

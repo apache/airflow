@@ -20,9 +20,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.sensors.lambda_function import LambdaFunctionStateSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 FUNCTION_NAME = "function_name"
 

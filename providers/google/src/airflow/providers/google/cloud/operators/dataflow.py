@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,

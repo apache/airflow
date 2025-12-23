@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Portal, Text, VStack } from "@chakra-ui/react";
+import { Button, Portal, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiFilter } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
-import { Button } from "src/components/ui";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 from weaviate.collections.classes.config import Configure
 
@@ -28,10 +30,17 @@ from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAME = "Weaviate_with_vectorizer_example_collection"
 
+default_args = {
+    "retries": 5,
+    "retry_delay": timedelta(seconds=15),
+    "pool": "weaviate_pool",
+}
+
 
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    default_args=default_args,
     catchup=False,
     tags=["example", "weaviate"],
 )

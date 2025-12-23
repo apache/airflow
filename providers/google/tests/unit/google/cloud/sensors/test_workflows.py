@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from google.cloud.workflows.executions_v1beta import Execution
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
 
 BASE_PATH = "airflow.providers.google.cloud.sensors.workflows.{}"

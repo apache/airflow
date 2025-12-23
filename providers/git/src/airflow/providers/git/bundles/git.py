@@ -28,7 +28,7 @@ from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchP
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger(__name__)
@@ -90,8 +90,9 @@ class GitDagBundle(BaseDagBundle):
         self.hook: GitHook | None = None
         try:
             self.hook = GitHook(git_conn_id=git_conn_id or "git_default", repo_url=self.repo_url)
-        except Exception as e:
-            self._log.warning("Could not create GitHook", conn_id=git_conn_id, exc=e)
+        except Exception:
+            # re raise so exception propagates immediately with clear error message
+            raise
 
         if self.hook and self.hook.repo_url:
             self.repo_url = self.hook.repo_url

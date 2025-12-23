@@ -24,9 +24,15 @@ import structlog
 import svcs
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
+from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.configuration import conf
+from airflow.models import DagModel, TaskInstance
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -95,3 +101,19 @@ JWTBearerDep: TIToken = Depends(JWTBearer())
 
 # This checks that the UUID in the url matches the one in the token for us.
 JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
+
+
+async def get_team_name_dep(session: AsyncSessionDep, token=JWTBearerDep) -> str | None:
+    """Return the team name associated to the task (if any)."""
+    if not conf.getboolean("core", "multi_team"):
+        return None
+
+    stmt = (
+        select(Team.name)
+        .select_from(TaskInstance)
+        .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(TaskInstance.id == str(token.id))
+    )
+    return await session.scalar(stmt)

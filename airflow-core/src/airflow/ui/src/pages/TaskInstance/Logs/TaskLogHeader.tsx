@@ -19,6 +19,7 @@
 import {
   Badge,
   Box,
+  Button,
   createListCollection,
   HStack,
   IconButton,
@@ -31,18 +32,18 @@ import {
   MdCode,
   MdCompress,
   MdExpand,
+  MdOutlineFileDownload,
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
-  MdOutlineFileDownload,
 } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Menu, Select, Tooltip } from "src/components/ui";
+import { Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { system } from "src/theme";
+import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
@@ -89,7 +90,7 @@ export const TaskLogHeader = ({
   // Have select zIndex greater than modal zIndex in fullscreen so that
   // select options are displayed.
   const zIndex = isFullscreen
-    ? Number(system.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
+    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
     : undefined;
 
   const sourceOptionList = createListCollection<{

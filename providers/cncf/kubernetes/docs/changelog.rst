@@ -28,6 +28,25 @@ Changelog
 ---------
 
 
+10.11.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix finally return handling (#58998)``
+
+Misc
+~~~~
+
+* ``Convert the exclusion on urllib3 to != for 2.6.0 (#59203)``
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Limit urllib3 to < 2.6.0 to handle kubernetes client breaking with it (#59108)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.11.0
 .......
 

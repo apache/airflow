@@ -17,75 +17,158 @@
  under the License.
  -->
 
-# Airflow UI End-to-End Tests
+# UI End-to-End Tests
 
-UI automation tests using Playwright for critical Airflow workflows.
-
-## Prerequisites
-
-**Requires running Airflow with example DAGs:**
-
-- Airflow UI running on `http://localhost:28080` (default)
-- Admin user: `admin/admin`
-- Example DAGs loaded (uses `example_bash_operator`)
+End-to-end tests for the Airflow UI using Playwright.
 
 ## Running Tests
 
-### Using Breeze
+### Using Breeze (Recommended)
+
+The easiest way to run the tests:
 
 ```bash
-# Basic run
 breeze testing ui-e2e-tests
 
-# Specific test with browser visible
-breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts" --headed
+# Run specific browser
+breeze testing ui-e2e-tests --browser firefox
 
-# Different browsers
-breeze testing ui-e2e-tests --browser firefox --headed
-breeze testing ui-e2e-tests --browser webkit --headed
+# Run specific test
+breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts"
+
+# Debug mode
+breeze testing ui-e2e-tests --debug-e2e
+
+# See the browser
+breeze testing ui-e2e-tests --headed
 ```
 
-### Using pnpm directly
+### Direct Execution
+
+If you already have Airflow running on `http://localhost:8080`:
 
 ```bash
 cd airflow-core/src/airflow/ui
-
-# Install dependencies
 pnpm install
-pnpm exec playwright install
-
-# Run tests
-pnpm test:e2e:headed                    # Show browser
-pnpm test:e2e:ui                       # Interactive debugging
+pnpm test:e2e:install
+pnpm test:e2e
 ```
 
-## Test Structure
+## CI Integration
+
+Tests run in GitHub Actions via workflow dispatch. The workflow uses `breeze testing ui-e2e-tests` which handles starting Airflow with docker-compose, running the tests, and cleanup.
+
+To run manually:
+
+1. Go to Actions → UI End-to-End Tests
+2. Click Run workflow
+3. Select browser and other options
+
+## Directory Structure
 
 ```
 tests/e2e/
-├── pages/           # Page Object Models
+├── pages/           # Page objects
+│   ├── BasePage.ts
+│   ├── LoginPage.ts
+│   └── DagsPage.ts
 └── specs/           # Test files
+    └── dag-trigger.spec.ts
+```
+
+## Writing Tests
+
+We use the Page Object Model pattern:
+
+```typescript
+// pages/DagPage.ts
+export class DagPage extends BasePage {
+  readonly pauseButton: Locator;
+
+  constructor(page: Page) {
+    super(page);
+    this.pauseButton = page.locator('[data-testid="dag-pause"]');
+  }
+
+  async pause() {
+    await this.pauseButton.click();
+  }
+}
+
+// specs/dag.spec.ts
+test('pause DAG', async ({ page }) => {
+  const dagPage = new DagPage(page);
+  await dagPage.goto();
+  await dagPage.pause();
+  await expect(dagPage.pauseButton).toHaveAttribute('aria-pressed', 'true');
+});
 ```
 
 ## Configuration
 
-Set environment variables if needed:
+Environment variables (with defaults):
 
-```bash
-export AIRFLOW_UI_BASE_URL=http://localhost:28080
-export TEST_USERNAME=admin
-export TEST_PASSWORD=admin
-export TEST_DAG_ID=example_bash_operator
-```
+- `AIRFLOW_UI_BASE_URL` - Airflow URL (default: `http://localhost:8080`)
+- `TEST_USERNAME` - Username (default: `airflow`)
+- `TEST_PASSWORD` - Password (default: `airflow`)
+- `TEST_DAG_ID` - Test DAG ID (default: `example_bash_operator`)
 
 ## Debugging
 
-```bash
-# Step through tests
-breeze testing ui-e2e-tests --debug-e2e
+View test report after running locally:
 
-# View test report
+```bash
 pnpm test:e2e:report
 ```
 
-Find test artifacts in `test-results/` and reports in `playwright-report/`.
+When tests fail in CI, check the uploaded artifacts for screenshots and HTML reports.
+
+## Breeze Options
+
+```bash
+breeze testing ui-e2e-tests --help
+```
+
+Common options:
+
+- `--browser` - chromium, firefox, webkit, or all
+- `--headed` - Show browser window
+- `--debug-e2e` - Enable Playwright inspector
+- `--ui-mode` - Interactive UI mode
+- `--test-pattern` - Run specific test file
+- `--workers` - Number of parallel workers
+
+## Contributing New Tests
+
+This framework uses the **Page Object Model (POM)** pattern. Each page's elements and interactions are encapsulated in a page class.
+
+### Steps to Add a New Test
+
+1. **Create a page object** (if needed) in `pages/`
+   - Extend `BasePage` and define page elements as locators
+   - Add methods for page interactions
+   - See existing pages: [LoginPage.ts](pages/LoginPage.ts), [DagsPage.ts](pages/DagsPage.ts)
+
+2. **Create a spec file** in `specs/`
+   - Import page objects and write test steps
+   - See existing test: [dag-trigger.spec.ts](specs/dag-trigger.spec.ts)
+
+3. **Run tests locally**
+
+   ```bash
+   breeze testing ui-e2e-tests --test-pattern "your-test.spec.ts"
+   ```
+
+4. **Submit PR**
+
+### Best Practices
+
+- Use `data-testid` attributes for selectors when available
+- Keep tests independent - each test should set up its own state
+- Add meaningful assertions, not just navigation checks
+
+### Naming Convention
+
+- Spec files: `<feature>.spec.ts`
+- Page objects: `<Page>Page.ts`
+- Test names: Start with "should"

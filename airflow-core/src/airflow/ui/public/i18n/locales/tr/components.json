@@ -50,6 +50,13 @@
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Yanlış tarih formatı.",
+      "invalidTimeFormat": "Yanlış saat formatı.",
+      "startBeforeEnd": "Başlangıç tarihi, bitiş tarihinden önce olmalıdır."
+    }
+  },
   "durationChart": {
     "duration": "Süre (saniye)",
     "lastDagRun_one": "Son Dag Çalıştırması",
@@ -116,6 +123,9 @@
     "selectLabel": "Tek Çalıştırma",
     "title": "Dag Tetikle",
     "toaster": {
+      "error": {
+        "title": "Dag Çalıştırması Tetiklenemedi"
+      },
       "success": {
         "description": "Dag çalıştırması başarıyla tetiklendi.",
         "title": "Dag Çalıştırması Tetiklendi"

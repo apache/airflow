@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+1.10.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.0
 ......
 

@@ -121,10 +121,10 @@
     "toaster": {
       "error": {
         "description": "A Dag feldolgozási kérelem meghiúsult. Lehetnek még feldolgozásra váró kérelmek.",
-        "title": "DAG újrafeldolgozása sikertelen"
+        "title": "Dag újrafeldolgozása sikertelen"
       },
       "success": {
-        "description": "A DAG újrafeldolgozása hamarosan.",
+        "description": "A Dag újrafeldolgozása hamarosan.",
         "title": "Újrafeldolgozási kérelem sikeresen elküldve"
       }
     }

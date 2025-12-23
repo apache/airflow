@@ -26,11 +26,12 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 

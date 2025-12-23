@@ -31,6 +31,8 @@ from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
     QueryDagRunTriggeringUserSearch,
+    QueryIncludeDownstream,
+    QueryIncludeUpstream,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -133,10 +135,19 @@ def get_dag_structure(
     run_type: QueryDagRunRunTypesFilter,
     state: QueryDagRunStateFilter,
     triggering_user: QueryDagRunTriggeringUserSearch,
+    include_upstream: QueryIncludeUpstream = False,
+    include_downstream: QueryIncludeDownstream = False,
+    root: str | None = None,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
     latest_serdag = _get_latest_serdag(dag_id, session)
     latest_dag = latest_serdag.dag
+
+    # Apply filtering if root task is specified
+    if root:
+        latest_dag = latest_dag.partial_subset(
+            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+        )
 
     # Retrieve, sort the previous DAG Runs
     base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
@@ -181,40 +192,16 @@ def get_dag_structure(
     dags = [latest_dag]
     for serdag in serdags:
         if serdag:
-            dags.append(serdag.dag)
+            filtered_dag = serdag.dag
+            # Apply the same filtering to historical DAG versions
+            if root:
+                filtered_dag = filtered_dag.partial_subset(
+                    task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+                )
+            dags.append(filtered_dag)
     for dag in dags:
         nodes = [task_group_to_dict_grid(x) for x in task_group_sort(dag.task_group)]
         _merge_node_dicts(merged_nodes, nodes)
-
-    # Ensure historical tasks (e.g. removed) that exist in TIs for the selected runs are represented
-    def _collect_ids(nodes: list[dict[str, Any]]) -> set[str]:
-        ids: set[str] = set()
-        for n in nodes:
-            nid = n.get("id")
-            if nid:
-                ids.add(nid)
-            children = n.get("children")
-            if children:
-                ids |= _collect_ids(children)  # recurse
-        return ids
-
-    existing_ids = _collect_ids(merged_nodes)
-    historical_tasks = session.execute(
-        select(TaskInstance.task_id, TaskInstance.task_display_name)
-        .join(TaskInstance.dag_run)
-        .where(TaskInstance.dag_id == dag_id, DagRun.id.in_(run_ids))
-        .distinct()
-    )
-    for task_id, task_display_name in historical_tasks:
-        if task_id not in existing_ids:
-            merged_nodes.append(
-                {
-                    "id": task_id,
-                    "label": task_display_name,
-                    "is_mapped": None,
-                    "children": None,
-                }
-            )
 
     return [GridNodeResponse(**n) for n in merged_nodes]
 

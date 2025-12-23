@@ -57,6 +57,7 @@ If you do not work in a remote development environment, you will need these prer
 
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
 It might be slightly different on different machines.
+For Windows, click on Start menu and type WSL to enter Linux console. Please note, not doing this will result in errors in next steps.
 
 Docker Community Edition
 ------------------------
@@ -353,7 +354,7 @@ It will run prek hooks automatically before committing and stops the commit on f
   prek install
   git commit -m "Added xyz"
 
-8. To disable prek hooks
+8. If you want to disable prek hooks
 
 .. code-block:: bash
 
@@ -465,7 +466,7 @@ see in CI in your local environment.
       breeze --python 3.10 --backend postgres
 
 
-5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.10.19] root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 

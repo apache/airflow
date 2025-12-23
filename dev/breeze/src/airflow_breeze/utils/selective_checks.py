@@ -869,6 +869,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    def run_ui_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -955,7 +959,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.run_helm_tests or self.run_task_sdk_integration_tests
+        return (
+            self.run_kubernetes_tests
+            or self.run_helm_tests
+            or self.run_task_sdk_integration_tests
+            or self.run_ui_e2e_tests
+        )
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType

@@ -19,18 +19,20 @@
  * under the License.
  */
 import {
-  Flex,
-  IconButton,
+  Box,
+  Button,
   ButtonGroup,
   createListCollection,
-  type SelectValueChangeDetails,
+  Flex,
+  IconButton,
   Popover,
   Portal,
   Select,
-  VStack,
+  type SelectValueChangeDetails,
   Text,
   Box,
   Circle,
+  VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
@@ -39,6 +41,7 @@ import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiGitCommit, FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree } from "react-icons/md";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -48,7 +51,7 @@ import { directionOptions, type Direction } from "src/components/Graph/useGraphL
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
-import { Button, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import {
@@ -67,7 +70,7 @@ type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
   readonly dagView: string;
   readonly limit: number;
-  readonly panelGroupRef: React.RefObject<{ setLayout?: (layout: Array<number>) => void } & HTMLDivElement>;
+  readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
   readonly runTypeFilter: DagRunType | undefined;
   readonly setDagRunStateFilter: React.Dispatch<React.SetStateAction<DagRunState | undefined>>;
   readonly setDagView: (x: "graph" | "grid") => void;
@@ -216,17 +219,13 @@ export const PanelButtons = ({
 
   const handleFocus = (view: string) => {
     if (panelGroupRef.current) {
-      const panelGroup = panelGroupRef.current;
+      const newLayout = view === "graph" ? [70, 30] : [30, 70];
 
-      if (typeof panelGroup.setLayout === "function") {
-        const newLayout = view === "graph" ? [70, 30] : [30, 70];
-
-        panelGroup.setLayout(newLayout);
-        // Used setTimeout to ensure DOM has been updated
-        setTimeout(() => {
-          void fitView();
-        }, 1);
-      }
+      panelGroupRef.current.setLayout(newLayout);
+      // Used setTimeout to ensure DOM has been updated
+      setTimeout(() => {
+        void fitView();
+      }, 1);
     }
   };
 
@@ -486,10 +485,9 @@ export const PanelButtons = ({
                           </Text>
                           <SearchBar
                             defaultValue={triggeringUserFilter ?? ""}
-                            hideAdvanced
                             hotkeyDisabled
                             onChange={handleTriggeringUserChange}
-                            placeHolder={translate("common:dagRun.triggeringUser")}
+                            placeholder={translate("common:dagRun.triggeringUser")}
                           />
                         </VStack>
                         {shouldShowToggleButtons ? (

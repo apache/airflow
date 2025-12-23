@@ -53,6 +53,13 @@
     "warning_other": "{{count}} אזהרות",
     "warning_two": "שתי אזהרות"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "פורמט התאריך אינו תקין.",
+      "invalidTimeFormat": "פורמט הזמן אינו תקין.",
+      "startBeforeEnd": "תאריך/זמן התחלה חייב להיות לפני תאריך/זמן סיום"
+    }
+  },
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
@@ -125,6 +132,9 @@
     "selectLabel": "ריצה בודדת",
     "title": "הפעל Dag",
     "toaster": {
+      "error": {
+        "title": "הפעלת Dag נכשלה"
+      },
       "success": {
         "description": "ריצת ה-Dag הופעלה בהצלחה.",
         "title": "ריצת Dag הופעלה"

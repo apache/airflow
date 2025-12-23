@@ -23,8 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import AirflowSkipException, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 try:

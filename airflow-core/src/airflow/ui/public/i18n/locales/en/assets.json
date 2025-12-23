@@ -25,6 +25,7 @@
     },
     "title": "Create Asset Event for {{name}}"
   },
+  "extra": "Extra",
   "group": "Group",
   "lastAssetEvent": "Last Asset Event",
   "name": "Name",

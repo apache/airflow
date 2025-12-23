@@ -27,8 +27,8 @@ import pytest
 from azure.cosmos import PartitionKey
 from azure.cosmos.cosmos_client import CosmosClient
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
 
 pytestmark = pytest.mark.db_test

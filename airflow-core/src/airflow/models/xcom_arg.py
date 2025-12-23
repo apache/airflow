@@ -27,12 +27,11 @@ from sqlalchemy.orm import Session
 
 from airflow.models.referencemixin import ReferenceMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
-from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.db import exists_query
 from airflow.utils.state import State
 
-__all__ = ["XComArg", "get_task_map_length"]
+__all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
 
 if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
@@ -43,6 +42,12 @@ if TYPE_CHECKING:
 
 
 class SchedulerXComArg:
+    """
+    Reference to an XCom value pushed from another operator.
+
+    This is the safe counterpart to :class:`airflow.sdk.XComArg`.
+    """
+
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: SerializedDAG) -> Self:
         """
@@ -228,3 +233,12 @@ _XCOM_ARG_TYPES: dict[str, type[SchedulerXComArg]] = {
     "map": SchedulerMapXComArg,
     "zip": SchedulerZipXComArg,
 }
+
+
+def __getattr__(name: str):
+    if name == "XComArg":
+        from airflow.sdk import XComArg
+
+        return XComArg
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

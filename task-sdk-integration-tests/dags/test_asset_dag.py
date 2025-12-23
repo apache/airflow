@@ -25,9 +25,10 @@ This file contains:
 
 from __future__ import annotations
 
-from airflow.sdk import DAG, Asset, task
+from airflow.sdk import DAG, Asset, AssetAlias, task
 
 test_asset = Asset(uri="test://asset1", name="test_asset")
+test_asset_alias = AssetAlias(name="test_asset_alias")
 
 with DAG(
     dag_id="asset_producer_dag",
@@ -36,10 +37,14 @@ with DAG(
     catchup=False,
 ) as producer_dag:
 
-    @task(outlets=[test_asset])
-    def produce_asset():
+    @task(outlets=[test_asset, test_asset_alias])
+    def produce_asset(**context):
         """Task that produces the test asset."""
         print("Producing test asset")
+
+        # Ensure AssetAlias is associated with Asset
+        context["outlet_events"][test_asset_alias].add(test_asset)
+
         return "asset_produced"
 
     produce_asset()

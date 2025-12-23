@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunCreateServiceOperator,

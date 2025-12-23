@@ -1,0 +1,159 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+
+name: UI End-to-End Tests
+
+permissions:
+  contents: read
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        type: string
+        default: '["ubuntu-24.04"]'
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        type: string
+        default: 'linux/amd64'
+      default-python-version:
+        description: "Which version of python should be used by default"
+        type: string
+        default: '3.10'
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        type: string
+        default: 'true'
+      docker-image-tag:
+        description: "Tag of the Docker image to test"
+        type: string
+        required: true
+      browser:
+        description: "Browser to test (chromium, firefox, webkit, all)"
+        type: string
+        default: "all"
+
+  workflow_call:
+    inputs:
+      workflow-name:
+        description: "Name of the test"
+        type: string
+        required: true
+      runners:
+        description: "The array of labels (in json form) determining runners."
+        required: true
+        type: string
+      platform:
+        description: "Platform for the build - 'linux/amd64' or 'linux/arm64'"
+        required: true
+        type: string
+      default-python-version:
+        description: "Which version of python should be used by default"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      docker-image-tag:
+        description: "Tag of the Docker image to test"
+        type: string
+        default: ""
+      browser:
+        description: "Browser to test (chromium, firefox, webkit, all)"
+        type: string
+        default: "all"
+
+jobs:
+  test-ui-e2e-tests:
+    timeout-minutes: 90
+    name: ${{ inputs.workflow-name || 'UI E2E Tests' }}
+    runs-on: ${{ fromJSON(inputs.runners || '["ubuntu-24.04"]') }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version || '3.10' }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+      BROWSER: "${{ inputs.browser || 'all' }}"
+      PLATFORM: "${{ inputs.platform || 'linux/amd64' }}"
+      USE_UV: "${{ inputs.use-uv || 'true' }}"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+        if: github.event_name != 'workflow_dispatch'
+      - name: "Install Breeze (manual trigger)"
+        uses: ./.github/actions/breeze
+        if: github.event_name == 'workflow_dispatch'
+      - name: "Setup pnpm"
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        with:
+          version: 9
+          run_install: false
+      - name: "Setup node"
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 21
+      - name: "Compile UI assets (for image build fallback)"
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          cd airflow-core/src/airflow/ui
+          pnpm install --frozen-lockfile
+          pnpm build
+          cd ../api_fastapi/auth/managers/simple/ui
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: "Install Playwright browsers and dependencies"
+        run: |
+          cd airflow-core/src/airflow/ui
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps
+      - name: "Test UI e2e tests"
+        run: breeze testing ui-e2e-tests --browser "$BROWSER"
+        env:
+          DOCKER_IMAGE: "${{ inputs.docker-image-tag || '' }}"
+      - name: "Upload test results"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: "playwright-report-${{ env.BROWSER }}"
+          path: |
+            airflow-core/src/airflow/ui/playwright-report/
+            airflow-core/src/airflow/ui/test-results/
+          retention-days: 7
+          if-no-files-found: 'warn'
+        if: always()

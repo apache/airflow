@@ -34,7 +34,7 @@ from typing import Any
 
 from requests import exceptions as requests_exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "2.0/clusters/get")

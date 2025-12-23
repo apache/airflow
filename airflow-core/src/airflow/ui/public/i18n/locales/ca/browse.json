@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Col·lapsar tots els camps extra json",
-      "expandAllExtra": "Expandir tots els camps extra json"
-    },
     "columns": {
       "event": "Esdeveniment",
       "extra": "Extra",

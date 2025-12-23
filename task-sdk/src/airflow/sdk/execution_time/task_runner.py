@@ -115,8 +115,8 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
@@ -141,8 +141,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
-    _context: Context | None = None
-    """The Task Instance context."""
+    _cached_template_context: Context | None = None
+    """The Task Instance context. This is used to cache get_template_context."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -190,7 +190,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._context: Context = self._context or {
+        self._cached_template_context: Context = self._cached_template_context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -230,7 +230,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._context.update(context_from_server)
+            self._cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -241,7 +241,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._context.update(
+                self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -268,7 +268,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return self._context
+        return self._cached_template_context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -784,17 +784,87 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     return ti, ti.get_template_context(), log
 
 
-def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
-    # TODO: Port one of the following to Task SDK
-    #   airflow.serialization.helpers.serialize_template_field or
-    #   airflow.models.renderedtifields.get_serialized_template_fields
+def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
+    """
+    Return a serializable representation of the templated field.
+
+    If ``templated_field`` contains a class or instance that requires recursive
+    templating, store them as strings. Otherwise simply return the field as-is.
+
+    Used sdk secrets masker to redact secrets in the serialized output.
+    """
+    import json
+
     from airflow.sdk._shared.secrets_masker import redact
-    from airflow.serialization.helpers import serialize_template_field
+
+    def is_jsonable(x):
+        try:
+            json.dumps(x)
+        except (TypeError, OverflowError):
+            return False
+        else:
+            return True
+
+    def translate_tuples_to_lists(obj: Any):
+        """Recursively convert tuples to lists."""
+        if isinstance(obj, tuple):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, list):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, dict):
+            return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
+        return obj
+
+    def sort_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries to ensure consistent ordering."""
+        if isinstance(obj, dict):
+            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, list):
+            return [sort_dict_recursively(item) for item in obj]
+        if isinstance(obj, tuple):
+            return tuple(sort_dict_recursively(item) for item in obj)
+        return obj
+
+    max_length = conf.getint("core", "max_templated_field_length")
+
+    if not is_jsonable(template_field):
+        try:
+            serialized = template_field.serialize()
+        except AttributeError:
+            serialized = str(template_field)
+        if len(serialized) > max_length:
+            rendered = redact(serialized, name)
+            return (
+                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+                f"{rendered[: max_length - 79]!r}... "
+            )
+        return serialized
+    if not template_field and not isinstance(template_field, tuple):
+        # Avoid unnecessary serialization steps for empty fields unless they are tuples
+        # and need to be converted to lists
+        return template_field
+    template_field = translate_tuples_to_lists(template_field)
+    # Sort dictionaries recursively to ensure consistent string representation
+    # This prevents hash inconsistencies when dict ordering varies
+    if isinstance(template_field, dict):
+        template_field = sort_dict_recursively(template_field)
+    serialized = str(template_field)
+    if len(serialized) > max_length:
+        rendered = redact(serialized, name)
+        return (
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            f"{rendered[: max_length - 79]!r}... "
+        )
+    return template_field
+
+
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
+    from airflow.sdk._shared.secrets_masker import redact
 
     rendered_fields = {}
     for field in task.template_fields:
         value = getattr(task, field)
-        serialized = serialize_template_field(value, field)
+        serialized = _serialize_template_field(value, field)
         # Redact secrets in the task process itself before sending to API server
         # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
         # on the UI.

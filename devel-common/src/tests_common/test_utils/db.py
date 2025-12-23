@@ -266,9 +266,9 @@ def clear_db_dags():
             session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
-        session.query(
-            DagRun
-        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
+        session.query(DagRun).delete(
+            synchronize_session=False
+        )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.query(DagModel).delete()
 
 
@@ -915,6 +915,8 @@ def create_default_connections_for_tests():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_apdr()
+    clear_db_pakl()
     clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()

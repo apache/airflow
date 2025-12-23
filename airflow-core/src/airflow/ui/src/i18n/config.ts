@@ -33,6 +33,7 @@ export const supportedLanguages = [
   { code: "hi", name: "हिन्दी" },
   { code: "hu", name: "Magyar" },
   { code: "it", name: "Italiano" },
+  { code: "ja", name: "日本語" },
   { code: "ko", name: "한국어" },
   { code: "nl", name: "Nederlands" },
   { code: "pl", name: "Polski" },

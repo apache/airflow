@@ -303,8 +303,12 @@ function check_boto_upgrade() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+
+    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
+    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
 }
 
 # Upgrade sqlalchemy to the latest version to run tests with it
@@ -333,7 +337,14 @@ function check_downgrade_sqlalchemy() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "sqlalchemy[asyncio]==${min_sqlalchemy_version}"
-    pip check
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+    # between `pip` and `uv` installations
+    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+    uv pip check
 }
 
 # Download minimum supported version of pendulum to run tests with it
@@ -348,7 +359,14 @@ function check_downgrade_pendulum() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
-    pip check
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+    # between `pip` and `uv` installations
+    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+    uv pip check
 }
 
 # Check if we should run tests and run them if needed

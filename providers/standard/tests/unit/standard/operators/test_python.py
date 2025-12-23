@@ -40,13 +40,10 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    DeserializingResultError,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -111,7 +108,7 @@ CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 if AIRFLOW_V_3_0_1:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
 
 class BasePythonTest:
@@ -493,7 +490,7 @@ class TestBranchOperator(BasePythonTest):
 
         dr = dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)
@@ -571,7 +568,7 @@ class TestBranchOperator(BasePythonTest):
 
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as dts:
                 self.dag_maker.run_ti(self.task_id, dr)
@@ -616,7 +613,7 @@ class TestBranchOperator(BasePythonTest):
             task_instance = tis[task_id]
             task_instance.refresh_from_task(self.dag_maker.dag.get_task(task_id))
             if AIRFLOW_V_3_0_1:
-                from airflow.exceptions import DownstreamTasksSkipped
+                from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
                 try:
                     task_instance.run()
@@ -778,7 +775,7 @@ class TestShortCircuitOperator(BasePythonTest):
 
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             if expected_skipped_tasks:
                 with pytest.raises(DownstreamTasksSkipped) as exc_info:
@@ -810,7 +807,7 @@ class TestShortCircuitOperator(BasePythonTest):
         dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 sc_ti = dr.get_task_instance(task_id=self.task_id, session=session)
@@ -880,7 +877,7 @@ class TestShortCircuitOperator(BasePythonTest):
             short_op_push_xcom >> empty_task
         dr = self.dag_maker.create_dagrun()
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped):
                 short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
@@ -1420,9 +1417,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
     @mock.patch(
         "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
-        wraps=_execute_in_subprocess,
     )
-    def test_with_index_urls(self, wrapped_execute_in_subprocess):
+    def test_with_index_urls(self, mock_execute_in_subprocess):
+        def safe_execute_in_subprocess(cmd, **kwargs):
+            """Wrapper that removes unreachable URLs from env before executing."""
+            env = kwargs.get("env", {}).copy()
+            # Remove fake URLs to allow venv creation to succeed
+            env.pop("UV_DEFAULT_INDEX", None)
+            env.pop("UV_INDEX", None)
+            return _execute_in_subprocess(cmd, **{**kwargs, "env": env if env else None})
+
+        mock_execute_in_subprocess.side_effect = safe_execute_in_subprocess
+
         def f(a):
             import sys
             from pathlib import Path
@@ -1443,15 +1449,30 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             op_args=[4],
         )
 
-        # first call creates venv, second call installs packages
-        package_install_call_args = wrapped_execute_in_subprocess.call_args[1]
-        assert package_install_call_args["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
+        # Verify that env was passed with the correct index URLs to pip install
+        # The first call is venv creation (with cleaned env), second call is pip install (with full env)
+        assert len(mock_execute_in_subprocess.call_args_list) >= 2
+        package_install_call_args = mock_execute_in_subprocess.call_args_list[1]
+        assert package_install_call_args[1]["env"]["UV_DEFAULT_INDEX"] == "https://first.package.index"
         assert (
-            package_install_call_args["env"]["UV_INDEX"]
+            package_install_call_args[1]["env"]["UV_INDEX"]
             == "http://second.package.index http://third.package.index"
         )
 
-    def test_with_index_url_from_connection(self, monkeypatch):
+    @mock.patch(
+        "airflow.providers.standard.utils.python_virtualenv._execute_in_subprocess",
+    )
+    def test_with_index_url_from_connection(self, mock_execute_in_subprocess, monkeypatch):
+        def safe_execute_in_subprocess(cmd, **kwargs):
+            """Wrapper that removes unreachable URLs from env before executing."""
+            env = kwargs.get("env", {}).copy()
+            # Remove fake URLs to allow venv creation to succeed
+            env.pop("UV_DEFAULT_INDEX", None)
+            env.pop("UV_INDEX", None)
+            return _execute_in_subprocess(cmd, **{**kwargs, "env": env if env else None})
+
+        mock_execute_in_subprocess.side_effect = safe_execute_in_subprocess
+
         class MockConnection(Connection):
             """Mock for the Connection class."""
 
@@ -2033,7 +2054,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         dr = self.dag_maker.create_dagrun()
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with create_session() as session:
                 branch_ti = dr.get_task_instance(task_id=self.task_id, session=session)

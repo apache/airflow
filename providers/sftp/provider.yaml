@@ -22,12 +22,13 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 state: ready
-source-date-epoch: 1764110581
+source-date-epoch: 1765299399
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.5.1
   - 5.5.0
   - 5.4.2
   - 5.4.1

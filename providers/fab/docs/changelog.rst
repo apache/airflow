@@ -20,6 +20,37 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create 'create_token' method in FAB auth manager (#59245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Permit 'airflow db migrate -r' with an empty database (#59205)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Remove global statement from Fab provider (#59018)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#58954)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+* ``Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead of 'HTTP_422_UNPROCESSABLE_ENTITY' (#58828)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: adjust misleading docs (#59228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
 3.0.3
 .....
 

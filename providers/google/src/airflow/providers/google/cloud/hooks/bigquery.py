@@ -59,12 +59,9 @@ from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
@@ -1993,18 +1990,19 @@ def _format_schema_for_description(schema: dict) -> list:
     internal_size, precision, scale, null_ok.
     """
     description = []
-    for field in schema["fields"]:
-        mode = field.get("mode", "NULLABLE")
-        field_description = (
-            field["name"],
-            field["type"],
-            None,
-            None,
-            None,
-            None,
-            mode == "NULLABLE",
-        )
-        description.append(field_description)
+    if "fields" in schema:
+        for field in schema["fields"]:
+            mode = field.get("mode", "NULLABLE")
+            field_description = (
+                field["name"],
+                field["type"],
+                None,
+                None,
+                None,
+                None,
+                mode == "NULLABLE",
+            )
+            description.append(field_description)
     return description
 
 

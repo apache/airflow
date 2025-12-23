@@ -22,12 +22,12 @@ from unittest import mock
 import pytest
 from kubernetes.utils import FailToCreateError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
     KubernetesStartKueueJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 TEST_TASK_ID = "test_task"
 TEST_K8S_CONN_ID = "test_kubernetes_conn_id"
