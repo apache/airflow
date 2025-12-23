@@ -32,7 +32,7 @@ export class BackfillPage extends BasePage {
     this.backfillsTab = page.locator('a[href*="/backfills"]');
     this.cancelButton = page.locator('button[aria-label*="ancel"]');
     this.pauseButton = page.locator('button[aria-label*="ause"]');
-    this.triggerButton = page.locator('button:has-text("Trigger")');
+    this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
   }
 
   public static getDagDetailUrl(dagName: string): string {
@@ -59,7 +59,7 @@ export class BackfillPage extends BasePage {
 
     await this.page.waitForTimeout(1000);
 
-    const backfillRadio = this.page.locator('input[value="backfill"]');
+    const backfillRadio = this.page.locator('label:has-text("Backfill")');
 
     await backfillRadio.waitFor({ state: "visible", timeout: 10_000 });
     await backfillRadio.click();
