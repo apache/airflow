@@ -457,6 +457,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/utils/test_types.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
