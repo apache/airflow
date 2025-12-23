@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -83,17 +83,25 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
             yield key.value
 
     # Extract keys from the main `context` dictionary assignment
-    context_assignment = next(
+    context_assignment: ast.AnnAssign = next(
         stmt
         for stmt in fn_get_template_context.body
         if isinstance(stmt, ast.AnnAssign)
-        and isinstance(stmt.target, ast.Name)
-        and stmt.target.id == "context"
+        and isinstance(stmt.target, ast.Attribute)
+        and isinstance(stmt.target.value, ast.Name)
+        and stmt.target.value.id == "self"
+        and stmt.target.attr == "_cached_template_context"
     )
 
-    if not isinstance(context_assignment.value, ast.Dict):
+    if not isinstance(context_assignment.value, ast.BoolOp):
+        raise TypeError("Expected a BoolOp like 'self._cached_template_context or {...}'.")
+
+    context_assignment_op = context_assignment.value
+    _, context_assignment_value = context_assignment_op.values
+
+    if not isinstance(context_assignment_value, ast.Dict):
         raise ValueError("'context' is not assigned a dictionary literal")
-    yield from extract_keys_from_dict(context_assignment.value)
+    yield from extract_keys_from_dict(context_assignment_value)
 
     # Handle keys added conditionally in `if from_server`
     for stmt in fn_get_template_context.body:

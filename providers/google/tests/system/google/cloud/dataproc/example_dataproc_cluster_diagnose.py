@@ -90,6 +90,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
+        gcp_conn_id="google_cloud_default",
     )
     # [END how_to_cloud_dataproc_diagnose_cluster]
 
@@ -99,6 +100,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
         cluster_name=CLUSTER_NAME,
+        gcp_conn_id="google_cloud_default",
         deferrable=True,
     )
     # [END how_to_cloud_dataproc_diagnose_cluster_deferrable]

@@ -144,9 +144,8 @@ def users_delete(args):
 @providers_configuration_loaded
 def users_manage_role(args, remove=False):
     """Delete or appends user roles."""
-    user = _find_user(args)
-
     with get_application_builder() as appbuilder:
+        user = _find_user(args)
         role = appbuilder.sm.find_role(args.role)
         if not role:
             valid_roles = appbuilder.sm.get_all_roles()

@@ -536,7 +536,7 @@ def test_find_mapped_dependants_in_another_group():
 
 
 @pytest.mark.parametrize(
-    "partial_params, mapped_params, expected",
+    ("partial_params", "mapped_params", "expected"),
     [
         pytest.param(None, [{"a": 1}], [{"a": 1}], id="simple"),
         pytest.param({"b": 2}, [{"a": 1}], [{"a": 1, "b": 2}], id="merge"),
@@ -713,7 +713,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("execution_timeout", timedelta(minutes=5), timedelta(minutes=10)),
         ("max_retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
         ("retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
-        ("retry_exponential_backoff", True, False),
+        ("retry_exponential_backoff", 2.0, 5.0),
         ("priority_weight", 1, 10),
         ("max_active_tis_per_dag", 1, 10),
         ("on_execute_callback", [], [id]),

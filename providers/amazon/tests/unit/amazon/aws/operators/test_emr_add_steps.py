@@ -25,10 +25,10 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 try:
     from airflow.sdk import timezone
@@ -88,7 +88,7 @@ class TestEmrAddStepsOperator:
         assert op.aws_conn_id == "aws_default"
 
     @pytest.mark.parametrize(
-        "job_flow_id, job_flow_name",
+        ("job_flow_id", "job_flow_name"),
         [
             pytest.param("j-8989898989", "test_cluster", id="both-specified"),
             pytest.param(None, None, id="both-none"),

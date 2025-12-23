@@ -22,7 +22,6 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator, SageMakerTrainingOperator
@@ -30,6 +29,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerTrigger,
 )
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -44,7 +44,7 @@ CREATE_TRAINING_PARAMS = {
     "AlgorithmSpecification": {"TrainingImage": "image_name", "TrainingInputMode": "File"},
     "RoleArn": "arn:aws:iam:role/test-role",
     "OutputDataConfig": {"S3OutputPath": "output_path"},
-    "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+    "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c6g.8xlarge", "VolumeSizeInGB": "50"},
     "TrainingJobName": "job_name",
     "HyperParameters": {"k": "10", "feature_dim": "784", "mini_batch_size": "500", "force_dense": "True"},
     "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},

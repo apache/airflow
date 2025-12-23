@@ -19,7 +19,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import or_
+from sqlalchemy import delete, or_
 
 from airflow import models
 from airflow.providers.mysql.transfers.s3_to_mysql import S3ToMySqlOperator
@@ -101,10 +101,8 @@ class TestS3ToMySqlTransfer:
 
     def teardown_method(self):
         with create_session() as session:
-            (
-                session.query(models.Connection)
-                .filter(
+            session.execute(
+                delete(models.Connection).where(
                     or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "mysql_test")
                 )
-                .delete()
             )

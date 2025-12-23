@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { Button, Code, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiTrash, FiTrash2 } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import { useBulkDeleteVariables } from "src/queries/useBulkDeleteVariables";
 
 type Props = {
@@ -91,7 +91,7 @@ const DeleteVariablesButton = ({ clearSelections, deleteKeys: variableKeys }: Pr
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
+                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

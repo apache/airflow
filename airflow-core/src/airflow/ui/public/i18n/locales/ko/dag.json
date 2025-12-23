@@ -10,6 +10,7 @@
     "hourly": "시간별",
     "legend": {
       "less": "적음",
+      "mixed": "보통",
       "more": "많음"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "이전 해"
     },
     "noData": "데이터가 없습니다",
+    "noFailedRuns": "실패한 실행이 없습니다",
     "noRuns": "실행이 없습니다",
     "totalRuns": "총 실행 수",
     "week": "주 {{weekNumber}}",
@@ -95,9 +97,7 @@
     "buttons": {
       "options": "옵션",
       "showGantt": "간트 차트 보기",
-      "showGraph": "그래프 보기",
       "showGraphShortcut": "그래프 보기 (g 키)",
-      "showGrid": "그리드 보기",
       "showGridShortcut": "그리드 보기 (g 키)"
     },
     "dagRuns": {
@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "그래프 방향"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "필터 적용하기",
+      "clearFilter": "필터 지우기",
+      "clickTask": "필터 기준으로 사용할 작업을 선택하려면 클릭하세요",
+      "label": "필터",
+      "options": {
+        "both": "업스트림 & 다운스트림 모두",
+        "downstream": "다운스트림",
+        "upstream": "업스트림"
+      },
+      "selectedTask": "선택된 작업"
     }
   },
   "paramsFailed": "매개변수 로드 실패",

@@ -17,23 +17,30 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
-from datetime import datetime
+import sys
+from datetime import date
 from pathlib import Path
-from typing import Literal
 
 import click
 
-from airflow_breeze.commands.common_options import option_answer, option_dry_run, option_verbose
-from airflow_breeze.commands.release_management_group import release_management
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_dry_run,
+    option_verbose,
+    option_version_suffix,
+)
+from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
-    DistributionType,
+    TarBallType,
     get_airflow_version,
     get_airflowctl_version,
     get_task_sdk_version,
 )
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
@@ -42,6 +49,8 @@ from airflow_breeze.utils.path_utils import (
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+RC_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)rc(?P<rc>\d+)$")
 
 
 def validate_remote_tracks_apache_airflow(remote_name):
@@ -207,7 +216,7 @@ def validate_on_correct_branch_for_tagging(version_branch):
     console_print(f"[success]On correct branch '{expected_branch}' for tagging")
 
 
-def merge_pr(version_branch, remote_name):
+def merge_pr(version_branch, remote_name, sync_branch):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -222,7 +231,7 @@ def merge_pr(version_branch, remote_name):
             check=True,
         )
         run_command(
-            ["git", "merge", "--ff-only", f"v{version_branch}-test"],
+            ["git", "merge", "--ff-only", f"{sync_branch}"],
             check=True,
         )
         if confirm_action("Do you want to push the changes? Pushing the changes closes the PR"):
@@ -250,16 +259,16 @@ def git_clean():
 
 def tarball_release(
     version: str,
-    version_without_rc: str,
     source_date_epoch: int,
-    distribution_name: DistributionType,
+    tarball_type: TarBallType,
     tag: str | None = None,
 ):
-    console_print(f"[info]Creating tarball for Apache {distribution_name.value} {version}")
+    tag = version if tag is None else tag
+    console_print(f"[info]Creating tarball for {tarball_type.value} {version}, tag: {tag}\n")
     shutil.rmtree(OUT_PATH, ignore_errors=True)
     OUT_PATH.mkdir(exist_ok=True)
     AIRFLOW_DIST_PATH.mkdir(exist_ok=True)
-    archive_name = f"apache-{distribution_name.value}-{version_without_rc}-source.tar.gz"
+    archive_name = f"{tarball_type.value}-{version}-source.tar.gz"
     temporary_archive = OUT_PATH / archive_name
     result = run_command(
         [
@@ -268,17 +277,25 @@ def tarball_release(
             "tar.umask=0077",
             "archive",
             "--format=tar.gz",
-            f"{version if tag is None else tag}",
-            f"--prefix=apache-{distribution_name.value}-{version_without_rc}/",
+            tag,
+            f"--prefix={tarball_type.value}-{version}-source/",
             "-o",
             temporary_archive.as_posix(),
         ],
         check=False,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
+        if "fatal: not a valid object" in result.stderr:
+            console_print()
+            console_print(f"[error]Git tag '{tag}' does not exist!")
+            console_print()
+            sys.exit(1)
         console_print(
-            f"[error]Failed to create tarball {temporary_archive} for Apache {distribution_name.value} {version}"
+            f"[error]Failed to create tarball {temporary_archive} for Apache {tarball_type.value} {version}"
         )
+        console_print(f"[error]{result.stderr}")
         exit(result.returncode)
     final_archive = AIRFLOW_DIST_PATH / archive_name
     result = repack_deterministically(
@@ -294,36 +311,44 @@ def tarball_release(
 
 
 def create_tarball_release(
-    version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
-    tag: str | None,
+    tarball_type: TarBallType,
+    version: str | None,
+    version_suffix: str,
 ):
-    from packaging.version import Version
-
-    distribution_name = DistributionType(distribution_name)
-    if not version:
-        if distribution_name == DistributionType.AIRFLOW_CORE:
+    if tarball_type == TarBallType.AIRFLOW:
+        tag = version + version_suffix if version else "HEAD"
+        if not version:
             version = get_airflow_version()
-        elif distribution_name == DistributionType.TASK_SDK:
+            console_print(f"\n[info]Using {version} retrieved from airflow-core as tarball version\n")
+    elif tarball_type == TarBallType.TASK_SDK:
+        tag = f"task-sdk/{version + version_suffix}" if version else "HEAD"
+        if not version:
             version = get_task_sdk_version()
-        elif distribution_name == DistributionType.AIRFLOW_CTL:
+            console_print(f"\n[info]Using {version} retrieved from task-sdk as tarball version\n")
+    elif tarball_type == TarBallType.AIRFLOW_CTL:
+        tag = f"airflow-ctl/{version + version_suffix}" if version else "HEAD"
+        if not version:
             version = get_airflowctl_version()
-        elif distribution_name == DistributionType.PROVIDERS:
-            version = get_airflow_version()
-    distribution_version = Version(version)
+            console_print(f"\n[info]Using {version} retrieved from airflow-ctl as tarball version\n")
+    elif tarball_type == TarBallType.PROVIDERS:
+        tag = f"providers/{version + version_suffix}" if version else "HEAD"
+        if not version:
+            version = date.strftime(date.today(), "%Y-%m-%d")
+            console_print(f"\n[info]Using current date {version} as tarball version\n")
+    elif tarball_type == TarBallType.PYTHON_CLIENT:
+        tag = f"python-client/{version + version_suffix}" if version else "HEAD"
+        if not version:
+            version = date.strftime(date.today(), "%Y-%m-%d")
+            console_print(f"\n[info]Using current date {version} as tarball version\n")
+    else:  # pragma: no cover
+        console_print(f"[error]Unsupported tarball type: {tarball_type}")
+        exit(1)
     source_date_epoch = get_source_date_epoch(AIRFLOW_ROOT_PATH)
-    version_without_rc = (
-        distribution_version.base_version
-        if distribution_name != DistributionType.PROVIDERS
-        else f"{datetime.now().strftime('%Y-%m-%d')}"
-    )
-
     # Create the tarball
     tarball_release(
         version=version,
-        version_without_rc=version_without_rc,
         source_date_epoch=source_date_epoch,
-        distribution_name=distribution_name,
+        tarball_type=tarball_type,
         tag=tag,
     )
 
@@ -367,6 +392,8 @@ def create_artifacts_with_docker():
             "prepare-airflow-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -377,6 +404,8 @@ def create_artifacts_with_docker():
             "prepare-task-sdk-distributions",
             "--distribution-format",
             "both",
+            "--version-suffix",
+            "",
         ],
         check=True,
     )
@@ -430,30 +459,41 @@ def clone_asf_repo(version, repo_root):
         console_print("[success]Cloned ASF repo successfully")
 
 
-def move_artifacts_to_svn(version, task_sdk_version, repo_root):
+def move_artifacts_to_svn(
+    version, version_without_rc, task_sdk_version, task_sdk_version_without_rc, repo_root
+):
     if confirm_action("Do you want to move artifacts to SVN?"):
         os.chdir(f"{repo_root}/asf-dist/dev/airflow")
         run_command(["svn", "mkdir", f"{version}"], check=True)
-        run_command(f"mv {repo_root}/dist/*{version}* {version}/", check=True, shell=True)
+        run_command(f"mv {repo_root}/dist/*{version_without_rc}* {version}/", check=True, shell=True)
+        run_command(["svn", "mkdir", f"task-sdk/{task_sdk_version}"])
         run_command(
-            f"mv {repo_root}/dist/*{task_sdk_version}* task-sdk/{task_sdk_version}/", check=True, shell=True
+            f"mv {repo_root}/dist/*{task_sdk_version_without_rc}* task-sdk/{task_sdk_version}/",
+            check=True,
+            shell=True,
         )
         console_print("[success]Moved artifacts to SVN:")
-        run_command(["ls"])
-        run_command([f"ls {version}"])
-        run_command([f"ls task-sdk/{task_sdk_version}"])
+        run_command([f"ls {repo_root}/asf-dist/dev/airflow/{version}"])
+        run_command([f"ls {repo_root}/asf-dist/dev/airflow/task-sdk/{task_sdk_version}"])
 
 
-def push_artifacts_to_asf_repo(version, repo_root):
+def push_artifacts_to_asf_repo(version, task_sdk_version, repo_root):
     if confirm_action("Do you want to push artifacts to ASF repo?"):
-        console_print("Files to push to svn:")
-        if not get_dry_run():
-            os.chdir(f"{repo_root}/asf-dist/dev/airflow/{version}")
-        run_command(["ls"])
+        base_dir = f"{repo_root}/asf-dist/dev/airflow"
+        airflow_dir = f"{base_dir}/{version}"
+        task_sdk_dir = f"{base_dir}/task-sdk/{task_sdk_version}"
+
+        console_print("Airflow Version Files to push to svn:")
+        run_command(["ls"], cwd=airflow_dir if not get_dry_run() else None)
         confirm_action("Do you want to continue?", abort=True)
-        run_command("svn add *", check=True, shell=True)
+        console_print("Task SDK Version Files to push to svn:")
+        run_command(["ls"], cwd=task_sdk_dir if not get_dry_run() else None)
+        confirm_action("Do you want to continue?", abort=True)
+        if not get_dry_run():
+            os.chdir(base_dir)
+        run_command(f"svn add {version}/* task-sdk/{task_sdk_version}/*", check=True, shell=True)
         run_command(
-            ["svn", "commit", "-m", f"Add artifacts for Airflow {version}"],
+            ["svn", "commit", "-m", f"Add artifacts for Airflow {version} and Task SDK {task_sdk_version}"],
             check=True,
         )
         console_print("[success]Files pushed to svn")
@@ -548,64 +588,93 @@ def push_release_candidate_tag_to_github(version, remote_name):
         console_print("[success]Release candidate tag pushed to GitHub")
 
 
-def remove_old_releases(version, repo_root):
-    if confirm_action("In beta release we do not remove old RCs. Is this a beta release?"):
-        return
+def remove_old_releases(version, task_sdk_version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
     os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
+    # Remove old Airflow releases
     old_releases = []
     for entry in os.scandir():
         if entry.name == version:
             # Don't remove the current RC
             continue
-        if entry.is_dir() and entry.name.startswith("2."):
+        if entry.is_dir() and RC_PATTERN.match(entry.name):
             old_releases.append(entry.name)
     old_releases.sort()
-
+    console_print(f"The following old Airflow releases should be removed: {old_releases}")
     for old_release in old_releases:
+        console_print(f"Removing old Airflow release {old_release}")
         if confirm_action(f"Remove old RC {old_release}?"):
             run_command(["svn", "rm", old_release], check=True)
             run_command(
                 ["svn", "commit", "-m", f"Remove old release: {old_release}"],
                 check=True,
             )
+
+    # Remove old Task SDK releases
+    task_sdk_path = f"{repo_root}/asf-dist/dev/airflow/task-sdk"
+    if os.path.exists(task_sdk_path):
+        os.chdir(task_sdk_path)
+        old_task_sdk_releases = []
+        for entry in os.scandir():
+            if entry.name == task_sdk_version:
+                # Don't remove the current RC
+                continue
+            if entry.is_dir() and RC_PATTERN.match(entry.name):
+                old_task_sdk_releases.append(entry.name)
+        old_task_sdk_releases.sort()
+        console_print(f"The following old Task SDK releases should be removed: {old_task_sdk_releases}")
+        for old_release in old_task_sdk_releases:
+            console_print(f"Removing old Task SDK release {old_release}")
+            if confirm_action(f"Remove old Task SDK RC {old_release}?"):
+                run_command(["svn", "rm", old_release], check=True)
+                run_command(
+                    ["svn", "commit", "-m", f"Remove old Task SDK release: {old_release}"],
+                    check=True,
+                )
+
     console_print("[success]Old releases removed")
     os.chdir(repo_root)
 
 
-@release_management.command(
-    name="prepare-airflow-tarball",
-    help="Prepare airflow's or airflow distribution source tarball.",
-)
-@click.option("--version", help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION")
-@click.option(
-    "--distribution-name",
-    default="airflow",
-    help="The distribution name, airflow, task-sdk, providers, airflowctl",
+@release_management_group.command(
+    name="prepare-tarball",
+    help="Prepare source tarball.",
 )
 @click.option(
-    "--tag",
-    help="The git tag to use for creating the tarball. If not provided, __init__ file version is used.",
-    default=None,
+    "--tarball-type",
+    default=TarBallType.AIRFLOW.value,
+    type=BetterChoice(sorted([e.value for e in TarBallType])),
+    show_default=True,
+    envvar="TARBALL_TYPE",
+    help="The type of tarball to build",
 )
+@click.option(
+    "--version",
+    type=str,
+    help="Version to build the tarball for. Must have a corresponding tag in git. "
+    "If not specified, the HEAD of current branch will be used and version will be retrieved from there.",
+    envvar="VERSION",
+)
+@option_version_suffix
 @option_dry_run
 @option_verbose
-def prepare_airflow_tarball(
-    version: str,
-    distribution_name: Literal["airflow", "task-sdk", "providers", "airflowctl"],
-    tag: str | None,
+def prepare_tarball(
+    tarball_type: str,
+    version: str | None,
+    version_suffix: str,
 ):
+    enum_tarball_type = TarBallType(tarball_type)
     create_tarball_release(
         version=version,
-        distribution_name=distribution_name,
-        tag=tag,
+        version_suffix=version_suffix,
+        tarball_type=enum_tarball_type,
     )
 
 
-@release_management.command(
+@release_management_group.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
@@ -614,13 +683,18 @@ def prepare_airflow_tarball(
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
 @click.option("--task-sdk-version", required=True, help="The task SDK version e.g. 1.0.6rc1.")
 @click.option(
+    "--sync-branch", required=True, help="The branch of the sync PR. Can be the test branch. Please specify"
+)
+@click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
 @click.option("--remote-name", default="origin", help="Git remote name to push to (default: origin)")
 @option_answer
 @option_dry_run
 @option_verbose
-def publish_release_candidate(version, previous_version, task_sdk_version, github_token, remote_name):
+def publish_release_candidate(
+    version, previous_version, task_sdk_version, sync_branch, github_token, remote_name
+):
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -663,13 +737,14 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     console_print(f"task_sdk_version_without_rc: {task_sdk_version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
     console_print(f"remote_name: {remote_name}")
+    console_print(f"sync_branch: {sync_branch}")
     console_print()
     console_print(f"Below are your git remotes. We will push to {remote_name}:")
     run_command(["git", "remote", "-v"])
     console_print()
     confirm_action("Verify that the above information is correct. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch, remote_name)
+    merge_pr(version_branch, remote_name, sync_branch)
     #
     # # Tag & clean the repo
     # Validate we're on the correct branch before tagging
@@ -688,10 +763,10 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     if confirm_action("Create tarball?"):
         # Create the tarball
         tarball_release(
-            version=version,
-            version_without_rc=version_without_rc,
+            version=version_without_rc,
             source_date_epoch=source_date_epoch,
-            distribution_name=DistributionType.AIRFLOW_CORE,
+            tarball_type=TarBallType.AIRFLOW,
+            tag=version,
         )
     # Sign the release
     sign_the_release(airflow_repo_root)
@@ -700,12 +775,14 @@ def publish_release_candidate(version, previous_version, task_sdk_version, githu
     # Clone the asf repo
     clone_asf_repo(version, airflow_repo_root)
     # Move artifacts to SVN
-    move_artifacts_to_svn(version, task_sdk_version, airflow_repo_root)
+    move_artifacts_to_svn(
+        version, version_without_rc, task_sdk_version, task_sdk_version_without_rc, airflow_repo_root
+    )
     # Push the artifacts to the asf repo
-    push_artifacts_to_asf_repo(version, airflow_repo_root)
+    push_artifacts_to_asf_repo(version, task_sdk_version, airflow_repo_root)
 
     # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
+    remove_old_releases(version, task_sdk_version, airflow_repo_root)
 
     # Delete asf-dist directory
     delete_asf_repo(airflow_repo_root)

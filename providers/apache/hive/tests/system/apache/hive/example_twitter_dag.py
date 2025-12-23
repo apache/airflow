@@ -26,15 +26,8 @@ from datetime import date, datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.providers.common.compat.sdk import task
 from airflow.providers.standard.operators.bash import BashOperator
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import task
-else:
-    # Airflow 2 path
-    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.

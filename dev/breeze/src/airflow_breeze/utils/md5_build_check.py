@@ -22,17 +22,13 @@ from __future__ import annotations
 
 import hashlib
 import os
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow_breeze.global_constants import (
-    ALL_PYPROJECT_TOML_FILES,
-    FILES_FOR_REBUILD_CHECK,
-    UPDATE_PROVIDER_DEPENDENCIES_SCRIPT,
-)
+from airflow_breeze.global_constants import ALL_PYPROJECT_TOML_FILES, FILES_FOR_REBUILD_CHECK
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.provider_dependencies import regenerate_provider_dependencies_once
 from airflow_breeze.utils.shared_options import get_verbose
 
 if TYPE_CHECKING:
@@ -113,7 +109,8 @@ def calculate_md5_checksum_for_files(
                 get_console().print(
                     [os.fspath(file.relative_to(AIRFLOW_ROOT_PATH)) for file in modified_pyproject_toml_files]
                 )
-            subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
+            # Delegate to the shared helper that ensures regeneration runs only once
+            regenerate_provider_dependencies_once()
     for file in FILES_FOR_REBUILD_CHECK:
         is_modified = check_md5_sum_for_file(file, md5sum_cache_dir, update)
         if is_modified:

@@ -21,11 +21,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTuningOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -69,7 +69,7 @@ CREATE_TUNING_PARAMS: dict = {
             }
         ],
         "OutputDataConfig": {"S3OutputPath": "output_path"},
-        "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c4.8xlarge", "VolumeSizeInGB": "50"},
+        "ResourceConfig": {"InstanceCount": "2", "InstanceType": "ml.c6g.8xlarge", "VolumeSizeInGB": "50"},
         "StoppingCondition": {"MaxRuntimeInSeconds": "3600"},
     },
 }

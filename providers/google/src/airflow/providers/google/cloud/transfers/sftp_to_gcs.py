@@ -25,13 +25,13 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 WILDCARD = "*"
@@ -78,6 +78,8 @@ class SFTPToGCSOperator(BaseOperator):
         then uploads (may require significant disk space).
         When ``True``, the file streams directly without using local disk.
         Defaults to ``False``.
+    :param fail_on_file_not_exist: If True, operator fails when file does not exist,
+        if False, operator will not fail and skips transfer. Default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -101,6 +103,7 @@ class SFTPToGCSOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
         use_stream: bool = False,
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -116,6 +119,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
         self.use_stream = use_stream
+        self.fail_on_file_not_exist = fail_on_file_not_exist
 
     @cached_property
     def sftp_hook(self):
@@ -156,7 +160,13 @@ class SFTPToGCSOperator(BaseOperator):
             destination_object = (
                 self.destination_path if self.destination_path else self.source_path.rsplit("/", 1)[1]
             )
-            self._copy_single_object(gcs_hook, self.sftp_hook, self.source_path, destination_object)
+            try:
+                self._copy_single_object(gcs_hook, self.sftp_hook, self.source_path, destination_object)
+            except FileNotFoundError as e:
+                if self.fail_on_file_not_exist:
+                    raise e
+                self.log.info("File %s not found on SFTP server. Skipping transfer.", self.source_path)
+                return
 
     def _copy_single_object(
         self,
@@ -172,7 +182,6 @@ class SFTPToGCSOperator(BaseOperator):
             self.destination_bucket,
             destination_object,
         )
-
         if self.use_stream:
             dest_bucket = gcs_hook.get_bucket(self.destination_bucket)
             dest_blob = dest_bucket.blob(destination_object)

@@ -318,9 +318,12 @@ Upgrading Airflow DB
 If you set :envvar:`_AIRFLOW_DB_MIGRATE` variable to a non-empty value, the entrypoint will run
 the ``airflow db migrate`` command right after verifying the connection. You can also use this
 when you are running Airflow with internal SQLite database (default) to upgrade the db and create
-admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
-intended only for testing purpose, never use SQLite in production as it has severe limitations when it
-comes to concurrency.
+admin users at entrypoint, so that you can start the webserver immediately. If no command is
+provided to the container and :envvar:`_AIRFLOW_DB_MIGRATE` is set, the container will exit
+cleanly after completing the database migration. This allows one-off init containers
+(such as ``airflow-init``) to perform setup without requiring a placeholder command to suppress
+CLI errors. Note - using SQLite is intended only for testing purpose, never use SQLite in
+production as it has severe limitations when it comes to concurrency.
 
 Creating admin user
 ...................

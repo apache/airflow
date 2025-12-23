@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-import logging.config
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -70,8 +69,16 @@ index = 0
 
 @pytest.mark.db_test
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -239,9 +246,8 @@ class TestDbApiHook:
     )
     def test_no_query(self, empty_statement):
         dbapi_hook = mock_db_hook(DbApiHook)
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             dbapi_hook.run(sql=empty_statement)
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     @pytest.mark.db_test
     def test_placeholder_config_from_extra(self):
@@ -311,7 +317,7 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("test_default_df_type", pd.DataFrame),
             ("pandas", pd.DataFrame),

@@ -63,7 +63,8 @@ To use OpenTelemetry you must first install the required packages:
 
    pip install 'apache-airflow[otel]'
 
-Add the following lines to your configuration file e.g. ``airflow.cfg``
+An OpenTelemetry `Collector <https://opentelemetry.io/docs/concepts/components/#collector>`_ (or compatible service) is required for connectivity to a metrics backend.
+Add the Collector details to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
@@ -73,7 +74,19 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_port = 8889
     otel_prefix = airflow
     otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
+    otel_service = Airflow
     otel_ssl_active = False
+
+.. note::
+
+    To support the OpenTelemetry exporter standard, the ``metrics`` configurations are transparently overridden by use of standard OpenTelemetry SDK environment variables.
+
+    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` supersede ``otel_host``, ``otel_port`` and ``otel_ssl_active``
+    - ``OTEL_METRIC_EXPORT_INTERVAL`` supersedes ``otel_interval_milliseconds``
+
+    See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
+    `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
+
 
 Enable Https
 -----------------
@@ -225,6 +238,7 @@ Name                                                 Description
 ``scheduler.tasks.executable``                       Number of tasks that are ready for execution (set to queued)
                                                      with respect to pool limits, Dag concurrency, executor state,
                                                      and priority.
+``scheduler.dagruns.running``                           Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state
 ``executor.open_slots.<executor_class_name>``        Number of open slots on a specific executor. Only emitted when multiple executors are configured.
 ``executor.open_slots``                              Number of open slots on executor
 ``executor.queued_tasks.<executor_class_name>``      Number of queued tasks on on a specific executor. Only emitted when multiple executors are configured.
@@ -249,8 +263,17 @@ Name                                                 Description
 ``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
 ``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
                                                      Metric with hostname tagging.
+``ti.scheduled.<queue>.<dag_id>.<task_id>``          Number of scheduled tasks in a given Dag.
+``ti.scheduled``                                     Number of scheduled tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.queued.<queue>.<dag_id>.<task_id>``             Number of queued tasks in a given Dag.
+``ti.queued``                                        Number of queued tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
 ``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
 ``ti.running``                                       Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.deferred.<queue>.<dag_id>.<task_id>``           Number of deferred tasks in a given Dag.
+``ti.deferred``                                      Number of deferred tasks in a given Dag.
                                                      Metric with queue, dag_id and task_id tagging.
 ==================================================== ========================================================================
 

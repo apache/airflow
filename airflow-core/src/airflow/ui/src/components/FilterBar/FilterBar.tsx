@@ -26,13 +26,17 @@ import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { DateFilter } from "./filters/DateFilter";
+import { DateRangeFilter } from "./filters/DateRangeFilter";
 import { NumberFilter } from "./filters/NumberFilter";
+import { SelectFilter } from "./filters/SelectFilter";
 import { TextSearchFilter } from "./filters/TextSearchFilter";
 import type { FilterBarProps, FilterConfig, FilterState, FilterValue } from "./types";
+import { getDefaultFilterValue, isValidFilterValue } from "./utils";
 
 const defaultInitialValues: Record<string, FilterValue> = {};
 
-const getFilterIcon = (config: FilterConfig) => config.icon ?? getDefaultFilterIcon(config.type);
+const getFilterIcon = (config: FilterConfig): React.ReactNode =>
+  config.icon ?? getDefaultFilterIcon(config.type);
 
 export const FilterBar = ({
   configs,
@@ -43,7 +47,11 @@ export const FilterBar = ({
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
     Object.entries(initialValues)
-      .filter(([, value]) => value !== null && value !== undefined && value !== "")
+      .filter(([key, value]) => {
+        const config = configs.find((filterConfig) => filterConfig.key === key);
+
+        return config && isValidFilterValue(config.type, value);
+      })
       .map(([key, value]) => {
         const config = configs.find((con) => con.key === key);
 
@@ -66,7 +74,7 @@ export const FilterBar = ({
   const updateFiltersRecord = useCallback(
     (updatedFilters: Array<FilterState>) => {
       const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
-        if (filter.value !== null && filter.value !== undefined && filter.value !== "") {
+        if (isValidFilterValue(filter.config.type, filter.value)) {
           accumulator[filter.config.key] = filter.value;
         }
 
@@ -82,7 +90,7 @@ export const FilterBar = ({
     const newFilter: FilterState = {
       config,
       id: `${config.key}-${Date.now()}`,
-      value: config.defaultValue ?? "",
+      value: getDefaultFilterValue(config),
     };
 
     const updatedFilters = [...filters, newFilter];
@@ -124,8 +132,12 @@ export const FilterBar = ({
     switch (filter.config.type) {
       case "date":
         return <DateFilter key={filter.id} {...props} />;
+      case "daterange":
+        return <DateRangeFilter key={filter.id} {...props} />;
       case "number":
         return <NumberFilter key={filter.id} {...props} />;
+      case "select":
+        return <SelectFilter key={filter.id} {...props} />;
       case "text":
         return <TextSearchFilter key={filter.id} {...props} />;
       default:

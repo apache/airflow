@@ -196,7 +196,7 @@ async def test_jwt_wrong_subject(jwt_generator, jwt_validator):
 
 
 @pytest.mark.parametrize(
-    ["private_key", "algorithm"],
+    ("private_key", "algorithm"),
     [("rsa_private_key", "RS256"), ("ed25519_private_key", "EdDSA")],
     indirect=["private_key"],
 )

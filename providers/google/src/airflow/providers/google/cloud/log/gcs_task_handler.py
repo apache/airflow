@@ -31,7 +31,7 @@ import attrs
 import google.cloud.storage as storage
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.utils.credentials_provider import (
     get_credentials_and_project_id,
@@ -213,9 +213,15 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str = PROVIDE_PROJECT_ID,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
         **kwargs,
-    ):
-        super().__init__(base_log_folder)
+    ) -> None:
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.handler: logging.FileHandler | None = None
         self.log_relative_path = ""
         self.closed = False

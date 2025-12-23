@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING, Any
 
 from azure.identity import ClientSecretCredential
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field, parse_blob_account_url
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem

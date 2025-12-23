@@ -20,6 +20,8 @@ __all__ = [
     "configure_logging",
     "init_log_file",
     "init_log_folder",
+    "translate_config_values",
 ]
 
+from ._config import translate_config_values
 from .structlog import configure_logging, init_log_file, init_log_folder

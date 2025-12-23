@@ -10,6 +10,7 @@
     "hourly": "Óránkénti",
     "legend": {
       "less": "Kevesebb",
+      "mixed": "Vegyes",
       "more": "Több"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Előző év"
     },
     "noData": "Nincs elérhető adat",
+    "noFailedRuns": "Nincs sikertelen futás",
     "noRuns": "Nincs futás",
     "totalRuns": "Összes futás",
     "week": "Hét {{weekNumber}}",
@@ -35,6 +37,7 @@
   "code": {
     "bundleUrl": "Csomag URL",
     "noCode": "Nem található kód",
+    "parseDuration": "Feldolgozás időtartama:",
     "parsedAt": "Feldolgozás ideje:"
   },
   "extraLinks": "Extra hivatkozások",
@@ -84,6 +87,8 @@
       "assetEvent_other": "Létrehozott adatkészlet események"
     },
     "failedLogs": {
+      "hideLogs": "Napló elrejtése",
+      "showLogs": "Napló mutatása",
       "title": "Legutóbbi sikertelen feladatnaplók",
       "viewFullLogs": "Teljes naplók megtekintése"
     }
@@ -116,10 +121,10 @@
     "toaster": {
       "error": {
         "description": "A Dag feldolgozási kérelem meghiúsult. Lehetnek még feldolgozásra váró kérelmek.",
-        "title": "DAG újrafeldolgozása sikertelen"
+        "title": "Dag újrafeldolgozása sikertelen"
       },
       "success": {
-        "description": "A DAG újrafeldolgozása hamarosan.",
+        "description": "A Dag újrafeldolgozása hamarosan.",
         "title": "Újrafeldolgozási kérelem sikeresen elküldve"
       }
     }

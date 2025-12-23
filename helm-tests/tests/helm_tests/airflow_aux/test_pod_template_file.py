@@ -137,7 +137,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.initContainers", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "dag_values, expected_read_only",
+        ("dag_values", "expected_read_only"),
         [
             ({"gitSync": {"enabled": True}}, True),
             ({"persistence": {"enabled": True}}, False),
@@ -254,7 +254,15 @@ class TestPodTemplateFile:
             "readOnly": True,
         } in jmespath.search("spec.initContainers[0].volumeMounts", docs[0])
 
-    def test_should_set_username_and_pass_env_variables(self):
+    @pytest.mark.parametrize(
+        ("tag", "expected_prefix"),
+        [
+            ("v3.6.7", "GIT_SYNC_"),
+            ("v4.4.2", "GITSYNC_"),
+            ("latest", "GITSYNC_"),
+        ],
+    )
+    def test_should_set_username_and_pass_env_variables(self, tag, expected_prefix):
         docs = render_chart(
             values={
                 "dags": {
@@ -263,30 +271,28 @@ class TestPodTemplateFile:
                         "credentialsSecret": "user-pass-secret",
                         "sshKeySecret": None,
                     }
-                }
+                },
+                "images": {
+                    "gitSync": {
+                        "tag": tag,
+                    }
+                },
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        envs = jmespath.search("spec.initContainers[0].env", docs[0])
 
-        # Testing git-sync v4
         assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+            "name": f"{expected_prefix}USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}USERNAME"}},
+        } in envs
+
         assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
-        } in jmespath.search("spec.initContainers[0].env", docs[0])
+            "name": f"{expected_prefix}PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
+        } in envs
 
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -300,7 +306,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "dags_gitsync_values, expected",
+        ("dags_gitsync_values", "expected"),
         [
             ({"enabled": True}, {"emptyDir": {}}),
             ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
@@ -315,7 +321,7 @@ class TestPodTemplateFile:
         assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_values, expected",
+        ("log_values", "expected"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -576,7 +582,7 @@ class TestPodTemplateFile:
         )
 
     @pytest.mark.parametrize(
-        "base_scheduler_name, worker_scheduler_name, expected",
+        ("base_scheduler_name", "worker_scheduler_name", "expected"),
         [
             ("default-scheduler", "most-allocated", "most-allocated"),
             ("default-scheduler", None, "default-scheduler"),
@@ -992,7 +998,7 @@ class TestPodTemplateFile:
         } in jmespath.search("spec.containers[1].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, init_container_enabled, expected_init_containers",
+        ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
             ("1.9.0", True, 0),
             ("1.9.0", False, 0),
@@ -1029,7 +1035,7 @@ class TestPodTemplateFile:
             assert initContainers[0]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        "cmd, expected",
+        ("cmd", "expected"),
         [
             (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
             (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
@@ -1065,7 +1071,7 @@ class TestPodTemplateFile:
         assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        "airflow_version, workers_values, kerberos_init_container, expected_config_name",
+        ("airflow_version", "workers_values", "kerberos_init_container", "expected_config_name"),
         [
             (None, {"kerberosSidecar": {"enabled": True}}, False, "api-server-config"),
             (None, {"kerberosInitContainer": {"enabled": True}}, True, "api-server-config"),

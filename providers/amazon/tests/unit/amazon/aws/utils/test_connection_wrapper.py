@@ -25,9 +25,9 @@ import pytest
 from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
+from airflow.providers.common.compat.sdk import AirflowException
 
 pytestmark = pytest.mark.db_test
 
@@ -193,7 +193,7 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.session_kwargs != session_kwargs
 
     @pytest.mark.parametrize(
-        "region_name,conn_region_name",
+        ("region_name", "conn_region_name"),
         [
             ("mock-region-name", None),
             ("mock-region-name", "mock-connection-region-name"),
@@ -220,7 +220,7 @@ class TestAwsConnectionWrapper:
 
     @mock.patch("airflow.providers.amazon.aws.utils.connection_wrapper.Config")
     @pytest.mark.parametrize(
-        "botocore_config, botocore_config_kwargs",
+        ("botocore_config", "botocore_config_kwargs"),
         [
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
             (Config(region_name="ap-southeast-1"), {"user_agent": "Airflow Amazon Provider"}),
@@ -247,7 +247,9 @@ class TestAwsConnectionWrapper:
                 botocore_config_kwargs["signature_version"] = UNSIGNED
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
-    @pytest.mark.parametrize("aws_account_id, aws_iam_role", [(None, None), ("111111111111", "another-role")])
+    @pytest.mark.parametrize(
+        ("aws_account_id", "aws_iam_role"), [(None, None), ("111111111111", "another-role")]
+    )
     def test_get_role_arn(self, aws_account_id, aws_iam_role):
         mock_conn = mock_connection_factory(
             extra={
@@ -414,7 +416,7 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.get_service_endpoint_url("ec2") is None
 
     @pytest.mark.parametrize(
-        "global_endpoint_url, sts_service_endpoint_url, expected_endpoint_url",
+        ("global_endpoint_url", "sts_service_endpoint_url", "expected_endpoint_url"),
         [
             pytest.param(None, None, None, id="not-set"),
             pytest.param("https://global.service", None, None, id="global-only"),

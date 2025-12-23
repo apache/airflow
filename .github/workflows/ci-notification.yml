@@ -36,19 +36,14 @@ jobs:
   workflow-status:
     strategy:
       matrix:
-        branch: ["v3-0-test"]
-        workflow-id: ["ci-amd.yml", "ci-arm.yml"]
+        branch: ["v3-1-test"]
+        workflow-id: ["ci-amd-arm.yml"]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-
-      - name: "Install Python 3.11 as 3.11+ is needed by pin-versions pre-commit"
-        uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c  # v4.9.1
-        with:
-          python-version: 3.11
 
       - name: "Find workflow run status"
         id: find-workflow-run-status

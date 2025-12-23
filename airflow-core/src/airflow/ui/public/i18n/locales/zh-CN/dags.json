@@ -16,12 +16,11 @@
       "unfavorite": "未加入收藏"
     },
     "paused": {
-      "active": "启用中",
+      "active": "已启用",
       "all": "全部",
       "paused": "暂停"
     },
-    "runIdPatternFilter": "搜索 Dag 执行",
-    "triggeringUserNameFilter": "搜索触发用户名称"
+    "runIdPatternFilter": "搜索 Dag 执行"
   },
   "ownerLink": "拥有者 {{owner}} 的地址",
   "runAndTaskActions": {

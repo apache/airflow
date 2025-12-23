@@ -54,6 +54,13 @@ available in :doc:`plugin </administration-and-deployment/plugins>`.
 Developing React Applications with the Bootstrap Tool
 =====================================================
 
+.. warning::
+  React applications are new in Airflow 3.1 and should be considered experimental. The feature may be
+  subject to changes in future versions without warning based on user feedback and errors reported.
+  Dependency and state interactions between the UI and plugins may need to be refactored, which will also change the bootstrapped example project provided.
+
+|experimental|
+
 Airflow provides a React plugin bootstrap tool to help developers quickly create, develop, and integrate external React applications into the core UI. This is the most flexible
 and recommended way to customize the Airflow UI.
 This tool generates a complete React project structure that builds as a library compatible with dynamic imports and shares React instances with the host Airflow application.

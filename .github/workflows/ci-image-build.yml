@@ -72,6 +72,7 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
+        default: '[""]'
       branch:
         description: "Branch used to run the CI jobs in (main/v*_*_test)."
         required: true
@@ -99,7 +100,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ${{ fromJSON(inputs.python-versions) || fromJSON('[""]') }}
+        python-version: ${{ fromJSON(inputs.python-versions) }}
     timeout-minutes: 110
     name: "Build CI ${{ inputs.platform }} image ${{ matrix.python-version }}"
     runs-on: ${{ fromJSON(inputs.runners) }}

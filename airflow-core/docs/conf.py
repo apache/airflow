@@ -244,13 +244,20 @@ airflow_version: Version = parse_version(
 config_descriptions = retrieve_configuration_description(include_providers=False)
 configs, deprecated_options = get_configs_and_deprecations(airflow_version, config_descriptions)
 
+# TODO: remove it when we start releasing task-sdk separately from airflow-core
+airflow_version_split = PACKAGE_VERSION.split(".")
+TASK_SDK_VERSION = f"1.{airflow_version_split[1]}.{airflow_version_split[2]}"
+
 jinja_contexts = {
     "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
     "quick_start_ctx": {"doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"},
     "official_download_page": {
         "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",
+        "base_url_task_sdk": f"https://downloads.apache.org/airflow/task-sdk/{TASK_SDK_VERSION}",
         "closer_lua_url": f"https://www.apache.org/dyn/closer.lua/airflow/{PACKAGE_VERSION}",
+        "closer_lua_url_task_sdk": f"https://www.apache.org/dyn/closer.lua/airflow/task-sdk/{TASK_SDK_VERSION}",
         "airflow_version": PACKAGE_VERSION,
+        "task_sdk_version": TASK_SDK_VERSION,
     },
 }
 
@@ -260,6 +267,14 @@ global_substitutions = {
     "airflow-version": airflow.__version__,
     "experimental": "This is an :ref:`experimental feature <experimental>`.",
 }
+
+# Pagefind search configuration
+pagefind_exclude_patterns = [
+    "_api/**",  # Exclude auto-generated API documentation
+    "_modules/**",  # Exclude source code modules
+    "release_notes.html",  # Exclude changelog aggregation page
+    "genindex.html",  # Exclude generated index
+]
 
 # -- Options for sphinx.ext.autodoc --------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
@@ -365,3 +380,7 @@ redoc = [
 
 def setup(sphinx):
     sphinx.connect("autoapi-skip-member", skip_util_classes_extension)
+
+
+# Fix for broken permalink icon in Sphinx 7.x+
+html_permalinks_icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>'

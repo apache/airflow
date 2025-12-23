@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import time
 import warnings
@@ -28,10 +29,12 @@ from typing import TYPE_CHECKING, Any, TypedDict, TypeVar, cast
 
 import aiohttp
 from asgiref.sync import sync_to_async
+from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 from requests.sessions import Session
+from tenacity import AsyncRetrying, RetryCallState, retry_if_exception, stop_after_attempt, wait_exponential
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 
 if TYPE_CHECKING:
@@ -174,6 +177,10 @@ class DbtCloudHook(HttpHook):
     Interact with dbt Cloud using the V2 (V3 if supported) API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
+    :param timeout_seconds: Optional. The timeout in seconds for HTTP requests. If not provided, no timeout is applied.
+    :param retry_limit: The number of times to retry a request in case of failure.
+    :param retry_delay: The delay in seconds between retries.
+    :param retry_args: A dictionary of arguments to pass to the `tenacity.retry` decorator.
     """
 
     conn_name_attr = "dbt_cloud_conn_id"
@@ -193,9 +200,39 @@ class DbtCloudHook(HttpHook):
             },
         }
 
-    def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        dbt_cloud_conn_id: str = default_conn_name,
+        timeout_seconds: int | None = None,
+        retry_limit: int = 1,
+        retry_delay: float = 1.0,
+        retry_args: dict[Any, Any] | None = None,
+    ) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.timeout_seconds = timeout_seconds
+        if retry_limit < 1:
+            raise ValueError("Retry limit must be greater than or equal to 1")
+        self.retry_limit = retry_limit
+        self.retry_delay = retry_delay
+
+        def retry_after_func(retry_state: RetryCallState) -> None:
+            error_msg = str(retry_state.outcome.exception()) if retry_state.outcome else "Unknown error"
+            self._log_request_error(retry_state.attempt_number, error_msg)
+
+        if retry_args:
+            self.retry_args = copy.copy(retry_args)
+            self.retry_args["retry"] = retry_if_exception(self._retryable_error)
+            self.retry_args["after"] = retry_after_func
+            self.retry_args["reraise"] = True
+        else:
+            self.retry_args = {
+                "stop": stop_after_attempt(self.retry_limit),
+                "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
+                "retry": retry_if_exception(self._retryable_error),
+                "after": retry_after_func,
+                "reraise": True,
+            }
 
     @staticmethod
     def _get_tenant_domain(conn: Connection) -> str:
@@ -233,6 +270,36 @@ class DbtCloudHook(HttpHook):
         headers["Authorization"] = f"Token {self.connection.password}"
         return headers, tenant
 
+    def _log_request_error(self, attempt_num: int, error: str) -> None:
+        self.log.error("Attempt %s API Request to DBT failed with reason: %s", attempt_num, error)
+
+    @staticmethod
+    def _retryable_error(exception: BaseException) -> bool:
+        if isinstance(exception, requests_exceptions.RequestException):
+            if isinstance(exception, (requests_exceptions.ConnectionError, requests_exceptions.Timeout)) or (
+                exception.response is not None
+                and (exception.response.status_code >= 500 or exception.response.status_code == 429)
+            ):
+                return True
+
+        if isinstance(exception, aiohttp.ClientResponseError):
+            if exception.status >= 500 or exception.status == 429:
+                return True
+
+        if isinstance(exception, (aiohttp.ClientConnectorError, TimeoutError)):
+            return True
+
+        return False
+
+    def _a_get_retry_object(self) -> AsyncRetrying:
+        """
+        Instantiate an async retry object.
+
+        :return: instance of AsyncRetrying class
+        """
+        # for compatibility we use reraise to avoid handling request error
+        return AsyncRetrying(**self.retry_args)
+
     @provide_account_id
     async def get_job_details(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
@@ -249,17 +316,22 @@ class DbtCloudHook(HttpHook):
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
         proxies = self._get_proxies(self.connection) or {}
+        proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
+        extra_request_args = {}
 
-        async with aiohttp.ClientSession(headers=headers) as session:
-            proxy = proxies.get("https") if proxies and url.startswith("https") else proxies.get("http")
-            extra_request_args = {}
+        if proxy:
+            extra_request_args["proxy"] = proxy
 
-            if proxy:
-                extra_request_args["proxy"] = proxy
+        timeout = (
+            aiohttp.ClientTimeout(total=self.timeout_seconds) if self.timeout_seconds is not None else None
+        )
 
-            async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
-                response.raise_for_status()
-                return await response.json()
+        async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
+            async for attempt in self._a_get_retry_object():
+                with attempt:
+                    async with session.get(url, params=params, **extra_request_args) as response:  # type: ignore[arg-type]
+                        response.raise_for_status()
+                        return await response.json()
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
@@ -297,8 +369,14 @@ class DbtCloudHook(HttpHook):
     def _paginate(
         self, endpoint: str, payload: dict[str, Any] | None = None, proxies: dict[str, str] | None = None
     ) -> list[Response]:
-        extra_options = {"proxies": proxies} if proxies is not None else None
-        response = self.run(endpoint=endpoint, data=payload, extra_options=extra_options)
+        extra_options: dict[str, Any] = {}
+        if self.timeout_seconds is not None:
+            extra_options["timeout"] = self.timeout_seconds
+        if proxies is not None:
+            extra_options["proxies"] = proxies
+        response = self.run_with_advanced_retry(
+            _retry_args=self.retry_args, endpoint=endpoint, data=payload, extra_options=extra_options or None
+        )
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
@@ -309,7 +387,12 @@ class DbtCloudHook(HttpHook):
             _paginate_payload["offset"] = limit
 
             while num_current_results < num_total_results:
-                response = self.run(endpoint=endpoint, data=_paginate_payload, extra_options=extra_options)
+                response = self.run_with_advanced_retry(
+                    _retry_args=self.retry_args,
+                    endpoint=endpoint,
+                    data=_paginate_payload,
+                    extra_options=extra_options,
+                )
                 resp_json = response.json()
                 results.append(response)
                 num_current_results += resp_json["extra"]["pagination"]["count"]
@@ -328,7 +411,11 @@ class DbtCloudHook(HttpHook):
         self.method = method
         full_endpoint = f"api/{api_version}/accounts/{endpoint}" if endpoint else None
         proxies = self._get_proxies(self.connection)
-        extra_options = {"proxies": proxies} if proxies is not None else None
+        extra_options: dict[str, Any] = {}
+        if self.timeout_seconds is not None:
+            extra_options["timeout"] = self.timeout_seconds
+        if proxies is not None:
+            extra_options["proxies"] = proxies
 
         if paginate:
             if isinstance(payload, str):
@@ -339,7 +426,12 @@ class DbtCloudHook(HttpHook):
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        return self.run(endpoint=full_endpoint, data=payload, extra_options=extra_options)
+        return self.run_with_advanced_retry(
+            _retry_args=self.retry_args,
+            endpoint=full_endpoint,
+            data=payload,
+            extra_options=extra_options or None,
+        )
 
     def list_accounts(self) -> list[Response]:
         """

@@ -1,30 +1,30 @@
 {
-  "consumingDags": "Consuming Dags",
+  "consumingDags": "Dag Consumatori",
   "createEvent": {
-    "button": "Create Event",
+    "button": "Creare un Evento",
     "manual": {
-      "description": "Manually create an Asset Event",
-      "extra": "Asset Event Extra",
-      "label": "Manual"
+      "description": "Crea manualmente un Evento Asset",
+      "extra": "Extra dell'Evento Asset",
+      "label": "Manuale"
     },
     "materialize": {
-      "description": "Trigger the Dag upstream of this asset",
-      "descriptionWithDag": "Trigger the Dag upstream of this asset: {{dagName}}",
-      "label": "Materialize",
-      "unpauseDag": "Unpause {{dagName}} on trigger"
+      "description": "Attiva il Dag upstream di questo asset",
+      "descriptionWithDag": "Attiva il Dag upstream di questo asset: {{dagName}}",
+      "label": "Materializza",
+      "unpauseDag": "Riattiva {{dagName}} al momento del trigger"
     },
     "success": {
-      "manualDescription": "Manual asset event creation was successful.",
-      "manualTitle": "Asset Event Created",
-      "materializeDescription": "Upstream Dag {{dagId}} was triggered successfully.",
-      "materializeTitle": "Materializing Asset"
+      "manualDescription": "La creazione manuale dell'evento asset è avvenuta con successo.",
+      "manualTitle": "Evento Asset Creato",
+      "materializeDescription": "Il Dag upstream {{dagId}} è stato attivato con successo.",
+      "materializeTitle": "Materializzazione dell'Asset"
     },
-    "title": "Create Asset Event for {{name}}"
+    "title": "Creare Evento Asset per {{name}}"
   },
-  "group": "Group",
-  "lastAssetEvent": "Last Asset Event",
-  "name": "Name",
-  "producingTasks": "Producing Tasks",
-  "scheduledDags": "DAG Programmati",
-  "searchPlaceholder": "Search Assets"
+  "group": "Gruppo",
+  "lastAssetEvent": "Ultimo Evento Asset",
+  "name": "Nome",
+  "producingTasks": "Task Produttori",
+  "scheduledDags": "Dag Programmati",
+  "searchPlaceholder": "Cercare Assets"
 }

@@ -84,11 +84,25 @@ Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of
 
 You can also pass in a callable instead when Python is more readable than a Jinja template. The callable must accept two named arguments ``context`` and ``jinja_env``:
 
+The ``context`` parameter is an Airflow's ``Context`` object that provides runtime information for the current task execution. Its contents can be accessed with Python's standard `dict syntax <https://docs.python.org/3/library/stdtypes.html#mapping-types-dict>`_. It includes all variables available in Jinja templates and is read-only from the perspective of template rendering - while you can access and use its values, modifications won't affect the task execution environment.
+
+For a complete list of available context variables see :ref:`Templates reference <templates:variables>`.
+
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        import jinja2
+        from airflow.sdk import Context
+
+
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
+        # Access runtime information from the context dictionary
+        task_id = context["ti"].task_id
+        execution_date = context["ds"]
         with open("file.csv") as f:
-            return do_complex_things(f)
+            return do_complex_things(f, task_id, execution_date)
 
 
     t = BashOperator(
@@ -101,7 +115,7 @@ Since each template field is only rendered once, the callable's return value wil
 
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
         with open("file.csv") as f:
             data = do_complex_things(f)
         return context["task"].render_template(data, context, jinja_env)
@@ -330,4 +344,38 @@ If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literall
       dag=dag,
   )
 
-This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during Dag parsing or unexpected behavior at runtime when the templating does not occur as expected.
+This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during DAG parsing or unexpected behavior at runtime when the templating does not occur as expected.
+
+Pre- and post-execute methods
+-----------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed, respectively.
+
+For example, you can use the ``pre_execute`` method to elegantly determine if a task should be executed or not:
+
+.. code-block:: python
+
+    def _check_skipped(context: Any) -> None:
+        """
+        Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
+        """
+        tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
+        if context["task"].task_id in on_ice:
+            raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
+
+
+    @task(pre_execute=_check_skipped)
+    def test():
+        """
+        This task will be skipped if the `tasks_to_skip` Airflow Variable is set and contains the task id.
+        """
+        ...
+
+``post_execute`` can be used to clean up a temporary file or directory that was created by the operator.
+
+The ``pre_execute`` and ``post_execute`` methods include the task instance's context as a parameter.
+
+Difference between pre-/post-execute and setup/teardown
+-------------------------------------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to before setup or cleanup operations before and after multiple task instances are executed within a Dag run.

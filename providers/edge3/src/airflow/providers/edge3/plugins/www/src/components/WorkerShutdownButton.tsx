@@ -58,7 +58,7 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
         onClick={onOpen}
         aria-label="Shutdown Worker"
         title="Shutdown Worker"
-        color="red.500"
+        colorPalette="danger"
       >
         <FaPowerOff />
       </IconButton>
@@ -74,7 +74,8 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
               <Dialog.Body>
                 <Text>Are you sure you want to request shutdown for worker {workerName}?</Text>
                 <Text fontSize="sm" color="red.500" mt={2}>
-                  This will terminate the worker process on the remote edge site.
+                  This stops the worker on the remote edge. You can't restart it from the UI — you need to
+                  start it remotely instead.
                 </Text>
               </Dialog.Body>
               <Dialog.Footer>
@@ -83,10 +84,11 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
                 </Dialog.ActionTrigger>
                 <Button
                   onClick={handleShutdown}
-                  colorScheme="red"
+                  colorPalette="danger"
                   loading={shutdownMutation.isPending}
                   loadingText="Shutting down..."
                 >
+                  <FaPowerOff style={{ marginRight: "8px" }} />
                   Shutdown Worker
                 </Button>
               </Dialog.Footer>

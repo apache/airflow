@@ -26,7 +26,7 @@ from airflow.providers.fab.www.session import (
 )
 
 
-def init_airflow_session_interface(app):
+def init_airflow_session_interface(app, db):
     """Set airflow session interface."""
     config = app.config.copy()
     selected_backend = conf.get("fab", "SESSION_BACKEND")
@@ -47,7 +47,7 @@ def init_airflow_session_interface(app):
     elif selected_backend == "database":
         app.session_interface = AirflowDatabaseSessionInterface(
             app=app,
-            db=None,
+            client=db,
             permanent=permanent_cookie,
             # Typically these would be configurable with Flask-Session,
             # but we will set them explicitly instead as they don't make

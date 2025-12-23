@@ -429,7 +429,7 @@ class TestXComObjectStorageBackend:
         assert value == {"key": "superlargevalue" * 100}
 
     @pytest.mark.parametrize(
-        "value, expected_value",
+        ("value", "expected_value"),
         [
             pytest.param(
                 "file://airflow/xcoms/non_existing_file.json",

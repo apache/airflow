@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
+from airflow.providers.common.compat.sdk import TaskDeferred, timezone
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
@@ -31,7 +31,6 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudRunJobOperator,
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
-from airflow.utils import timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -249,7 +248,7 @@ class TestDbtCloudRunJobOperator:
         mock_trigger_job_run.assert_called_once()
 
     @pytest.mark.parametrize(
-        argnames="project_name, environment_name, job_name",
+        argnames=("project_name", "environment_name", "job_name"),
         argvalues=[
             (None, ENVIRONMENT_NAME, JOB_NAME),
             (PROJECT_NAME, "", JOB_NAME),
@@ -308,7 +307,7 @@ class TestDbtCloudRunJobOperator:
         DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
     )
     @pytest.mark.parametrize(
-        "job_run_status, expected_output",
+        ("job_run_status", "expected_output"),
         [
             (DbtCloudJobRunStatus.SUCCESS.value, "success"),
             (DbtCloudJobRunStatus.ERROR.value, "exception"),
@@ -319,7 +318,7 @@ class TestDbtCloudRunJobOperator:
         ],
     )
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -397,7 +396,7 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -440,7 +439,7 @@ class TestDbtCloudRunJobOperator:
     @patch.object(DbtCloudHook, "get_job_runs")
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -501,7 +500,7 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -540,7 +539,7 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "_run_and_get_response")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -575,7 +574,7 @@ class TestDbtCloudRunJobOperator:
     )
     @patch.object(DbtCloudHook, "retry_failed_job_run")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -607,7 +606,7 @@ class TestDbtCloudRunJobOperator:
 
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -642,7 +641,7 @@ class TestDbtCloudRunJobOperator:
             )
 
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -692,7 +691,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -726,7 +725,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -761,7 +760,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -795,7 +794,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -830,7 +829,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
@@ -869,7 +868,7 @@ class TestDbtCloudListJobsOperator:
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.list_jobs")
     @pytest.mark.parametrize(
-        "conn_id, account_id",
+        ("conn_id", "account_id"),
         [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
     )
     def test_execute_list_jobs(self, mock_list_jobs, conn_id, account_id):

@@ -20,7 +20,7 @@
 ################################
 ## Airflow Create User Job
 #################################
-{{- if .Values.webserver.defaultUser.enabled }}
+{{- if and .Values.webserver.defaultUser.enabled .Values.createUserJob.enabled }}
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
@@ -86,10 +86,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       {{- if .Values.createUserJob.extraInitContainers }}
       initContainers:
         {{- tpl (toYaml .Values.createUserJob.extraInitContainers) . | nindent 8 }}

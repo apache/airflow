@@ -44,7 +44,7 @@ import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateHourlyCalendarData } from "./calendarUtils";
-import type { CalendarScale } from "./types";
+import type { CalendarScale, CalendarColorMode } from "./types";
 
 dayjs.extend(isSameOrBefore);
 
@@ -53,9 +53,16 @@ type Props = {
   readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const HourlyCalendarView = ({ data, scale, selectedMonth, selectedYear }: Props) => {
+export const HourlyCalendarView = ({
+  data,
+  scale,
+  selectedMonth,
+  selectedYear,
+  viewMode = "total",
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
 
@@ -159,28 +166,35 @@ export const HourlyCalendarView = ({ data, scale, selectedMonth, selectedYear }:
 
                 if (!hourData) {
                   const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
-                  const emptyCellData = {
+                  const emptyData = {
                     counts: emptyCounts,
-                    date: `${day.day}T${hour.toString().padStart(2, "0")}:00:00`,
+                    date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
                     runs: [],
                   };
 
                   return (
                     <CalendarCell
                       backgroundColor={scale.getColor(emptyCounts)}
-                      cellData={emptyCellData}
+                      cellData={emptyData}
                       index={index}
                       key={`${day.day}-${hour}`}
+                      viewMode={viewMode}
                     />
                   );
                 }
 
+                const formattedHourData = {
+                  ...hourData,
+                  date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
+                };
+
                 return (
                   <CalendarCell
                     backgroundColor={scale.getColor(hourData.counts)}
-                    cellData={hourData}
+                    cellData={formattedHourData}
                     index={index}
                     key={`${day.day}-${hour}`}
+                    viewMode={viewMode}
                   />
                 );
               })}

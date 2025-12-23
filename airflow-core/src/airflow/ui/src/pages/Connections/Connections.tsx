@@ -179,10 +179,9 @@ export const Connections = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("connections.searchPlaceholder")}
+          placeholder={translate("connections.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <Spacer />

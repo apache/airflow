@@ -20,11 +20,40 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+2.3.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate pinecone provider to 'common.compat' (#57137)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 2.3.4
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Misc
 ~~~~
@@ -34,8 +63,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 2.3.3
@@ -241,7 +268,8 @@ Misc
 * ``Reapply templates for all providers (#39554)``
 * ``Fix the argument type of input_vectors in pinecone upsert (#39688)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
    * ``Bump ruff to 0.3.3 (#38240)``
    * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``

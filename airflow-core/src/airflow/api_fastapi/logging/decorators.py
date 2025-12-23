@@ -19,6 +19,7 @@ from __future__ import annotations
 import itertools
 import json
 import logging
+from datetime import datetime
 
 import pendulum
 from fastapi import Request
@@ -157,11 +158,17 @@ def action_logging(event: str | None = None):
             logical_date_value = request.query_params.get("logical_date")
             if logical_date_value:
                 try:
-                    log.logical_date = pendulum.parse(logical_date_value, strict=False)
+                    logical_date = pendulum.parse(logical_date_value, strict=False)
+                    if not isinstance(logical_date, datetime):
+                        raise ParserError
+                    log.logical_date = logical_date
                 except ParserError:
                     logger.exception("Failed to parse logical_date from the request: %s", logical_date_value)
             else:
                 logger.warning("Logical date is missing or empty")
         session.add(log)
+        # Explicit commit to persist the access log independently if the path operation fails or not.
+        # Also it cannot be deferred to a 'function' scoped dependency because of the `request` parameter.
+        session.commit()
 
     return log_action

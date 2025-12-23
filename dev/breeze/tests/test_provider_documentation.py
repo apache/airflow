@@ -89,7 +89,7 @@ def test_find_insertion_index_insert_new_changelog():
 
 
 @pytest.mark.parametrize(
-    "version, provider_id, suffix, tag",
+    ("version", "provider_id", "suffix", "tag"),
     [
         ("1.0.1", "asana", "", "providers-asana/1.0.1"),
         ("1.0.1", "asana", "rc1", "providers-asana/1.0.1rc1"),
@@ -101,7 +101,7 @@ def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
 
 
 @pytest.mark.parametrize(
-    "folder_paths, from_commit, to_commit, git_command",
+    ("folder_paths", "from_commit", "to_commit", "git_command"),
     [
         (None, None, None, ["git", "log", "--pretty=format:%H %h %cd %s", "--date=short", "--", "."]),
         (
@@ -145,7 +145,7 @@ def test_get_git_log_command_wrong():
 
 
 @pytest.mark.parametrize(
-    "line, version, change",
+    ("line", "version", "change"),
     [
         (
             "LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` no pr",
@@ -180,7 +180,7 @@ def test_get_change_from_line(line: str, version: str, change: Change):
 
 
 @pytest.mark.parametrize(
-    "input, output, markdown, changes_len",
+    ("input", "output", "markdown", "changes_len"),
     [
         (
             """
@@ -197,7 +197,7 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
 Latest change: 2023-01-01
 
 =============================================  ===========  ==================================
-Commit                                         Committed    Subject
+Commit                                          Committed   Subject
 =============================================  ===========  ==================================
 `SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' no pr``
 `SHORT_HASH <https://url/LONG_HASH_123144>`__  2023-01-01   ``Description 'with' pr (#12345)``
@@ -215,8 +215,8 @@ LONG_HASH_123144 SHORT_HASH 2023-01-01 Description `with` pr (#12346)
 
 """,
             """
-| Commit                                     | Committed   | Subject                          |
-|:-------------------------------------------|:------------|:---------------------------------|
+| Commit                                     |  Committed  | Subject                          |
+|:-------------------------------------------|:-----------:|:---------------------------------|
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' no pr`       |
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' pr (#12345)` |
 | [SHORT_HASH](https://url/LONG_HASH_123144) | 2023-01-01  | `Description 'with' pr (#12346)` |
@@ -251,8 +251,17 @@ def generate_short_hash():
 
 
 @pytest.mark.parametrize(
-    "descriptions, with_breaking_changes, maybe_with_new_features,"
-    "breaking_count, feature_count, bugfix_count, other_count, misc_count, type_of_change",
+    (
+        "descriptions",
+        "with_breaking_changes",
+        "maybe_with_new_features",
+        "breaking_count",
+        "feature_count",
+        "bugfix_count",
+        "other_count",
+        "misc_count",
+        "type_of_change",
+    ),
     [
         (["Added feature x"], True, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
         (["Added feature x"], False, True, 0, 1, 0, 0, 0, [TypeOfChange.FEATURE]),
@@ -307,7 +316,7 @@ def test_classify_changes_automatically(
 
 
 @pytest.mark.parametrize(
-    "initial_version, bump_index, expected_version",
+    ("initial_version", "bump_index", "expected_version"),
     [
         ("4.2.1", VERSION_MAJOR_INDEX, "5.0.0"),
         ("3.5.9", VERSION_MINOR_INDEX, "3.6.0"),
@@ -322,7 +331,7 @@ def test_version_bump_for_provider_documentation(initial_version, bump_index, ex
 
 
 @pytest.mark.parametrize(
-    "changes, expected",
+    ("changes", "expected"),
     [
         pytest.param([TypeOfChange.SKIP], TypeOfChange.SKIP, id="only-skip"),
         pytest.param([TypeOfChange.DOCUMENTATION], TypeOfChange.DOCUMENTATION, id="only-doc"),
@@ -395,7 +404,7 @@ def test_get_most_impactful_change(changes, expected):
 
 
 @pytest.mark.parametrize(
-    "provider_id, changed_files, expected",
+    ("provider_id", "changed_files", "expected"),
     [
         pytest.param("slack", ["providers/slack/docs/slack.rst"], "documentation", id="only_docs"),
         pytest.param(

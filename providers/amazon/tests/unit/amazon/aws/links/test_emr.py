@@ -21,7 +21,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
     EmrLogsLink,
@@ -32,6 +31,7 @@ from airflow.providers.amazon.aws.links.emr import (
     get_log_uri,
     get_serverless_dashboard_url,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
@@ -68,7 +68,7 @@ class TestEmrClusterLink(BaseAwsLinksTestCase):
 
 
 @pytest.mark.parametrize(
-    "cluster_info, expected_uri",
+    ("cluster_info", "expected_uri"),
     [
         pytest.param({"Cluster": {}}, None, id="no-log-uri"),
         pytest.param({"Cluster": {"LogUri": "s3://myLogUri/"}}, "myLogUri/", id="has-log-uri"),
@@ -188,7 +188,7 @@ class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
 
 
 @pytest.mark.parametrize(
-    "dashboard_info, expected_uri",
+    ("dashboard_info", "expected_uri"),
     [
         pytest.param(
             {"url": "https://example.com/?authToken=first-unique-value"},

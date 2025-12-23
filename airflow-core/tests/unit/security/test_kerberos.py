@@ -24,7 +24,7 @@ from unittest import mock
 import pytest
 
 from airflow.security import kerberos
-from airflow.security.kerberos import get_kerberos_principal, renew_from_kt
+from airflow.security.kerberos import detect_conf_var, get_kerberos_principal, renew_from_kt
 
 from tests_common.test_utils.config import conf_vars
 
@@ -32,8 +32,13 @@ pytestmark = pytest.mark.db_test
 
 
 class TestKerberos:
+    @pytest.fixture(autouse=True)
+    def fresh_detect_conf_var(self):
+        """Clear cache of kerberos detection function."""
+        detect_conf_var.cache_clear()
+
     @pytest.mark.parametrize(
-        "kerberos_config, expected_cmd",
+        ("kerberos_config", "expected_cmd"),
         [
             (
                 {("kerberos", "reinit_frequency"): "42"},
@@ -87,7 +92,6 @@ class TestKerberos:
     )
     @mock.patch("time.sleep", return_value=None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.subprocess")
     def test_renew_from_kt(self, mock_subprocess, mock_sleep, kerberos_config, expected_cmd, caplog):
         expected_cmd_text = " ".join(shlex.quote(f) for f in expected_cmd)
@@ -120,7 +124,6 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b""))
     def test_renew_from_kt_without_workaround(self, mock_subprocess, caplog):
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
@@ -161,7 +164,6 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     def test_renew_from_kt_failed(self, mock_subprocess, caplog):
         mock_subp = mock_subprocess.Popen.return_value.__enter__.return_value
         mock_subp.returncode = 1
@@ -209,7 +211,6 @@ class TestKerberos:
         ]
 
     @mock.patch("airflow.security.kerberos.subprocess")
-    @mock.patch("airflow.security.kerberos.NEED_KRB181_WORKAROUND", None)
     @mock.patch("airflow.security.kerberos.open", mock.mock_open(read_data=b"X-CACHECONF:"))
     @mock.patch("airflow.security.kerberos.get_hostname", return_value="HOST")
     @mock.patch("time.sleep", return_value=None)

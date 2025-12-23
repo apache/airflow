@@ -58,6 +58,7 @@ export const MaintenanceExitButton = ({ onExitMaintenance, workerName }: Mainten
         onClick={onOpen}
         aria-label="Exit Maintenance"
         title="Exit Maintenance"
+        colorPalette="warning"
       >
         <IoMdExit />
       </IconButton>

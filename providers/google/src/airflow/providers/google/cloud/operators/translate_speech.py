@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -34,7 +34,7 @@ from airflow.providers.google.common.links.storage import FileDetailsLink
 if TYPE_CHECKING:
     from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):

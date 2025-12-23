@@ -19,13 +19,13 @@ from __future__ import annotations
 import unittest.mock
 
 import pytest
+from flask_login import logout_user
 from sqlalchemy import delete, func, select
 
 from airflow.providers.fab.www.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.providers.fab.www.security import permissions
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import (
     assert_401,
@@ -40,9 +40,7 @@ except AttributeError:
     from airflow.sdk import timezone
 
 
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import User
-
+from airflow.providers.fab.auth_manager.models import User
 
 pytestmark = pytest.mark.db_test
 
@@ -60,33 +58,41 @@ def configured_app(minimal_app_for_auth_api):
             ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
         }
     ):
-        app = minimal_app_for_auth_api
-    create_user(
-        app,
-        username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
+        with minimal_app_for_auth_api.app_context():
+            create_user(
+                minimal_app_for_auth_api,
+                username="test",
+                role_name="Test",
+                permissions=[
+                    (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+                    (permissions.ACTION_CAN_READ, permissions.RESOURCE_USER),
+                ],
+            )
+            create_user(
+                minimal_app_for_auth_api, username="test_no_permissions", role_name="TestNoPermissions"
+            )
 
-    yield app
+            yield minimal_app_for_auth_api
 
-    delete_user(app, username="test")
-    delete_user(app, username="test_no_permissions")
-    delete_role(app, name="TestNoPermissions")
+            delete_user(minimal_app_for_auth_api, username="test")
+            delete_user(minimal_app_for_auth_api, username="test_no_permissions")
+            delete_role(minimal_app_for_auth_api, name="TestNoPermissions")
 
 
 class TestUserEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app, request) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-        self.session = self.app.appbuilder.get_session
+        self.session = self.app.appbuilder.session
+
+        # Logout the user after each request
+        @request.addfinalizer
+        def logout():
+            with configured_app.test_request_context():
+                logout_user()
 
     def teardown_method(self) -> None:
         # Delete users that have our custom default time
@@ -258,7 +264,7 @@ class TestGetUsers(TestUserEndpoint):
 
 class TestGetUsersPagination(TestUserEndpoint):
     @pytest.mark.parametrize(
-        "url, expected_usernames",
+        ("url", "expected_usernames"),
         [
             ("/fab/v1/users?limit=1", ["test"]),
             ("/fab/v1/users?limit=2", ["test", "test_no_permissions"]),
@@ -488,7 +494,7 @@ class TestPostUser(TestUserEndpoint):
         assert response.status_code == 403, response.json
 
     @pytest.mark.parametrize(
-        "existing_user_fixture_name, error_detail_template",
+        ("existing_user_fixture_name", "error_detail_template"),
         [
             ("user_with_same_username", "Username `{username}` already exists. Use PATCH to update."),
             ("user_with_same_email", "The email `{email}` is already taken."),
@@ -515,7 +521,7 @@ class TestPostUser(TestUserEndpoint):
         assert response.json["detail"] == error_detail
 
     @pytest.mark.parametrize(
-        "payload_converter, error_message",
+        ("payload_converter", "error_message"),
         [
             pytest.param(
                 lambda p: {k: v for k, v in p.items() if k != "username"},
@@ -601,7 +607,7 @@ class TestPatchUser(TestUserEndpoint):
         assert data["last_name"] == "McTesterson"
 
     @pytest.mark.parametrize(
-        "payload, error_message",
+        ("payload", "error_message"),
         [
             ({"username": "another_user"}, "The username `another_user` already exists"),
             ({"email": "another_user@example.com"}, "The email `another_user@example.com` already exists"),
@@ -735,7 +741,7 @@ class TestPatchUser(TestUserEndpoint):
         assert response.status_code == 404, response.json
 
     @pytest.mark.parametrize(
-        "payload_converter, error_message",
+        ("payload_converter", "error_message"),
         [
             pytest.param(
                 lambda p: {k: v for k, v in p.items() if k != "username"},

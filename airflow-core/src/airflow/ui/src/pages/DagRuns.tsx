@@ -1,5 +1,3 @@
-/* eslint-disable max-lines */
-
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, type SelectValueChangeDetails, Text, Box } from "@chakra-ui/react";
+import { Flex, HStack, Link, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useCallback } from "react";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
-import type { DAGRunResponse, DagRunState, DagRunType } from "openapi/requests/types.gen";
+import type { DAGRunResponse } from "openapi/requests/types.gen";
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
@@ -36,19 +34,24 @@ import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Select } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { dagRunTypeOptions, dagRunStateOptions as stateOptions } from "src/constants/stateOptions";
+import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
 
 type DagRunRow = { row: { original: DAGRunResponse } };
 const {
+  CONF_CONTAINS: CONF_CONTAINS_PARAM,
+  DAG_ID_PATTERN: DAG_ID_PATTERN_PARAM,
+  DAG_VERSION: DAG_VERSION_PARAM,
+  DURATION_GTE: DURATION_GTE_PARAM,
+  DURATION_LTE: DURATION_LTE_PARAM,
   END_DATE: END_DATE_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   RUN_TYPE: RUN_TYPE_PARAM,
   START_DATE: START_DATE_PARAM,
@@ -62,6 +65,13 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     : [
         {
           accessorKey: "dag_display_name",
+          cell: ({ row: { original } }: DagRunRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.dag_id}`}>
+                <TruncatedText text={original.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("dagId"),
         },
@@ -94,7 +104,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{state}</StateBadge>,
+    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
     header: () => translate("state"),
   },
   {
@@ -102,7 +112,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     cell: ({ row: { original } }) => (
       <HStack>
         <RunTypeIcon runType={original.run_type} />
-        <Text>{original.run_type}</Text>
+        <Text>{translate(`common:runTypes.${original.run_type}`)}</Text>
       </HStack>
     ),
     enableSorting: false,
@@ -170,9 +180,15 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
 export const DagRuns = () => {
   const { t: translate } = useTranslation();
   const { dagId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  const { setTableURLState, tableURLState } = useTableURLState();
+  const { setTableURLState, tableURLState } = useTableURLState({
+    columnVisibility: {
+      conf: false,
+      dag_version: false,
+      end_date: false,
+    },
+  });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
@@ -182,18 +198,33 @@ export const DagRuns = () => {
   const filteredType = searchParams.get(RUN_TYPE_PARAM);
   const filteredRunIdPattern = searchParams.get(RUN_ID_PATTERN_PARAM);
   const filteredTriggeringUserNamePattern = searchParams.get(TRIGGERING_USER_NAME_PATTERN_PARAM);
+  const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
+  const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
   const startDate = searchParams.get(START_DATE_PARAM);
   const endDate = searchParams.get(END_DATE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
+  const durationGte = searchParams.get(DURATION_GTE_PARAM);
+  const durationLte = searchParams.get(DURATION_LTE_PARAM);
+  const confContains = searchParams.get(CONF_CONTAINS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
 
   const { data, error, isLoading } = useDagRunServiceGetDagRuns(
     {
+      confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       dagId: dagId ?? "~",
+      dagIdPattern: filteredDagIdPattern ?? undefined,
+      dagVersion:
+        filteredDagVersion !== null && filteredDagVersion !== "" ? [Number(filteredDagVersion)] : undefined,
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
       endDateLte: endDate ?? undefined,
       limit: pageSize,
       offset: pageIndex * pageSize,
       orderBy,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       runIdPattern: filteredRunIdPattern ?? undefined,
       runType: filteredType === null ? undefined : [filteredType],
       startDateGte: startDate ?? undefined,
@@ -207,165 +238,13 @@ export const DagRuns = () => {
     },
   );
 
-  const handleStateChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val] = value;
-
-      if (val === undefined || val === "all") {
-        searchParams.delete(STATE_PARAM);
-      } else {
-        searchParams.set(STATE_PARAM, val);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleTypeChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val] = value;
-
-      if (val === undefined || val === "all") {
-        searchParams.delete(RUN_TYPE_PARAM);
-      } else {
-        searchParams.set(RUN_TYPE_PARAM, val);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleRunIdPatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(RUN_ID_PATTERN_PARAM);
-      } else {
-        searchParams.set(RUN_ID_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleTriggeringUserNamePatternChange = useCallback(
-    (value: string) => {
-      if (value === "") {
-        searchParams.delete(TRIGGERING_USER_NAME_PATTERN_PARAM);
-      } else {
-        searchParams.set(TRIGGERING_USER_NAME_PATTERN_PARAM, value);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
+  const columns = useMemo(() => runColumns(translate, dagId), [translate, dagId]);
 
   return (
     <>
-      <HStack paddingY="4px">
-        <Box>
-          <SearchBar
-            defaultValue={filteredRunIdPattern ?? ""}
-            hideAdvanced
-            hotkeyDisabled={false}
-            onChange={handleRunIdPatternChange}
-            placeHolder={translate("dags:filters.runIdPatternFilter")}
-          />
-        </Box>
-        <Box>
-          <SearchBar
-            defaultValue={filteredTriggeringUserNamePattern ?? ""}
-            hideAdvanced
-            hotkeyDisabled={true}
-            onChange={handleTriggeringUserNamePatternChange}
-            placeHolder={translate("dags:filters.triggeringUserNameFilter")}
-          />
-        </Box>
-        <Select.Root
-          collection={stateOptions}
-          maxW="200px"
-          onValueChange={handleStateChange}
-          value={[filteredState ?? "all"]}
-        >
-          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredState)} minW="max-content">
-            <Select.ValueText width="auto">
-              {() =>
-                filteredState === null ? (
-                  translate("dags:filters.allStates")
-                ) : (
-                  <StateBadge state={filteredState as DagRunState}>
-                    {translate(`common:states.${filteredState}`)}
-                  </StateBadge>
-                )
-              }
-            </Select.ValueText>
-          </Select.Trigger>
-          <Select.Content>
-            {stateOptions.items.map((option) => (
-              <Select.Item item={option} key={option.label}>
-                {option.value === "all" ? (
-                  translate(option.label)
-                ) : (
-                  <StateBadge state={option.value as DagRunState}>{translate(option.label)}</StateBadge>
-                )}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-
-        <Select.Root
-          collection={dagRunTypeOptions}
-          maxW="200px"
-          onValueChange={handleTypeChange}
-          value={[filteredType ?? "all"]}
-        >
-          <Select.Trigger colorPalette="brand" isActive={Boolean(filteredType)} minW="max-content">
-            <Select.ValueText width="auto">
-              {() =>
-                filteredType === null ? (
-                  translate("dags:filters.allRunTypes")
-                ) : (
-                  <Flex alignItems="center" gap={1}>
-                    <RunTypeIcon runType={filteredType as DagRunType} />
-                    {translate(`common:runTypes.${filteredType}`)}
-                  </Flex>
-                )
-              }
-            </Select.ValueText>
-          </Select.Trigger>
-          <Select.Content>
-            {dagRunTypeOptions.items.map((option) => (
-              <Select.Item item={option} key={option.label}>
-                {option.value === "all" ? (
-                  translate(option.label)
-                ) : (
-                  <Flex gap={1}>
-                    <RunTypeIcon runType={option.value as DagRunType} />
-                    {translate(option.label)}
-                  </Flex>
-                )}
-              </Select.Item>
-            ))}
-          </Select.Content>
-        </Select.Root>
-      </HStack>
+      <DagRunsFilters dagId={dagId} />
       <DataTable
-        columns={runColumns(translate, dagId)}
+        columns={columns}
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

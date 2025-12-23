@@ -27,11 +27,92 @@
 Changelog
 ---------
 
-9.2.0
+9.6.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+9.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: use get async conn from common compact (#57894)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate slack provider to ''common.compat'' (#57110)``
+* ``Add 'use-next-version' comment in providers that will need rc2 (#58390)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to slack Provider test (#57963)``
+   * ``Updates to release process of providers (#58316)``
+   * ``Update documentation for providers 14 Nov 2025 (#58284)``
+
+9.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: async slack notifier (#56685)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT001 rule to prvoider tests (#55935)``
+
+9.3.0
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid secret false positive from trivy in example dag (#54504)``
+
+9.2.0
+.....
+
 
 Features
 ~~~~~~~~
@@ -47,8 +128,6 @@ Doc-only
    appropriate section above if needed. Do not delete the lines(!):
    * ``Make slack providers tests db independent (#54660)``
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 9.1.4
@@ -226,8 +305,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 8.9.2
@@ -636,8 +713,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Enable string normalization in python formatting - providers (#27205)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Replace urlparse with urlsplit (#27389)``
 
 6.0.0

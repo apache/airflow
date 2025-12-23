@@ -28,7 +28,8 @@ import os
 import re
 import shutil
 import time
-from collections.abc import AsyncIterator, Callable
+import warnings
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -42,26 +43,25 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
         Bucket as S3Bucket,
         Object as S3ResourceObject,
     )
 
-    from airflow.utils.types import ArgNotSet
-
-    with suppress(ImportError):
-        from aiobotocore.client import AioBaseClient
+    from airflow.providers.amazon.version_compat import ArgNotSet
 
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.utils.helpers import chunks
 
 logger = logging.getLogger(__name__)
@@ -931,7 +931,38 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        List metadata objects in a bucket under prefix.
+        .. deprecated:: <9.13.0> Use `iter_file_metadata` instead.
+
+        This method `get_file_metadata` is deprecated. Calling this method will result in all matching keys
+        being loaded into a single list, and can often result in out-of-memory exceptions.
+        """
+        warnings.warn(
+            "This method `get_file_metadata` is deprecated. Calling this method will result in all matching "
+            "keys being loaded into a single list, and can often result in out-of-memory exceptions. "
+            "Instead, use `iter_file_metadata`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return list(
+            self.iter_file_metadata(
+                prefix=prefix,
+                bucket_name=bucket_name,
+                page_size=page_size,
+                max_items=max_items,
+            )
+        )
+
+    @provide_bucket_name
+    def iter_file_metadata(
+        self,
+        prefix: str,
+        bucket_name: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> Iterator:
+        """
+        Yield metadata objects from a bucket under a prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -940,7 +971,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param page_size: pagination size
         :param max_items: maximum items to return
-        :return: a list of metadata of objects
+        :return: an Iterator of metadata of objects
         """
         config = {
             "PageSize": page_size,
@@ -957,11 +988,9 @@ class S3Hook(AwsBaseHook):
             params["RequestPayer"] = "requester"
         response = paginator.paginate(**params)
 
-        files = []
         for page in response:
             if "Contents" in page:
-                files += page["Contents"]
-        return files
+                yield from page["Contents"]
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1751,6 +1780,8 @@ class S3Hook(AwsBaseHook):
         local_s3_objects = []
         s3_bucket = self.get_bucket(bucket_name)
         for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
+            if obj.key.endswith("/"):
+                continue
             obj_path = Path(obj.key)
             local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
             if not local_target_path.parent.exists():

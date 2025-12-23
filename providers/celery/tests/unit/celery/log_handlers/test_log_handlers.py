@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import logging
-import logging.config
 from importlib import reload
 from unittest import mock
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.executors import executor_loader
 from airflow.models.dagrun import DagRun
@@ -51,8 +51,8 @@ FILE_TASK_HANDLER = "task"
 class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TaskInstance))
 
     def setup_method(self):
         logging.root.disabled = False

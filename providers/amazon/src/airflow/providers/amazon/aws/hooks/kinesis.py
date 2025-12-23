@@ -19,12 +19,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.firehose import FirehoseHook as _FirehoseHook
 
 
-class FirehoseHook(AwsBaseHook):
+class FirehoseHook(_FirehoseHook):
     """
     Interact with Amazon Kinesis Firehose.
 
@@ -37,20 +39,36 @@ class FirehoseHook(AwsBaseHook):
 
     .. seealso::
         - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    .. deprecated::
+        This hook was moved. Import from
+       :class:`airflow.providers.amazon.aws.hooks.firehose.FirehoseHook`
+       instead of kinesis.py
     """
 
-    def __init__(self, delivery_stream: str, *args, **kwargs) -> None:
-        self.delivery_stream = delivery_stream
-        kwargs["client_type"] = "firehose"
+    def __init__(self, *args, **kwargs) -> None:
+        warnings.warn(
+            "Importing FirehoseHook from kinesis.py is deprecated "
+            "and will be removed in a future release. "
+            "Please import it from firehose.py instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(*args, **kwargs)
 
-    def put_records(self, records: Iterable):
-        """
-        Write batch records to Kinesis Firehose.
 
-        .. seealso::
-            - :external+boto3:py:meth:`Firehose.Client.put_record_batch`
+class KinesisHook(AwsBaseHook):
+    """
+    Interact with Amazon Kinesis.
 
-        :param records: list of records
-        """
-        return self.get_conn().put_record_batch(DeliveryStreamName=self.delivery_stream, Records=records)
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("kinesis") <Kinesis.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = "kinesis"
+        super().__init__(*args, **kwargs)

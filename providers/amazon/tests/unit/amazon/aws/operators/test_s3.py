@@ -31,7 +31,6 @@ import pytest
 from moto import mock_aws
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -54,6 +53,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -788,7 +788,7 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),
@@ -824,7 +824,7 @@ class TestS3DeleteObjectsOperator:
             )
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),

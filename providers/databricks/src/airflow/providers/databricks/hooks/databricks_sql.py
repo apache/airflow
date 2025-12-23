@@ -34,7 +34,7 @@ from databricks import sql
 from databricks.sql.types import Row
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
@@ -184,13 +184,13 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             "catalog": self.catalog,
             "schema": self.schema,
         }
-        url_query = {k: v for k, v in url_query.items() if v is not None}
+        url_query_formatted: dict[str, str] = {k: v for k, v in url_query.items() if v is not None}
         return URL.create(
             drivername="databricks",
             username="token",
             password=self._get_token(raise_error=True),
             host=self.host,
-            query=url_query,
+            query=url_query_formatted,
         )
 
     def get_uri(self) -> str:
@@ -278,7 +278,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
-            with closing(conn.cursor()) as cur:
+            with closing(conn.cursor()):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:

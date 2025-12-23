@@ -60,7 +60,7 @@ deployed outside of the central Airflow cluster is connected via HTTP(s) to the 
         edge_worker->api[label="HTTP(s)"]
     }
 
-* **Workers** - Execute the assigned tasks - most standard setup has local or centralized workers, e.g. via Celery
+* **Workers** (Central) - Execute the assigned tasks - most standard setup has local or centralized workers, e.g. via Celery
 * **Edge Workers** - Special workers which pull tasks via HTTP(s) as provided as feature via this provider package
 * **Scheduler** - Responsible for adding the necessary tasks to the queue. The EdgeExecutor is running as a module inside the scheduler.
 * **API server** - HTTP REST API Server provides access to Dag/task status information. The required end-points are
@@ -73,19 +73,18 @@ In detail the parts of the Edge provider are deployed as follows:
    :alt: Overview and communication of Edge Provider modules
 
 * **EdgeExecutor** - The EdgeExecutor is running inside the core Airflow scheduler. It is responsible for
-  scheduling tasks and sending them to the Edge job queue in the database. The EdgeExecutor is a subclass of the
-  ``airflow.executors.base_executor.BaseExecutor`` class. To activate the EdgeExecutor, you need to set the
-  ``executor`` configuration option in the ``airflow.cfg`` file to
+  scheduling tasks and sending them to the Edge job queue in the database. To activate the EdgeExecutor, you
+  need to set the ``executor`` configuration option in the ``airflow.cfg`` file to
   ``airflow.providers.edge3.executors.EdgeExecutor``. For more details see :doc:`edge_executor`. Note that also
   multiple executors can be used in parallel together with the EdgeExecutor.
-* **API server** - The API server is providing REST endpoints to the web UI as well as serves static files. The
-  Edge provider adds a plugin that provides additional REST API for the Edge Worker as well as UI elements to
-  manage workers (currently Airflow 2.10 only).
+* **API server** - The API server is providing REST endpoints to the web UI as well
+  as serves static files. The Edge provider adds a plugin that provides additional REST API for the Edge Worker
+  as well as UI elements to manage workers (not available in Airflow 3.0).
   The API server is responsible for handling requests from the Edge Worker and sending back the results. To
   activate the API server, you need to set the ``api_enabled`` configuration option in ``edge`` section in the
   ``airflow.cfg`` file to ``True``. The API endpoints for edge is not started by default.
-  Fr more details see :doc:`ui_plugin`.
-* **Database** - The Airflow meta database is used to store the status of tasks, Dags, Variables, connections
+  For more details see :doc:`ui_plugin`.
+* **Database** - The Airflow meta database is used to store the status of tasks, Dags, Variables, Connections
   etc. The Edge provider uses the database to store the status of the Edge Worker instances and the tasks that
   are assigned to it. The database is also used to store the results of the tasks that are executed by the
   Edge Worker. Setup of needed tables and migration is done automatically when the provider package is deployed.
@@ -154,7 +153,6 @@ The following features are known missing and will be implemented in increments:
 - API token per worker: Today there is a global API token available only
 - Edge Worker Plugin
 
-  - Make plugin working on Airflow 3.0, depending on AIP-68
   - Overview about queues / jobs per queue
   - Allow starting Edge Worker REST API separate to api-server
   - Add some hints how to setup an additional worker
@@ -175,7 +173,7 @@ The following features are known missing and will be implemented in increments:
   - Test/Support on Windows for Edge Worker
 
 - Scaling test - Check and define boundaries of workers/jobs. Today it is known to
-  scale into a range of 50 workers. This is not a hard limit but just an experience reported.
+  scale into a range of ~80 workers. This is not a hard limit but just an experience reported.
 - Load tests - impact of scaled execution and code optimization
 - Incremental logs during task execution can be served w/o shared log disk on api-server
 - Reduce dependencies during execution: Today the worker depends on the airflow core with a lot

@@ -24,7 +24,7 @@ from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -167,6 +167,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
                 if job_status["status"] == "success":
+                    self.log.info("BigQuery Job succeeded")
                     yield TriggerEvent(
                         {
                             "job_id": self.job_id,
@@ -176,7 +177,13 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    self.log.info("BigQuery Job failed: %s", job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -334,7 +341,12 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -773,7 +785,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                         return
                     job_id = None
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent({"status": job_status["status"]})
                     return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)

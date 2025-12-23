@@ -24,15 +24,14 @@ from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.samba.hooks.samba import SambaHook
-from airflow.providers.samba.version_compat import BaseOperator
 
 WILDCARD = "*"
 
 if TYPE_CHECKING:
-    from airflow.providers.samba.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GCSToSambaOperator(BaseOperator):

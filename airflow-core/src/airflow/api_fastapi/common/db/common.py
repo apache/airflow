@@ -22,7 +22,7 @@ Database helpers for Airflow REST API.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncGenerator, Generator, Sequence
 from typing import TYPE_CHECKING, Annotated, Literal, overload
 
 from fastapi import Depends
@@ -38,12 +38,12 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.core_api.base import OrmClause
 
 
-def _get_session() -> Session:
+def _get_session() -> Generator[Session, None, None]:
     with create_session(scoped=False) as session:
         yield session
 
 
-SessionDep = Annotated[Session, Depends(_get_session)]
+SessionDep = Annotated[Session, Depends(_get_session, scope="function")]
 
 
 def apply_filters_to_select(
@@ -59,7 +59,7 @@ def apply_filters_to_select(
     return statement
 
 
-async def _get_async_session() -> AsyncSession:
+async def _get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with create_session_async() as session:
         yield session
 

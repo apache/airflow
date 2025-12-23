@@ -10,6 +10,7 @@
     "hourly": "Stündlich",
     "legend": {
       "less": "Weniger",
+      "mixed": "Mittel",
       "more": "Mehr"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "Vorheriges Jahr"
     },
     "noData": "Keine Daten verfügbar",
+    "noFailedRuns": "Keine fehlgeschlagenen Läufe",
     "noRuns": "Keine Läufe",
     "totalRuns": "Gesamtzahl der Läufe",
     "week": "Kalenderwoche {{weekNumber}}",
@@ -112,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Richtung des Graph"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktiver Filter",
+      "clearFilter": "Filter zurücksetzen",
+      "clickTask": "Klicken Sie auf einen Task, um ihn als Filterbasis auszuwählen",
+      "label": "Filter",
+      "options": {
+        "both": "Sowohl Vorgänger als auch Nachfolger",
+        "downstream": "Nachfolger",
+        "upstream": "Vorgänger"
+      },
+      "selectedTask": "Ausgewählter Task"
     }
   },
   "paramsFailed": "Laden der Parameter fehlgeschlagen",

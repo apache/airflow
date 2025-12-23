@@ -72,7 +72,7 @@ def get_role(*, role_name: str) -> APIResponse:
 def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
     """Get roles."""
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
-    session = security_manager.get_session
+    session = security_manager.session
     total_entries = session.scalars(select(func.count(Role.id))).one()
     direction = desc if order_by.startswith("-") else asc
     to_replace = {"role_id": "id"}
@@ -99,7 +99,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions."""
     security_manager = cast("FabAuthManager", get_auth_manager()).security_manager
-    session = security_manager.get_session
+    session = security_manager.session
     total_entries = session.scalars(select(func.count(Action.id))).one()
     query = select(Action)
     actions = session.scalars(query.offset(offset).limit(limit)).all()

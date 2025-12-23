@@ -20,9 +20,10 @@ import datetime
 import json
 import re
 import uuid
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import TYPE_CHECKING
 
+import pendulum
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.workflows.executions_v1beta import Execution
@@ -36,12 +37,13 @@ from airflow.providers.google.cloud.links.workflows import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 from airflow.utils.hashlib_wrapper import md5
 
@@ -69,7 +71,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
     :param metadata: Additional metadata that is provided to the method.
     """
 
-    template_fields: Sequence[str] = ("location", "workflow", "workflow_id")
+    template_fields: Collection[str] = ("location", "workflow", "workflow_id")
     template_fields_renderers = {"workflow": "json"}
     operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
@@ -101,7 +103,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.force_rerun = force_rerun
 
-    def _workflow_id(self, context):
+    def _workflow_id(self, context: Context) -> str:
         if self.workflow_id and not self.force_rerun:
             # If users provide workflow id then assuring the idempotency
             # is on their side
@@ -114,8 +116,17 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 
         # We are limited by allowed length of workflow_id so
         # we use hash of whole information
-        exec_date = context["logical_date"].isoformat()
-        base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{hash_base}"
+        if AIRFLOW_V_3_0_PLUS:
+            if dag_run := context.get("dag_run"):
+                run_after = pendulum.instance(dag_run.run_after)
+            else:
+                run_after = pendulum.now("UTC")
+        else:
+            if logical_date := context.get("logical_date"):
+                run_after = pendulum.instance(logical_date)
+            else:
+                run_after = pendulum.now("UTC")
+        base = f"airflow_{self.dag_id}_{self.task_id}_{run_after.isoformat()}_{hash_base}"
         workflow_id = md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)
 

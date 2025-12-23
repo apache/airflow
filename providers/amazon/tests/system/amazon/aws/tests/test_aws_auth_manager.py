@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -100,11 +101,9 @@ def create_avp_policy_store(env_id):
 
 
 @pytest.fixture
+@cache
 def env_id():
-    global env_id_cache
-    if not env_id_cache:
-        env_id_cache = set_env_id("test_aws_auth_manager")
-    return env_id_cache
+    return set_env_id("test_aws_auth_manager")
 
 
 @pytest.fixture
@@ -113,11 +112,9 @@ def region_name():
 
 
 @pytest.fixture
+@cache
 def avp_policy_store_id(env_id):
-    global policy_store_id_cache
-    if not policy_store_id_cache:
-        policy_store_id_cache = create_avp_policy_store(env_id)
-    return policy_store_id_cache
+    return create_avp_policy_store(env_id)
 
 
 @pytest.fixture

@@ -41,13 +41,12 @@ class TestSimpleAuthManager:
             assert users == [{"role": "viewer", "username": "test1"}, {"role": "viewer", "username": "test2"}]
 
     @pytest.mark.parametrize(
-        "file_content,expected",
+        ("file_content", "expected"),
         [
             ("{}", {}),
             ("", {}),
             ('{"test1": "test1"}', {"test1": "test1"}),
             ('{"test1": "test1", "test2": "test2"}', {"test1": "test1", "test2": "test2"}),
-            ('{"test1": "test1", "test2": "test2", "test3": "test3"}', {"test1": "test1", "test2": "test2"}),
         ],
     )
     def test_get_passwords(self, auth_manager, file_content, expected):
@@ -58,8 +57,7 @@ class TestSimpleAuthManager:
         ):
             with open(auth_manager.get_generated_password_file(), "w") as file:
                 file.write(file_content)
-            users = auth_manager.get_users()
-            passwords = auth_manager.get_passwords(users)
+            passwords = auth_manager.get_passwords()
             assert passwords == expected
 
     def test_init_with_default_user(self, auth_manager):
@@ -84,11 +82,10 @@ class TestSimpleAuthManager:
                 assert len(user_passwords_from_file) == 2
 
     @pytest.mark.parametrize(
-        "file_content,expected",
+        ("file_content", "expected"),
         [
             ({"test1": "test1"}, {"test1": "test1"}),
-            ({"test1": "test1", "test2": "test2"}, {"test1": "test1"}),
-            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY}),
+            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY, "test2": "test2", "test3": "test3"}),
         ],
     )
     def test_init_with_users_with_password(self, auth_manager, file_content, expected):
@@ -144,7 +141,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("ADMIN", "DELETE", True),
@@ -160,7 +157,7 @@ class TestSimpleAuthManager:
         )
 
     @pytest.mark.parametrize(
-        "api, kwargs",
+        ("api", "kwargs"),
         [
             ("is_authorized_view", {"access_view": AccessView.CLUSTER_ACTIVITY}),
             (
@@ -173,7 +170,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "role, result",
+        ("role", "result"),
         [
             ("ADMIN", True),
             ("VIEWER", True),
@@ -200,7 +197,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("OP", "DELETE", True),
@@ -219,7 +216,7 @@ class TestSimpleAuthManager:
         ["is_authorized_dag"],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("OP", "DELETE", True),
@@ -245,7 +242,7 @@ class TestSimpleAuthManager:
         ],
     )
     @pytest.mark.parametrize(
-        "role, method, result",
+        ("role", "method", "result"),
         [
             ("ADMIN", "GET", True),
             ("VIEWER", "GET", True),
@@ -261,6 +258,12 @@ class TestSimpleAuthManager:
             getattr(auth_manager, api)(method=method, user=SimpleAuthManagerUser(username="test", role=role))
             is result
         )
+
+    def test_is_authorized_team(self, auth_manager):
+        result = auth_manager.is_authorized_team(
+            method="GET", user=SimpleAuthManagerUser(username="test", role=None)
+        )
+        assert result is True
 
     def test_filter_authorized_menu_items(self, auth_manager):
         items = [MenuItem.ASSETS]

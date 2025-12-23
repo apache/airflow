@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     from openlineage.client.facet_v2 import JobFacet, RunFacet
     from sqlalchemy.engine import Engine
 
+    from airflow.providers.common.compat.sdk import BaseHook
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.sdk import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -232,8 +232,8 @@ class SQLParser(LoggingMixin):
             else None,
         )
 
+    @staticmethod
     def get_metadata_from_parser(
-        self,
         inputs: list[DbTableMeta],
         outputs: list[DbTableMeta],
         database_info: DatabaseInfo,
@@ -315,6 +315,7 @@ class SQLParser(LoggingMixin):
         :param database_info: database specific information
         :param database: when passed it takes precedence over parsed database name
         :param sqlalchemy_engine: when passed, engine's dialect is used to compile SQL queries
+        :param use_connection: if call to db should be performed to enrich datasets (e.g., with schema)
         """
         job_facets: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query=self.normalize_sql(sql))}
         parse_result = self.parse(sql=self.split_sql_string(sql))
@@ -338,17 +339,28 @@ class SQLParser(LoggingMixin):
             )
 
         namespace = self.create_namespace(database_info=database_info)
+        inputs: list[Dataset] = []
+        outputs: list[Dataset] = []
         if use_connection:
-            inputs, outputs = self.parse_table_schemas(
-                hook=hook,
-                inputs=parse_result.in_tables,
-                outputs=parse_result.out_tables,
-                namespace=namespace,
-                database=database,
-                database_info=database_info,
-                sqlalchemy_engine=sqlalchemy_engine,
-            )
-        else:
+            try:
+                inputs, outputs = self.parse_table_schemas(
+                    hook=hook,
+                    inputs=parse_result.in_tables,
+                    outputs=parse_result.out_tables,
+                    namespace=namespace,
+                    database=database,
+                    database_info=database_info,
+                    sqlalchemy_engine=sqlalchemy_engine,
+                )
+            except Exception as e:
+                self.log.warning(
+                    "OpenLineage method failed to enrich datasets using db metadata. Exception: `%s`",
+                    e,
+                )
+                self.log.debug("OpenLineage failure details:", exc_info=True)
+
+        # If call to db failed or was not performed, use datasets from sql parsing alone
+        if not inputs and not outputs:
             inputs, outputs = self.get_metadata_from_parser(
                 inputs=parse_result.in_tables,
                 outputs=parse_result.out_tables,

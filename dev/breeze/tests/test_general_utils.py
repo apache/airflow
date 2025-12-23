@@ -22,7 +22,7 @@ from airflow_breeze.utils.packages import get_long_package_names
 
 
 @pytest.mark.parametrize(
-    "short_form_providers, expected",
+    ("short_form_providers", "expected"),
     [
         pytest.param(
             ("awesome", "foo.bar"),

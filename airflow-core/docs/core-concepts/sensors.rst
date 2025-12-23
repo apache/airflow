@@ -19,6 +19,7 @@ Sensors
 ========
 
 Sensors are a special type of :doc:`Operator <operators>` that are designed to do exactly one thing - wait for something to occur. It can be time-based, or waiting for a file, or an external event, but all they do is wait until something happens, and then *succeed* so their downstream tasks can run.
+Or, in the case when that thing does _not_ happen within the configured timeout, *fails* so that you can be alerted to the failure through the usual mechanisms.
 
 Because they are primarily idle, Sensors have two different modes of running so you can be a bit more efficient about using them:
 

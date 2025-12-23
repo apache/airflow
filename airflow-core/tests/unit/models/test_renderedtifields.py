@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 from collections import Counter
+from collections.abc import Sequence
 from datetime import date, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -33,13 +34,13 @@ from airflow import settings
 from airflow._shared.timezones.timezone import datetime
 from airflow.configuration import conf
 from airflow.models import DagRun, Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task as task_decorator
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.task_instance_session import set_current_task_instance_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
@@ -69,6 +70,9 @@ class ClassWithCustomAttributes:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash(self.__dict__)
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -101,7 +105,7 @@ class TestRenderedTaskInstanceFields:
         self.clean_db()
 
     @pytest.mark.parametrize(
-        ["templated_field", "expected_rendered_field"],
+        ("templated_field", "expected_rendered_field"),
         [
             pytest.param(None, None, id="None"),
             pytest.param([], [], id="list"),
@@ -228,7 +232,7 @@ class TestRenderedTaskInstanceFields:
         rtif.write()
 
     @pytest.mark.parametrize(
-        "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
+        ("rtif_num", "num_to_keep", "remaining_rtifs", "expected_query_count"),
         [
             (0, 1, 0, 1),
             (1, 1, 1, 1),
@@ -245,35 +249,36 @@ class TestRenderedTaskInstanceFields:
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id.
         """
-        with set_current_task_instance_session(session=session):
-            with dag_maker("test_delete_old_records") as dag:
-                task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
-            rtif_list = []
-            for num in range(rtif_num):
-                dr = dag_maker.create_dagrun(
-                    run_id=str(num), logical_date=dag.start_date + timedelta(days=num)
-                )
-                ti = dr.task_instances[0]
-                ti.task = task
-                rtif_list.append(RTIF(ti))
+        with dag_maker("test_delete_old_records") as dag:
+            task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
+        rtif_list = []
+        for num in range(rtif_num):
+            dr = dag_maker.create_dagrun(run_id=str(num), logical_date=dag.start_date + timedelta(days=num))
+            ti = dr.task_instances[0]
+            ti.task = task
+            rtif_list.append(RTIF(ti))
 
-            session.add_all(rtif_list)
-            session.flush()
+        session.add_all(rtif_list)
+        session.flush()
 
-            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
 
-            for rtif in rtif_list:
-                assert rtif in result
+        for rtif in rtif_list:
+            assert rtif in result
 
-            assert rtif_num == len(result)
+        assert rtif_num == len(result)
 
-            with assert_queries_count(expected_query_count):
-                RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
-            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
-            assert remaining_rtifs == len(result)
+        with assert_queries_count(expected_query_count):
+            RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id)
+        ).all()
+        assert remaining_rtifs == len(result)
 
     @pytest.mark.parametrize(
-        "num_runs, num_to_keep, remaining_rtifs, expected_query_count",
+        ("num_runs", "num_to_keep", "remaining_rtifs", "expected_query_count"),
         [
             (3, 1, 1, 1),
             (4, 2, 2, 1),
@@ -287,35 +292,34 @@ class TestRenderedTaskInstanceFields:
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id with mapped tasks.
         """
-        with set_current_task_instance_session(session=session):
-            with dag_maker("test_delete_old_records", session=session, serialized=True) as dag:
-                mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
-            for num in range(num_runs):
-                dr = dag_maker.create_dagrun(
-                    run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
-                )
+        with dag_maker("test_delete_old_records", session=session, serialized=True) as dag:
+            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
+        for num in range(num_runs):
+            dr = dag_maker.create_dagrun(
+                run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
+            )
 
-                TaskMap.expand_mapped_task(
-                    dag.task_dict[mapped.task_id], dr.run_id, session=dag_maker.session
-                )
-                session.refresh(dr)
-                for ti in dr.task_instances:
-                    ti.task = mapped
-                    session.add(RTIF(ti))
-            session.flush()
+            TaskMap.expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, session=dag_maker.session)
+            session.refresh(dr)
+            for ti in dr.task_instances:
+                ti.task = mapped
+                session.add(RTIF(ti))
+        session.flush()
 
-            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
-            assert len(result) == num_runs * 2
+        result = session.scalars(select(RTIF).where(RTIF.dag_id == dag.dag_id)).all()
+        assert len(result) == num_runs * 2
 
-            with assert_queries_count(expected_query_count):
-                RTIF.delete_old_records(
-                    task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
-                )
-            result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
-            rtif_num_runs = Counter(rtif.run_id for rtif in result)
-            assert len(rtif_num_runs) == remaining_rtifs
-            # Check that we have _all_ the data for each row
-            assert len(result) == remaining_rtifs * 2
+        with assert_queries_count(expected_query_count):
+            RTIF.delete_old_records(
+                task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
+            )
+        result = session.scalars(
+            select(RTIF).where(RTIF.dag_id == dag.dag_id, RTIF.task_id == mapped.task_id)
+        ).all()
+        rtif_num_runs = Counter(rtif.run_id for rtif in result)
+        assert len(rtif_num_runs) == remaining_rtifs
+        # Check that we have _all_ the data for each row
+        assert len(result) == remaining_rtifs * 2
 
     def test_write(self, dag_maker):
         """
@@ -324,7 +328,7 @@ class TestRenderedTaskInstanceFields:
         Variable.set(key="test_key", value="test_val")
 
         session = settings.Session()
-        result = session.query(RTIF).all()
+        result = session.scalars(select(RTIF)).all()
         assert result == []
 
         with dag_maker("test_write"):
@@ -336,15 +340,13 @@ class TestRenderedTaskInstanceFields:
 
         rtif = RTIF(ti)
         rtif.write()
-        result = (
-            session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
-            .filter(
+        result = session.execute(
+            select(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields).where(
                 RTIF.dag_id == rtif.dag_id,
                 RTIF.task_id == rtif.task_id,
                 RTIF.run_id == rtif.run_id,
             )
-            .first()
-        )
+        ).first()
         assert result == ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None})
 
         # Test that overwrite saves new values to the DB
@@ -359,15 +361,13 @@ class TestRenderedTaskInstanceFields:
         rtif_updated = RTIF(ti)
         rtif_updated.write()
 
-        result_updated = (
-            session.query(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields)
-            .filter(
+        result_updated = session.execute(
+            select(RTIF.dag_id, RTIF.task_id, RTIF.rendered_fields).where(
                 RTIF.dag_id == rtif_updated.dag_id,
                 RTIF.task_id == rtif_updated.task_id,
                 RTIF.run_id == rtif_updated.run_id,
             )
-            .first()
-        )
+        ).first()
         assert result_updated == (
             "test_write",
             "test",
@@ -445,3 +445,71 @@ class TestRenderedTaskInstanceFields:
         # rerun the old run. this will shouldn't fail
         ti.task = task
         ti.run()
+
+    def test_nested_dictionary_template_field_rendering(self, dag_maker):
+        """
+        Test that nested dictionary items in template fields are properly rendered
+        when using template_fields_renderers with dot-separated paths.
+
+        This test verifies the fix for rendering dictionary items in templates.
+        Before the fix, nested dictionary items specified in template_fields_renderers
+        (e.g., "configuration.query.sql") would not be rendered. After the fix,
+        these nested items are properly extracted and rendered.
+        """
+
+        # Create a custom operator with a dictionary template field
+        class MyConfigOperator(BaseOperator):
+            template_fields: Sequence[str] = ("configuration",)
+            template_fields_renderers = {
+                "configuration": "json",
+                "configuration.query.sql": "sql",
+            }
+
+            def __init__(self, configuration: dict, **kwargs):
+                super().__init__(**kwargs)
+                self.configuration = configuration
+
+        # Create a configuration dictionary with nested structure
+        configuration = {
+            "query": {
+                "job_id": "123",
+                "sql": "select * from my_table where date = '{{ ds }}'",
+            }
+        }
+
+        with dag_maker("test_nested_dict_rendering"):
+            task = MyConfigOperator(task_id="test_config", configuration=configuration)
+        dr = dag_maker.create_dagrun()
+
+        session = dag_maker.session
+        ti = dr.task_instances[0]
+        ti.task = task
+        rtif = RTIF(ti=ti)
+
+        # Verify that the base configuration field is rendered
+        assert "configuration" in rtif.rendered_fields
+        rendered_config = rtif.rendered_fields["configuration"]
+        assert isinstance(rendered_config, dict)
+        assert rendered_config["query"]["job_id"] == "123"
+        # The SQL should be templated (ds should be replaced with actual date)
+        assert "select * from my_table where date = '" in rendered_config["query"]["sql"]
+        assert rendered_config["query"]["sql"] != configuration["query"]["sql"]
+
+        # Verify that the nested dictionary item is also rendered
+        # This is the key test - before the fix, this would not exist
+        assert "configuration.query.sql" in rtif.rendered_fields
+        rendered_sql = rtif.rendered_fields["configuration.query.sql"]
+        assert isinstance(rendered_sql, str)
+        assert "select * from my_table where date = '" in rendered_sql
+        # The template should be rendered (ds should be replaced)
+        assert "{{ ds }}" not in rendered_sql
+
+        # Store in database and verify retrieval
+        session.add(rtif)
+        session.flush()
+
+        retrieved_fields = RTIF.get_templated_fields(ti=ti, session=session)
+        assert retrieved_fields is not None
+        assert "configuration" in retrieved_fields
+        assert "configuration.query.sql" in retrieved_fields
+        assert retrieved_fields["configuration.query.sql"] == rendered_sql

@@ -42,11 +42,11 @@ APACHE_AIRFLOW_SITE_ARCHIVE_REPO = "apache/airflow-site-archive"
 
 
 @click.group(cls=BreezeGroup, name="workflow-run", help="Tools to manage Airflow repository workflows ")
-def workflow_run():
+def workflow_run_group():
     pass
 
 
-@workflow_run.command(name="publish-docs", help="Trigger publish docs to S3 workflow")
+@workflow_run_group.command(name="publish-docs", help="Trigger publish docs to S3 workflow")
 @click.option(
     "--ref",
     help="Git reference tag to checkout to build documentation.",
@@ -148,6 +148,7 @@ def workflow_run_publish(
             get_console().print(
                 f"[red]Error: Ref {ref} does not exists in repo apache/airflow .[/red]",
             )
+            get_console().print("\nYou can add --skip-tag-validation to skip this validation.")
             sys.exit(1)
 
     get_console().print(
@@ -178,10 +179,14 @@ def workflow_run_publish(
     if airflow_version and not airflow_base_version:
         airflow_base_version = Version(airflow_version).base_version
 
+    joined_packages = " ".join(doc_packages)
+    if "providers" in joined_packages and "apache-airflow-providers" not in joined_packages:
+        joined_packages = joined_packages + " apache-airflow-providers"
+
     workflow_fields = {
         "ref": ref,
         "destination": site_env,
-        "include-docs": " ".join(doc_packages),
+        "include-docs": joined_packages,
         "exclude-docs": exclude_docs,
         "skip-write-to-stable-folder": skip_write_to_stable_folder,
         "build-sboms": "true" if "apache-airflow" in doc_packages else "false",

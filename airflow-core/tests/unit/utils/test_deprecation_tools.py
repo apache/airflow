@@ -27,7 +27,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.utils.deprecation_tools import add_deprecated_classes, getattr_with_deprecation
+from airflow.utils.deprecation_tools import (
+    DeprecatedImportWarning,
+    add_deprecated_classes,
+    getattr_with_deprecation,
+)
 
 
 @contextmanager
@@ -73,7 +77,7 @@ class TestGetAttrWithDeprecation:
 
                 assert result == mock_new_class
                 assert len(w) == 1
-                assert issubclass(w[0].category, DeprecationWarning)
+                assert issubclass(w[0].category, DeprecatedImportWarning)
                 assert "old.module.OldClass" in str(w[0].message)
                 assert "new.module.NewClass" in str(w[0].message)
 
@@ -99,7 +103,7 @@ class TestGetAttrWithDeprecation:
 
                 assert result == mock_attribute
                 assert len(w) == 1
-                assert issubclass(w[0].category, DeprecationWarning)
+                assert issubclass(w[0].category, DeprecatedImportWarning)
                 assert "old.module.SomeAttribute" in str(w[0].message)
                 assert "new.module.SomeAttribute" in str(w[0].message)
 
@@ -126,7 +130,7 @@ class TestGetAttrWithDeprecation:
 
                 assert result == mock_attribute
                 assert len(w) == 1
-                assert issubclass(w[0].category, DeprecationWarning)
+                assert issubclass(w[0].category, DeprecatedImportWarning)
                 assert "old.module.SomeAttribute" in str(w[0].message)
                 assert "override.module.OverrideClass" in str(w[0].message)
 
@@ -152,7 +156,7 @@ class TestGetAttrWithDeprecation:
 
                 assert result == mock_specific_class
                 assert len(w) == 1
-                assert issubclass(w[0].category, DeprecationWarning)
+                assert issubclass(w[0].category, DeprecatedImportWarning)
                 assert "old.module.SpecificClass" in str(w[0].message)
                 assert "specific.module.SpecificClass" in str(w[0].message)
 
@@ -253,7 +257,7 @@ class TestAddDeprecatedClasses:
     """Tests for the add_deprecated_classes function."""
 
     @pytest.mark.parametrize(
-        "test_case,module_imports,override_classes,expected_behavior",
+        ("test_case", "module_imports", "override_classes", "expected_behavior"),
         [
             (
                 "basic_class_mapping",
@@ -312,7 +316,14 @@ class TestAddDeprecatedClasses:
             assert sys.modules[full_module_name].existing_attr == "existing_value"
 
     @pytest.mark.parametrize(
-        "test_case,module_imports,attr_name,target_attr,expected_target_msg,override_classes",
+        (
+            "test_case",
+            "module_imports",
+            "attr_name",
+            "target_attr",
+            "expected_target_msg",
+            "override_classes",
+        ),
         [
             (
                 "direct_imports",
@@ -383,7 +394,7 @@ class TestAddDeprecatedClasses:
 
                     assert result == mock_attribute
                     assert len(w) == 1
-                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert issubclass(w[0].category, DeprecatedImportWarning)
                     assert f"{full_module_name}.{attr_name}" in str(w[0].message)
                     assert expected_target_msg in str(w[0].message)
 
@@ -437,7 +448,7 @@ class TestAddDeprecatedClasses:
 
                     assert result == mock_current_attr
                     assert len(w) == 1
-                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert issubclass(w[0].category, DeprecatedImportWarning)
                     assert f"{full_module_name}.current_attr" in str(w[0].message)
 
                 # Test virtual module access
@@ -448,7 +459,7 @@ class TestAddDeprecatedClasses:
 
                     assert result == mock_virtual_attr
                     assert len(w) == 1
-                    assert issubclass(w[0].category, DeprecationWarning)
+                    assert issubclass(w[0].category, DeprecatedImportWarning)
                     assert f"{full_virtual_module_name}.VirtualClass" in str(w[0].message)
 
     def test_add_deprecated_classes_current_module_not_in_sys_modules(self):

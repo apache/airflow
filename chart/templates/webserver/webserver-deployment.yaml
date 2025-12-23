@@ -131,10 +131,7 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.webserver.terminationGracePeriodSeconds }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if .Values.webserver.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations

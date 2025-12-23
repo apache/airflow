@@ -22,21 +22,21 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset, AssetAlias
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_asset_created(asset: Asset):
+def on_asset_created(asset: SerializedAsset):
     """Execute when a new asset is created."""
 
 
 @hookspec
-def on_asset_alias_created(asset_alias: AssetAlias):
+def on_asset_alias_created(asset_alias: SerializedAssetAlias):
     """Execute when a new asset alias is created."""
 
 
 @hookspec
-def on_asset_changed(asset: Asset):
+def on_asset_changed(asset: SerializedAsset):
     """Execute when asset change is registered."""

@@ -24,9 +24,8 @@ from typing import TYPE_CHECKING, Any
 from opensearchpy import RequestsHttpConnection
 from opensearchpy.exceptions import OpenSearchException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
-from airflow.providers.opensearch.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from opensearchpy import Connection as OpenSearchConnectionClass

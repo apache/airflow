@@ -163,9 +163,20 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     Extends airflow FileTaskHandler and uploads to and reads from OSS remote storage.
     """
 
-    def __init__(self, base_log_folder, oss_log_folder, **kwargs):
+    def __init__(
+        self,
+        base_log_folder: str,
+        oss_log_folder: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+        **kwargs,
+    ) -> None:
         self.log.info("Using oss_task_handler for remote logging...")
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.log_relative_path = ""
         self._hook = None
         self.closed = False

@@ -19,15 +19,17 @@
 package-name: apache-airflow-providers-oracle
 name: Oracle
 description: |
-    `Oracle <https://www.oracle.com/en/database/>`__
+    `Oracle <https://www.oracle.com/database/technologies/>`__
 
 state: ready
-source-date-epoch: 1756877244
+source-date-epoch: 1764110478
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.3.0
+  - 4.2.1
   - 4.2.0
   - 4.1.3
   - 4.1.2
@@ -75,6 +77,8 @@ versions:
 integrations:
   - integration-name: Oracle
     external-doc-url: https://www.oracle.com/en/database/
+    how-to-guide:
+      - /docs/apache-airflow-providers-oracle/operators.rst
     logo: /docs/integration-logos/Oracle.png
     tags: [software]
 

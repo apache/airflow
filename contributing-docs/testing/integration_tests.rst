@@ -55,43 +55,47 @@ core or provider type of test.
 
 .. BEGIN AUTO-GENERATED INTEGRATION LIST
 
-+--------------+-------------------------------------------------------+
-| Identifier   | Description                                           |
-+==============+=======================================================+
-| cassandra    | Integration required for Cassandra hooks.             |
-+--------------+-------------------------------------------------------+
-| celery       | Integration required for Celery executor tests.       |
-+--------------+-------------------------------------------------------+
-| drill        | Integration required for drill operator and hook.     |
-+--------------+-------------------------------------------------------+
-| kafka        | Integration required for Kafka hooks.                 |
-+--------------+-------------------------------------------------------+
-| kerberos     | Integration that provides Kerberos authentication.    |
-+--------------+-------------------------------------------------------+
-| keycloak     | Integration for manual testing of multi-team Airflow. |
-+--------------+-------------------------------------------------------+
-| mongo        | Integration required for MongoDB hooks.               |
-+--------------+-------------------------------------------------------+
-| mssql        | Integration required for mssql hooks.                 |
-+--------------+-------------------------------------------------------+
-| openlineage  | Integration required for Openlineage hooks.           |
-+--------------+-------------------------------------------------------+
-| otel         | Integration required for OTEL/opentelemetry hooks.    |
-+--------------+-------------------------------------------------------+
-| pinot        | Integration required for Apache Pinot hooks.          |
-+--------------+-------------------------------------------------------+
-| qdrant       | Integration required for Qdrant tests.                |
-+--------------+-------------------------------------------------------+
-| redis        | Integration required for Redis tests.                 |
-+--------------+-------------------------------------------------------+
-| statsd       | Integration required for Statsd hooks.                |
-+--------------+-------------------------------------------------------+
-| tinkerpop    | Integration required for gremlin operator and hook.   |
-+--------------+-------------------------------------------------------+
-| trino        | Integration required for Trino hooks.                 |
-+--------------+-------------------------------------------------------+
-| ydb          | Integration required for YDB tests.                   |
-+--------------+-------------------------------------------------------+
++---------------+-------------------------------------------------------+
+| Identifier    | Description                                           |
++===============+=======================================================+
+| cassandra     | Integration required for Cassandra hooks.             |
++---------------+-------------------------------------------------------+
+| celery        | Integration required for Celery executor tests.       |
++---------------+-------------------------------------------------------+
+| drill         | Integration required for drill operator and hook.     |
++---------------+-------------------------------------------------------+
+| elasticsearch | Integration required for Elasticsearch hooks.         |
++---------------+-------------------------------------------------------+
+| kafka         | Integration required for Kafka hooks.                 |
++---------------+-------------------------------------------------------+
+| kerberos      | Integration that provides Kerberos authentication.    |
++---------------+-------------------------------------------------------+
+| keycloak      | Integration for manual testing of multi-team Airflow. |
++---------------+-------------------------------------------------------+
+| localstack    | Integration that emulates AWS services locally.       |
++---------------+-------------------------------------------------------+
+| mongo         | Integration required for MongoDB hooks.               |
++---------------+-------------------------------------------------------+
+| mssql         | Integration required for mssql hooks.                 |
++---------------+-------------------------------------------------------+
+| openlineage   | Integration required for Openlineage hooks.           |
++---------------+-------------------------------------------------------+
+| otel          | Integration required for OTEL/opentelemetry hooks.    |
++---------------+-------------------------------------------------------+
+| pinot         | Integration required for Apache Pinot hooks.          |
++---------------+-------------------------------------------------------+
+| qdrant        | Integration required for Qdrant tests.                |
++---------------+-------------------------------------------------------+
+| redis         | Integration required for Redis tests.                 |
++---------------+-------------------------------------------------------+
+| statsd        | Integration required for Statsd hooks.                |
++---------------+-------------------------------------------------------+
+| tinkerpop     | Integration required for gremlin operator and hook.   |
++---------------+-------------------------------------------------------+
+| trino         | Integration required for Trino hooks.                 |
++---------------+-------------------------------------------------------+
+| ydb           | Integration required for YDB tests.                   |
++---------------+-------------------------------------------------------+
 
 .. END AUTO-GENERATED INTEGRATION LIST'
 

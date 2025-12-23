@@ -28,7 +28,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -63,7 +63,7 @@ class TestBashOperator:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "append_env,user_defined_env,expected_airflow_home",
+        ("append_env", "user_defined_env", "expected_airflow_home"),
         [
             (False, None, "MY_PATH_TO_AIRFLOW_HOME"),
             (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
@@ -122,7 +122,7 @@ class TestBashOperator:
         assert expected == tmp_file.read_text()
 
     @pytest.mark.parametrize(
-        "val,expected",
+        ("val", "expected"),
         [
             ("test-val", "test-val"),
             ("test-val\ntest-val\n", ""),
@@ -194,7 +194,7 @@ class TestBashOperator:
         assert (test_cwd_path / "outputs.txt").read_text().splitlines()[0] == "xxxx"
 
     @pytest.mark.parametrize(
-        "extra_kwargs,actual_exit_code,expected_exc",
+        ("extra_kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),

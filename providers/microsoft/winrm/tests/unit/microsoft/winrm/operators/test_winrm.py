@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
 
@@ -44,8 +44,11 @@ class TestWinRMOperator:
     def test_default_returning_0_command(self, mock_hook):
         stdout = [b"O", b"K"]
         command = "not_empty"
+        working_dir = "c:\\temp"
         mock_hook.run.return_value = (0, stdout, [])
-        op = WinRMOperator(task_id="test_task_id", winrm_hook=mock_hook, command=command)
+        op = WinRMOperator(
+            task_id="test_task_id", winrm_hook=mock_hook, command=command, working_directory=working_dir
+        )
         execute_result = op.execute(None)
         assert execute_result == b64encode(b"".join(stdout)).decode("utf-8")
         mock_hook.run.assert_called_once_with(
@@ -53,6 +56,7 @@ class TestWinRMOperator:
             ps_path=None,
             output_encoding="utf-8",
             return_output=True,
+            working_directory=working_dir,
         )
 
     @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
@@ -94,6 +98,7 @@ class TestWinRMOperator:
                 ps_path=None,
                 output_encoding="utf-8",
                 return_output=True,
+                working_directory=None,
             )
         else:
             exception_msg = f"Error running cmd: {command}, return code: {real_return_code}, error: KO"

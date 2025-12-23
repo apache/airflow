@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "본문",
+    "createdAt": "생성 시간",
     "response": {
       "all": "전체",
       "pending": "대기 중",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "필수 작업들 ({{count}})",
   "requiredActionState": "필수 작업 상태",
   "response": {
+    "created": "응답 생성 시간: ",
     "error": "응답 실패",
     "optionsDescription": "이 작업 인스턴스에 대한 옵션을 선택하세요",
     "optionsLabel": "옵션",
     "received": "응답 수신 시간: ",
     "respond": "응답하기",
+    "responded_by_user_name": "(사용자 이름)에 의해 응답됨",
     "success": "{{taskId}} 응답 성공",
     "title": "휴먼 태스크 인스턴스 - {{taskId}}"
   },

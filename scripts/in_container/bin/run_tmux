@@ -18,12 +18,6 @@
 if [ ! -e /usr/local/bin/stop_airflow ]; then
     ln -s "/opt/airflow/scripts/in_container/stop_tmux_airflow.sh" /usr/local/bin/stop_airflow || true
 fi
-# Use LocalExecutor if not set and if backend is not sqlite as it gives
-# better performance
-if [[ ${BACKEND} != "sqlite"  ]]; then
-    export AIRFLOW__CORE__EXECUTOR=${AIRFLOW__CORE__EXECUTOR:-LocalExecutor}
-fi
-
 
 export TMUX_TMPDIR=~/.tmux/tmp
 if [ -e ~/.tmux/tmp ]; then
@@ -110,6 +104,7 @@ if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux split-window -h
     if [[ ${BREEZE_DEBUG_CELERY_WORKER} == "true" ]]; then
         tmux set-option -p @airflow_component "Celery Worker(Debug Mode)"
+
         tmux send-keys "debugpy --listen 0.0.0.0:${BREEZE_DEBUG_CELERY_WORKER_PORT} --wait-for-client -m airflow celery worker" C-m
     else
     tmux set-option -p @airflow_component "Celery Worker"

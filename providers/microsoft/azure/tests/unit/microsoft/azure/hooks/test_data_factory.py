@@ -24,8 +24,8 @@ import pytest
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import FactoryListResponse
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
     AzureDataFactoryHook,
@@ -797,7 +797,9 @@ class TestAzureDataFactoryAsyncHook:
     async def test_get_async_conn_key_error_subscription_id(self, mocked_connection):
         """Test get_async_conn function when subscription_id is missing in the connection"""
         hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="A Subscription ID is required to connect to Azure Data Factory."
+        ):
             await hook.get_async_conn()
 
     @pytest.mark.asyncio
@@ -821,7 +823,9 @@ class TestAzureDataFactoryAsyncHook:
     async def test_get_async_conn_key_error_tenant_id(self, mocked_connection):
         """Test get_async_conn function when tenant id is missing in the connection"""
         hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="A Tenant ID is required when authenticating with Client ID and Secret."
+        ):
             await hook.get_async_conn()
 
     def test_get_field_prefixed_extras(self):

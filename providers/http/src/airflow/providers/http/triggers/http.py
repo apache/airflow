@@ -18,19 +18,29 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import importlib
+import inspect
 import pickle
+import sys
 from collections.abc import AsyncIterator
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import requests
+from asgiref.sync import sync_to_async
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger
+else:
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -105,21 +115,9 @@ class HttpTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via a http hook."""
-        hook = HttpAsyncHook(
-            method=self.method,
-            http_conn_id=self.http_conn_id,
-            auth_type=self.auth_type,
-        )
+        hook = self._get_async_hook()
         try:
-            async with aiohttp.ClientSession() as session:
-                client_response = await hook.run(
-                    session=session,
-                    endpoint=self.endpoint,
-                    data=self.data,
-                    headers=self.headers,
-                    extra_options=self.extra_options,
-                )
-                response = await self._convert_response(client_response)
+            response = await self._get_response(hook)
             yield TriggerEvent(
                 {
                     "status": "success",
@@ -128,6 +126,25 @@ class HttpTrigger(BaseTrigger):
             )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
+
+    def _get_async_hook(self) -> HttpAsyncHook:
+        return HttpAsyncHook(
+            method=self.method,
+            http_conn_id=self.http_conn_id,
+            auth_type=self.auth_type,
+        )
+
+    async def _get_response(self, hook):
+        async with aiohttp.ClientSession() as session:
+            client_response = await hook.run(
+                session=session,
+                endpoint=self.endpoint,
+                data=self.data,
+                headers=self.headers,
+                extra_options=self.extra_options,
+            )
+            response = await self._convert_response(client_response)
+            return response
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
@@ -219,3 +236,89 @@ class HttpSensorTrigger(BaseTrigger):
             method=self.method,
             http_conn_id=self.http_conn_id,
         )
+
+
+class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
+    """
+    HttpEventTrigger for event-based DAG scheduling when the API response satisfies the response check.
+
+    :param response_check_path: Path to the function that evaluates whether the API response
+        passes the conditions set by the user to fire the trigger. The method must be asynchronous.
+    :param http_conn_id: http connection id that has the base
+        API url i.e https://www.google.com/ and optional authentication credentials. Default
+        headers can also be specified in the Extra field in json format.
+    :param auth_type: The auth type for the service
+    :param method: The API method to be called
+    :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
+    :param headers: Additional headers to be passed through as a dict.
+    :param data: Payload to be uploaded or request parameters.
+    :param extra_options: Additional kwargs to pass when creating a request.
+    :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
+    """
+
+    def __init__(
+        self,
+        response_check_path: str,
+        http_conn_id: str = "http_default",
+        auth_type: Any = None,
+        method: str = "GET",
+        endpoint: str | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | None = None,
+        extra_options: dict[str, Any] | None = None,
+        poll_interval: float = 60.0,
+    ):
+        super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
+        self.response_check_path = response_check_path
+        self.poll_interval = poll_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize HttpEventTrigger arguments and classpath."""
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "http_conn_id": self.http_conn_id,
+                "method": self.method,
+                "auth_type": serialize_auth_type(self.auth_type),
+                "endpoint": self.endpoint,
+                "headers": self.headers,
+                "data": self.data,
+                "extra_options": self.extra_options,
+                "response_check_path": self.response_check_path,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make a series of asynchronous http calls via a http hook until the response passes the response check."""
+        hook = super()._get_async_hook()
+        try:
+            while True:
+                response = await super()._get_response(hook)
+                if await self._run_response_check(response):
+                    break
+                await asyncio.sleep(self.poll_interval)
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                }
+            )
+        except Exception as e:
+            self.log.error("status: error, message: %s", str(e))
+
+    async def _import_from_response_check_path(self):
+        """Import the response check callable from the path provided by the user."""
+        module_path, func_name = self.response_check_path.rsplit(".", 1)
+        if module_path in sys.modules:
+            module = await sync_to_async(importlib.reload)(sys.modules[module_path])
+        module = await sync_to_async(importlib.import_module)(module_path)
+        return getattr(module, func_name)
+
+    async def _run_response_check(self, response) -> bool:
+        """Run the response_check callable provided by the user."""
+        response_check = await self._import_from_response_check_path()
+        if not inspect.iscoroutinefunction(response_check):
+            raise AirflowException("The response_check callable is not asynchronous.")
+        check = await response_check(response)
+        return check

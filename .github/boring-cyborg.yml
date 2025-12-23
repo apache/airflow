@@ -332,23 +332,23 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
-  #  # This should be copy of the "area:dev-tools" above and should be updated when
-  #  # we switch maintenance branch
-  #  backport-to-v3-1-test:
-  #    - scripts/**/*
-  #    - dev/**/*
-  #    - .github/**/*
-  #    - Dockerfile.ci
-  #    - CONTRIBUTING.rst
-  #    - contributing-docs/**/*
-  #    - yamllint-config.yml
-  #    - .asf.yaml
-  #    - .bash_completion
-  #    - .dockerignore
-  #    - .hadolint.yaml
-  #    - .pre-commit-config.yaml
-  #    - .rat-excludes
-  #    - .readthedocs.yml
+  # This should be copy of the "area:dev-tools" above and should be updated when
+  # we switch maintenance branch
+  backport-to-v3-1-test:
+    - scripts/**/*
+    - dev/**/*
+    - .github/**/*
+    - Dockerfile.ci
+    - CONTRIBUTING.rst
+    - contributing-docs/**/*
+    - yamllint-config.yml
+    - .asf.yaml
+    - .bash_completion
+    - .dockerignore
+    - .hadolint.yaml
+    - .pre-commit-config.yaml
+    - .rat-excludes
+    - .readthedocs.yml
 
   kind:documentation:
     - airflow-core/docs/**/*
@@ -381,6 +381,9 @@ labelPRBasedOnFilePath:
   translation:de:
     - airflow-core/src/airflow/ui/public/i18n/locales/de/*
 
+  translation:el:
+    - airflow-core/src/airflow/ui/public/i18n/locales/el/*
+
   translation:es:
     - airflow-core/src/airflow/ui/public/i18n/locales/es/*
 
@@ -399,6 +402,9 @@ labelPRBasedOnFilePath:
   translation:it:
     - airflow-core/src/airflow/ui/public/i18n/locales/it/*
 
+  translation:ja:
+    - airflow-core/src/airflow/ui/public/i18n/locales/ja/*
+
   translation:ko:
     - airflow-core/src/airflow/ui/public/i18n/locales/ko/*
 
@@ -410,6 +416,9 @@ labelPRBasedOnFilePath:
 
   translation:pt:
     - airflow-core/src/airflow/ui/public/i18n/locales/pt/*
+
+  translation:th:
+    - airflow-core/src/airflow/ui/public/i18n/locales/th/*
 
   translation:tr:
     - airflow-core/src/airflow/ui/public/i18n/locales/tr/*

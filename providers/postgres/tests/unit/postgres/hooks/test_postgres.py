@@ -27,14 +27,14 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.common_sql import mock_db_hook
-from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
+from tests_common.test_utils.version_compat import NOTSET, SQLALCHEMY_V_1_4
 
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, {}, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
 
@@ -127,7 +127,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_host",
+        ("host", "conn_cluster_identifier", "expected_host"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -209,7 +209,7 @@ class TestPostgresHookConn:
     @pytest.mark.usefixtures("mock_connect")
     def test_get_conn_with_invalid_cursor(self):
         self.connection.extra = '{"cursor": "mycursor"}'
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid cursor passed mycursor."):
             self.db_hook.get_conn()
 
     def test_get_conn_from_connection(self, mock_connect):
@@ -297,7 +297,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_cluster_identifier,expected_cluster_identifier",
+        ("host", "conn_cluster_identifier", "expected_cluster_identifier"),
         [
             (
                 "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -373,7 +373,7 @@ class TestPostgresHookConn:
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [5432, 5439, None])
     @pytest.mark.parametrize(
-        "host,conn_workgroup_name,expected_workgroup_name",
+        ("host", "conn_workgroup_name", "expected_workgroup_name"),
         [
             (
                 "serverless-workgroup.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
@@ -443,6 +443,57 @@ class TestPostgresHookConn:
             dbname=self.connection.schema,
             port=(port or 5439),
         )
+
+    def test_get_conn_azure_iam(self, mocker, mock_connect):
+        mock_azure_conn_id = "azure_conn1"
+        mock_db_token = "azure_token1"
+        mock_conn_extra = {"iam": True, "azure_conn_id": mock_azure_conn_id}
+        self.connection.extra = json.dumps(mock_conn_extra)
+
+        mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
+        mock_azure_base_hook = mock_connection_class.get.return_value.get_hook.return_value
+        mock_azure_base_hook.get_token.return_value.token = mock_db_token
+
+        self.db_hook.get_conn()
+
+        # Check AzureBaseHook initialization and get_token call args
+        mock_connection_class.get.assert_called_once_with(mock_azure_conn_id)
+        mock_azure_base_hook.get_token.assert_called_once_with(PostgresHook.default_azure_oauth_scope)
+
+        # Check expected psycopg2 connection call args
+        mock_connect.assert_called_once_with(
+            user=self.connection.login,
+            password=mock_db_token,
+            host=self.connection.host,
+            dbname=self.connection.schema,
+            port=(self.connection.port or 5432),
+        )
+
+        assert mock_db_token in self.db_hook.sqlalchemy_url
+
+    def test_get_azure_iam_token_expect_failure_on_older_azure_provider_package(self, mocker):
+        class MockAzureBaseHookOldVersion:
+            """Simulate an old version of AzureBaseHook where sdk_client is required."""
+
+            def __init__(self, sdk_client, conn_id="azure_default"):
+                pass
+
+        azure_conn_id = "azure_test_conn"
+        mock_connection_class = mocker.patch("airflow.providers.postgres.hooks.postgres.Connection")
+        mock_connection_class.get.return_value.get_hook = MockAzureBaseHookOldVersion
+
+        self.connection.extra = json.dumps({"iam": True, "azure_conn_id": azure_conn_id})
+        with pytest.raises(
+            AirflowOptionalProviderFeatureException,
+            match=(
+                "Getting azure token is not supported.*"
+                "Please upgrade apache-airflow-providers-microsoft-azure>="
+            ),
+        ):
+            self.db_hook.get_azure_iam_token(self.connection)
+
+        # Check AzureBaseHook initialization
+        mock_connection_class.get.assert_called_once_with(azure_conn_id)
 
     def test_get_uri_from_connection_without_database_override(self, mocker):
         expected: str = f"postgresql{'+psycopg' if USE_PSYCOPG3 else ''}://login:password@host:1/database"
@@ -639,7 +690,7 @@ class TestPostgresHook:
         assert sorted(input_data) == sorted(results)
 
     @pytest.mark.parametrize(
-        "df_type, expected_type",
+        ("df_type", "expected_type"),
         [
             ("pandas", pd.DataFrame),
             ("polars", pl.DataFrame),
@@ -879,10 +930,8 @@ class TestPostgresHookPPG2:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires column names"):
             setup.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
 
     def test_insert_rows_replace_missing_replace_index_arg(self, postgres_hook_setup):
         setup = postgres_hook_setup
@@ -898,10 +947,8 @@ class TestPostgresHookPPG2:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires an unique index"):
             setup.db_hook.insert_rows(table, rows, fields, replace=True)
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     def test_insert_rows_replace_all_index(self, postgres_hook_setup):
         setup = postgres_hook_setup
@@ -1145,10 +1192,8 @@ class TestPostgresHookPPG3:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires column names"):
             self.db_hook.insert_rows(table, rows, replace=True, replace_index=fields[0])
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires column names"
 
     def test_insert_rows_replace_missing_replace_index_arg(self):
         table = "table"
@@ -1163,10 +1208,8 @@ class TestPostgresHookPPG3:
             ),
         ]
         fields = ("id", "value")
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="PostgreSQL ON CONFLICT upsert syntax requires an unique index"):
             self.db_hook.insert_rows(table, rows, fields, replace=True)
-
-        assert str(ctx.value) == "PostgreSQL ON CONFLICT upsert syntax requires an unique index"
 
     def test_insert_rows_replace_all_index(self):
         table = "table"

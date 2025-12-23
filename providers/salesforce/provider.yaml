@@ -22,12 +22,15 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 state: ready
-source-date-epoch: 1756877452
+source-date-epoch: 1765299378
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.12.1
+  - 5.12.0
+  - 5.11.4
   - 5.11.3
   - 5.11.2
   - 5.11.1

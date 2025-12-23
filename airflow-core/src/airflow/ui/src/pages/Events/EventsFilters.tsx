@@ -18,7 +18,7 @@
  */
 import { useMemo } from "react";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
@@ -31,8 +31,7 @@ type EventsFiltersProps = {
 export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersProps) => {
   const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
     const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.AFTER,
-      SearchParamsKeys.BEFORE,
+      SearchParamsKeys.EVENT_DATE_RANGE,
       SearchParamsKeys.EVENT_TYPE,
       SearchParamsKeys.USER,
       SearchParamsKeys.MAP_INDEX,
@@ -57,27 +56,7 @@ export const EventsFilters = ({ urlDagId, urlRunId, urlTaskId }: EventsFiltersPr
     return keys;
   }, [urlDagId, urlRunId, urlTaskId]);
 
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
-
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
-
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
-      }
-    });
-
-    return values;
-  }, [searchParams, filterConfigs]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />

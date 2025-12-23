@@ -21,32 +21,48 @@
 Local Executor
 ==============
 
-:class:`~airflow.executors.local_executor.LocalExecutor` runs tasks by spawning processes in a controlled fashion in different modes.
+:class:`~airflow.executors.local_executor.LocalExecutor` runs tasks by spawning processes in a controlled fashion on the scheduler node.
 
-Given that BaseExecutor has the option to receive a ``parallelism`` parameter to limit the number of process spawned,
-when this parameter is ``0`` the number of processes that LocalExecutor can spawn is unlimited.
+The parameter ``parallelism`` limits the number of process spawned not to overwhelm the node.
+This parameter must be greater than ``0``.
 
-The following strategies are implemented:
+The :class:`~airflow.executors.local_executor.LocalExecutor` spawns the number of processes equal to the value of ``self.parallelism`` at
+``start`` time, using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among the workers, which will take
+a task as soon as they are ready. During the lifecycle of the LocalExecutor, the worker processes are running waiting for tasks, once the
+LocalExecutor receives the call to shutdown the executor a poison token is sent to the workers to terminate them.
 
-- | **Unlimited Parallelism** (``self.parallelism == 0``): In this strategy, LocalExecutor will
-  | spawn a process every time ``execute_async`` is called, that is, every task submitted to the
-  | :class:`~airflow.executors.local_executor.LocalExecutor` will be executed in its own process. Once the task is executed and the
-  | result stored in the ``result_queue``, the process terminates. There is no need for a
-  | ``task_queue`` in this approach, since as soon as a task is received a new process will be
-  | allocated to the task. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.LocalWorker`.
+The worker spawning behavior differs based on the multiprocessing start method:
 
-- | **Limited Parallelism** (``self.parallelism > 0``): In this strategy, the :class:`~airflow.executors.local_executor.LocalExecutor` spawns
-  | the number of processes equal to the value of ``self.parallelism`` at ``start`` time,
-  | using a ``task_queue`` to coordinate the ingestion of tasks and the work distribution among
-  | the workers, which will take a task as soon as they are ready. During the lifecycle of
-  | the LocalExecutor, the worker processes are running waiting for tasks, once the
-  | LocalExecutor receives the call to shutdown the executor a poison token is sent to the
-  | workers to terminate them. Processes used in this strategy are of class :class:`~airflow.executors.local_executor.QueuedLocalWorker`.
+- **Fork mode** (default on Linux): Workers are spawned all at once up to ``parallelism`` to prevent memory spikes
+  caused by Copy-on-Write (COW). See `Discussion <https://github.com/apache/airflow/discussions/58143>`_
+  for details.
+- **Spawn mode** (default on macOS and Windows): Workers are spawned one at a time as needed to prevent
+  the overhead of spawning many processes simultaneously.
 
 .. note::
 
-   When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
+   The ``parallelism`` parameter can be configured via the ``[core] parallelism`` option in ``airflow.cfg``.
+   The default value is ``32``.
+
+.. warning::
+
+   Since LocalExecutor workers are spawned as sub-processes of the scheduler, in containerized environments
+   this may appear as excessive memory consumption by the scheduler process. This can potentially trigger
+   container restarts due to OOM (Out of Memory). Consider adjusting the ``parallelism`` value based on
+   your container's resource limits.
+
+.. note::
+
+   When multiple Schedulers are configured with ``executor=LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each
+   Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the
+   Schedulers.
 
    One consideration should be taken into account:
 
-   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks and restart or fail them.
+   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks
+     and restart or fail them.
+
+.. note::
+
+   Previous versions of Airflow had the option to configure the LocalExecutor with unlimited parallelism
+   (``self.parallelism = 0``). This option has been removed in Airflow 3.0.0 to avoid overwhelming the scheduler node.

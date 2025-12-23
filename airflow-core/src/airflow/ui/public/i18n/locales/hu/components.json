@@ -82,12 +82,20 @@
     "downloadImage": "Gráf kép letöltése",
     "downloadImageError": "A gráf letöltése sikertelen.",
     "downloadImageErrorTitle": "Sikertelen letöltés",
-    "otherDagRuns": "+További DAG futások",
+    "otherDagRuns": "+További Dag futások",
     "taskCount_one": "{{count}} feladat",
     "taskCount_other": "{{count}} feladat",
     "taskGroup": "Feladatcsoport"
   },
   "limitedList": "+{{count}} további",
+  "limitedList.allItems": "Összes {{count}} elem:",
+  "limitedList.allTags_one": "Összes címke ({{count}})",
+  "limitedList.allTags_other": "Összes címke ({{count}})",
+  "limitedList.clickToInteract": "Kattintson egy címkére a Dag-ok szűréséhez",
+  "limitedList.clickToOpenFull": "Kattintson a \"+{{count}} további\" gombra a teljes nézethez",
+  "limitedList.copyPasteText": "A fenti szöveg másolható és beilleszthető",
+  "limitedList.showingItems_one": "{{count}} elem megjelenítve",
+  "limitedList.showingItems_other": "{{count}} elem megjelenítve",
   "logs": {
     "file": "Fájl",
     "location": "{{name}} fájl {{line}}. sora"
@@ -102,7 +110,7 @@
   "triggerDag": {
     "button": "Indítás",
     "loading": "Dag információk betöltése...",
-    "loadingFailed": "A DAG információk betöltése sikertelen. Kérem, próbálja újra.",
+    "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
     "selectDescription": "Indítsd el ennek a Dag-nek egyetlen futását",
     "selectLabel": "Egyszeri futás",

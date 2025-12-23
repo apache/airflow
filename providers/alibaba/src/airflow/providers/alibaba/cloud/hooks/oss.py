@@ -26,14 +26,10 @@ from urllib.parse import urlsplit
 import oss2
 from oss2.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
-from airflow.providers.alibaba.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
+    from airflow.providers.common.compat.sdk import Connection
 
 T = TypeVar("T", bound=Callable)
 

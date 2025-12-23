@@ -22,15 +22,11 @@ import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
-from airflow.providers.ftp.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class FTPSensor(BaseSensorOperator):

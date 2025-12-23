@@ -23,9 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 from azure.batch import models as batch_models
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

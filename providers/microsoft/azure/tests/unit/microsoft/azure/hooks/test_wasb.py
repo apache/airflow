@@ -27,8 +27,8 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from azure.storage.blob._models import BlobProperties
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 pytestmark = pytest.mark.db_test
@@ -347,7 +347,7 @@ class TestWasbHook:
             )
 
     @pytest.mark.parametrize(
-        argnames="conn_id_str, extra_key",
+        argnames=("conn_id_str", "extra_key"),
         argvalues=[
             ("sas_conn_id", "sas_token"),
             ("extra__wasb__sas_conn_id", "extra__wasb__sas_token"),
@@ -395,7 +395,7 @@ class TestWasbHook:
         assert conn.credential._authority == self.authority
 
     @pytest.mark.parametrize(
-        "provided_host, expected_host",
+        ("provided_host", "expected_host"),
         [
             (
                 "https://testaccountname.blob.core.windows.net",

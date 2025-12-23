@@ -20,7 +20,7 @@
 ################################
 ## Airflow API Server Deployment
 #################################
-{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+{{- if and .Values.apiServer.enabled (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 {{- $nodeSelector := or .Values.apiServer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.apiServer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.apiServer.tolerations .Values.tolerations }}
@@ -122,10 +122,7 @@ spec:
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if .Values.apiServer.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -191,7 +188,7 @@ spec:
               containerPort: {{ .Values.ports.apiServer }}
           livenessProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.livenessProbe.initialDelaySeconds }}
@@ -200,7 +197,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.livenessProbe.periodSeconds }}
           readinessProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.readinessProbe.initialDelaySeconds }}
@@ -209,7 +206,7 @@ spec:
             periodSeconds: {{ .Values.apiServer.readinessProbe.periodSeconds }}
           startupProbe:
             httpGet:
-              path: /api/v2/version
+              path: /api/v2/monitor/health
               port: {{ .Values.ports.apiServer }}
               scheme: {{ .Values.apiServer.startupProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.apiServer.startupProbe.initialDelaySeconds }}

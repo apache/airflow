@@ -32,7 +32,7 @@ export DOCKER_BUILDKIT=1
 docker build . \
     --pull \
     --build-arg BASE_IMAGE="debian:bookworm-slim" \
-    --build-arg AIRFLOW_PYTHON_VERSION="3.12.11" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.12.12" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="mssql,hdfs" \
     --build-arg ADDITIONAL_PYTHON_DEPS="oauth2client" \

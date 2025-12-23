@@ -90,10 +90,10 @@ The identifier does not have to be absolute; it can be a scheme-less, relative U
 
 Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
 
-Extra information on asset
+Extra information on assets
 ----------------------------
 
-If needed, you can include an extra dictionary in an asset:
+If needed, you can include an additional dictionary in an asset using the ``extra`` parameter:
 
 .. code-block:: python
 
@@ -102,9 +102,49 @@ If needed, you can include an extra dictionary in an asset:
         extra={"team": "trainees"},
     )
 
-This can be used to supply custom description to the asset, such as who has ownership to the target file, or what the file is for. The extra information does not affect an asset's identity.
+This allows you to provide custom metadata about the asset, such as ownership information or the purpose of the file. The ``extra`` field does **NOT** affect the identity of an asset.
+Thus, maintaining the uniqueness of the ``extra`` value is the user responsibility. It suggested to have only one single set of ``extra`` value per asset.
 
-.. note:: **Security Note:** Asset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either asset URIs or extra key values!
+For example, in the following snippet, only one of the ``extra`` dictionaries will ultimately be stored, but it does guaranteed which one will be stored.
+
+.. code-block:: python
+
+     Asset("s3://asset/example.csv", extra={"d": "e"})
+     Asset("s3://asset/example.csv", extra={"f": "g"})
+
+This behavior also applies to dynamically generated assets created through ``AssetAlias``.
+In the example below, the final stored ``extra`` value is not guaranteed and it might vary based on Dag processor settings.
+
+.. code-block:: python
+
+    from airflow.sdk import AssetAlias
+
+
+    @dag(schedule=None)
+    def my_dag_1():
+
+        @task(outlets=[AssetAlias("my-task-outputs")])
+        def my_task_with_outlet_events(*, outlet_events):
+            outlet_events[AssetAlias("my-task-outputs")].add(
+                # Asset extra set as {"from": "asset alias"}
+                Asset("s3://bucket/my-task", extra={"from": "asset alias"})
+            )
+
+        my_task_with_outlet_events()
+
+
+    # Asset extra set as {"key": "value"}
+    @dag(schedule=Asset("s3://bucket/my-task", extra={"key": "value"}))
+    def my_dag_2(): ...
+
+
+    my_dag_1()
+    my_dag_2()
+
+    # It's not guaranteed which extra will be the one stored
+
+.. note:: **Security Note:** Asset URIs and values in the ``extra`` field are stored in cleartext in Airflow's metadata database. These fields are **not encrypted**. **DO NOT** store sensitive information, especially credentials, in either the asset URI or the ``extra`` dictionary.
+
 
 Creating a task to emit asset events
 ------------------------------------
@@ -149,7 +189,7 @@ Attaching extra information to an emitting asset event
 .. versionadded:: 2.10.0
 
 A task with an asset outlet can optionally attach extra information before it emits an asset event. This is different
-from `Extra information on asset`_. Extra information on an asset statically describes the entity pointed to by the asset URI; extra information on the *asset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
+from `Extra information on assets`_. Extra information on an asset statically describes the entity pointed to by the asset URI; extra information on the *asset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
 
 The easiest way to attach extra information to the asset event is by ``yield``-ing a ``Metadata`` object from a task:
 
@@ -177,6 +217,8 @@ Another way to achieve the same is by accessing ``outlet_events`` in a task's ex
         context["outlet_events"][self].extra = {"row_count": len(df)}
 
 There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
+
+.. note:: Asset event extra information can only contain JSON-serializable values (list and dict nesting is possible). This is due to the value being stored in the database.
 
 .. _fetching_information_from_previously_emitted_asset_events:
 

@@ -25,6 +25,15 @@ BIN_PATH="/files/bin/java"
 if [[ $# != "0" && ${1} == "--reinstall" ]]; then
     rm -rf "${INSTALL_DIR}"
     rm -f "${BIN_PATH}"
+    mapfile -t files_to_delete < <(find /files/bin -type l -exec bash -c '
+        for link; do
+            target=$(readlink "$link")
+            if [[ "$target" == /files/opt/java/* ]]; then
+              echo "$link"
+            fi
+        done
+    ' _ {} +)
+    rm -rf "${files_to_delete[@]}"
 fi
 
 hash -r
@@ -34,7 +43,7 @@ if command -v java; then
     exit 1
 fi
 
-DOWNLOAD_URL='https://download.java.net/openjdk/jdk8u41/ri/openjdk-8u41-b04-linux-x64-14_jan_2020.tar.gz'
+DOWNLOAD_URL="https://download.java.net/openjdk/jdk25/ri/openjdk-25+36_linux-x64_bin.tar.gz"
 
 if [[ -e ${INSTALL_DIR} ]]; then
     echo "The install directory (${INSTALL_DIR}) already exists. This may mean java is already installed."

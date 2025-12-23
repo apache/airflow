@@ -18,18 +18,21 @@
 # Disable future annotations in this file to work around https://github.com/fastapi/fastapi/issues/13056
 # ruff: noqa: I002
 
-import sys
-import time
 from typing import Any
 
 import structlog
 import svcs
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy import select
 
-from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.configuration import conf
+from airflow.models import DagModel, TaskInstance
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -100,56 +103,17 @@ JWTBearerDep: TIToken = Depends(JWTBearer())
 JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
 
 
-class JWTReissuer:
-    """Re-issue JWTs to requests when they are about to run out."""
+async def get_team_name_dep(session: AsyncSessionDep, token=JWTBearerDep) -> str | None:
+    """Return the team name associated to the task (if any)."""
+    if not conf.getboolean("core", "multi_team"):
+        return None
 
-    def __init__(self):
-        from airflow.configuration import conf
-
-        self.refresh_when_less_than = max(
-            # Issue a new token to a task when the current one is valid for only either 20% of the total validity,
-            # or 30s
-            int(conf.getint("execution_api", "jwt_expiration_time") * 0.20),
-            30,
-        )
-
-    async def __call__(
-        self,
-        response: Response,
-        token=JWTBearerDep,
-        services=DepContainer,
-    ):
-        try:
-            yield
-        finally:
-            # We want to run this even in the case of 404 errors etc
-            now = int(time.time())
-
-            try:
-                valid_left = token.claims["exp"] - now
-                if valid_left <= self.refresh_when_less_than:
-                    generator: JWTGenerator = await services.aget(JWTGenerator)
-                    new = generator.generate(token.claims)
-                    response.headers["Refreshed-API-Token"] = new
-                    log.debug(
-                        "Refreshed token issued to Task",
-                        valid_left=valid_left,
-                        refresh_when_less_than=self.refresh_when_less_than,
-                    )
-
-                    exc, val, _ = sys.exc_info()
-                    if val and isinstance(val, StarletteHTTPException):
-                        # If there is an exception thrown, we need to set the headers there instead
-                        if val.headers is None:
-                            val.headers = {}
-
-                        # Defined as a "mapping type", but 99.9% of the time it's a mutable dict. We catch
-                        # errors if not
-                        val.headers["Refreshed-API-Token"] = new  # type: ignore[index]
-
-            except Exception as e:
-                # Don't 500 if there's a problem
-                log.warning("Error refreshing Task JWT", err=f"{type(e).__name__}: {e}")
-
-
-JWTRefresherDep = Depends(JWTReissuer())
+    stmt = (
+        select(Team.name)
+        .select_from(TaskInstance)
+        .join(DagModel, DagModel.dag_id == TaskInstance.dag_id)
+        .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .join(DagBundleModel.teams)
+        .where(TaskInstance.id == str(token.id))
+    )
+    return await session.scalar(stmt)

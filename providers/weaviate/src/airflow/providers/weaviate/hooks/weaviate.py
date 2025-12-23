@@ -33,7 +33,7 @@ from weaviate.classes.query import Filter
 from weaviate.exceptions import ObjectAlreadyExistsException
 from weaviate.util import generate_uuid5
 
-from airflow.providers.weaviate.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -141,7 +141,7 @@ class WeaviateHook(BaseHook):
         grpc_secure = extras.pop("grpc_secure", False)
         return weaviate.connect_to_custom(
             http_host=conn.host,  # type: ignore[arg-type]
-            http_port=conn.port or 443 if http_secure else 80,
+            http_port=conn.port or (443 if http_secure else 80),
             http_secure=http_secure,
             grpc_host=extras.pop("grpc_host", conn.host),
             grpc_port=extras.pop("grpc_port", 443 if grpc_secure else 80),

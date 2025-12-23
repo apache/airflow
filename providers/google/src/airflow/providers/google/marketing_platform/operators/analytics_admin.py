@@ -30,7 +30,7 @@ from google.analytics.admin_v1beta import (
 )
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.marketing_platform.hooks.analytics_admin import GoogleAnalyticsAdminHook
 from airflow.providers.google.marketing_platform.links.analytics_admin import GoogleAnalyticsPropertyLink
@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.message import Message
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GoogleAnalyticsAdminListAccountsOperator(GoogleCloudBaseOperator):

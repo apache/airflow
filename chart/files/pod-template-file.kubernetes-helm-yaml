@@ -216,10 +216,7 @@ spec:
   {{- if .Values.workers.runtimeClassName }}
   runtimeClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
-  {{- if or .Values.registry.secretName .Values.registry.connection }}
-  imagePullSecrets:
-    - name: {{ template "registry_secret" . }}
-  {{- end }}
+  imagePullSecrets: {{- include "image_pull_secrets" . | nindent 4 }}
   {{- if .Values.workers.hostAliases }}
   hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
   {{- end }}
@@ -255,7 +252,7 @@ spec:
   - emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 6 }}
     name: logs
   {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+  {{- if and  .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
     {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
   {{- end }}
   - configMap:

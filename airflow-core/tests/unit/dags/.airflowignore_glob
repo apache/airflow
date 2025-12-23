@@ -5,12 +5,15 @@
 *_invalid_*      # skip invalid files
 
 # test ignoring files at all levels
-**/*_dont_*                # ignore all python files at all levels with "dont" in their name
-!**/*_negate_ignore.py
+**/*should_ignore_*                # ignore all python files at all levels with "should_ignore" in their name
+subdir2/subdir3/test_explicit_ignore.py  # ignore this explicit path
 subdir2/**/test_nested*.py # ignore files in subdir2/subdir3
+!subdir2/**/*_negate_ignore.py  # do not ignore files ending with '_negate_ignore.py'
 
 # test matching and ignoring of path separators
 subdir1/*         # ignore all of subdir1
+!subdir1/test_explicit_dont_ignore.py  # do not ignore this explicit path
+!subdir1/*_negate_ignore.py  # Do not ignore this one file in subdir1
 subdir2*test*    # this should not match anything in the subdir2 directory
 subdir2?test*    # this should not match anything in the subdir2 directory
 

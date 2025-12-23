@@ -792,15 +792,13 @@ Building images with MySQL client
 
 .. warning::
 
-  By default Airflow images as of Airflow 2.8.0 use "MariaDB" client by default on both "X86_64" and "ARM64"
-  platforms. However, you can also build images with MySQL client. The following example builds the
-  production image in default Python version with "MySQL" client.
-
-.. exampleinclude:: docker-examples/customizing/mysql-client.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
+   As of Airflow 3.2.0 - our images only support installation of "MariaDB" client from default Debian
+   repositories. If you need to use "MySQL" client from Oracle, you need to extend the images and add
+   your own ways of installing the client. The main reason for that is that Oracle's
+   ``MySQL`` client installation is broken due to expiring GPG keys and every 2 years the old
+   packages stop installing unless you manually update the keys (but there is a period of time when the
+   packages are not installable at all). MariaDB client is a drop-in replacement for MySQL client
+   and it works perfectly well with MySQL server.
 
 .. _image-build-custom:
 
@@ -863,6 +861,30 @@ wheel files. This is often useful in Enterprise environments where the binary fi
 vetted by the security teams. It is also the most complex way of building the image. You should be an
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
+
+.. _image-build-fips:
+
+Build images in FIPS-compliant environments
+...........................................
+
+If you are building images in a FIPS-compliant environment, you might encounter issues with the default
+build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
+building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
+during compilation, and MD5 is blocked in FIPS mode.
+
+In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
+and set it to ``false``.
+
+.. code-block:: bash
+
+    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+
+.. note::
+
+   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
+   (for example usage of non-FIPS compliant algorithms in the software installed in the image).
+   You should verify the compliance of the image yourself.
 
 This builds below builds the production image  with packages and constraints used from the local
 ``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client

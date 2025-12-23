@@ -34,7 +34,7 @@ from google.cloud.vision_v1 import (
 )
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
@@ -239,7 +239,7 @@ class TestGcpVisionHook:
             update_mask=None,
         )
 
-    @pytest.mark.parametrize("location, product_set_id", LOCATION_PRODUCTSET_ID_TEST_PARAMS)
+    @pytest.mark.parametrize(("location", "product_set_id"), LOCATION_PRODUCTSET_ID_TEST_PARAMS)
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
     def test_update_productset_no_explicit_name_and_missing_params_for_constructed_name(
         self, get_conn, location, product_set_id
@@ -265,7 +265,7 @@ class TestGcpVisionHook:
         assert ERR_UNABLE_TO_CREATE.format(label="ProductSet", id_label="productset_id") in str(err)
         update_product_set_method.assert_not_called()
 
-    @pytest.mark.parametrize("location, product_set_id", LOCATION_PRODUCTSET_ID_TEST_PARAMS)
+    @pytest.mark.parametrize(("location", "product_set_id"), LOCATION_PRODUCTSET_ID_TEST_PARAMS)
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
     def test_update_productset_explicit_name_missing_params_for_constructed_name(
         self,
@@ -586,7 +586,7 @@ class TestGcpVisionHook:
             product=Product(name=product_name), metadata=(), retry=DEFAULT, timeout=None, update_mask=None
         )
 
-    @pytest.mark.parametrize("location, product_id", LOCATION_PRODUCT_ID_TEST_PARAMS)
+    @pytest.mark.parametrize(("location", "product_id"), LOCATION_PRODUCT_ID_TEST_PARAMS)
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
     def test_update_product_no_explicit_name_and_missing_params_for_constructed_name(
         self, get_conn, location, product_id
@@ -612,7 +612,7 @@ class TestGcpVisionHook:
         assert ERR_UNABLE_TO_CREATE.format(label="Product", id_label="product_id") in str(err)
         update_product_method.assert_not_called()
 
-    @pytest.mark.parametrize("location, product_id", LOCATION_PRODUCT_ID_TEST_PARAMS)
+    @pytest.mark.parametrize(("location", "product_id"), LOCATION_PRODUCT_ID_TEST_PARAMS)
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
     def test_update_product_explicit_name_missing_params_for_constructed_name(
         self, get_conn, location, product_id

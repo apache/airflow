@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -24,10 +24,10 @@
 from __future__ import annotations
 
 import os
-import pathlib
 import sys
 from pathlib import Path
 
+from common_prek_utils import AIRFLOW_ROOT_PATH
 from rich.console import Console
 
 if __name__ not in ("__main__", "__mp_main__"):
@@ -36,9 +36,6 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-ROOT_DIR = pathlib.Path(__file__).resolve().parents[3]
-
-
 console = Console(color_system="standard", width=200)
 
 errors: list[str] = []
@@ -46,7 +43,7 @@ errors: list[str] = []
 added = False
 
 if __name__ == "__main__":
-    for dirname, sub_dirs, _ in os.walk(ROOT_DIR / "tests"):
+    for dirname, sub_dirs, _ in os.walk(AIRFLOW_ROOT_PATH / "tests"):
         dir = Path(dirname)
         sub_dirs[:] = [
             subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs", "test_zip"}

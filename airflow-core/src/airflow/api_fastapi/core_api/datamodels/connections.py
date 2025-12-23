@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from collections import abc
+from collections.abc import Iterable, Mapping
 from typing import Annotated
 
 from pydantic import Field, field_validator
@@ -41,6 +41,7 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+    team_name: str | None
 
     @field_validator("password", mode="after")
     @classmethod
@@ -66,7 +67,7 @@ class ConnectionResponse(BaseModel):
 class ConnectionCollectionResponse(BaseModel):
     """Connection Collection serializer for responses."""
 
-    connections: list[ConnectionResponse]
+    connections: Iterable[ConnectionResponse]
     total_entries: int
 
 
@@ -120,7 +121,7 @@ class ConnectionHookMetaData(BaseModel):
     default_conn_name: str | None
     hook_name: str
     standard_fields: StandardHookFields | None
-    extra_fields: abc.MutableMapping | None
+    extra_fields: Mapping | None
 
 
 # Request Models
@@ -136,6 +137,7 @@ class ConnectionBody(StrictBaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+    team_name: str | None = Field(max_length=50, default=None)
 
     @field_validator("extra")
     @classmethod

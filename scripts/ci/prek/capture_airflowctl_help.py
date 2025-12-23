@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "argcomplete>=1.10",
 #   "rich>=13.6.0",
@@ -38,9 +38,9 @@ initialize_breeze_prek(__name__, __file__)
 
 cmd_result = run_command_via_breeze_shell(
     ["python3", "/opt/airflow/scripts/in_container/run_capture_airflowctl_help.py"],
-    backend="postgres",
+    backend="sqlite",
     skip_environment_initialization=False,
-    enable_pseudo_terminal=True,
+    enable_pseudo_terminal=False,
 )
 
 validate_cmd_result(cmd_result)

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 from google.api_core import exceptions
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google._vendor.json_merge_patch import merge
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.links.compute import (
@@ -42,7 +42,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class ComputeEngineBaseOperator(GoogleCloudBaseOperator):

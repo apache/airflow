@@ -16,10 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 # ]
 # ///
 from __future__ import annotations

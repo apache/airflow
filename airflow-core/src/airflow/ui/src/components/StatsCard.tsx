@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, HStack, Skeleton, Text } from "@chakra-ui/react";
-import { FiChevronRight } from "react-icons/fi";
+import { FiChevronRight, FiChevronLeft } from "react-icons/fi";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
@@ -28,6 +28,7 @@ export const StatsCard = ({
   count,
   icon,
   isLoading = false,
+  isRTL,
   label,
   link,
   onClick,
@@ -37,6 +38,7 @@ export const StatsCard = ({
   readonly count: number;
   readonly icon?: React.ReactNode;
   readonly isLoading?: boolean;
+  readonly isRTL: boolean;
   readonly label: string;
   readonly link?: string;
   readonly onClick?: () => void;
@@ -63,7 +65,7 @@ export const StatsCard = ({
       <Text color="fg" fontSize="sm" fontWeight="bold">
         {label}
       </Text>
-      <FiChevronRight size={16} />
+      {isRTL ? <FiChevronLeft size={16} /> : <FiChevronRight size={16} />}
     </HStack>
   );
 

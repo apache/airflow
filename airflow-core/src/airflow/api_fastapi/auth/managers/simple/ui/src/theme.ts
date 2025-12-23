@@ -59,7 +59,7 @@ export const customConfig = defineConfig({
           "200": { value: "oklch(0.915 0.01 253)" }, // Original: oklch(0.928 0.006 264.531)
           "300": { value: "oklch(0.85 0.016 253)" }, // Original: oklch(0.872 0.01 258.338)
           "400": { value: "oklch(0.75 0.025 252)" }, // Original: oklch(0.707 0.022 261.325)
-          "500": { value: "oklch(0.63, 0.04, 252)" }, // Original: oklch(0.551 0.027 264.364)
+          "500": { value: "oklch(0.63 0.042 252)" }, // Original: oklch(0.551 0.027 264.364)
           "600": { value: "oklch(0.45 0.055 251)" }, // Original: oklch(0.446 0.03 256.802)
           "700": { value: "oklch(0.35 0.045 251)" }, // Original: oklch(0.373 0.034 259.733)
           "800": { value: "oklch(0.28 0.035 251)" }, // Original: oklch(0.278 0.033 256.848)

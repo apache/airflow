@@ -21,7 +21,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import BaseModel, JsonValue, StringConstraints
+from pydantic import BaseModel, JsonValue
 from sqlalchemy import delete
 from sqlalchemy.sql.selectable import Select
 
@@ -41,7 +41,7 @@ async def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
-    xcom_key: Annotated[str, Path(alias="key")],
+    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     token=JWTBearerDep,
 ) -> bool:
@@ -88,111 +88,15 @@ async def xcom_query(
     return query
 
 
-@router.head(
-    "/{dag_id}/{run_id}/{task_id}/{key}",
-    responses={
-        status.HTTP_200_OK: {
-            "description": "Metadata about the number of matching XCom values",
-            "headers": {
-                "Content-Range": {
-                    "schema": {"pattern": r"^map_indexes \d+$"},
-                    "description": "The number of (mapped) XCom values found for this task.",
-                },
-            },
-        },
-    },
-    description="Returns the count of mapped XCom values found in the `Content-Range` response header",
-)
-def head_xcom(
-    response: Response,
-    session: SessionDep,
-    xcom_query: Annotated[Select, Depends(xcom_query)],
-    map_index: Annotated[int | None, Query()] = None,
-) -> None:
-    """Get the count of XComs from database - not other XCom Backends."""
-    if map_index is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"reason": "invalid_request", "message": "Cannot specify map_index in a HEAD request"},
-        )
-
-    count = get_query_count(xcom_query, session=session)
-    # Tell the caller how many items in this query. We define a custom range unit (HTTP spec only defines
-    # "bytes" but we can add our own)
-    response.headers["Content-Range"] = f"map_indexes {count}"
-
-
-class GetXcomFilterParams(BaseModel):
-    """Class to house the params that can optionally be set for Get XCom."""
-
-    map_index: int = -1
-    include_prior_dates: bool = False
-    offset: int | None = None
-
-
 @router.get(
-    "/{dag_id}/{run_id}/{task_id}/{key}",
-    description="Get a single XCom Value",
-)
-def get_xcom(
-    dag_id: str,
-    run_id: str,
-    task_id: str,
-    key: Annotated[str, StringConstraints(min_length=1)],
-    session: SessionDep,
-    params: Annotated[GetXcomFilterParams, Query()],
-) -> XComResponse:
-    """Get an Airflow XCom from database - not other XCom Backends."""
-    xcom_query = XComModel.get_many(
-        run_id=run_id,
-        key=key,
-        task_ids=task_id,
-        dag_ids=dag_id,
-        include_prior_dates=params.include_prior_dates,
-    )
-    if params.offset is not None:
-        xcom_query = xcom_query.where(XComModel.value.is_not(None)).order_by(None)
-        if params.offset >= 0:
-            xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(params.offset)
-        else:
-            xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - params.offset)
-    else:
-        xcom_query = xcom_query.where(XComModel.map_index == params.map_index)
-
-    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
-    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
-    # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
-    # (which automatically deserializes using the backend), we avoid potential
-    # performance hits from retrieving large data files into the API server.
-    result = session.scalars(xcom_query).first()
-    if result is None:
-        if params.offset is None:
-            message = (
-                f"XCom with {key=} map_index={params.map_index} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
-            )
-        else:
-            message = (
-                f"XCom with {key=} offset={params.offset} not found for "
-                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
-            )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": message},
-        )
-
-    return XComResponse(key=key, value=result.value)
-
-
-@router.get(
-    "/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}",
+    "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     description="Get a single XCom value from a mapped task by sequence index",
 )
 def get_mapped_xcom_by_index(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, Path(min_length=1)],
     offset: int,
     session: SessionDep,
 ) -> XComSequenceIndexResponse:
@@ -229,14 +133,14 @@ class GetXComSliceFilterParams(BaseModel):
 
 
 @router.get(
-    "/{dag_id}/{run_id}/{task_id}/{key}/slice",
+    "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
 )
 def get_mapped_xcom_by_slice(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, Path(min_length=1)],
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
 ) -> XComSequenceSliceResponse:
@@ -310,17 +214,113 @@ def get_mapped_xcom_by_slice(
     return XComSequenceSliceResponse(values)
 
 
+@router.head(
+    "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Metadata about the number of matching XCom values",
+            "headers": {
+                "Content-Range": {
+                    "schema": {"pattern": r"^map_indexes \d+$"},
+                    "description": "The number of (mapped) XCom values found for this task.",
+                },
+            },
+        },
+    },
+    description="Returns the count of mapped XCom values found in the `Content-Range` response header",
+)
+def head_xcom(
+    response: Response,
+    session: SessionDep,
+    xcom_query: Annotated[Select, Depends(xcom_query)],
+    map_index: Annotated[int | None, Query()] = None,
+) -> None:
+    """Get the count of XComs from database - not other XCom Backends."""
+    if map_index is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"reason": "invalid_request", "message": "Cannot specify map_index in a HEAD request"},
+        )
+
+    count = get_query_count(xcom_query, session=session)
+    # Tell the caller how many items in this query. We define a custom range unit (HTTP spec only defines
+    # "bytes" but we can add our own)
+    response.headers["Content-Range"] = f"map_indexes {count}"
+
+
+class GetXcomFilterParams(BaseModel):
+    """Class to house the params that can optionally be set for Get XCom."""
+
+    map_index: int = -1
+    include_prior_dates: bool = False
+    offset: int | None = None
+
+
+@router.get(
+    "/{dag_id}/{run_id}/{task_id}/{key:path}",
+    description="Get a single XCom Value",
+)
+def get_xcom(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: Annotated[str, Path(min_length=1)],
+    session: SessionDep,
+    params: Annotated[GetXcomFilterParams, Query()],
+) -> XComResponse:
+    """Get an Airflow XCom from database - not other XCom Backends."""
+    xcom_query = XComModel.get_many(
+        run_id=run_id,
+        key=key,
+        task_ids=task_id,
+        dag_ids=dag_id,
+        include_prior_dates=params.include_prior_dates,
+    )
+    if params.offset is not None:
+        xcom_query = xcom_query.where(XComModel.value.is_not(None)).order_by(None)
+        if params.offset >= 0:
+            xcom_query = xcom_query.order_by(XComModel.map_index.asc()).offset(params.offset)
+        else:
+            xcom_query = xcom_query.order_by(XComModel.map_index.desc()).offset(-1 - params.offset)
+    else:
+        xcom_query = xcom_query.where(XComModel.map_index == params.map_index)
+
+    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
+    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
+    # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
+    # (which automatically deserializes using the backend), we avoid potential
+    # performance hits from retrieving large data files into the API server.
+    result = session.scalars(xcom_query).first()
+    if result is None:
+        if params.offset is None:
+            message = (
+                f"XCom with {key=} map_index={params.map_index} not found for "
+                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+            )
+        else:
+            message = (
+                f"XCom with {key=} offset={params.offset} not found for "
+                f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"reason": "not_found", "message": message},
+        )
+
+    return XComResponse(key=key, value=result.value)
+
+
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
 # the token
 @router.post(
-    "/{dag_id}/{run_id}/{task_id}/{key}",
+    "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
 )
 def set_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: Annotated[str, StringConstraints(min_length=1)],
+    key: Annotated[str, Path(min_length=1)],
     session: SessionDep,
     value: Annotated[
         JsonValue,
@@ -385,39 +385,20 @@ def set_xcom(
     # TODO: Can/should we check if a client _hasn't_ provided this for an upstream of a mapped task? That
     # means loading the serialized dag and that seems like a relatively costly operation for minimal benefit
     # (the mapped task would fail in a moment as it can't be expanded anyway.)
-    from airflow.models.dagrun import DagRun
-
-    if not run_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Run with ID: `{run_id}` was not found")
-
-    dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
-    if dag_run_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG run not found on DAG {dag_id} with ID {run_id}")
-
-    # Remove duplicate XComs and insert a new one.
-    session.execute(
-        delete(XComModel).where(
-            XComModel.key == key,
-            XComModel.run_id == run_id,
-            XComModel.task_id == task_id,
-            XComModel.dag_id == dag_id,
-            XComModel.map_index == map_index,
-        )
-    )
-
     try:
         # We expect serialised value from the caller - sdk, do not serialise in here
-        new = XComModel(
-            dag_run_id=dag_run_id,
+        XComModel.set(
             key=key,
             value=value,
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,
             map_index=map_index,
+            serialize=False,
+            session=session,
         )
-        session.add(new)
-        session.flush()
+    except ValueError as e:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(e))
     except TypeError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -431,7 +412,7 @@ def set_xcom(
 
 
 @router.delete(
-    "/{dag_id}/{run_id}/{task_id}/{key}",
+    "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
     description="Delete a single XCom Value",
 )
@@ -440,7 +421,7 @@ def delete_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: Annotated[str, Path(min_length=1)],
     map_index: Annotated[int, Query()] = -1,
 ):
     """Delete a single XCom Value."""

@@ -20,10 +20,10 @@ import asyncio
 from collections.abc import AsyncIterator, Collection
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger, TriggerEvent
@@ -137,6 +137,12 @@ class SqsSensorTrigger(BaseEventTrigger):
         :return: A list of messages retrieved from SQS
         """
         self.log.info("SqsSensor checking for message on queue: %s", self.sqs_queue)
+        self.log.debug(
+            "Polling SQS queue '%s' for up to %d message(s) with %d seconds wait time",
+            self.sqs_queue,
+            self.max_messages,
+            self.wait_time_seconds,
+        )
 
         receive_message_kwargs = {
             "QueueUrl": self.sqs_queue,
@@ -145,14 +151,28 @@ class SqsSensorTrigger(BaseEventTrigger):
         }
         if self.visibility_timeout is not None:
             receive_message_kwargs["VisibilityTimeout"] = self.visibility_timeout
+            self.log.debug("Using visibility timeout: %d seconds", self.visibility_timeout)
 
         response = await client.receive_message(**receive_message_kwargs)
+
+        message_count = len(response.get("Messages", []))
+        if message_count > 0:
+            self.log.debug("Received %d message(s) from SQS API call", message_count)
+        else:
+            self.log.debug("No messages returned from SQS API call")
+
         return response
 
     async def poke(self, client: Any):
         message_batch: list[Any] = []
-        for _ in range(self.num_batches):
-            self.log.info("starting call to poll sqs")
+        self.log.debug(
+            "Starting poke operation with %d batch(es) for queue '%s'",
+            self.num_batches,
+            self.sqs_queue,
+        )
+
+        for batch_num in range(self.num_batches):
+            self.log.debug("Processing batch %d of %d", batch_num + 1, self.num_batches)
             response = await self.poll_sqs(client=client)
             messages = process_response(
                 response,
@@ -162,12 +182,14 @@ class SqsSensorTrigger(BaseEventTrigger):
             )
 
             if not messages:
+                self.log.debug("No messages found in batch %d", batch_num + 1)
                 continue
 
+            self.log.info("Found %d message(s) in batch %d", len(messages), batch_num + 1)
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-                self.log.info("Deleting %d messages", len(messages))
+                self.log.info("Deleting %d messages from queue '%s'", len(messages), self.sqs_queue)
 
                 entries = [
                     {"Id": message["MessageId"], "ReceiptHandle": message["ReceiptHandle"]}
@@ -178,16 +200,40 @@ class SqsSensorTrigger(BaseEventTrigger):
                 if "Successful" not in response:
                     raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
 
+                self.log.debug("Successfully deleted %d messages", len(messages))
+
+        if message_batch:
+            self.log.info("Completed poke operation: collected %d total message(s)", len(message_batch))
+        else:
+            self.log.debug("Completed poke operation: no messages found across all batches")
+
         return message_batch
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+        self.log.info(
+            "Starting SQS sensor trigger for queue '%s' with waiter_delay=%d seconds",
+            self.sqs_queue,
+            self.waiter_delay,
+        )
+
         while True:
             # This loop will run indefinitely until the timeout, which is set in the self.defer
             # method, is reached.
+            self.log.debug("Establishing connection to SQS and checking for messages")
             async with await self.hook.get_async_conn() as client:
                 result = await self.poke(client=client)
                 if result:
+                    self.log.info(
+                        "Successfully received %d message(s) from SQS queue '%s'",
+                        len(result),
+                        self.sqs_queue,
+                    )
                     yield TriggerEvent({"status": "success", "message_batch": result})
                     break
                 else:
+                    self.log.info(
+                        "No messages found in SQS queue '%s', sleeping for %d seconds before next check",
+                        self.sqs_queue,
+                        self.waiter_delay,
+                    )
                     await asyncio.sleep(self.waiter_delay)

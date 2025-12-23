@@ -45,6 +45,7 @@ class TestDbtCloudRunJobTrigger:
             end_time=self.END_TIME,
             run_id=self.RUN_ID,
             account_id=self.ACCOUNT_ID,
+            hook_params={"retry_delay": 10},
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger"
@@ -54,6 +55,7 @@ class TestDbtCloudRunJobTrigger:
             "conn_id": self.CONN_ID,
             "end_time": self.END_TIME,
             "poll_interval": self.POLL_INTERVAL,
+            "hook_params": {"retry_delay": 10},
         }
 
     @pytest.mark.asyncio
@@ -77,7 +79,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.SUCCESS.value, "success", "Job run 1234 has completed successfully."),
         ],
@@ -109,7 +111,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.CANCELLED.value, "cancelled", "Job run 1234 has been cancelled."),
         ],
@@ -141,7 +143,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (DbtCloudJobRunStatus.ERROR.value, "error", "Job run 1234 has failed."),
         ],
@@ -225,7 +227,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.SUCCESS.value, False),
         ],
@@ -250,7 +252,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.RUNNING.value, True),
         ],
@@ -273,7 +275,7 @@ class TestDbtCloudRunJobTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (DbtCloudJobRunStatus.QUEUED.value, True),
         ],

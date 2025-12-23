@@ -37,9 +37,13 @@ There are two options to create the permissions:
 CLI commands take the following parameters:
 
 * ``--username``: Keycloak admin username
-* ``--password``: Keycloak admin password
+* ``--password``: Keycloak admin password. Specifying the parameter without a value will prompt for the password securely.
 * ``--user-realm``: Keycloak user realm
 * ``--client-id``: Keycloak client id (default: admin-cli)
+
+They also take the following optional parameters:
+
+* ``--dry-run``: If set, the command will check the connection to Keycloak and print the actions that would be performed, without actually executing them.
 
 Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
 
@@ -52,7 +56,7 @@ This command will create scopes, resources and permissions in one-go.
 
 .. code-block:: bash
 
-  airflow keycloak create-all
+  airflow keycloak-auth-manager create-all
 
 Step-by-step creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -63,19 +67,19 @@ This command will create scopes for certain types of permissions.
 
 .. code-block:: bash
 
-  airflow keycloak create-scopes
+  airflow keycloak-auth-manager create-scopes
 
 This command will create resources for certain types of permissions.
 
 .. code-block:: bash
 
-  airflow keycloak create-resources
+  airflow keycloak-auth-manager create-resources
 
 Finally, with the command below, we create the permissions using the previously created scopes and resources.
 
 .. code-block:: bash
 
-  airflow keycloak create-permissions
+  airflow keycloak-auth-manager create-permissions
 
 This will create
 
@@ -86,7 +90,7 @@ This will create
 
 More resources about permissions can be found in the official documentation of Keycloak:
 
-1- `Keylcloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_
+1- `Keycloak Authorization Process <https://www.keycloak.org/docs/latest/authorization_services/index.html#the-authorization-process>`_
 
 2- `Keycloak Permission Overview <https://www.keycloak.org/docs/latest/authorization_services/index.html#_permission_overview>`_
 

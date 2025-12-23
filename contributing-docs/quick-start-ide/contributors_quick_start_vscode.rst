@@ -169,4 +169,4 @@ Creating a branch
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03b_contributors_quick_start_seasoned_developers.rst>`_ for typical development tasks.

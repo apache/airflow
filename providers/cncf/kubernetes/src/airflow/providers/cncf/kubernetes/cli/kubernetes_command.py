@@ -104,7 +104,7 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded/pending states."""

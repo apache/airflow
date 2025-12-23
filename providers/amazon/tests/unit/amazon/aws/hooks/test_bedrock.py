@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.hooks.bedrock import (
 
 class TestBedrockHooks:
     @pytest.mark.parametrize(
-        "test_hook, service_name",
+        ("test_hook", "service_name"),
         [
             pytest.param(BedrockHook(), "bedrock", id="bedrock"),
             pytest.param(BedrockRuntimeHook(), "bedrock-runtime", id="bedrock-runtime"),

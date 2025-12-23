@@ -1,0 +1,7 @@
+FastAPI dependency is updated and lower bound set to ``0.121.0``
+
+Airflow now requires FastAPI ``>=0.121.0`` and removes the previous upper
+constraint. This aligns with FastAPI's new dependency lifecycle scopes
+(e.g. request/function) that change how dependencies with ``yield`` are
+exited.
+See `FastAPI PR #14262 <https://github.com/fastapi/fastapi/pull/14262>`_.

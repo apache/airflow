@@ -85,9 +85,8 @@ def list_backfills(
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
     return BackfillCollectionResponse(
-        backfills=backfills,
+        backfills=session.scalars(select_stmt),
         total_entries=total_entries,
     )
 
@@ -243,6 +242,7 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             triggering_user_name=user.get_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
+            run_on_latest_version=backfill_request.run_on_latest_version,
         )
         return BackfillResponse.model_validate(backfill_obj)
 

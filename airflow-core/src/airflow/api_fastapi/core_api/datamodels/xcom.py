@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -38,10 +39,30 @@ class XComResponse(BaseModel):
     task_display_name: str = Field(validation_alias=AliasPath("task", "task_display_name"))
 
 
+def _stringify_if_needed(value):
+    """
+    Check whether value is JSON-encodable (recursively if needed); stringify it if not.
+
+    The list of JSON-ecodable types are taken from Python documentation:
+    https://docs.python.org/3/library/json.html#json.JSONEncoder
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(k): _stringify_if_needed(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_stringify_if_needed(v) for v in value]
+    return str(value)
+
+
 class XComResponseNative(XComResponse):
     """XCom response serializer with native return type."""
 
     value: Any
+
+    @field_validator("value", mode="before")
+    def value_to_json_serializable(cls, v):
+        return _stringify_if_needed(v)
 
 
 class XComResponseString(XComResponse):
@@ -57,7 +78,7 @@ class XComResponseString(XComResponse):
 class XComCollectionResponse(BaseModel):
     """XCom Collection serializer for responses."""
 
-    xcom_entries: list[XComResponse]
+    xcom_entries: Iterable[XComResponse]
     total_entries: int
 
 

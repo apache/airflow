@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import Field
@@ -36,5 +37,5 @@ class ImportErrorResponse(BaseModel):
 class ImportErrorCollectionResponse(BaseModel):
     """Import Error Collection Response."""
 
-    import_errors: list[ImportErrorResponse]
+    import_errors: Iterable[ImportErrorResponse]
     total_entries: int

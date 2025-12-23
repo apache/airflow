@@ -18,10 +18,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.operators.spanner import (
     SpannerDeleteDatabaseInstanceOperator,
     SpannerDeleteInstanceOperator,
@@ -30,6 +33,7 @@ from airflow.providers.google.cloud.operators.spanner import (
     SpannerQueryDatabaseInstanceOperator,
     SpannerUpdateDatabaseInstanceOperator,
 )
+from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 PROJECT_ID = "project-id"
 INSTANCE_ID = "instance-id"
@@ -42,6 +46,32 @@ INSERT_QUERY_2 = "INSERT my_table2 (id, name) VALUES (1, 'One')"
 CREATE_QUERY = "CREATE TABLE my_table1 (id INT64, name STRING(100))"
 CREATE_QUERY_2 = "CREATE TABLE my_table2 (id INT64, name STRING(100))"
 DDL_STATEMENTS = [CREATE_QUERY, CREATE_QUERY_2]
+TASK_ID = "task-id"
+
+SCHEMA_ROWS = {
+    "public.orders": [
+        ("public", "orders", "id", 1, "INT64"),
+        ("public", "orders", "amount", 2, "FLOAT64"),
+    ],
+    "public.staging": [
+        ("public", "staging", "id", 1, "INT64"),
+        ("public", "staging", "amount", 2, "FLOAT64"),
+    ],
+    "public.customers": [
+        ("public", "customers", "id", 1, "INT64"),
+        ("public", "customers", "name", 2, "STRING(100)"),
+        ("public", "customers", "customer_id", 3, "INT64"),
+    ],
+    "public.logs": [
+        ("public", "logs", "id", 1, "INT64"),
+        ("public", "logs", "message", 2, "STRING(100)"),
+    ],
+    "public.t1": [("public", "t1", "col1", 1, "STRING(100)")],
+    "public.t2": [("public", "t2", "col1", 1, "STRING(100)")],
+    "public.t3": [("public", "t3", "id", 1, "INT64")],
+    # example of explicit non-default schema
+    "myschema.orders": [("myschema", "orders", "id", 1, "INT64")],
+}
 
 
 class TestCloudSpanner:
@@ -172,7 +202,7 @@ class TestCloudSpanner:
         assert result is None
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, exp_msg",
+        ("project_id", "instance_id", "exp_msg"),
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
@@ -234,7 +264,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, exp_msg",
+        ("project_id", "instance_id", "exp_msg"),
         [
             ("", INSTANCE_ID, "project_id"),
             (PROJECT_ID, "", "instance_id"),
@@ -286,7 +316,7 @@ class TestCloudSpanner:
         assert result == [3]
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, query, exp_msg",
+        ("project_id", "instance_id", "database_id", "query", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, INSERT_QUERY, "project_id"),
             (PROJECT_ID, "", DB_ID, INSERT_QUERY, "instance_id"),
@@ -353,6 +383,133 @@ class TestCloudSpanner:
             queries=[INSERT_QUERY, INSERT_QUERY_2],
         )
 
+    @pytest.mark.parametrize(
+        ("sql", "expected_inputs", "expected_outputs", "expected_lineage"),
+        [
+            ("SELECT id, amount FROM public.orders", ["db1.public.orders"], [], {}),
+            (
+                "INSERT INTO public.orders (id, amount) SELECT id, amount FROM public.staging",
+                ["db1.public.staging", "db1.public.orders"],
+                [],
+                {},
+            ),
+            ("DELETE FROM public.logs WHERE id=1", [], ["db1.public.logs"], {}),
+            (
+                "SELECT o.id, c.name FROM public.orders o JOIN public.customers c ON o.customer_id = c.id",
+                ["db1.public.orders", "db1.public.customers"],
+                [],
+                {},
+            ),
+            (
+                "UPDATE public.customers SET name='x' WHERE id IN (SELECT id FROM public.staging)",
+                ["db1.public.customers", "db1.public.staging"],
+                [],
+                {},
+            ),
+            (
+                ["INSERT INTO public.t1 SELECT * FROM public.t2;", "DELETE FROM public.t3 WHERE id=1;"],
+                ["db1.public.t1", "db1.public.t2", "db1.public.t3"],
+                [],
+                {},
+            ),
+            ("SELECT id, amount FROM myschema.orders", ["db1.myschema.orders"], [], {}),
+        ],
+    )
+    def test_spannerquerydatabaseinstanceoperator_get_openlineage_facets(
+        self, sql, expected_inputs, expected_outputs, expected_lineage
+    ):
+        # Arrange
+        class SpannerHookForTests(DbApiHook):
+            conn_name_attr = "gcp_conn_id"
+            get_conn = MagicMock(name="conn")
+            get_connection = MagicMock()
+            database = DB_ID
+
+            def get_openlineage_database_info(self, connection):
+                return DatabaseInfo(
+                    scheme="spanner",
+                    authority=f"{PROJECT_ID}/{INSTANCE_ID}",
+                    database=DB_ID,
+                    information_schema_columns=[
+                        "table_schema",
+                        "table_name",
+                        "column_name",
+                        "ordinal_position",
+                        "spanner_type",
+                    ],
+                    information_schema_table_name="information_schema.columns",
+                    use_flat_cross_db_query=False,
+                    is_information_schema_cross_db=False,
+                    is_uppercase_names=False,
+                )
+
+        dbapi_hook = SpannerHookForTests()
+
+        class SpannerOperatorForTest(SpannerQueryDatabaseInstanceOperator):
+            @property
+            def hook(self):
+                return dbapi_hook
+
+        op = SpannerOperatorForTest(
+            task_id=TASK_ID,
+            instance_id=INSTANCE_ID,
+            database_id=DB_ID,
+            gcp_conn_id="spanner_conn",
+            query=sql,
+        )
+
+        dbapi_hook.get_connection.return_value = Connection(
+            conn_id="spanner_conn", conn_type="spanner", host="spanner-host"
+        )
+
+        combined_rows = []
+        for ds in expected_inputs + expected_outputs:
+            tbl = ds.split(".", 1)[1]
+            combined_rows.extend(SCHEMA_ROWS.get(tbl, []))
+
+        dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [combined_rows, []]
+
+        # Act
+        lineage = op.get_openlineage_facets_on_complete(task_instance=None)
+        assert lineage is not None
+
+        # Assert inputs
+        input_names = {ds.name for ds in lineage.inputs}
+        assert input_names == set(expected_inputs)
+        for ds in lineage.inputs:
+            assert ds.namespace == f"spanner://{PROJECT_ID}/{INSTANCE_ID}"
+
+        # Assert outputs
+        output_names = {ds.name for ds in lineage.outputs}
+        assert output_names == set(expected_outputs)
+        for ds in lineage.outputs:
+            assert ds.namespace == f"spanner://{PROJECT_ID}/{INSTANCE_ID}"
+
+        # Assert SQLJobFacet
+        sql_job = lineage.job_facets["sql"]
+        if isinstance(sql, list):
+            for q in sql:
+                assert q.replace(";", "").strip() in sql_job.query.replace(";", "")
+        else:
+            assert sql_job.query == sql
+
+        # Assert column lineage
+        found_lineage = {
+            getattr(field, "field", None) or getattr(field, "name", None): [
+                f"{inp.dataset.name}.{getattr(inp, 'field', getattr(inp, 'name', None))}"
+                for inp in getattr(field, "inputFields", [])
+            ]
+            for ds in lineage.outputs + lineage.inputs
+            for cl_facet in [ds.facets.get("columnLineage")]
+            if cl_facet
+            for field in cl_facet.fields
+        }
+
+        for col, sources in expected_lineage.items():
+            assert col in found_lineage
+            for src in sources:
+                assert any(src in s for s in found_lineage[col])
+
     @mock.patch("airflow.providers.google.cloud.operators.spanner.SpannerHook")
     def test_database_create(self, mock_hook):
         mock_hook.return_value.get_database.return_value = None
@@ -414,7 +571,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
@@ -484,7 +641,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),
@@ -574,7 +731,7 @@ class TestCloudSpanner:
         assert result
 
     @pytest.mark.parametrize(
-        "project_id, instance_id, database_id, ddl_statements, exp_msg",
+        ("project_id", "instance_id", "database_id", "ddl_statements", "exp_msg"),
         [
             ("", INSTANCE_ID, DB_ID, DDL_STATEMENTS, "project_id"),
             (PROJECT_ID, "", DB_ID, DDL_STATEMENTS, "instance_id"),

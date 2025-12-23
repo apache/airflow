@@ -116,6 +116,22 @@
     "taskGroup": "مجموعة المهام"
   },
   "limitedList": "+{{count}} المزيد",
+  "limitedList.allItems": "جميع العناصر {{count}}:",
+  "limitedList.allTags_few": "كل العلامات ({{count}})",
+  "limitedList.allTags_many": "كل العلامات ({{count}})",
+  "limitedList.allTags_one": "كل العلامات (1)",
+  "limitedList.allTags_other": "كل العلامات ({{count}})",
+  "limitedList.allTags_two": "كل العلامات (2)",
+  "limitedList.allTags_zero": "كل العلامات (0)",
+  "limitedList.clickToInteract": "انقر على علامة لتصفية Dags",
+  "limitedList.clickToOpenFull": "انقر \"+{{count}} المزيد\" لعرض القائمة الكاملة",
+  "limitedList.copyPasteText": "يمكنك نسخ ولصق النص أعلاه",
+  "limitedList.showingItems_few": "عرض {{count}} عناصر",
+  "limitedList.showingItems_many": "عرض {{count}} عنصر",
+  "limitedList.showingItems_one": "عرض عنصر واحد",
+  "limitedList.showingItems_other": "عرض {{count}} عنصر",
+  "limitedList.showingItems_two": "عرض عنصرين",
+  "limitedList.showingItems_zero": "عرض 0 عناصر",
   "logs": {
     "file": "ملف",
     "location": "سطر {{line}} في {{name}}"

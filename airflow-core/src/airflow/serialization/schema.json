@@ -175,8 +175,8 @@
             "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": { "type": "boolean" },
-        "fail_fast": { "type": "boolean" },
+        "catchup": { "type": "boolean", "default": false },
+        "fail_fast": { "type": "boolean", "default": false },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
         "_processor_dags_folder": {
@@ -198,9 +198,9 @@
             ]
         },
         "_concurrency": { "type" : "number"},
-        "max_active_tasks": { "type" : "number"},
-        "max_active_runs": { "type" : "number"},
-        "max_consecutive_failed_dag_runs": { "type" : "number"},
+        "max_active_tasks": { "type" : "number", "default": 16},
+        "max_active_runs": { "type" : "number", "default": 16},
+        "max_consecutive_failed_dag_runs": { "type" : "number", "default": 0},
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -208,9 +208,9 @@
         "doc_md": { "type" : "string"},
         "access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
-        "has_on_success_callback":  { "type": "boolean" },
-        "has_on_failure_callback":  { "type": "boolean" },
-        "render_template_as_native_obj":  { "type": "boolean" },
+        "has_on_success_callback":  { "type": "boolean", "default": false },
+        "has_on_failure_callback":  { "type": "boolean", "default": false },
+        "render_template_as_native_obj":  { "type": "boolean", "default": false },
         "tags": { "type": "array" },
         "task_group": {"anyOf": [
           { "type": "null" },
@@ -218,7 +218,7 @@
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
-        "disable_bundle_versioning": {"type":  "boolean"}
+        "disable_bundle_versioning": {"type":  "boolean", "default": false }
       },
       "required": [
         "dag_id",
@@ -283,8 +283,8 @@
         "pool": { "type": "string", "default": "default_pool" },
         "pool_slots": { "type": "number", "default": 1 },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
-        "retry_delay": { "$ref": "#/definitions/timedelta" },
-        "retry_exponential_backoff": { "type": "boolean", "default": false },
+        "retry_delay": { "$ref": "#/definitions/timedelta", "default": 300.0 },
+        "retry_exponential_backoff": { "type": "number", "default": 0 },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
         "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number", "default": 1 },

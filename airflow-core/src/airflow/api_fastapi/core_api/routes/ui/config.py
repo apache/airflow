@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from json import loads
 from typing import Any
 
 from fastapi import Depends, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import UIAlert
 from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import requires_authenticated
@@ -30,6 +32,27 @@ from airflow.utils.log.log_reader import TaskLogReader
 
 config_router = AirflowRouter(tags=["Config"])
 
+THEME_FALLBACK = """
+{
+    "tokens": {
+        "colors": {
+            "brand": {
+                "50": { "value": "oklch(0.98 0.006 248.717)" },
+                "100": { "value": "oklch(0.962 0.012 249.46)" },
+                "200": { "value": "oklch(0.923 0.023 255.082)" },
+                "300": { "value": "oklch(0.865 0.039 252.42)" },
+                "400": { "value": "oklch(0.705 0.066 256.378)" },
+                "500": { "value": "oklch(0.575 0.08 257.759)" },
+                "600": { "value": "oklch(0.469 0.084 257.657)" },
+                "700": { "value": "oklch(0.399 0.084 257.85)" },
+                "800": { "value": "oklch(0.324 0.072 260.329)" },
+                "900": { "value": "oklch(0.259 0.062 265.566)" },
+                "950": { "value": "oklch(0.179 0.05 265.487)" }
+            }
+        }
+    }
+}
+"""
 
 API_CONFIG_KEYS = [
     "enable_swagger_ui",
@@ -54,9 +77,11 @@ def get_configs() -> ConfigResponse:
     additional_config: dict[str, Any] = {
         "instance_name": conf.get("api", "instance_name", fallback="Airflow"),
         "test_connection": conf.get("core", "test_connection", fallback="Disabled"),
-        "dashboard_alert": DASHBOARD_UIALERTS,
+        # Expose "dashboard_alert" using a list comprehension so UIAlert instances can be expressed dynamically.
+        "dashboard_alert": [alert for alert in DASHBOARD_UIALERTS if isinstance(alert, UIAlert)],
         "show_external_log_redirect": task_log_reader.supports_external_link,
         "external_log_name": getattr(task_log_reader.log_handler, "log_name", None),
+        "theme": loads(conf.get("api", "theme", fallback=THEME_FALLBACK)),
     }
 
     config.update({key: value for key, value in additional_config.items()})

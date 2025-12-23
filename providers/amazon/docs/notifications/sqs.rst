@@ -32,7 +32,7 @@ Example Code:
 .. code-block:: python
 
     from datetime import datetime, timezone
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.amazon.aws.notifications.sqs import send_sqs_notification
 
@@ -48,7 +48,7 @@ Example Code:
         message_body="The task {{ ti.task_id }} failed",
     )
 
-    with Dag(
+    with DAG(
         dag_id="mydag",
         schedule="@once",
         start_date=datetime(2023, 1, 1, tzinfo=timezone.utc),

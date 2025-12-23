@@ -58,6 +58,43 @@ or the :class:`~airflow.providers.amazon.aws.triggers.ssm.SsmRunCommandTrigger` 
     :dedent: 4
     :start-after: [START howto_operator_run_command]
     :end-before: [END howto_operator_run_command]
+.. _howto/operator:SsmGetCommandInvocationOperator:
+
+Retrieve output from an SSM command invocation
+==============================================
+
+To retrieve the output and execution details from an SSM command that has been executed, you can use
+:class:`~airflow.providers.amazon.aws.operators.ssm.SsmGetCommandInvocationOperator`.
+
+This operator is useful for:
+
+* Retrieving output from commands executed by :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` in previous tasks
+* Getting output from SSM commands executed outside of Airflow
+* Inspecting command results for debugging or data processing purposes
+
+To retrieve output from all instances that executed a command:
+
+.. code-block:: python
+
+    get_all_output = SsmGetCommandInvocationOperator(
+        task_id="get_command_output",
+        command_id='{{ ti.xcom_pull(task_ids="run_command") }}',  # From previous task
+    )
+
+To retrieve output from a specific instance:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_ssm.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_get_command_invocation]
+    :end-before: [END howto_operator_get_command_invocation]
+
+The operator returns structured data including:
+
+* Standard output and error content
+* Execution status and response codes
+* Execution start and end times
+* Document name and comments
 
 Sensors
 -------
@@ -79,7 +116,7 @@ To wait on the state of an Amazon SSM run command job until it reaches a termina
 IAM Permissions
 ---------------
 
-You need to ensure the following IAM permissions are granted to allow Airflow to run and monitor SSM Run Command executions:
+You need to ensure the following IAM permissions are granted to allow Airflow to run, retrieve and monitor SSM Run Command executions:
 
 .. code-block::
 

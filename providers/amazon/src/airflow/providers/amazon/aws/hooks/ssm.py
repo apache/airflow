@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet, is_arg_set
 
 if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
@@ -38,7 +38,8 @@ class SsmHook(AwsBaseHook):
     """
     Interact with Amazon Systems Manager (SSM).
 
-    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -53,7 +54,9 @@ class SsmHook(AwsBaseHook):
 
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
-        Return the provided Parameter or an optional default; if it is encrypted, then decrypt and mask.
+        Return the provided Parameter or an optional default.
+
+        If it is encrypted, then decrypt and mask.
 
         .. seealso::
             - :external+boto3:py:meth:`SSM.Client.get_parameter`
@@ -68,6 +71,31 @@ class SsmHook(AwsBaseHook):
                 mask_secret(value)
             return value
         except self.conn.exceptions.ParameterNotFound:
-            if isinstance(default, ArgNotSet):
-                raise
-            return default
+            if is_arg_set(default):
+                return default
+            raise
+
+    def get_command_invocation(self, command_id: str, instance_id: str) -> dict:
+        """
+        Get the output of a command invocation for a specific instance.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SSM.Client.get_command_invocation`
+
+        :param command_id: The ID of the command.
+        :param instance_id: The ID of the instance.
+        :return: The command invocation details including output.
+        """
+        return self.conn.get_command_invocation(CommandId=command_id, InstanceId=instance_id)
+
+    def list_command_invocations(self, command_id: str) -> dict:
+        """
+        List all command invocations for a given command ID.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SSM.Client.list_command_invocations`
+
+        :param command_id: The ID of the command.
+        :return: Response from SSM list_command_invocations API.
+        """
+        return self.conn.list_command_invocations(CommandId=command_id)

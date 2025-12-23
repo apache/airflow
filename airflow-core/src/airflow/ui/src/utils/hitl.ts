@@ -19,7 +19,7 @@
 import type { TFunction } from "i18next";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
-import type { ParamsSpec } from "src/queries/useDagParams";
+import type { ParamSchema, ParamsSpec } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
@@ -108,27 +108,63 @@ export const getHITLParamsDict = (
     const sourceParams = hitlDetail.response_received ? hitlDetail.params_input : hitlDetail.params;
 
     Object.entries(sourceParams ?? {}).forEach(([key, value]) => {
-      const valueType = typeof value === "number" ? "number" : "string";
+      if (!hitlDetail.params) {
+        return;
+      }
+      const paramData = hitlDetail.params[key] as ParamsSpec | undefined;
+
+      // Check if there's a preloaded value from URL params
+      let finalValue = preloadedHITLParams[key] ?? value;
+
+      // If preloaded value is a string that might be JSON, try to parse it
+      if (typeof finalValue === "string" && finalValue.trim().startsWith("{")) {
+        try {
+          const parsed: unknown = JSON.parse(finalValue);
+
+          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+            finalValue = parsed;
+          }
+        } catch {
+          // If parsing fails, keep the string value
+        }
+      }
+
+      const description: string =
+        paramData && typeof paramData.description === "string" ? paramData.description : "";
+
+      // Determine the type based on the final value
+      let valueType: string;
+
+      if (typeof finalValue === "number") {
+        valueType = "number";
+      } else if (typeof finalValue === "object" && finalValue !== null && !Array.isArray(finalValue)) {
+        valueType = "object";
+      } else {
+        valueType = "string";
+      }
+
+      const schema: ParamSchema = {
+        const: undefined,
+        description_md: "",
+        enum: undefined,
+        examples: undefined,
+        format: undefined,
+        items: undefined,
+        maximum: undefined,
+        maxLength: undefined,
+        minimum: undefined,
+        minLength: undefined,
+        section: undefined,
+        title: key,
+        type: valueType,
+        values_display: undefined,
+        ...(paramData?.schema && typeof paramData.schema === "object" ? paramData.schema : {}),
+      };
 
       paramsDict[key] = {
-        description: "",
-        schema: {
-          const: undefined,
-          description_md: "",
-          enum: undefined,
-          examples: undefined,
-          format: undefined,
-          items: undefined,
-          maximum: undefined,
-          maxLength: undefined,
-          minimum: undefined,
-          minLength: undefined,
-          section: undefined,
-          title: key,
-          type: valueType,
-          values_display: undefined,
-        },
-        value: preloadedHITLParams[key] ?? value,
+        description,
+        schema,
+        value: paramData?.value ?? finalValue,
       };
     });
   }

@@ -41,6 +41,9 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 if TYPE_CHECKING:
     from airflow.jobs.base_job_runner import BaseJobRunner
 
+FORCE_COLOR = bool(os.environ.get("FORCE_COLOR", ""))
+NO_COLOR = bool(os.environ.get("NO_COLOR", ""))
+
 
 class StandaloneCommand:
     """
@@ -149,7 +152,9 @@ class StandaloneCommand:
             "triggerer": "cyan",
             "standalone": "white",
         }
-        colorised_name = colored(f"{name:10}", color.get(name, "white"))
+        colorised_name = colored(
+            f"{name:10}", color.get(name, "white"), no_color=NO_COLOR, force_color=FORCE_COLOR
+        )
         for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 

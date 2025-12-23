@@ -40,6 +40,23 @@ if sys.version_info >= (3,6):
         pass
 {% endif %}
 
+try:
+    from airflow.sdk.execution_time import task_runner
+except ModuleNotFoundError:
+    pass
+else:
+  {#-
+    We are in an Airflow 3.x environment, try and set up supervisor comms so
+    virtualenv can access Vars/Conn/XCom/etc that normal tasks can
+
+    We don't use the walrus operator (`:=`) below as it is possible people can
+    be using this on pre-3.8 versions of python, and while Airflow doesn't
+    support them, it's easy to not break it not using that operator here.
+  #}
+  reinit_supervisor_comms = getattr(task_runner, "reinit_supervisor_comms", None)
+  if reinit_supervisor_comms:
+      reinit_supervisor_comms()
+
 # Script
 {{ python_callable_source }}
 
@@ -49,12 +66,10 @@ if sys.version_info >= (3,6):
 import types
 
 {{ modified_dag_module_name }}  = types.ModuleType("{{ modified_dag_module_name }}")
-
 {{ modified_dag_module_name }}.{{ python_callable }} = {{ python_callable }}
-
 sys.modules["{{modified_dag_module_name}}"] = {{modified_dag_module_name}}
 
-{% endif%}
+{%- endif -%}
 
 {% if op_args or op_kwargs %}
 with open(sys.argv[1], "rb") as file:

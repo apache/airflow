@@ -125,4 +125,4 @@ To start Airflow in development mode:
 Next Steps
 ---------
 
-For typical development tasks, refer to the `Quick Start Guide <../03_contributors_quick_start.rst>`_.
+For typical development tasks, refer to the `Quick Start Guide <../03b_contributors_quick_start_seasoned_developers.rst>`_.

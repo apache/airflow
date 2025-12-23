@@ -31,6 +31,7 @@
     "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
+  "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
@@ -69,6 +70,7 @@
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
@@ -84,18 +86,30 @@
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
+  "delete": "Usuń",
+  "diff": "Porównaj",
+  "diffCompareWith": "Porównaj z",
+  "diffExit": "Wyjdź z porównywania",
+  "diffSelectVersionToCompare": "Wybierz wersję do porównania",
   "direction": "Kierunek",
   "docs": {
     "documentation": "Dokumentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
+  "download": {
+    "download": "Pobierz",
+    "hotkey": "d",
+    "tooltip": "Naciśnij {{hotkey}}, aby pobrać logi"
+  },
   "duration": "Czas trwania",
+  "edit": "Edytuj",
   "endDate": "Data zakończenia",
   "error": {
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
@@ -105,6 +119,7 @@
     "hotkey": "e",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
+  "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON",
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
@@ -113,22 +128,29 @@
   },
   "filter": "Filtr",
   "filters": {
+    "durationFrom": "Czas trwania od",
+    "durationTo": "Czas trwania do",
+    "endTime": "Czas zakończenia",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
     "runAfterFrom": "Uruchom po (od)",
-    "runAfterTo": "Uruchom po (do)"
+    "runAfterTo": "Uruchom po (do)",
+    "selectDateRange": "Wybierz zakres dat",
+    "startTime": "Czas rozpoczęcia"
   },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
   "mapIndex": "Indeks mapowania",
   "modal": {
+    "add": "Dodaj",
     "cancel": "Anuluj",
     "confirm": "Potwierdź",
     "delete": {
       "button": "Usuń",
       "confirmation": "Jesteś pewien, że chcesz usunąć {{resourceName}}? Ta operacja nie może być cofnięta."
-    }
+    },
+    "save": "Zapisz"
   },
   "nav": {
     "admin": "Admin",
@@ -175,7 +197,6 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -185,6 +206,7 @@
   },
   "selectLanguage": "Wybierz język",
   "showDetailsPanel": "Pokaż panel szczegółów",
+  "signedInAs": "Zalogowano jako",
   "source": {
     "hide": "Ukryj źródła",
     "hotkey": "s",

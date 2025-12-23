@@ -35,6 +35,7 @@
   "code": {
     "bundleUrl": "套件包链接",
     "noCode": "找不到代码",
+    "parseDuration": "解析耗时：",
     "parsedAt": "解析时间："
   },
   "extraLinks": "额外链接",
@@ -84,6 +85,8 @@
       "assetEvent_other": "已创建资源事件"
     },
     "failedLogs": {
+      "hideLogs": "隐藏日志",
+      "showLogs": "显示日志",
       "title": "最近失败任务的日志",
       "viewFullLogs": "查看完整日志"
     }

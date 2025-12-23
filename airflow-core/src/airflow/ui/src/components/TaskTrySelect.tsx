@@ -89,7 +89,6 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
         <Select.Root
           collection={tryOptions}
           data-testid="select-task-try"
-          defaultValue={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           onValueChange={(details) => {
             if (onSelectTryNumber) {
               onSelectTryNumber(
@@ -97,10 +96,11 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
               );
             }
           }}
+          value={[selectedTryNumber?.toString() ?? finalTryNumber.toString()]}
           width="200px"
         >
           <Select.Trigger>
-            <Select.ValueText placeholder="Task Try">
+            <Select.ValueText placeholder={translate("taskTryPlaceholder")}>
               {(
                 items: Array<{
                   task_instance: TaskInstanceHistoryResponse;

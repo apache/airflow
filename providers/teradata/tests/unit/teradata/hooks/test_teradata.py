@@ -40,6 +40,11 @@ class TestTeradataHook:
         self.db_hook.get_connection.return_value = self.connection
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
+        self.conn.login = "mock_login"
+        self.conn.password = "mock_password"
+        self.conn.host = "mock_host"
+        self.conn.schema = "mock_schema"
+        self.conn.port = 1025
         self.conn.cursor.return_value = self.cur
         self.conn.extra_dejson = {}
         conn = self.conn
@@ -53,6 +58,7 @@ class TestTeradataHook:
                 return conn
 
         self.test_db_hook = UnitTestTeradataHook(teradata_conn_id="teradata_conn_id")
+        self.test_db_hook.get_uri = mock.Mock(return_value="sqlite://")
 
     @mock.patch("teradatasql.connect")
     def test_get_conn(self, mock_connect):
@@ -62,7 +68,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
 
@@ -76,7 +82,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["tmode"] == "tera"
@@ -91,7 +97,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "require"
@@ -106,7 +112,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "verify-ca"
@@ -122,7 +128,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslmode"] == "verify-full"
@@ -138,7 +144,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslcrc"] == "sslcrc"
@@ -153,7 +159,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslprotocol"] == "protocol"
@@ -168,25 +174,25 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert kwargs["sslcipher"] == "cipher"
 
-    @mock.patch("sqlalchemy.create_engine")
-    def test_get_sqlalchemy_conn(self, mock_connect):
-        self.db_hook.get_sqlalchemy_engine()
-        assert mock_connect.call_count == 1
-        args = mock_connect.call_args.args
-        assert len(args) == 1
-        expected_link = (
-            f"teradatasql://{self.connection.login}:{self.connection.password}@{self.connection.host}"
-        )
-        assert expected_link == args[0]
+    def test_get_uri_without_schema(self):
+        self.connection.schema = ""  # simulate missing schema
+        self.db_hook.get_connection.return_value = self.connection
+        uri = self.db_hook.get_uri()
+        expected_uri = f"teradatasql://{self.connection.login}:***@{self.connection.host}"
+        assert uri == expected_uri
 
     def test_get_uri(self):
         ret_uri = self.db_hook.get_uri()
-        expected_uri = f"teradata://{self.connection.login}:{self.connection.password}@{self.connection.host}/{self.connection.schema}"
+        expected_uri = (
+            f"teradatasql://{self.connection.login}:***@{self.connection.host}/{self.connection.schema}"
+            if self.connection.schema
+            else f"teradatasql://{self.connection.login}:***@{self.connection.host}"
+        )
         assert expected_uri == ret_uri
 
     def test_get_records(self):
@@ -260,7 +266,7 @@ class TestTeradataHook:
         assert args == ()
         assert kwargs["host"] == "host"
         assert kwargs["database"] == "schema"
-        assert kwargs["dbs_port"] == "1025"
+        assert kwargs["dbs_port"] == 1025
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
         assert "query_band" not in kwargs

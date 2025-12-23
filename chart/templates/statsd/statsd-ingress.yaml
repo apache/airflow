@@ -21,18 +21,19 @@
 ## Airflow Statsd Ingress
 #################################
 {{- if and .Values.statsd.enabled .Values.ingress.statsd.enabled }}
+{{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "airflow.fullname" . }}-statsd-ingress
+  name: {{ $fullname }}-statsd-ingress
   labels:
     tier: airflow
     component: statsd-ingress
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- with .Values.labels }}
-      {{- toYaml . | nindent 4 }}
+    {{- if or .Values.labels .Values.statsd.labels }}
+      {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
   {{- with .Values.ingress.statsd.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
@@ -66,7 +67,7 @@ spec:
         paths:
           - backend:
               service:
-                name: {{ $.Release.Name }}-statsd
+                name: {{ $fullname }}-statsd
                 port:
                   name: statsd-scrape
             {{- if $.Values.ingress.statsd.path }}

@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.models import Connection
 from airflow.providers.microsoft.azure.triggers.wasb import (
     WasbBlobSensorTrigger,
     WasbPrefixSensorTrigger,
@@ -35,7 +36,17 @@ TEST_DATA_STORAGE_BLOB_PREFIX = TEST_DATA_STORAGE_BLOB_NAME[:10]
 TEST_WASB_CONN_ID = "wasb_default"
 POKE_INTERVAL = 5.0
 
-pytestmark = pytest.mark.db_test
+
+@pytest.fixture(autouse=True)
+def setup_connections(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=TEST_WASB_CONN_ID,
+            conn_type="wasb",
+            login="test_account_name",
+            password="test_account_key",
+        )
+    )
 
 
 class TestWasbBlobSensorTrigger:

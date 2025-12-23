@@ -31,9 +31,9 @@ from aiohttp import BasicAuth
 from requests import Response
 from requests.models import RequestEncodingMixin
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.hooks import base
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
@@ -130,7 +130,14 @@ class TestHttpOperator:
         assert result == "content"
 
     @pytest.mark.parametrize(
-        "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
+        (
+            "data",
+            "headers",
+            "extra_options",
+            "pagination_data",
+            "pagination_headers",
+            "pagination_extra_options",
+        ),
         [
             ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
             ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
@@ -324,7 +331,7 @@ class TestHttpOperator:
         return captured
 
     @pytest.mark.parametrize(
-        "login, password, auth_type, expect_cls",
+        ("login", "password", "auth_type", "expect_cls"),
         [
             ("user", "password", None, BasicAuth),
             (None, None, None, type(None)),

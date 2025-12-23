@@ -21,14 +21,13 @@ import json
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
-from airflow.providers.apache.hive.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HiveStatsCollectionOperator(BaseOperator):

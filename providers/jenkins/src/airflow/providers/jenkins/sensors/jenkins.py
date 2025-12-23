@@ -18,14 +18,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, Context
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
-from airflow.providers.jenkins.version_compat import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.providers.jenkins.version_compat import Context
 
 
 class JenkinsBuildSensor(BaseSensorOperator):

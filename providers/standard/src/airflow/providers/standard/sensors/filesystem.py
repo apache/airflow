@@ -26,10 +26,9 @@ from glob import glob
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.providers.standard.triggers.file import FileTrigger
-from airflow.providers.standard.version_compat import BaseSensorOperator
 
 try:
     from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]

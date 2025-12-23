@@ -609,7 +609,7 @@ class TestBigQueryOpenLineageMixin:
         output_result = self.operator._get_dataset(table_ref, "output")
         assert output_result == OutputDataset("bigquery", "p.d.t", facets={"some": "facets"})
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid dataset_type. Must be 'input' or 'output'"):
             self.operator._get_dataset(table_ref, "wrong")
 
     @patch("airflow.providers.google.cloud.openlineage.mixins.get_facets_from_bq_table")
@@ -1013,3 +1013,37 @@ class TestBigQueryOpenLineageMixin:
                 ),
             }
         )
+
+    def test_project_id_selection(self):
+        """
+        Check if project_id set via an argument to the operator takes prevalence over project_id set in a
+        connection.
+        """
+        from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+
+        class TestOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
+            def __init__(self, project_id: str | None = None, **_):
+                self.project_id = project_id
+                self.job_id = "foobar"
+                self.location = "foobar"
+                self.sql = "foobar"
+
+        # First test task where project_id is set explicitly
+        test = TestOperator(project_id="project_a")
+        test.hook = MagicMock()
+        test.hook.project_id = "project_b"
+        test._client = MagicMock()
+
+        test.get_openlineage_facets_on_complete(None)
+        _, kwargs = test.hook.get_client.call_args
+        assert kwargs["project_id"] == "project_a"
+
+        # Then test task where project_id is inherited from the hook
+        test = TestOperator()
+        test.hook = MagicMock()
+        test.hook.project_id = "project_b"
+        test._client = MagicMock()
+
+        test.get_openlineage_facets_on_complete(None)
+        _, kwargs = test.hook.get_client.call_args
+        assert kwargs["project_id"] == "project_b"

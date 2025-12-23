@@ -48,7 +48,7 @@ ENCRYPTION_CONFIG: tuple[str, list] = (
     "encryptionConfig",
     [{"resources": ["secrets"], "provider": {"keyArn": "arn:of:the:key"}}],
 )
-INSTANCE_TYPES: tuple[str, list] = ("instanceTypes", ["t3.medium"])
+INSTANCE_TYPES: tuple[str, list] = ("instanceTypes", ["t4g.medium"])
 KUBERNETES_NETWORK_CONFIG: tuple[str, dict] = (
     "kubernetesNetworkConfig",
     {"serviceIpv4Cidr": "172.20.0.0/16"},

@@ -22,7 +22,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 from flask import (
     g,
     make_response,
-    redirect,
+    redirect as flask_redirect,
     render_template,
     request,
     url_for,
@@ -32,6 +32,7 @@ from flask_appbuilder import IndexView, expose
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.configuration import conf
+from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_1_PLUS
 
 # Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
 # June 6, 2023, we are adding extra sanitization of the urls passed to get_safe_url method to make it works
@@ -66,14 +67,6 @@ class FabIndexView(IndexView):
 
     @expose("/")
     def index(self):
-        if g.user is not None and g.user.is_authenticated:
-            token = get_auth_manager().generate_jwt(g.user)
-            response = make_response(redirect(f"{conf.get('api', 'base_url', fallback='/')}", code=302))
-
-            secure = bool(conf.get("api", "ssl_cert", fallback=""))
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
-
-            return response
         return redirect(conf.get("api", "base_url", fallback="/"), code=302)
 
 
@@ -114,6 +107,23 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
+
+
+def redirect(*args, **kwargs):
+    if g.user is not None and g.user.is_authenticated:
+        token = get_auth_manager().generate_jwt(g.user)
+        response = make_response(flask_redirect(*args, **kwargs))
+
+        secure = request.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+        # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
+        # See https://github.com/apache/airflow/pull/55506
+        if AIRFLOW_V_3_1_1_PLUS:
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+        else:
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
+        return response
+    return flask_redirect(*args, **kwargs)
 
 
 def method_not_allowed(error):

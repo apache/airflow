@@ -25,7 +25,7 @@ from airflow.providers.postgres.assets.postgres import sanitize_uri
 
 
 @pytest.mark.parametrize(
-    "original, normalized",
+    ("original", "normalized"),
     [
         pytest.param(
             "postgres://example.com:1234/database/schema/table",
@@ -56,11 +56,16 @@ def test_sanitize_uri_pass(original: str, normalized: str) -> None:
         pytest.param("postgres://", id="blank"),
         pytest.param("postgres:///database/schema/table", id="no-host"),
         pytest.param("postgres://example.com/database/table", id="missing-component"),
-        pytest.param("postgres://example.com:abcd/database/schema/table", id="non-port"),
         pytest.param("postgres://example.com/database/schema/table/column", id="extra-component"),
     ],
 )
 def test_sanitize_uri_fail(value: str) -> None:
     uri_i = urllib.parse.urlsplit(value)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format postgres:// must contain"):
+        sanitize_uri(uri_i)
+
+
+def test_sanitize_uri_fail_non_port() -> None:
+    uri_i = urllib.parse.urlsplit("postgres://example.com:abcd/database/schema/table")
+    with pytest.raises(ValueError, match="Port could not be cast to integer value as 'abcd'"):
         sanitize_uri(uri_i)

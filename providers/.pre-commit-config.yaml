@@ -1,0 +1,236 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
+repos:
+  - repo: local
+    hooks:
+      - id: check-deferrable-default
+        name: Check and fix default value of default_deferrable
+        language: python
+        entry: ../scripts/ci/prek/check_deferrable_default.py
+        pass_filenames: false
+        files: ^(.*/)?airflow/.*/(sensors|operators)/.*\.py$
+      - id: update-providers-dependencies
+        name: Update dependencies for providers
+        entry: ../scripts/ci/prek/update_providers_dependencies.py
+        language: python
+        always_run: true
+        pass_filenames: false
+      - id: validate-operators-init
+        name: No templated field logic checks in operator __init__
+        description: Prevent templated field logic checks in operators' __init__
+        language: python
+        entry: ../scripts/ci/prek/validate_operators_init.py
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
+      - id: update-providers-build-files
+        name: Update providers build files
+        entry: ../scripts/ci/prek/update_providers_build_files.py
+        language: python
+        pass_filenames: true
+        files: |
+          (?x)
+          ^[^\/]*/src/airflow/providers/[^\/]*/__init__\.py$|
+          ^[^\/]*/[^\/]*/src/airflow/providers/[^\/]*/[^\/]*/__init__\.py$|
+          ^.*/pyproject\.toml$|
+          ^.*/provider\.yaml$|
+          ^../dev/breeze/src/airflow_breeze/templates/PROVIDER__INIT__PY_TEMPLATE\.py\.jinja2$|
+          ^../dev/breeze/src/airflow_breeze/templates/get_provider_info_TEMPLATE\.py\.jinja2$|
+          ^../dev/breeze/src/airflow_breeze/templates/PROVIDER_README_TEMPLATE\.rst\.jinja2$
+        require_serial: true
+      - id: check-airflow-v-imports-in-tests
+        name: Check AIRFLOW_V imports in tests
+        language: python
+        entry: ../scripts/ci/prek/check_airflow_v_imports_in_tests.py
+        pass_filenames: true
+        files: ^.*/tests/.+\.py$
+      - id: check-sql-dependency-common-data-structure
+        name: Check dependency of SQL providers
+        description: Check dependency of SQL Providers with common data structure
+        entry: ../scripts/ci/prek/check_common_sql_dependency.py
+        language: python
+        files: ^.*/src/airflow/providers/.*/hooks/.*\.py$
+      - id: generate-volumes-for-sources
+        name: Generate volumes for docker compose
+        entry: ../scripts/ci/prek/generate_volumes_for_sources.py
+        language: python
+        files: ^.*/provider\.yaml$
+        pass_filenames: false
+        require_serial: true
+      - id: check-pytest-mark-db-test-in-providers
+        language: pygrep
+        name: Check pytest.mark.db_test use in providers
+        entry: pytest\.mark\.db_test
+        pass_filenames: true
+        # Here we should add providers that are already free from the pytest.mark.db_test
+        # and we want to keep them clean and only use non-db-tests
+        files: >
+            (?x)
+            ^airbyte/.*\.py$|
+            ^apache/beam/.*\.py$|
+            ^apache/flink/.*\.py$|
+            ^apache/iceberg/.*\.py$|
+            ^apache/kafka/.*\.py$|
+            ^apprise/.*\.py$|
+            ^arangodb/.*\.py$|
+            ^asana/.*\.py$|
+            ^atlassian/jira/.*\.py$|
+            ^cloudant/.*\.py$|
+            ^cohere/.*\.py$|
+            ^common/compat/.*\.py$|
+            ^common/messaging/.*\.py$|
+            ^datadog/.*\.py$|
+            ^dingding/.*\.py$|
+            ^discord/.*\.py$|
+            ^exasol/.*\.py$|
+            ^facebook/.*\.py$|
+            ^ftp/.*\.py$|
+            ^grpc/.*\.py$|
+            ^hashicorp/.*\.py$|
+            ^imap/.*\.py$|
+            ^influxdb/.*\.py$|
+            ^jdbc/.*\.py$|
+            ^jenkins/.*\.py$|
+            ^mongo/.*\.py$|
+            ^microsoft/psrp/.*\.py$|
+            ^microsoft/winrm/.*\.py$|
+            ^neo4j/.*\.py$|
+            ^odbc/.*\.py$|
+            ^openai/.*\.py$|
+            ^openfaas/.*\.py$|
+            ^opsgenie/.*\.py$|
+            ^oracle/.*\.py$|
+            ^pagerduty/.*\.py$|
+            ^pgvector/.*\.py$|
+            ^pinecone/.*\.py$|
+            ^postgres/.*\.py$|
+            ^presto/.*\.py$|
+            ^segment/.*\.py$|
+            ^sendgrid/.*\.py$|
+            ^singularity/.*\.py$|
+            ^slack/.*\.py$|
+            ^smtp/.*\.py$|
+            ^tableau/.*\.py$|
+            ^teradata/.*\.py$|
+            ^trino/.*\.py$|
+            ^vertica/.*\.py$|
+            ^yandex/.*\.py$|
+            ^zendesk/.*\.py$
+      - id: check-links-to-example-dags-do-not-use-hardcoded-versions
+        name: Verify no hard-coded version in example dags
+        description: The links to example dags should use |version| as version specification
+        language: pygrep
+        entry: >
+          (?i)
+          .*https://github.*/main/providers/.*/src/airflow/providers/.*/example_dags/|
+          .*https://github.*/master/providers/.*/src/airflow/providers/.*/example_dags/
+        pass_filenames: true
+        files: ^.*/docs/.*\.rst
+      - id: check-no-airflow-deprecation-in-providers
+        language: pygrep
+        name: Do not use DeprecationWarning in providers
+        description: Use AirflowProviderDeprecationWarning in providers
+        entry: "^\\s*DeprecationWarning*"
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*\.py$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperator other imports
+        description: Make sure BaseOperator is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator import.* BaseOperator"
+        pass_filenames: true
+        files: ^.*/src/airflow/providers/.*\.py$
+        exclude: ^standard/.*/.*\.py$
+      - id: check-get-lineage-collector-providers
+        language: python
+        name: Check providers import hook lineage code from compat
+        description: Make sure you import from airflow.provider.common.compat.lineage.hook instead of
+          airflow.lineage.hook.
+        entry: ../scripts/ci/prek/check_airflow_imports.py
+          --pattern '^airflow\.lineage\.hook'
+          --message "Only TYPE_CHECKING imports from `airflow.lineage.hook` are allowed in providers."
+          --only_top_level
+        files: ^.*/src/airflow/providers/.*\.py$
+        exclude: ^common/compat/src/airflow/providers/common/compat/.*\.py$
+      - id: check-aiobotocore-optional
+        name: Check if aiobotocore is an optional dependency only
+        entry: ../scripts/ci/prek/check_aiobotocore_optional.py
+        language: python
+        files: ^.*/provider\.yaml$
+        pass_filenames: true
+        require_serial: true
+      - id: check-providers-subpackages-init-file-exist
+        name: Provider subpackage init files are there
+        pass_filenames: false
+        always_run: true
+        entry: ../scripts/ci/prek/check_providers_subpackages_all_have_init.py
+        language: python
+        require_serial: true
+      - id: check-system-tests-tocs
+        name: Check that system tests is properly added
+        entry: ../scripts/ci/prek/check_system_tests_hidden_in_index.py
+        language: python
+        pass_filenames: true
+        files: ^.*/docs/index\.rst$
+      - id: check-provider-docs-valid
+        name: Validate provider doc files
+        entry: ../scripts/ci/prek/check_provider_docs.py
+        language: python
+        files: ^.*/provider\.yaml$|^.*/docs/.*
+        require_serial: true
+        pass_filenames: false
+      - id: mypy-providers
+        stages: ['pre-push']
+        name: Run mypy for providers
+        language: python
+        entry: ../scripts/ci/prek/mypy.py
+        files: ^.*\.py$
+        require_serial: true
+      - id: mypy-providers
+        stages: ['manual']
+        name: Run mypy for providers (manual)
+        language: python
+        entry: ../scripts/ci/prek/mypy_folder.py providers
+        pass_filenames: false
+        files: ^.*\.py$
+        require_serial: true
+      - id: check-provider-yaml-valid
+        name: Validate provider.yaml files
+        entry: ../scripts/ci/prek/check_provider_yaml_files.py
+        language: python
+        files: ^.*/provider\.yaml$
+        exclude: ^.*/.venv/.*$
+        require_serial: true
+      - id: check-imports-in-providers
+        name: Check imports in providers
+        entry: ../scripts/ci/prek/check_imports_in_providers.py
+        language: python
+        files: ^.*/src/airflow/providers/.*version_compat.*\.py$
+        require_serial: true
+      - id: provider-version-compat
+        name: Check for correct version_compat imports in providers
+        entry: ../scripts/ci/prek/check_provider_version_compat.py
+        language: python
+        types: [python]
+        files: ^.*/src/airflow/providers/.*\.py$
+        require_serial: true

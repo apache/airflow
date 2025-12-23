@@ -30,8 +30,8 @@ from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, R
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.slack.hooks.slack_webhook import (
     SlackWebhookHook,
     async_check_webhook_response,
@@ -154,7 +154,7 @@ class TestCheckWebhookResponseDecorator:
         assert decorated() is MOCK_WEBHOOK_RESPONSE
 
     @pytest.mark.parametrize(
-        "status_code,body",
+        ("status_code", "body"),
         [
             (400, "invalid_payload"),
             (403, "action_prohibited"),
@@ -190,7 +190,7 @@ class TestAsyncCheckWebhookResponseDecorator:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "status_code,body",
+        ("status_code", "body"),
         [
             (400, "invalid_payload"),
             (403, "action_prohibited"),
@@ -276,7 +276,7 @@ class TestSlackWebhookHook:
             hook._get_conn_params()
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {
@@ -555,7 +555,7 @@ class TestSlackWebhookHookAsync:
         mock_async_get_conn_params.return_value = {"url": TEST_WEBHOOK_URL}
 
         hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
-        client = await hook.async_client
+        client = await hook.get_async_client()
 
         assert isinstance(client, AsyncWebhookClient)
         assert client.url == TEST_WEBHOOK_URL

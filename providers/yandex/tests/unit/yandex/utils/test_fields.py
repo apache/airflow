@@ -75,7 +75,7 @@ def test_get_field_from_extras_field_name_with_extra_raise_exception():
     default = None
     extras = {}
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="extra__yandexcloud__field"):
         get_field_from_extras(
             extras=extras,
             field_name=field_name,

@@ -187,10 +187,9 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         }
 
         for conn_field, extra_words in self.extra_conn_words.items():
-            if conn_field == "user":
-                # Support `user` for backwards compatibility.
-                conn_field = "login"
-            possible_words_for_conn_fields[conn_field].extend(extra_words)
+            # Support `user` for backwards compatibility.
+            conn_field_backcompat = "login" if conn_field == "user" else conn_field
+            possible_words_for_conn_fields[conn_field_backcompat].extend(extra_words)
 
         conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
@@ -226,11 +225,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return standardized_secret
         return secret
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

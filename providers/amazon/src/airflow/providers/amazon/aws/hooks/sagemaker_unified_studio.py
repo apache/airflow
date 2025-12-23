@@ -24,9 +24,8 @@ import time
 from sagemaker_studio import ClientConfig
 from sagemaker_studio.sagemaker_studio_api import SageMakerStudioAPI
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.sagemaker_unified_studio import is_local_runner
-from airflow.providers.amazon.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 
 class SageMakerNotebookHook(BaseHook):

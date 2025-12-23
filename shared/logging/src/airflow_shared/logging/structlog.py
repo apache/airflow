@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import codecs
 import io
+import itertools
 import logging
 import os
 import re
 import sys
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
@@ -31,7 +32,7 @@ from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 import pygtrie
 import structlog
 import structlog.processors
-from structlog.processors import NAME_TO_LEVEL
+from structlog.processors import NAME_TO_LEVEL, CallsiteParameter
 
 from ._noncaching import make_file_io_non_caching
 from .percent_formatter import PercentFormatRender
@@ -70,11 +71,9 @@ def _make_airflow_structlogger(min_level):
     def handlers(self):
         return [logging.NullHandler()]
 
-    def isEnabledFor(self: Any, level):
-        return self.is_enabled_for(level)
-
-    def getEffectiveLevel(self: Any):
-        return self.get_effective_level()
+    @property
+    def level(self):
+        return min_level
 
     @property
     def name(self):
@@ -95,7 +94,7 @@ def _make_airflow_structlogger(min_level):
             if not args:
                 return self._proxy_to_logger(name, event, **kw)
 
-            # See for reason https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326
+            # See https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326 for reason
             if args and len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
                 args = args[0]
             return self._proxy_to_logger(name, event % args, **kw)
@@ -109,8 +108,9 @@ def _make_airflow_structlogger(min_level):
         f"AirflowBoundLoggerFilteringAt{LEVEL_TO_NAME.get(min_level, 'Notset').capitalize()}",
         (base,),
         {
-            "isEnabledFor": isEnabledFor,
-            "getEffectiveLevel": getEffectiveLevel,
+            "isEnabledFor": base.is_enabled_for,
+            "getEffectiveLevel": base.get_effective_level,
+            "level": level,
             "name": name,
             "handlers": handlers,
         }
@@ -148,7 +148,9 @@ def make_filtering_logger() -> Callable[..., BindableLogger]:
         if not logger_name and isinstance(logger, (NamedWriteLogger, NamedBytesLogger)):
             logger_name = logger.name
 
-        if logger_name:
+        if (level_override := kwargs.get("context", {}).pop("__level_override", None)) is not None:
+            level = level_override
+        elif logger_name:
             level = PER_LOGGER_LEVELS.longest_prefix(logger_name).get(PER_LOGGER_LEVELS[""])
         else:
             level = PER_LOGGER_LEVELS[""]
@@ -199,7 +201,7 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
     return event_dict
 
 
-# `eyJ` is `{"` in base64 encoding -- and any value that starts like that is in high likely hood a JWT
+# `eyJ` is `{"` in base64 encoding -- and any value that starts like that is very likely a JWT
 # token. Better safe than sorry
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
@@ -226,14 +228,19 @@ def structlog_processors(
     json_output: bool,
     log_format: str = "",
     colors: bool = True,
+    callsite_parameters: tuple[CallsiteParameter, ...] = (),
 ):
     """
     Create the correct list of structlog processors for the given config.
 
     Return value is a tuple of three elements:
 
-    1. A list of processors shared for structlgo and stblib
+    1. A list of processors shared for structlog and stdlib
     2. The final processor/renderer (one that outputs a string) for use with structlog.stdlib.ProcessorFormatter
+
+
+    ``callsite_parameters`` specifies the keys to add to the log event dict. If ``log_format`` is specified
+    then anything callsite related will be added to this list
 
     :meta private:
     """
@@ -250,6 +257,23 @@ def structlog_processors(
         redact_jwt,
         structlog.processors.StackInfoRenderer(),
     ]
+
+    if log_format:
+        # Maintain the order if any params that are given explicitly, then add on anything needed for the
+        # format string (so use a dict with None as the values as set doesn't preserve order)
+        params = {
+            param: None
+            for param in itertools.chain(
+                callsite_parameters or [], PercentFormatRender.callsite_params_from_fmt_string(log_format)
+            )
+        }
+        shared_processors.append(
+            structlog.processors.CallsiteParameterAdder(list(params.keys()), additional_ignores=[__name__])
+        )
+    elif callsite_parameters:
+        shared_processors.append(
+            structlog.processors.CallsiteParameterAdder(callsite_parameters, additional_ignores=[__name__])
+        )
 
     # Imports to suppress showing code from these modules. We need the import to get the filepath for
     # structlog to ignore.
@@ -308,7 +332,7 @@ def structlog_processors(
         return shared_processors, json_processor, json
 
     if os.getenv("DEV", "") != "":
-        # Only use Rich in dev -- optherwise for "production" deployments it makes the logs harder to read as
+        # Only use Rich in dev -- otherwise for "production" deployments it makes the logs harder to read as
         # it uses lots of ANSI escapes and non ASCII characters. Simpler is better for non-dev non-JSON
         exc_formatter = structlog.dev.RichTracebackFormatter(
             # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
@@ -333,6 +357,18 @@ def structlog_processors(
             colors=colors,
         )
     else:
+        if callsite_parameters == (CallsiteParameter.FILENAME, CallsiteParameter.LINENO):
+            # Nicer formatting of the default callsite config
+            def log_loc(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
+                if (
+                    event_dict.get("logger") != "py.warnings"
+                    and "filename" in event_dict
+                    and "lineno" in event_dict
+                ):
+                    event_dict["loc"] = f"{event_dict.pop('filename')}:{event_dict.pop('lineno')}"
+                return event_dict
+
+            shared_processors.append(log_loc)
         console = structlog.dev.ConsoleRenderer(
             exception_formatter=exc_formatter,
             level_styles=my_styles,
@@ -346,12 +382,13 @@ def configure_logging(
     *,
     json_output: bool = False,
     log_level: str = "DEBUG",
-    log_format: str | None = None,
+    log_format: str = "",
     stdlib_config: dict | None = None,
     extra_processors: Sequence[Processor] | None = None,
-    colors: bool | None = None,
+    callsite_parameters: Iterable[CallsiteParameter] | None = None,
+    colors: bool = True,
     output: LogOutputType | None = None,
-    log_levels: str | dict[str, str] | None = None,
+    namespace_log_levels: str | dict[str, str] | None = None,
     cache_logger_on_first_use: bool = True,
 ):
     """
@@ -363,18 +400,24 @@ def configure_logging(
     :param json_output: Set to true to write all logs as JSON (one per line)
     :param log_level: The default log level to use for most logs
     :param log_format: A percent-style log format to write non JSON logs with.
-    :param output: Where to write the logs too. If ``json_output`` is true this must be a binary stream
-    :param colors: Whether to use colors for non-JSON logs. If `None` is passed, then colors are used
-        if standard out is a TTY (that is, an interactive session).
+    :param output: Where to write the logs to. If ``json_output`` is true this must be a binary stream
+    :param colors: Whether to use colors for non-JSON logs. This only works if standard out is a TTY (that is,
+        an interactive session), unless overridden by environment variables described below.
+        Please note that disabling colors also disables all styling, including bold and italics.
+        The following environment variables control color behavior (set to any non-empty value to activate):
 
-        It's possible to override this behavior by setting two standard environment variables to any value
-        except an empty string:
+        * ``NO_COLOR`` - Disables colors completely. This takes precedence over all other settings,
+        including ``FORCE_COLOR``.
 
-        * ``FORCE_COLOR`` activates colors, regardless of where output is going.
-        * ``NO_COLOR`` disables colors, regardless of where the output is going and regardless the value of
-          ``FORCE_COLOR``. Please note that ``NO_COLOR`` disables all styling, including bold and italics.
+        * ``FORCE_COLOR`` - Forces colors to be enabled, even when output is not going to a TTY. This only
+        takes effect if ``NO_COLOR`` is not set.
 
-    :param log_levels: Levels of extra loggers to configure.
+    :param callsite_parameters: A list parameters about the callsite (line number, function name etc) to
+        include in the logs.
+
+        If ``log_format`` is specified, then anything required to populate that (such as ``%(lineno)d``) will
+        be automatically included.
+    :param namespace_log_levels: Levels of extra loggers to configure.
 
         To make this easier to use, this can be a string consisting of pairs of ``<logger>=<level>`` (either
         string, or space delimited) which will set the level for that specific logger.
@@ -386,11 +429,12 @@ def configure_logging(
     if "fatal" not in NAME_TO_LEVEL:
         NAME_TO_LEVEL["fatal"] = NAME_TO_LEVEL["critical"]
 
-    if colors is None:
-        colors = os.environ.get("NO_COLOR", "") == "" and (
-            os.environ.get("FORCE_COLOR", "") != ""
-            or (sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty())
-        )
+    def is_atty():
+        return sys.stdout is not None and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+    colors = os.environ.get("NO_COLOR", "") == "" and (
+        os.environ.get("FORCE_COLOR", "") != "" or (colors and is_atty())
+    )
 
     stdlib_config = stdlib_config or {}
     extra_processors = extra_processors or ()
@@ -398,11 +442,13 @@ def configure_logging(
     PER_LOGGER_LEVELS[""] = NAME_TO_LEVEL[log_level.lower()]
 
     # Extract per-logger-tree levels and set them
-    if isinstance(log_levels, str):
+    if isinstance(namespace_log_levels, str):
         log_from_level = partial(re.compile(r"\s*=\s*").split, maxsplit=2)
-        log_levels = {log: level for log, level in map(log_from_level, re.split(r"[\s,]+", log_levels))}
-    if log_levels:
-        for log, level in log_levels.items():
+        namespace_log_levels = {
+            log: level for log, level in map(log_from_level, re.split(r"[\s,]+", namespace_log_levels))
+        }
+    if namespace_log_levels:
+        for log, level in namespace_log_levels.items():
             try:
                 loglevel = NAME_TO_LEVEL[level.lower()]
             except KeyError:
@@ -414,17 +460,18 @@ def configure_logging(
         json_output,
         log_format=log_format,
         colors=colors,
+        callsite_parameters=tuple(callsite_parameters or ()),
     )
     shared_pre_chain += list(extra_processors)
     pre_chain: list[structlog.typing.Processor] = [structlog.stdlib.add_logger_name] + shared_pre_chain
 
-    # Don't cache the loggers during tests, it make it hard to capture them
+    # Don't cache the loggers during tests, it makes it hard to capture them
     if "PYTEST_VERSION" in os.environ:
         cache_logger_on_first_use = False
 
     std_lib_formatter: list[Processor] = [
         # TODO: Don't include this if we are using PercentFormatter -- it'll delete something we
-        # just have to recerated!
+        # just have to recreated!
         structlog.stdlib.ProcessorFormatter.remove_processors_meta,
         drop_positional_args,
         for_stdlib,
@@ -561,6 +608,22 @@ def init_log_file(
         log.warning("OSError while changing ownership of the log file. %s", e)
 
     return full_path
+
+
+def reconfigure_logger(
+    logger: WrappedLogger, without_processor_type: type, level_override: int | None = None
+):
+    procs = getattr(logger, "_processors", None)
+    if procs is None:
+        procs = structlog.get_config()["processors"]
+    procs = [proc for proc in procs if not isinstance(proc, without_processor_type)]
+
+    return structlog.wrap_logger(
+        getattr(logger, "_logger", None),
+        processors=procs,
+        **getattr(logger, "_context", {}),
+        __level_override=level_override,
+    )
 
 
 if __name__ == "__main__":

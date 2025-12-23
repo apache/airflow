@@ -20,11 +20,15 @@ from typing import TYPE_CHECKING
 
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
-from airflow.providers.openlineage.utils.utils import get_job_name
+from airflow.providers.openlineage.utils.utils import (
+    get_job_name,
+    get_parent_information_from_dagrun_conf,
+    get_root_information_from_dagrun_conf,
+)
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.providers.common.compat.sdk import TaskInstance
 
 
 def lineage_job_namespace():
@@ -102,7 +106,7 @@ def lineage_root_parent_id(task_instance: TaskInstance):
     """
     return "/".join(
         (
-            lineage_job_namespace(),
+            lineage_root_job_namespace(task_instance),
             lineage_root_job_name(task_instance),
             lineage_root_run_id(task_instance),
         )
@@ -110,10 +114,16 @@ def lineage_root_parent_id(task_instance: TaskInstance):
 
 
 def lineage_root_job_name(task_instance: TaskInstance):
+    root_parent_job_name = _get_ol_root_id("root_parent_job_name", task_instance)
+    if root_parent_job_name:
+        return root_parent_job_name
     return task_instance.dag_id
 
 
 def lineage_root_run_id(task_instance: TaskInstance):
+    root_parent_run_id = _get_ol_root_id("root_parent_run_id", task_instance)
+    if root_parent_run_id:
+        return root_parent_run_id
     return OpenLineageAdapter.build_dag_run_id(
         dag_id=task_instance.dag_id,
         logical_date=_get_logical_date(task_instance),
@@ -121,32 +131,50 @@ def lineage_root_run_id(task_instance: TaskInstance):
     )
 
 
+def lineage_root_job_namespace(task_instance: TaskInstance):
+    root_parent_job_namespace = _get_ol_root_id("root_parent_job_namespace", task_instance)
+    if root_parent_job_namespace:
+        return root_parent_job_namespace
+    return conf.namespace()
+
+
+def _get_ol_root_id(id_key: str, task_instance: TaskInstance) -> str | None:
+    dr_conf = _get_dag_run_conf(task_instance=task_instance)
+    # Check DagRun conf for root info
+    ol_root_info = get_root_information_from_dagrun_conf(dr_conf=dr_conf)
+    if ol_root_info and ol_root_info.get(id_key):
+        return ol_root_info[id_key]
+    # Then check DagRun conf for parent into that is used as root in case explicit root is missing
+    id_key = id_key.replace("root_", "")
+    ol_root_info = get_parent_information_from_dagrun_conf(dr_conf=dr_conf)
+    if ol_root_info and ol_root_info.get(id_key):
+        return ol_root_info[id_key]
+    return None
+
+
+def _get_dagrun_from_ti(task_instance: TaskInstance):
+    context = task_instance.get_template_context()
+    if getattr(task_instance, "dag_run", None):
+        return task_instance.dag_run
+    return context["dag_run"]
+
+
+def _get_dag_run_conf(task_instance: TaskInstance) -> dict:
+    dr = _get_dagrun_from_ti(task_instance=task_instance)
+    return dr.conf or {}
+
+
 def _get_dag_run_clear_number(task_instance: TaskInstance):
-    # todo: remove when min airflow version >= 3.0
-    if AIRFLOW_V_3_0_PLUS:
-        context = task_instance.get_template_context()
-        if hasattr(task_instance, "dag_run"):
-            dag_run = task_instance.dag_run
-        else:
-            dag_run = context["dag_run"]
-        return dag_run.clear_number
-    return task_instance.dag_run.clear_number
+    dr = _get_dagrun_from_ti(task_instance=task_instance)
+    return dr.clear_number
 
 
 def _get_logical_date(task_instance):
-    # todo: remove when min airflow version >= 3.0
     if AIRFLOW_V_3_0_PLUS:
-        context = task_instance.get_template_context()
-        if hasattr(task_instance, "dag_run"):
-            dag_run = task_instance.dag_run
-        else:
-            dag_run = context["dag_run"]
-        if hasattr(dag_run, "logical_date") and dag_run.logical_date:
-            date = dag_run.logical_date
-        else:
-            date = dag_run.run_after
-    elif hasattr(task_instance, "logical_date"):
-        date = task_instance.logical_date
-    else:
-        date = task_instance.execution_date
-    return date
+        dr = _get_dagrun_from_ti(task_instance=task_instance)
+        if getattr(dr, "logical_date", None):
+            return dr.logical_date
+        return dr.run_after
+    if getattr(task_instance, "logical_date", None):
+        return task_instance.logical_date
+    return task_instance.execution_date

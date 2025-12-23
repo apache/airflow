@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
+from airflow.sdk.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator

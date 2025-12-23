@@ -119,7 +119,7 @@ const createColumns = (
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].dag_run_id}`}>
+          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}>
             <DagRunInfo
               endDate={original.latest_dag_runs[0].end_date}
               logicalDate={original.latest_dag_runs[0].logical_date}
@@ -164,8 +164,10 @@ const createColumns = (
     header: "",
   },
   {
-    accessorKey: "favorite",
-    cell: ({ row: { original } }) => <FavoriteDagButton dagId={original.dag_id} withText={false} />,
+    accessorKey: "favourite",
+    cell: ({ row: { original } }) => (
+      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} withText={false} />
+    ),
     enableHiding: false,
     enableSorting: false,
     header: "",
@@ -289,10 +291,9 @@ export const DagsList = () => {
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
-          placeHolder={translate("dags:search.dags")}
+          placeholder={translate("dags:search.dags")}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

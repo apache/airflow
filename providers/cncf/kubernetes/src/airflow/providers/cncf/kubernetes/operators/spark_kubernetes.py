@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
@@ -31,6 +30,7 @@ from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import C
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -66,7 +66,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param success_run_history_limit: Number of past successful runs of the application to keep.
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
-    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor.
+        When enabled, the operator automatically adds Airflow task context labels (dag_id, task_id, run_id)
+        to the driver and executor pods to enable finding them for reattachment.
     :param delete_on_termination: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
@@ -203,17 +205,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             "spark_kubernetes_operator": "True",
         }
 
-        # If running on Airflow 2.3+:
-        map_index = getattr(ti, "map_index", -1)
-        if map_index >= 0:
-            labels["map_index"] = map_index
+        map_index = ti.map_index
+        if map_index is not None and map_index >= 0:
+            labels["map_index"] = str(map_index)
 
         if include_try_number:
-            labels.update(try_number=ti.try_number)
+            labels.update(try_number=str(ti.try_number))
 
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
-        if getattr(context_dict["dag"], "is_subdag", False):
+        if getattr(context_dict["dag"], "parent_dag", False):
             labels["parent_dag_id"] = context_dict["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
@@ -226,9 +227,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
-    @staticmethod
-    def _try_numbers_match(context, pod) -> bool:
-        return pod.metadata.labels["try_number"] == context["ti"].try_number
+    def _try_numbers_match(self, context, pod) -> bool:
+        task_instance = context["task_instance"]
+        task_context_labels = self._get_ti_pod_labels(context)
+        pod_try_number = pod.metadata.labels.get(task_context_labels.get("try_number", ""), "")
+        return str(task_instance.try_number) == str(pod_try_number)
 
     @property
     def template_body(self):
@@ -251,19 +254,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
             )
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels["try_number"])
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
         return pod
-
-    def get_or_create_spark_crd(self, context) -> k8s.V1Pod:
-        if self.reattach_on_restart:
-            driver_pod = self.find_spark_job(context)
-            if driver_pod:
-                return driver_pod
-
-        driver_pod, spark_obj_spec = self.launcher.start_spark_job(
-            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
-        )
-        return driver_pod
 
     def process_pod_deletion(self, pod, *, reraise=True):
         if pod is not None:
@@ -296,28 +288,97 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     @cached_property
     def launcher(self) -> CustomObjectLauncher:
-        launcher = CustomObjectLauncher(
+        return CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
             kube_client=self.client,
             custom_obj_api=self.custom_obj_api,
             template_body=self.template_body,
         )
-        return launcher
+
+    def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
+        if self.reattach_on_restart:
+            driver_pod = self.find_spark_job(context)
+            if driver_pod:
+                return driver_pod
+
+        driver_pod, spark_obj_spec = launcher.start_spark_job(
+            image=self.image, code_path=self.code_path, startup_timeout=self.startup_timeout_seconds
+        )
+        return driver_pod
 
     def execute(self, context: Context):
         self.name = self.create_job_name()
 
+        self._setup_spark_configuration(context)
+
+        if self.deferrable:
+            self.execute_async(context)
+
+        return super().execute(context)
+
+    def _setup_spark_configuration(self, context: Context):
+        """Set up Spark-specific configuration including reattach logic."""
+        import copy
+
+        template_body = copy.deepcopy(self.template_body)
+
+        if self.reattach_on_restart:
+            task_context_labels = self._get_ti_pod_labels(context)
+
+            existing_pod = self.find_spark_job(context)
+            if existing_pod:
+                self.log.info(
+                    "Found existing Spark driver pod %s. Reattaching to it.", existing_pod.metadata.name
+                )
+                self.pod = existing_pod
+                self.pod_request_obj = None
+                if self.pod.metadata.name.endswith("-driver"):
+                    self.name = self.pod.metadata.name.removesuffix("-driver")
+                return
+
+            if "spark" not in template_body:
+                template_body["spark"] = {}
+            if "spec" not in template_body["spark"]:
+                template_body["spark"]["spec"] = {}
+
+            spec_dict = template_body["spark"]["spec"]
+
+            if "labels" not in spec_dict:
+                spec_dict["labels"] = {}
+            spec_dict["labels"].update(task_context_labels)
+
+            for component in ["driver", "executor"]:
+                if component not in spec_dict:
+                    spec_dict[component] = {}
+
+                if "labels" not in spec_dict[component]:
+                    spec_dict[component]["labels"] = {}
+
+                spec_dict[component]["labels"].update(task_context_labels)
+
         self.log.info("Creating sparkApplication.")
-        self.pod = self.get_or_create_spark_crd(context)
+        self.launcher = CustomObjectLauncher(
+            name=self.name,
+            namespace=self.namespace,
+            kube_client=self.client,
+            custom_obj_api=self.custom_obj_api,
+            template_body=template_body,
+        )
+        self.pod = self.get_or_create_spark_crd(self.launcher, context)
         self.pod_request_obj = self.launcher.pod_spec
 
-        return super().execute(context=context)
+    def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True):
+        """Override parent's find_pod to use our Spark-specific find_spark_job method."""
+        return self.find_spark_job(context, exclude_checked=exclude_checked)
 
     def on_kill(self) -> None:
-        if self.launcher:
-            self.log.debug("Deleting spark job for task %s", self.task_id)
-            self.launcher.delete_spark_job()
+        self.log.debug("Deleting spark job for task %s", self.task_id)
+        job_name = self.name
+        if self.pod and self.pod.metadata and self.pod.metadata.name:
+            if self.pod.metadata.name.endswith("-driver"):
+                job_name = self.pod.metadata.name.removesuffix("-driver")
+        self.launcher.delete_spark_job(spark_job_name=job_name)
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries."""

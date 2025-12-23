@@ -24,7 +24,6 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TypeVar, cast
 
-import google
 import google.auth.transport.requests
 import google.oauth2.id_token
 

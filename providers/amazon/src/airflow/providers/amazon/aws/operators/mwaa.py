@@ -19,15 +19,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.mwaa import MwaaDagRunCompletedTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -46,12 +46,14 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
     :param trigger_run_id: The Run ID. This together with trigger_dag_id are a unique key. (templated)
     :param logical_date: The logical date (previously called execution date). This is the time or interval
         covered by this DAG run, according to the DAG definition. This together with trigger_dag_id are a
-        unique key. (templated)
+        unique key. This field is required if your environment is running with Airflow 3. (templated)
     :param data_interval_start: The beginning of the interval the DAG run covers
     :param data_interval_end: The end of the interval the DAG run covers
     :param conf: Additional configuration parameters. The value of this field can be set only when creating
         the object. (templated)
     :param note: Contains manually entered notes by the user about the DagRun. (templated)
+    :param airflow_version: The Airflow major version the MWAA environment runs.
+            This parameter is only used if the local web token method is used to call Airflow API. (templated)
 
     :param wait_for_completion: Whether to wait for DAG run to stop. (default: False)
     :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
@@ -81,6 +83,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         "data_interval_end",
         "conf",
         "note",
+        "airflow_version",
     )
     template_fields_renderers = {"conf": "json"}
 
@@ -95,6 +98,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         data_interval_end: str | None = None,
         conf: dict | None = None,
         note: str | None = None,
+        airflow_version: Literal[2, 3] | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
@@ -110,6 +114,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         self.data_interval_end = data_interval_end
         self.conf = conf if conf else {}
         self.note = note
+        self.airflow_version = airflow_version
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -123,7 +128,10 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
         dag_run_id = validated_event["dag_run_id"]
         self.log.info("DAG run %s of DAG %s completed", dag_run_id, self.trigger_dag_id)
         return self.hook.invoke_rest_api(
-            env_name=self.env_name, path=f"/dags/{self.trigger_dag_id}/dagRuns/{dag_run_id}", method="GET"
+            env_name=self.env_name,
+            path=f"/dags/{self.trigger_dag_id}/dagRuns/{dag_run_id}",
+            method="GET",
+            airflow_version=self.airflow_version,
         )
 
     def execute(self, context: Context) -> dict:
@@ -146,6 +154,7 @@ class MwaaTriggerDagRunOperator(AwsBaseOperator[MwaaHook]):
                 "conf": self.conf,
                 "note": self.note,
             },
+            airflow_version=self.airflow_version,
         )
 
         dag_run_id = response["RestApiResponse"]["dag_run_id"]

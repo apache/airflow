@@ -23,20 +23,15 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 import pytest
 
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
+from airflow.providers.common.compat.sdk import context_to_airflow_vars
 from airflow.providers.samba.hooks.samba import SambaHook
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.apache.hive import (
     DEFAULT_DATE,
     MockConnectionCursor,
     MockHiveServer2Hook,
     TestHiveEnvironment,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import context_to_airflow_vars
-else:
-    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
 
 
 class MockSambaHook(SambaHook):
