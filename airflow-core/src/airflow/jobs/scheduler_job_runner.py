@@ -1935,28 +1935,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.consumed_asset_events.extend(asset_events)
             session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
 
-    def _finished_and_automated(
-        self,
-        dag: SerializedDAG,
-        *,
-        last_dag_run: DagRun | None = None,
-    ) -> bool:
-        """Check if the dag's next_dagruns_create_after should be updated."""
-        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
-        # In such case, schedule next only if last_dag_run is finished and was an automated run.
-        # todo: this is misleading because last_dag_run might not be the *latest* dag run
-        #  since the scheduler calls this every time it touches a dag run.  there can be many
-        #  runs for a dag active at one time; they can't *all* be the "last" one, right?
-        if last_dag_run and not (
-            last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
-        ):
-            return False
-
-        # If the DAG never schedules skip save runtime
-        if not dag.timetable.can_be_scheduled:
-            return False
-        return True
-
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
         Lock Backfill rows to prevent race conditions when multiple schedulers run concurrently.
@@ -2295,7 +2273,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_model.next_dagrun_create_after = None
             return
 
-        if not self._finished_and_automated(dag=serdag, last_dag_run=dag_run):
+        # TODO: questionable that this logic does what it is trying to do
+        #  I think its intent is, in part, to do this when it's the latest scheduled run
+        #  but it does not know that it is the latest. I think it could probably check that
+        #  logical date is equal to or greater than DagModel.next_dagrun, or something
+        if dag_run and not (
+            dag_run.state in State.finished_dr_states and dag_run.run_type == DagRunType.SCHEDULED
+        ):
+            return
+
+        # If the DAG never schedules skip save runtime
+        if not serdag.timetable.can_be_scheduled:
             return
 
         interval = get_run_data_interval(serdag.timetable, dag_run)
