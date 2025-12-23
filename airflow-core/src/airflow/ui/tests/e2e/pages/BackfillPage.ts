@@ -74,17 +74,22 @@ export class BackfillPage extends BasePage {
 
     await this.selectReprocessBehavior(reprocessBehavior);
 
-    await this.page.waitForTimeout(2000);
+    const runsMessage = this.page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
 
-    await this.backfillRunButton.waitFor({ state: "visible", timeout: 5000 });
+    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+
+    await expect(this.backfillRunButton).toBeEnabled({ timeout: 5000 });
     await this.backfillRunButton.click();
 
-    await this.page.waitForTimeout(2000);
+    const backfillStatus = this.page.locator('[data-testid="backfill-status"]');
+
+    await expect(backfillStatus).toBeVisible({ timeout: 10_000 });
   }
 
   public async getBackfillsTableRows(): Promise<number> {
-    await this.page.waitForTimeout(1000);
     const rows = this.page.locator("table tbody tr");
+
+    await rows.first().waitFor({ state: "visible", timeout: 10_000 });
     const count = await rows.count();
 
     return count;
@@ -105,10 +110,11 @@ export class BackfillPage extends BasePage {
   public async openBackfillDialog(): Promise<void> {
     await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
     await this.triggerButton.click();
-    await this.page.waitForTimeout(1000);
-    await this.backfillModeRadio.waitFor({ state: "visible", timeout: 8000 });
+
+    await expect(this.backfillModeRadio).toBeVisible({ timeout: 8000 });
     await this.backfillModeRadio.click();
-    await this.page.waitForTimeout(500);
+
+    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 5000 });
   }
 
   public async selectReprocessBehavior(behavior: ReprocessBehavior): Promise<void> {

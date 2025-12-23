@@ -17,9 +17,7 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { testConfig } from "playwright.config";
 import { BackfillPage } from "tests/e2e/pages/BackfillPage";
-import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 /**
  * Backfill E2E Tests
@@ -34,19 +32,14 @@ const getPastDate = (daysAgo: number): string => {
 };
 
 test.describe.serial("Backfill Tabs", () => {
-  let loginPage: LoginPage;
   let backfillPage: BackfillPage;
 
-  const testCredentials = testConfig.credentials;
-  const allRunsDagId = testConfig.testDag.id;
+  const allRunsDagId = "example_nested_branch_dag";
   const missingRunsDagId = "example_branch_labels";
   const missingAndErroredRunsDagId = "example_skip_dag";
 
-  test.beforeEach(async ({ page }) => {
-    loginPage = new LoginPage(page);
+  test.beforeEach(({ page }) => {
     backfillPage = new BackfillPage(page);
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
   });
 
   test("verify date range selection (start date, end date)", async () => {
@@ -60,11 +53,7 @@ test.describe.serial("Backfill Tabs", () => {
     await backfillPage.backfillFromDateInput.fill(fromDate);
     await backfillPage.backfillToDateInput.fill(toDate);
 
-    await backfillPage.page.waitForTimeout(1000);
-
-    const isErrorVisible = await backfillPage.isBackfillDateErrorVisible();
-
-    expect(isErrorVisible).toBe(true);
+    await expect(backfillPage.backfillDateError).toBeVisible();
   });
 
   test("should create backfill with 'All Runs' behavior", async () => {
