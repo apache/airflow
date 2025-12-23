@@ -45,7 +45,13 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
   useEffect(() => {
     const latestDagRunId = latestDagRun?.run_id;
 
-    if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
+    if (latestDagRunId !== undefined && previousDagRunIdRef.current !== latestDagRunId) {
+      // On initial load, just set the ref without invalidating queries
+      if (previousDagRunIdRef.current === undefined) {
+        previousDagRunIdRef.current = latestDagRunId;
+        return;
+      }
+
       previousDagRunIdRef.current = latestDagRunId;
 
       const queryKeys = [
