@@ -1424,7 +1424,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 dag_id=msg.dag_id,
                 task_id=msg.task_id,
                 logical_date=msg.logical_date,
-                run_id=msg.run_id,
+                map_index=msg.map_index,
                 state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):

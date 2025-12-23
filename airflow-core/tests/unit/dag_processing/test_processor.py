@@ -1847,7 +1847,6 @@ class TestDagProcessingMessageTypes:
             "GetDagRun",
             "GetDagRunState",
             "GetDRCount",
-            "GetPreviousTI",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
             "GetTICount",
@@ -1882,7 +1881,6 @@ class TestDagProcessingMessageTypes:
             "TaskStatesResult",
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
-            "PreviousTIResult",
             "HITLDetailRequestResult",
         }
 

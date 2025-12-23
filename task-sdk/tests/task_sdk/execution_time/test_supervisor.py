@@ -2175,6 +2175,7 @@ REQUEST_TEST_CASES = [
             dag_id="test_dag",
             task_id="test_task",
             logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+            map_index=0,
             state=TaskInstanceState.SUCCESS,
         ),
         expected_body={
@@ -2187,7 +2188,7 @@ REQUEST_TEST_CASES = [
                 "end_date": timezone.parse("2024-01-14T12:10:00Z"),
                 "state": "success",
                 "try_number": 1,
-                "map_index": -1,
+                "map_index": 0,
                 "duration": 300.0,
             },
             "type": "PreviousTIResult",
@@ -2198,8 +2199,8 @@ REQUEST_TEST_CASES = [
                 "dag_id": "test_dag",
                 "task_id": "test_task",
                 "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "map_index": 0,
                 "state": TaskInstanceState.SUCCESS,
-                "run_id": None,
             },
             response=PreviousTIResult(
                 task_instance=PreviousTIResponse(
@@ -2211,7 +2212,7 @@ REQUEST_TEST_CASES = [
                     end_date=timezone.parse("2024-01-14T12:10:00Z"),
                     state="success",
                     try_number=1,
-                    map_index=-1,
+                    map_index=0,
                     duration=300.0,
                 )
             ),

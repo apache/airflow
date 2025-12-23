@@ -328,7 +328,7 @@ class TaskInstanceOperations:
         dag_id: str,
         task_id: str,
         logical_date: datetime | None = None,
-        run_id: str | None = None,
+        map_index: int = -1,
         state: TaskInstanceState | str | None = None,
     ) -> PreviousTIResult:
         """
@@ -337,14 +337,12 @@ class TaskInstanceOperations:
         :param dag_id: DAG ID
         :param task_id: Task ID
         :param logical_date: If provided, finds TI with logical_date < this value (before filter)
-        :param run_id: If provided, filters by run_id
+        :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
         :param state: If provided, filters by TaskInstance state
         """
-        params = {}
+        params: dict[str, Any] = {"map_index": map_index}
         if logical_date:
             params["logical_date"] = logical_date.isoformat()
-        if run_id:
-            params["run_id"] = run_id
         if state:
             params["state"] = state.value if isinstance(state, TaskInstanceState) else state
 

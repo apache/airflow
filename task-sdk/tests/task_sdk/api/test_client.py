@@ -564,6 +564,7 @@ class TestTaskInstanceOperations:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
                 assert request.url.params == httpx.QueryParams(
                     logical_date=logical_date.isoformat(),
+                    map_index="-1",
                 )
                 # Return complete TI data
                 return httpx.Response(
@@ -602,6 +603,7 @@ class TestTaskInstanceOperations:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
                 assert request.url.params == httpx.QueryParams(
                     logical_date=logical_date.isoformat(),
+                    map_index="-1",
                     state="success",
                 )
                 return httpx.Response(
@@ -628,37 +630,35 @@ class TestTaskInstanceOperations:
 
         assert result.task_instance.state == "success"
 
-    def test_get_previous_with_run_id_filter(self):
-        """Test get_previous functionality with run_id filtering."""
+    def test_get_previous_with_map_index_filter(self):
+        """Test get_previous functionality with map_index filtering."""
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/task-instances/previous/test_dag/test_task":
                 assert request.url.params == httpx.QueryParams(
-                    run_id="specific_run",
+                    map_index="0",
                 )
                 return httpx.Response(
                     status_code=200,
                     json={
                         "task_id": "test_task",
                         "dag_id": "test_dag",
-                        "run_id": "specific_run",
+                        "run_id": "prev_run",
                         "logical_date": "2024-01-14T12:00:00+00:00",
                         "start_date": "2024-01-14T12:05:00+00:00",
                         "end_date": "2024-01-14T12:10:00+00:00",
                         "state": "success",
                         "try_number": 1,
-                        "map_index": -1,
+                        "map_index": 0,
                         "duration": 300.0,
                     },
                 )
             return httpx.Response(status_code=422)
 
         client = make_client(transport=httpx.MockTransport(handle_request))
-        result = client.task_instances.get_previous(
-            dag_id="test_dag", task_id="test_task", run_id="specific_run"
-        )
+        result = client.task_instances.get_previous(dag_id="test_dag", task_id="test_task", map_index=0)
 
-        assert result.task_instance.run_id == "specific_run"
+        assert result.task_instance.map_index == 0
 
     def test_get_previous_not_found(self):
         """Test get_previous when no previous TI exists returns None."""

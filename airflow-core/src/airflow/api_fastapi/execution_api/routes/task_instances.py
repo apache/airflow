@@ -879,7 +879,7 @@ def get_previous_task_instance(
     task_id: str,
     session: SessionDep,
     logical_date: Annotated[UtcDateTime | None, Query()] = None,
-    run_id: Annotated[str | None, Query()] = None,
+    map_index: Annotated[int, Query()] = -1,
     state: Annotated[TaskInstanceState | None, Query()] = None,
 ) -> PreviousTIResponse | None:
     """
@@ -888,23 +888,20 @@ def get_previous_task_instance(
     :param dag_id: DAG ID (from path)
     :param task_id: Task ID (from path)
     :param logical_date: If provided, finds TI with logical_date < this value (before filter)
-    :param run_id: If provided, filters by run_id
+    :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
     :param state: If provided, filters by TaskInstance state
     """
     query = (
         select(TI)
         .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
         .options(joinedload(TI.dag_run))
-        .where(TI.dag_id == dag_id, TI.task_id == task_id)
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
         .order_by(DR.logical_date.desc())
     )
 
     if logical_date:
         # Find TI with logical_date BEFORE the provided date (previous)
         query = query.where(DR.logical_date < logical_date)
-
-    if run_id:
-        query = query.where(TI.run_id == run_id)
 
     if state:
         query = query.where(TI.state == state)

@@ -96,7 +96,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
         self,
         state: TaskInstanceState | None = None,
         logical_date: AwareDatetime | None = None,
-        run_id: str | None = None,
+        map_index: int = -1,
     ) -> PreviousTIResponse | None: ...
 
     @staticmethod

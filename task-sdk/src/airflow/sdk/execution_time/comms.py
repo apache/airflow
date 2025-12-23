@@ -881,7 +881,7 @@ class GetPreviousTI(BaseModel):
     dag_id: str
     task_id: str
     logical_date: AwareDatetime | None = None
-    run_id: str | None = None
+    map_index: int = -1
     state: TaskInstanceState | None = None
     type: Literal["GetPreviousTI"] = "GetPreviousTI"
 

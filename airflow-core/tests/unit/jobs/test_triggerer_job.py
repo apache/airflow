@@ -1203,7 +1203,6 @@ class TestTriggererMessageTypes:
             "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
-            "GetPreviousTI",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
             "GetXComCount",

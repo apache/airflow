@@ -2212,31 +2212,47 @@ class TestGetPreviousTI:
         assert data["run_id"] == "run2"
         assert data["state"] == State.SUCCESS
 
-    def test_get_previous_ti_with_run_id_filter(self, client, session, create_task_instance):
-        """Test get_previous_ti with run_id filter."""
+    def test_get_previous_ti_with_map_index_filter(self, client, session, create_task_instance):
+        """Test get_previous_ti with map_index filter for mapped tasks."""
+        # Create TIs with different map_index values
+        # map_index=0 in run1
         create_task_instance(
             task_id="test_task",
             state=State.SUCCESS,
             logical_date=timezone.datetime(2025, 1, 1),
-            run_id="specific_run",
+            run_id="run1",
+            map_index=0,
         )
+        # map_index=1 in run1_alt (different logical date to avoid constraint)
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            run_id="run1_alt",
+            map_index=1,
+        )
+        # map_index=0 in run2
         create_task_instance(
             task_id="test_task",
             state=State.SUCCESS,
             logical_date=timezone.datetime(2025, 1, 2),
-            run_id="other_run",
+            run_id="run2",
+            map_index=0,
         )
         session.commit()
 
+        # Query for previous TI with map_index=0 before 2025-01-02
         response = client.get(
             "/execution/task-instances/previous/dag/test_task",
             params={
-                "run_id": "specific_run",
+                "logical_date": "2025-01-02T00:00:00Z",
+                "map_index": 0,
             },
         )
         assert response.status_code == 200
         data = response.json()
-        assert data["run_id"] == "specific_run"
+        assert data["run_id"] == "run1"
+        assert data["map_index"] == 0
 
     def test_get_previous_ti_not_found(self, client, session):
         """Test get_previous_ti when no previous TI exists."""
@@ -2272,32 +2288,37 @@ class TestGetPreviousTI:
 
     def test_get_previous_ti_with_all_filters(self, client, session, create_task_instance):
         """Test get_previous_ti with all filters combined."""
+        # Create TIs with different states and map_index values
         create_task_instance(
             task_id="test_task",
             state=State.SUCCESS,
             logical_date=timezone.datetime(2025, 1, 1),
             run_id="target_run_1",
+            map_index=0,
         )
         create_task_instance(
             task_id="test_task",
             state=State.FAILED,
             logical_date=timezone.datetime(2025, 1, 2),
             run_id="target_run_2",
+            map_index=0,
         )
         create_task_instance(
             task_id="test_task",
             state=State.SUCCESS,
             logical_date=timezone.datetime(2025, 1, 3),
             run_id="target_run_3",
+            map_index=1,
         )
         session.commit()
 
-        # Query for previous successful TI before 2025-01-03 with run_id filter
+        # Query for previous successful TI before 2025-01-03 with map_index=0
         response = client.get(
             "/execution/task-instances/previous/dag/test_task",
             params={
                 "logical_date": "2025-01-03T00:00:00Z",
                 "state": State.SUCCESS,
+                "map_index": 0,
             },
         )
         assert response.status_code == 200

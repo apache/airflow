@@ -488,14 +488,14 @@ class RuntimeTaskInstance(TaskInstance):
         self,
         state: TaskInstanceState | None = None,
         logical_date: AwareDatetime | None = None,
-        run_id: str | None = None,
+        map_index: int = -1,
     ) -> PreviousTIResponse | None:
         """
         Return the previous task instance matching the given criteria.
 
         :param state: Filter by TaskInstance state
         :param logical_date: Filter by logical date (returns TI before this date)
-        :param run_id: Filter by run_id
+        :param map_index: Filter by map_index (defaults to -1 for non-mapped tasks)
         :return: Previous task instance or None if not found
         """
         context = self.get_template_context()
@@ -514,7 +514,7 @@ class RuntimeTaskInstance(TaskInstance):
                 dag_id=self.dag_id,
                 task_id=self.task_id,
                 logical_date=effective_logical_date,
-                run_id=run_id,
+                map_index=map_index,
                 state=state,
             )
         )
