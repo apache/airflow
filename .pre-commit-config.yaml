@@ -319,7 +319,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 1e30511413f07e516c1844ba91abce8aca984963  # frozen: v1.18.0
+    rev: ea18690d7f8e44203c9efd7bc6229447d02e3951  # frozen: v1.19.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -356,7 +356,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.9']
+        additional_dependencies: ['ruff==0.14.10']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -424,8 +424,27 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/models/test_serialized_dag.py$|
+            ^airflow-core/tests/unit/models/test_pool.py$|
+            ^airflow-core/tests/unit/models/test_trigger.py$|
+            ^airflow-core/tests/unit/models/test_callback.py$|
+            ^airflow-core/tests/unit/models/test_cleartasks.py$|
+            ^airflow-core/tests/unit/models/test_xcom.py$|
+            ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
+            ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
+            ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_xcoms.py$|
+            ^airflow-core/tests/unit/models/test_deadline.py$|
             ^airflow-core/tests/unit/models/test_renderedtifields.py$|
             ^airflow-core/tests/unit/models/test_timestamp.py$|
             ^airflow-core/tests/unit/utils/test_cli_util.py$|
@@ -436,6 +455,8 @@ repos:
             ^airflow-core/tests/unit/models/test_dagwarning.py$|
             ^airflow-core/tests/integration/otel/test_otel.py$|
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
+            ^airflow-core/tests/unit/utils/test_state.py$|
+            ^airflow-core/tests/unit/utils/test_log_handlers.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|

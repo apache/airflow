@@ -115,8 +115,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -1480,7 +1481,8 @@ class TaskInstance(Base, LoggingMixin):
         """Run TaskInstance (only kept for tests)."""
         # This method is only used in ti.run and dag.test and task.test.
         # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.serialization.definitions.dag import SerializedDAG
+        from airflow.serialization.serialized_objects import DagSerialization
 
         original_task = self.task
         if TYPE_CHECKING:
@@ -1489,7 +1491,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # We don't set up all tests well...
         if not isinstance(original_task.dag, SerializedDAG):
-            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
+            serialized_dag = DagSerialization.from_dict(DagSerialization.to_dict(original_task.dag))
             self.task = serialized_dag.get_task(original_task.task_id)
 
         res = self.check_and_change_state_before_execution(

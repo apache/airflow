@@ -1246,6 +1246,7 @@ export type ProviderResponse = {
     package_name: string;
     description: string;
     version: string;
+    documentation_url: string | null;
 };
 
 /**
@@ -3408,12 +3409,15 @@ export type StructureDataResponse2 = StructureDataResponse;
 
 export type GetDagStructureData = {
     dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     limit?: number;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      */
     orderBy?: Array<(string)>;
+    root?: string | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;

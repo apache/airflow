@@ -85,8 +85,12 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # limited due to changes needed https://github.com/fastapi/fastapi/pull/14434
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, !=0.123.5",
+    # Limited due to backwards incompatible (but deliberate) changes in FastAPI 0.126.0
+    # which break Cadwyn way of copying classes and break serialization. As explained
+    # in https://github.com/fastapi/fastapi/pull/14582#issuecomment-3682792249, Cadwyn
+    # needs to adapt to those changes and we cannot move to newer version of FastAPI
+    # This is tracked in Cadwyn in https://github.com/zmievsa/cadwyn/issues/314
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.121.0, <0.126.0",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
