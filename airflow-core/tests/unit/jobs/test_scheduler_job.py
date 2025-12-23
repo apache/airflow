@@ -4415,7 +4415,10 @@ class TestSchedulerJob:
         ],
     )
     @pytest.mark.parametrize("provide_run_count", [True, False])
-    def test_should_update_dag_next_dagruns(self, provide_run_count: bool, kwargs: dict, session, dag_maker):
+    @patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields")
+    def test_should_update_dag_next_dagruns(
+        self, mock_calculate, provide_run_count: bool, kwargs: dict, session, dag_maker
+    ):
         """Test if really required to update next dagrun or possible to save run time"""
         schedule: str | None = kwargs["schedule"]
         backfill_runs: int = kwargs["backfill_runs"]
@@ -4450,13 +4453,13 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._finished_and_automated(
-            dag=dag,
+        self.job_runner._update_next_dagrun_fields(
+            serdag=dag,
             dag_model=dag_maker.dag_model,
             active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
             session=session,
         )
-        assert actual == should_update
+        assert mock_calculate.called == should_update
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),

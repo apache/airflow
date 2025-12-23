@@ -2252,7 +2252,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         *,
         serdag: SerializedDAG,
         dag_model: DagModel,
-        dag_run: DagRun | None,
+        dag_run: DagRun | None = None,
         session: Session,
         active_non_backfill_runs: int | None = None,
     ):
