@@ -88,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -1418,6 +1419,14 @@ class ActivitySubprocess(WatchedSubprocess):
                 logical_date=msg.logical_date,
                 state=msg.state,
             )
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         elif isinstance(msg, DeleteVariable):
             resp = self.client.variables.delete(msg.key)
         elif isinstance(msg, ValidateInletsAndOutlets):
@@ -1870,10 +1879,10 @@ def process_log_messages_from_subprocess(
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
 
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        if level := NAME_TO_LEVEL.get(event.pop("level")):
+            msg = event.pop("event", None)
+            for target in loggers:
+                target.log(level, msg, **event)
 
 
 def forward_to_log(

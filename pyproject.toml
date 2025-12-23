@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.17",
+    "uv>=0.9.18",
 ]
 
 [project.urls]
@@ -1346,6 +1346,7 @@ apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
+apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
