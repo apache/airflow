@@ -63,7 +63,7 @@ default_args = {
     "start_date": datetime(2024, 1, 1),
     "email_on_failure": False,
     "email_on_retry": False,
-    "retries": 1,
+    "retries": 0,
     "retry_delay": timedelta(minutes=5),
 }
 
@@ -92,8 +92,8 @@ check_table = HBaseTableSensor(
     task_id="check_table_exists_kerberos",
     table_name="test_table_krb",
     hbase_conn_id="hbase_kerberos",
-    timeout=60,
-    poke_interval=10,
+    timeout=20,
+    poke_interval=5,
     dag=dag,
 )
 

@@ -27,6 +27,7 @@ import happybase
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.hbase.auth import AuthenticatorFactory
+from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, SSHStrategy
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -59,6 +60,7 @@ class HBaseHook(BaseHook):
         self.hbase_conn_id = hbase_conn_id
         self._connection = None
         self._connection_mode = None  # 'thrift' or 'ssh'
+        self._strategy = None
 
     def _get_connection_mode(self) -> ConnectionMode:
         """Determine connection mode based on configuration."""
@@ -73,6 +75,25 @@ class HBaseHook(BaseHook):
                 self._connection_mode = ConnectionMode.THRIFT
                 self.log.info("Using Thrift connection mode")
         return self._connection_mode
+
+    def _get_strategy(self) -> HBaseStrategy:
+        """Get appropriate strategy based on connection mode."""
+        if self._strategy is None:
+            if self._get_connection_mode() == ConnectionMode.SSH:
+                ssh_hook = SSHHook(ssh_conn_id=self._get_ssh_conn_id())
+                self._strategy = SSHStrategy(self.hbase_conn_id, ssh_hook, self.log)
+            else:
+                connection = self.get_conn()
+                self._strategy = ThriftStrategy(connection, self.log)
+        return self._strategy
+
+    def _get_ssh_conn_id(self) -> str:
+        """Get SSH connection ID from HBase connection extra."""
+        conn = self.get_connection(self.hbase_conn_id)
+        ssh_conn_id = conn.extra_dejson.get("ssh_conn_id") if conn.extra_dejson else None
+        if not ssh_conn_id:
+            raise ValueError("SSH connection ID must be specified in extra parameters")
+        return ssh_conn_id
 
     def get_conn(self) -> happybase.Connection:
         """Return HBase connection (Thrift mode only)."""
@@ -120,15 +141,7 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table to check.
         :return: True if table exists, False otherwise.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            try:
-                result = self.execute_hbase_command(f"shell <<< \"list\"")
-                return table_name in result
-            except Exception:
-                return False
-        else:
-            connection = self.get_conn()
-            return table_name.encode() in connection.tables()
+        return self._get_strategy().table_exists(table_name)
 
     def create_table(self, table_name: str, families: dict[str, dict]) -> None:
         """
@@ -137,13 +150,7 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table to create.
         :param families: Dictionary of column families and their configuration.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            families_str = ", ".join([f"'{name}'" for name in families.keys()])
-            command = f"create '{table_name}', {families_str}"
-            self.execute_hbase_command(f"shell <<< \"{command}\"")
-        else:
-            connection = self.get_conn()
-            connection.create_table(table_name, families)
+        self._get_strategy().create_table(table_name, families)
         self.log.info("Created table %s", table_name)
 
     def delete_table(self, table_name: str, disable: bool = True) -> None:
@@ -153,15 +160,7 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table to delete.
         :param disable: Whether to disable table before deletion.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            if disable:
-                self.execute_hbase_command(f"shell <<< \"disable '{table_name}'\"")
-            self.execute_hbase_command(f"shell <<< \"drop '{table_name}'\"")
-        else:
-            connection = self.get_conn()
-            if disable:
-                connection.disable_table(table_name)
-            connection.delete_table(table_name)
+        self._get_strategy().delete_table(table_name, disable)
         self.log.info("Deleted table %s", table_name)
 
     def put_row(self, table_name: str, row_key: str, data: dict[str, Any]) -> None:
@@ -172,12 +171,7 @@ class HBaseHook(BaseHook):
         :param row_key: Row key for the data.
         :param data: Dictionary of column:value pairs to insert.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            raise NotImplementedError(
-                "put_row() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
-        else:
-            table = self.get_table(table_name)
-            table.put(row_key, data)
+        self._get_strategy().put_row(table_name, row_key, data)
         self.log.info("Put row %s into table %s", row_key, table_name)
 
     def get_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
