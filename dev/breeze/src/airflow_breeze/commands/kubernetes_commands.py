@@ -28,6 +28,7 @@ from pathlib import Path
 from shlex import quote
 
 import click
+import yaml
 
 from airflow_breeze.commands.common_options import (
     option_answer,
@@ -46,7 +47,11 @@ from airflow_breeze.commands.production_image_commands import run_build_producti
 from airflow_breeze.global_constants import (
     ALLOWED_EXECUTORS,
     ALLOWED_KUBERNETES_VERSIONS,
+    ALLOWED_LOG_LEVELS,
+    AIRFLOW_SOURCES_TO,
     CELERY_EXECUTOR,
+    DEFAULT_ALLOWED_EXECUTOR,
+    DEFAULT_LOG_LEVEL,
     KUBERNETES_EXECUTOR,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -69,6 +74,7 @@ from airflow_breeze.utils.kubernetes_utils import (
     get_kubernetes_port_numbers,
     get_kubernetes_python_combos,
     make_sure_kubernetes_tools_are_installed,
+    make_sure_skaffold_installed,
     print_cluster_urls,
     run_command_with_k8s_env,
     set_random_cluster_ports,
@@ -82,6 +88,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
@@ -128,8 +135,16 @@ option_executor = click.option(
     help="Executor to use for a kubernetes cluster.",
     type=CacheableChoice(ALLOWED_EXECUTORS),
     show_default=True,
-    default=CacheableDefault(ALLOWED_EXECUTORS[0]),
+    default=CacheableDefault(DEFAULT_ALLOWED_EXECUTOR),
     envvar="EXECUTOR",
+)
+option_log_level = click.option(
+    "--log-level",
+    help="Log level for Airflow components when using k8s dev.",
+    type=CacheableChoice(ALLOWED_LOG_LEVELS),
+    show_default=True,
+    default=CacheableDefault(DEFAULT_LOG_LEVEL),
+    envvar="LOG_LEVEL",
 )
 option_force_recreate_cluster = click.option(
     "--force-recreate-cluster",
@@ -164,6 +179,26 @@ option_multi_namespace_mode = click.option(
     help="Use multi namespace mode.",
     is_flag=True,
     envvar="MULTI_NAMESPACE_MODE",
+)
+option_dags_path = click.option(
+    "--dags-path",
+    help="Local dags directory to sync.",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    default="dags",
+    show_default=True,
+)
+option_dags_dest = click.option(
+    "--dags-dest",
+    help="Destination path inside the Airflow container for dags.",
+    default="/opt/airflow/dags",
+    show_default=True,
+)
+option_skaffold_deploy = click.option(
+    "--deploy/--no-deploy",
+    help="Let skaffold deploy/upgrade Airflow via Helm.",
+    default=False,
+    show_default=True,
+    envvar="SKAFFOLD_DEPLOY",
 )
 option_rebuild_base_image = click.option(
     "--rebuild-base-image",
@@ -804,6 +839,100 @@ HELM_AIRFLOW_NAMESPACE = "airflow"
 TEST_NAMESPACE = "test-namespace"
 
 
+def _build_skaffold_config(
+    python: str,
+    kubernetes_version: str,
+    executor: str,
+    use_standard_naming: bool,
+    multi_namespace_mode: bool,
+    dags_relative_path: str,
+    dags_dest: str,
+    log_level: str,
+) -> dict[str, object]:
+    from packaging.version import Version
+
+    params = BuildProdParams(python=python)
+    use_flask_appbuilder = Version(python) < Version("3.13")
+    if use_flask_appbuilder:
+        auth_manager = "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+    else:
+        auth_manager = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+    _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+    set_values: dict[str, object] = {
+        "defaultAirflowRepository": params.airflow_image_kubernetes,
+        "defaultAirflowTag": "latest",
+        "images.airflow.repository": params.airflow_image_kubernetes,
+        "images.airflow.tag": "latest",
+        "config.logging.logging_level": log_level,
+        "executor": executor,
+        "airflowVersion": params.airflow_semver_version,
+        "config.api_auth.jwt_secret": "foo",
+        "config.core.auth_manager": auth_manager,
+        "config.api.base_url": f"http://localhost:{api_server_port}",
+    }
+    if multi_namespace_mode:
+        set_values["multiNamespaceMode"] = True
+    if not use_flask_appbuilder:
+        set_values["webserver.defaultUser.enabled"] = False
+    if use_standard_naming:
+        set_values["useStandardNaming"] = True
+    sync_entries: list[dict[str, str]] = []
+    sync_entry: dict[str, str] = {
+        "src": f"{dags_relative_path}/**",
+        "dest": dags_dest,
+    }
+    if dags_relative_path != ".":
+        sync_entry["strip"] = f"{dags_relative_path}/"
+        dependencies_paths = [f"{dags_relative_path}/**"]
+    else:
+        dependencies_paths = ["**"]
+    sync_entries.append(sync_entry)
+    core_relative_path = "airflow-core/src/airflow"
+    core_dest = f"{AIRFLOW_SOURCES_TO}/airflow-core/src/airflow"
+    sync_entries.append(
+        {
+            "src": f"{core_relative_path}/**",
+            "dest": core_dest,
+            "strip": f"{core_relative_path}/",
+        }
+    )
+    if dependencies_paths != ["**"]:
+        dependencies_paths.append(f"{core_relative_path}/**")
+    return {
+        "apiVersion": "skaffold/v4beta13",
+        "kind": "Config",
+        "metadata": {"name": "airflow-dags-dev"},
+        "build": {
+            "tagPolicy": {"envTemplate": {"template": "latest"}},
+            "artifacts": [
+                {
+                    "image": params.airflow_image_kubernetes,
+                    "context": AIRFLOW_ROOT_PATH.as_posix(),
+                    "custom": {
+                        "buildCommand": "true",
+                        "dependencies": {"paths": dependencies_paths},
+                    },
+                    "sync": {"manual": sync_entries},
+                }
+            ],
+            "local": {"push": False},
+        },
+        "deploy": {
+            "helm": {
+                "releases": [
+                    {
+                        "name": "airflow",
+                        "chartPath": CHART_PATH.as_posix(),
+                        "namespace": HELM_AIRFLOW_NAMESPACE,
+                        "skipBuildDependencies": True,
+                        "setValues": set_values,
+                    }
+                ]
+            }
+        },
+    }
+
+
 def _recreate_namespaces(
     python: str,
     kubernetes_version: str,
@@ -1254,6 +1383,122 @@ def deploy_airflow(
             get_console().print("\nbreeze k8s shell")
             get_console().print("\nbreeze k8s k9s\n")
         sys.exit(return_code)
+
+
+@kubernetes_group.command(
+    name="dev",
+    help=(
+        "Run skaffold dev loop to sync dags and airflow-core sources to running pods "
+        "(scheduler/triggerer/dag-processor hot-reload; API server/webserver UI not by default)."
+    ),
+    context_settings=dict(
+        ignore_unknown_options=True,
+    ),
+)
+@option_python
+@option_kubernetes_version
+@option_executor
+@option_log_level
+@option_use_standard_naming
+@option_multi_namespace_mode
+@option_dags_path
+@option_dags_dest
+@option_skaffold_deploy
+@option_verbose
+@option_dry_run
+@click.argument("skaffold_args", nargs=-1, type=click.UNPROCESSED)
+def dev(
+    python: str,
+    kubernetes_version: str,
+    executor: str,
+    log_level: str,
+    use_standard_naming: bool,
+    multi_namespace_mode: bool,
+    dags_path: Path,
+    dags_dest: str,
+    deploy: bool,
+    skaffold_args: tuple[str, ...],
+):
+    result = sync_virtualenv(force_venv_setup=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+    make_sure_kubernetes_tools_are_installed()
+    make_sure_skaffold_installed()
+    dags_path_abs = dags_path
+    if not dags_path_abs.is_absolute():
+        dags_path_abs = AIRFLOW_ROOT_PATH / dags_path_abs
+    dags_path_abs = dags_path_abs.resolve()
+    if not dags_path_abs.is_dir():
+        get_console().print(
+            f"[error]DAGs path does not exist or is not a directory: {dags_path_abs}"
+        )
+        sys.exit(1)
+    try:
+        dags_relative_path = dags_path_abs.relative_to(AIRFLOW_ROOT_PATH).as_posix()
+    except ValueError:
+        get_console().print(
+            f"[error]DAGs path must be under the Airflow sources: {AIRFLOW_ROOT_PATH}"
+        )
+        sys.exit(1)
+    if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
+        get_console().print(
+            f"\n[warning]Cluster for Python {python} and Kubernetes {kubernetes_version} "
+            "has not been created yet.\n"
+        )
+        get_console().print(
+            "[info]Run: "
+            f"`breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}`\n"
+        )
+        sys.exit(1)
+    skaffold_config = _build_skaffold_config(
+        python=python,
+        kubernetes_version=kubernetes_version,
+        executor=executor,
+        use_standard_naming=use_standard_naming,
+        multi_namespace_mode=multi_namespace_mode,
+        dags_relative_path=dags_relative_path,
+        dags_dest=dags_dest,
+        log_level=log_level,
+    )
+    if not deploy:
+        get_console().print(
+            "[info]Running skaffold without deploying Helm resources. "
+            "If sync cannot find pods, rerun with --deploy."
+        )
+    with tempfile.TemporaryDirectory(prefix="skaffold_") as tmp_dir:
+        dev_env_values = {
+            "scheduler": {"env": [{"name": "DEV_MODE", "value": "true"}]},
+            "triggerer": {"env": [{"name": "DEV_MODE", "value": "true"}]},
+            "dagProcessor": {"env": [{"name": "DEV_MODE", "value": "true"}]},
+        }
+        dev_env_values_path = Path(tmp_dir) / "dev-env-values.yaml"
+        dev_env_values_path.write_text(yaml.safe_dump(dev_env_values, sort_keys=False))
+        skaffold_config["deploy"]["helm"]["releases"][0]["valuesFiles"] = [
+            dev_env_values_path.as_posix()
+        ]
+        skaffold_config_path = Path(tmp_dir) / "skaffold.yaml"
+        skaffold_config_path.write_text(yaml.safe_dump(skaffold_config, sort_keys=False))
+        skaffold_command = [
+            "skaffold",
+            "dev",
+            "-f",
+            skaffold_config_path.as_posix(),
+            "--auto-build=false",
+        ]
+        if not deploy:
+            skaffold_command.append("--auto-deploy=false")
+            skaffold_command.append("--cleanup=false")
+        if skaffold_args:
+            skaffold_command.extend(skaffold_args)
+        result = run_command_with_k8s_env(
+            skaffold_command,
+            python=python,
+            kubernetes_version=kubernetes_version,
+            executor=executor,
+            check=False,
+            cwd=AIRFLOW_ROOT_PATH.as_posix(),
+        )
+        sys.exit(result.returncode)
 
 
 @kubernetes_group.command(

@@ -424,6 +424,7 @@ You can:
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
+* Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
   cluster, uploading the image, deploying airflow, running tests and deleting the cluster
@@ -546,6 +547,25 @@ All parameters of the command are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_deploy-airflow.svg
   :width: 100%
   :alt: Breeze k8s deploy-airflow
+
+Hot-reloading DAGs and core sources
+...................................
+
+After deploying Airflow you can run ``breeze k8s dev`` to sync local ``dags/`` and
+``airflow-core/src/airflow`` changes into running pods without rebuilding images. Scheduler,
+triggerer, and dag-processor run in dev hot-reload mode; the API server and webserver UI are not
+hot-reloaded by default.
+
+.. code-block:: bash
+
+    breeze k8s dev
+
+If skaffold cannot find the pods (for example if the release was deployed outside skaffold), rerun with
+``--deploy`` so it upgrades the Helm release and manages the resources:
+
+.. code-block:: bash
+
+    breeze k8s dev --deploy
 
 Checking status of the K8S cluster
 ..................................
