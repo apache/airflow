@@ -2002,9 +2002,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 dag_run.notify_dagrun_state_changed()
-                duration = dag_run.end_date - dag_run.start_date
-                Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+                duration: timedelta | None = None
+                if dag_run.end_date and dag_run.start_date:
+                    duration = dag_run.end_date - dag_run.start_date
+                    Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
+                    Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
                 span.set_attribute("error", True)
                 if span.is_recording():
                     span.add_event(
