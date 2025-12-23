@@ -44,6 +44,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
@@ -870,6 +871,58 @@ def get_task_instance_count(
 
     count = session.scalar(query)
     return count or 0
+
+
+@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+def get_previous_task_instance(
+    dag_id: str,
+    task_id: str,
+    session: SessionDep,
+    logical_date: Annotated[UtcDateTime | None, Query()] = None,
+    map_index: Annotated[int, Query()] = -1,
+    state: Annotated[TaskInstanceState | None, Query()] = None,
+) -> PreviousTIResponse | None:
+    """
+    Get the previous task instance matching the given criteria.
+
+    :param dag_id: DAG ID (from path)
+    :param task_id: Task ID (from path)
+    :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+    :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+    :param state: If provided, filters by TaskInstance state
+    """
+    query = (
+        select(TI)
+        .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
+        .options(joinedload(TI.dag_run))
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
+        .order_by(DR.logical_date.desc())
+    )
+
+    if logical_date:
+        # Find TI with logical_date BEFORE the provided date (previous)
+        query = query.where(DR.logical_date < logical_date)
+
+    if state:
+        query = query.where(TI.state == state)
+
+    ti = session.scalars(query).first()
+
+    if not ti:
+        return None
+
+    return PreviousTIResponse(
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        logical_date=ti.dag_run.logical_date,
+        start_date=ti.start_date,
+        end_date=ti.end_date,
+        state=ti.state,
+        try_number=ti.try_number,
+        map_index=ti.map_index,
+        duration=ti.duration,
+    )
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
