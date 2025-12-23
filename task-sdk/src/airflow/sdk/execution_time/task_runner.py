@@ -1386,9 +1386,9 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
         next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
         try:
-            kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})
             if TYPE_CHECKING:
-                assert isinstance(kwargs, dict)
+                assert isinstance(next_kwargs_data, dict)
+            kwargs = deserialize(ti._ti_context_from_server.next_kwargs or {})
         except (ImportError, KeyError, AttributeError, TypeError):
             from airflow.serialization.serialized_objects import BaseSerialization
 
