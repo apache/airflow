@@ -2286,7 +2286,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not serdag.timetable.can_be_scheduled:
             return
 
-        interval = get_run_data_interval(serdag.timetable, dag_run)
+        interval = None
+        if dag_run:
+            interval = get_run_data_interval(serdag.timetable, dag_run)
+
         dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_dag_run=interval)
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
