@@ -39,6 +39,7 @@ from tenacity import (
 )
 from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRequeuePayload
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     API_VERSION,
@@ -230,6 +231,10 @@ class TaskInstanceOperations:
     def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
         body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
+
+    def requeue(self, id: uuid.UUID):
+        body = TIRequeuePayload()
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):

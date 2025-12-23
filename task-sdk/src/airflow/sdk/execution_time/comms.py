@@ -731,6 +731,14 @@ class RescheduleTask(TIRescheduleStatePayload):
     type: Literal["RescheduleTask"] = "RescheduleTask"
 
 
+class RequeueTask(BaseModel):
+    reason: str | None = None
+    delay_secs: float | None = None
+    max_attempts: int | None = None
+
+    type: Literal["RequeueTask"] = "RequeueTask"
+
+
 class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
     """Update state of downstream tasks within a task instance to 'skipped', while updating current task to success state."""
 
@@ -995,6 +1003,7 @@ ToSupervisor = Annotated[
     | GetXComSequenceSlice
     | PutVariable
     | RescheduleTask
+    | RequeueTask
     | RetryTask
     | SetRenderedFields
     | SetRenderedMapIndex
