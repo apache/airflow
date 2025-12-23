@@ -1394,6 +1394,8 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
 
             kwargs = BaseSerialization.deserialize(next_kwargs_data)
 
+        if TYPE_CHECKING:
+            assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
     ctx = contextvars.copy_context()
