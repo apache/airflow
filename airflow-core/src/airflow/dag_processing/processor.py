@@ -68,9 +68,9 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.utils.dag_stability_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.static_checker import check_dag_file_static
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -207,14 +207,14 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    static_check_result = check_dag_file_static(os.fspath(msg.file))
+    stability_check_result = check_dag_file_stability(os.fspath(msg.file))
 
-    if static_check_error_dict := static_check_result.get_error_format_dict(msg.file, msg.bundle_path):
-        # If static check level is error, we shouldn't parse the Dags and return the result early
+    if stability_check_error_dict := stability_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+        # If Dag stability check level is error, we shouldn't parse the Dags and return the result early
         return DagFileParsingResult(
             fileloc=msg.file,
             serialized_dags=[],
-            import_errors=static_check_error_dict,
+            import_errors=stability_check_error_dict,
         )
 
     bag = BundleDagBag(
@@ -235,7 +235,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=static_check_result.get_warning_dag_format_dict(bag.dag_ids),
+        warnings=stability_check_result.get_warning_dag_format_dict(bag.dag_ids),
     )
     return result
 

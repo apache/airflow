@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import ast
 
-from airflow.utils.static_checker import (
+from airflow.utils.dag_stability_checker import (
     AirflowRuntimeVaryingValueChecker,
     DagTaskDetector,
     RuntimeVaryingValueAnalyzer,

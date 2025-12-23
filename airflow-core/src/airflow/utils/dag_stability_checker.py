@@ -22,9 +22,9 @@ from enum import Enum
 from pathlib import Path
 
 
-class StaticCheckerResult:
+class DagStabilityCheckerResult:
     """
-    Represents the result of static analysis on a DAG file.
+    Represents the result of stability analysis on a DAG file.
 
     Stores detected warnings and formats them appropriately based on the configured check level
     (warning or error).
@@ -353,7 +353,9 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     """
 
     def __init__(self, check_level="warn"):
-        self.static_check_result: StaticCheckerResult = StaticCheckerResult(check_level=check_level)
+        self.static_check_result: DagStabilityCheckerResult = DagStabilityCheckerResult(
+            check_level=check_level
+        )
         self.imports: dict[str, str] = {}
         self.from_imports: dict[str, tuple[str, str]] = {}
         self.varying_vars: dict[str, tuple[int, str]] = {}
@@ -490,17 +492,17 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         return f"Don't use runtime-varying value as argument in {context.value}"
 
 
-def check_dag_file_static(file_path) -> StaticCheckerResult:
+def check_dag_file_stability(file_path) -> DagStabilityCheckerResult:
     from airflow.configuration import conf
 
-    check_level = conf.get("dag_processor", "static_check_level").lower()
+    check_level = conf.get("dag_processor", "dag_stability_check_level").lower()
     if check_level == "off" or check_level not in ("warning", "error"):
-        return StaticCheckerResult(check_level=check_level)
+        return DagStabilityCheckerResult(check_level=check_level)
 
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
     except Exception:
-        return StaticCheckerResult(check_level=check_level)
+        return DagStabilityCheckerResult(check_level=check_level)
 
     checker = AirflowRuntimeVaryingValueChecker(check_level)
     checker.visit(parsed)
