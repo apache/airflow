@@ -21,8 +21,14 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { useSearchParams } from "react-router-dom";
 
-import type { BackfillPostBody, DAGResponse, DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
+import type {
+  DAGResponse,
+  DAGWithLatestDagRunsResponse,
+  BackfillPostBody,
+  ReprocessBehavior,
+} from "openapi/requests/types.gen";
 import { RadioCardItem, RadioCardLabel, RadioCardRoot } from "src/components/ui/RadioCard";
 import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
@@ -30,11 +36,12 @@ import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
 import { useTogglePause } from "src/queries/useTogglePause";
+import { getTriggerConf } from "src/utils/trigger";
+import type { DagRunTriggerParams } from "src/utils/trigger";
 
 import ConfigForm from "../ConfigForm";
 import { DateTimeInput } from "../DateTimeInput";
 import { ErrorAlert } from "../ErrorAlert";
-import type { DagRunTriggerParams } from "../TriggerDag/TriggerDAGForm";
 import { Checkbox } from "../ui/Checkbox";
 import { getInlineMessage } from "./inlineMessage";
 
@@ -52,16 +59,19 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dag.dag_id, true);
   const { conf } = useParamStore();
-  const { control, handleSubmit, reset, watch } = useForm<BackfillFormProps>({
+  const [searchParams] = useSearchParams();
+  const reservedKeys = ["from_date", "to_date", "max_active_runs", "reprocess_behavior", "run_backwards"];
+  const urlConf = getTriggerConf(searchParams, reservedKeys);
+  const { control, handleSubmit, reset } = useForm<BackfillFormProps>({
     defaultValues: {
-      conf,
+      conf: urlConf === "{}" ? conf || "{}" : urlConf,
       dag_id: dag.dag_id,
-      from_date: "",
-      max_active_runs: 1,
-      reprocess_behavior: "none",
-      run_backwards: false,
+      from_date: searchParams.get("from_date") ?? "",
+      max_active_runs: parseInt(searchParams.get("max_active_runs") ?? "1", 10) || 1,
+      reprocess_behavior: (searchParams.get("reprocess_behavior") ?? "none") as ReprocessBehavior,
+      run_backwards: searchParams.get("run_backwards") === "true",
       run_on_latest_version: true,
-      to_date: "",
+      to_date: searchParams.get("to_date") ?? "",
     },
     mode: "onBlur",
   });
@@ -91,16 +101,13 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     if (Boolean(dateValidationError)) {
       setErrors((prev) => ({ ...prev, date: dateValidationError }));
     }
-  }, [dateValidationError]);
-  useEffect(() => {
-    if (conf) {
-      reset((prevValues) => ({ ...prevValues, conf }));
+    if (Boolean(conf) && urlConf === "{}") {
+      reset((prev) => ({ ...prev, conf }));
     }
-  }, [conf, reset]);
-  const dataIntervalStart = watch("from_date");
-  const dataIntervalEnd = watch("to_date");
-  const noDataInterval = !Boolean(dataIntervalStart) || !Boolean(dataIntervalEnd);
-  const dataIntervalInvalid = dayjs(dataIntervalStart).isAfter(dayjs(dataIntervalEnd));
+  }, [dateValidationError, conf, reset, urlConf]);
+
+  const noDataInterval = !Boolean(values.from_date) || !Boolean(values.to_date);
+  const dataIntervalInvalid = dayjs(values.from_date).isAfter(dayjs(values.to_date));
 
   const onSubmit = (fdata: BackfillFormProps) => {
     if (unpause && dag.is_paused) {
@@ -239,6 +246,10 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
           control={control}
           errors={errors}
           initialParamsDict={initialParamsDict}
+          openAdvanced={
+            urlConf !== "{}" ||
+            ["max_active_runs", "reprocess_behavior", "run_backwards"].some((key) => searchParams.has(key))
+          }
           setErrors={setErrors}
           setFormError={setFormError}
         />
