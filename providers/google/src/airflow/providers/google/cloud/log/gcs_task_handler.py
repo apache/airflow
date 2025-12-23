@@ -43,6 +43,8 @@ from airflow.utils.log.file_task_handler import FileTaskHandler, RawLogStream
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from io import IOBase
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
     from airflow.utils.log.file_task_handler import LogResponse, RawLogStream, StreamingLogResponse
@@ -151,8 +153,10 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
     def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
-        logs = []
+        if log_streams is None:
+            return messages, None
 
+        logs: list[str] = []
         try:
             # for each log_stream, exhaust the generator into a string
             for log_stream in log_streams:
@@ -184,20 +188,20 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         try:
             for key in sorted(uris):
                 blob = storage.Blob.from_string(key, self.client)
-                log_streams.append(self._get_log_stream(blob))
+                stream = blob.open("r")
+                log_streams.append(self._get_log_stream(stream))
         except Exception as e:
             if not AIRFLOW_V_3_0_PLUS:
                 messages.append(f"Unable to read remote log {e}")
         return messages, log_streams
 
-    def _get_log_stream(self, blob: storage.Blob) -> RawLogStream:
+    def _get_log_stream(self, stream: IOBase) -> RawLogStream:
         """
-        Yield lines from the given GCS blob.
+        Yield lines from the given stream.
 
-        :param blob: The GCS blob to read from.
+        :param stream: The opened stream to read from.
         :yield: Lines of the log file.
         """
-        stream = blob.open("r")
         try:
             yield from stream
         finally:
