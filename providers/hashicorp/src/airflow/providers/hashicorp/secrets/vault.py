@@ -207,7 +207,6 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             return Connection(conn_id, uri=uri)
 
         return Connection(conn_id, **response)
-             
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
