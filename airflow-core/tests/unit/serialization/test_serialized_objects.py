@@ -81,8 +81,8 @@ from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
+    DagSerialization,
     LazyDeserializedDAG,
-    SerializedDAG,
     _has_kubernetes,
     create_scheduler_operator,
 )
@@ -584,7 +584,7 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker, concurrency_param
     with dag_maker() as dag:
         BashOperator(task_id="task1", bash_command="echo 1", **{concurrency_parameter: 1})
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
@@ -611,7 +611,7 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
 
         map_me_but_slowly.expand(a=my_task())
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits

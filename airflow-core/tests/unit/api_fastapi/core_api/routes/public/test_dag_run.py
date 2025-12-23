@@ -1725,7 +1725,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"
