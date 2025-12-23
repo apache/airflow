@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-22T15:54:04.726822
+# This constraints file was automatically generated on 2025-12-23T09:54:45.403588
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -302,7 +302,7 @@ eventlet==0.40.4
 exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
-fastapi-cli==0.0.16
+fastapi-cli==0.0.20
 fastapi==0.125.0
 fastavro==1.12.1
 fasteners==0.20
@@ -378,7 +378,7 @@ google-genai==1.56.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
-greenback==1.2.1
+greenback==1.3.0
 greenlet==3.3.0
 gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
@@ -479,7 +479,7 @@ mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
 mysqlclient==2.2.7
 natsort==8.4.0
-nbclient==0.10.3
+nbclient==0.10.4
 nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==6.0.3
@@ -568,7 +568,7 @@ pymongo==4.15.5
 pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.3.0
+pyparsing==3.3.1
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.1.0
