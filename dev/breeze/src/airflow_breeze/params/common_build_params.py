@@ -103,17 +103,9 @@ class CommonBuildParams:
 
     @property
     def common_docker_build_flags(self) -> list[str]:
-        from airflow_breeze.utils.docker_command_utils import check_container_engine_is_docker
-
         extra_flags = []
         extra_flags.append(f"--progress={self.build_progress}")
-        # Check if we're using Docker or Podman
-        is_docker_engine = check_container_engine_is_docker(quiet=True)
-
-        if not is_docker_engine:
-            # For Podman, always disable cache to avoid compatibility issues
-            extra_flags.append("--no-cache")
-        elif self.docker_cache == "registry":
+        if self.docker_cache == "registry":
             extra_flags.append(f"--cache-from={self.get_cache(self.platform)}")
         elif self.docker_cache == "disabled":
             extra_flags.append("--no-cache")

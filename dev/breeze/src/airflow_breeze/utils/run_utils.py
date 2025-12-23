@@ -404,6 +404,13 @@ def check_if_buildx_plugin_installed() -> bool:
         text=True,
         check=False,
     )
+    if "buildah" in docker_buildx_version_result.stdout.lower():
+        get_console().print(
+            "[warning]Detected buildah installation.[/]\n"
+            "[warning]The Dockerfiles are only compatible with BuildKit.[/]\n"
+            "[warning]Please see the syntax declaration at the top of the Dockerfiles for BuildKit version\n"
+        )
+        return False
     if docker_buildx_version_result.returncode == 0:
         return True
     return False

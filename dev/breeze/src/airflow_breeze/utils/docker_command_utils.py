@@ -253,14 +253,12 @@ def check_container_engine_is_docker(quiet: bool = False) -> bool:
         "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
     )
     if podman_engine_enabled:
-        if not quiet:
-            get_console().print(
-                "[warning]Podman container engine detected. Using Podman compatibility mode.[/]\n"
-                "[warning]Some features may be limited or disabled.[/]"
-            )
+        get_console().print(
+            "[warning]Podman container engine detected.[/]\n"
+            "[warning]Podman container engine has not become fully supported in breeze yet.[/]"
+        )
         return False
-    if not quiet:
-        get_console().print("[success]Docker container engine detected.[/]")
+    get_console().print("[success]Docker container engine detected.[/]")
     return True
 
 
@@ -408,26 +406,25 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
     :return: command to use as docker build command
     """
     build_command_param = []
-    if check_container_engine_is_docker():
-        is_buildx_available = check_if_buildx_plugin_installed()
-        if is_buildx_available:
+    is_buildx_available = check_if_buildx_plugin_installed()
+    if is_buildx_available:
+        build_command_param.extend(
+            [
+                "buildx",
+                "build",
+                "--push" if image_params.push else "--load",
+            ]
+        )
+        if not image_params.docker_host:
+            builder = get_and_use_docker_context(image_params.builder)
             build_command_param.extend(
                 [
-                    "buildx",
-                    "build",
-                    "--push" if image_params.push else "--load",
+                    "--builder",
+                    builder,
                 ]
             )
-            if not image_params.docker_host:
-                builder = get_and_use_docker_context(image_params.builder)
-                build_command_param.extend(
-                    [
-                        "--builder",
-                        builder,
-                    ]
-                )
-                if builder != "default":
-                    build_command_param.append("--load")
+            if builder != "default":
+                build_command_param.append("--load")
     else:
         build_command_param.append("build")
     return build_command_param
@@ -543,10 +540,15 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    if check_container_engine_is_docker(quiet):
+    container_engine_is_docker = check_container_engine_is_docker(quiet)
+    if not container_engine_is_docker:
+        get_console().print("[error]Unsupported container engine detected.[/]")
+        get_console().print("[error]Install and enable Docker to continue.[/]")
+        sys.exit(1)
+    else:
         check_docker_version(quiet)
         check_docker_compose_version(quiet)
-    check_executable_entrypoint_permissions(quiet)
+        check_executable_entrypoint_permissions(quiet)
     if not quiet:
         get_console().print(f"[success]Host python version is {sys.version}[/]")
 
