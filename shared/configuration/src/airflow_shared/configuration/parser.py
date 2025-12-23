@@ -248,7 +248,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
-        self.upgraded_values = {}
+        self.upgraded_values: dict[tuple[str, str], str] = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):
