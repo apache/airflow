@@ -1979,6 +1979,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
+                dag_run = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
+                )
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc,
                     dag_id=dag.dag_id,
@@ -1994,9 +2002,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 dag_run.notify_dagrun_state_changed()
-                duration = dag_run.end_date - dag_run.start_date
-                Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+                duration: timedelta | None = None
+                if dag_run.end_date and dag_run.start_date:
+                    duration = dag_run.end_date - dag_run.start_date
+                    Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
+                    Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
                 span.set_attribute("error", True)
                 if span.is_recording():
                     span.add_event(
