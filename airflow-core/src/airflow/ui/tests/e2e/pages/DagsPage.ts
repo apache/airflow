@@ -36,6 +36,9 @@ export class DagsPage extends BasePage {
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
+  // Runs tab elements
+  public readonly runsTab: Locator;
+  public readonly runsTable: Locator;
 
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
@@ -48,6 +51,8 @@ export class DagsPage extends BasePage {
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+    this.runsTab = page.locator('a[href$="/runs"]');
+    this.runsTable = page.locator('[data-testid="dag-runs-table"]');
   }
 
   // URL builders for dynamic paths
@@ -116,6 +121,115 @@ export class DagsPage extends BasePage {
   /**
    * Navigate to details tab and verify Dag details are displayed correctly
    */
+  /**
+   * Navigate to the Runs tab for a specific DAG
+   */
+  public async navigateToRunsTab(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+    await this.runsTab.waitFor({ state: "visible" });
+    await this.runsTab.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Verify the Runs tab is displayed correctly
+   */
+  public async verifyRunsTabDisplayed(): Promise<void> {
+    // Verify the runs table is present
+    await expect(this.runsTable).toBeVisible();
+
+    // Verify pagination controls are visible
+    await expect(this.paginationNextButton).toBeVisible();
+    await expect(this.paginationPrevButton).toBeVisible();
+  }
+
+  /**
+   * Get run details from the runs table
+   */
+  public async getRunDetails(): Promise<
+    Array<{
+      runId: string;
+      state: string;
+    }>
+  > {
+    const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
+    await runRows.first().waitFor({ state: "visible", timeout: 10_000 });
+
+    const runCount = await runRows.count();
+    const runs: Array<{ runId: string; state: string }> = [];
+
+    for (let i = 0; i < runCount; i++) {
+      const row = runRows.nth(i);
+      const cells = row.locator("td");
+
+      // Assuming first column is run ID and state column exists
+      const runId = (await cells.nth(0).textContent()) ?? "";
+      const state = (await cells.nth(1).textContent()) ?? "";
+
+      runs.push({ runId: runId.trim(), state: state.trim() });
+    }
+
+    return runs;
+  }
+
+  /**
+   * Click on a specific run to view details
+   */
+  public async clickRun(runId: string): Promise<void> {
+    const runLink = this.page.locator(`a:has-text("${runId}")`).first();
+
+    await runLink.waitFor({ state: "visible" });
+    await runLink.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Filter runs by state
+   */
+  public async filterByState(state: string): Promise<void> {
+    // Click on the state filter
+    const stateFilter = this.page.locator('button:has-text("State")');
+
+    await stateFilter.waitFor({ state: "visible" });
+    await stateFilter.click();
+
+    // Select the specific state
+    const stateOption = this.page.locator(`[role="option"]:has-text("${state}")`);
+
+    await stateOption.waitFor({ state: "visible" });
+    await stateOption.click();
+
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Search for dag runs by run ID pattern
+   */
+  public async searchRun(searchTerm: string): Promise<void> {
+    // Find the run ID pattern input field
+    const searchInput = this.page.locator('input[placeholder*="Run ID"]').or(
+      this.page.locator('input[name="runIdPattern"]'),
+    );
+
+    await searchInput.waitFor({ state: "visible" });
+    await searchInput.fill(searchTerm);
+
+    // Wait for the search to take effect
+    await this.page.waitForTimeout(1000);
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Verify we're on the run details page
+   */
+  public async verifyRunDetailsPage(runId: string): Promise<void> {
+    // Wait for the page to load
+    await this.waitForPageLoad();
+
+    // Verify URL contains the run ID
+    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId}`));
+  }
+
   public async verifyDagDetails(dagName: string): Promise<void> {
     await this.navigateToDagDetail(dagName);
 

@@ -84,3 +84,87 @@ test.describe("Dag Details Tab", () => {
     await dagsPage.verifyDagDetails(testDagId);
   });
 });
+
+/*
+ * DAG Runs Tab E2E Tests
+ */
+test.describe("DAG Runs Tab", () => {
+  let dagsPage: DagsPage;
+
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    dagsPage = new DagsPage(page);
+  });
+
+  test("should navigate to Runs tab and display correctly", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    // Verify runs table is displayed
+    await dagsPage.verifyRunsTabDisplayed();
+
+    // Verify we can see run details
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+  });
+
+  test("should verify run details are displayed correctly", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    // Verify first run has required fields
+    const firstRun = runs[0];
+
+    expect(firstRun.runId).toBeTruthy();
+    expect(firstRun.state).toBeTruthy();
+  });
+
+  test("should click run and navigate to details page", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    const firstRun = runs[0];
+
+    await dagsPage.clickRun(firstRun.runId);
+
+    // Verify we're on the run details page
+    await dagsPage.verifyRunDetailsPage(firstRun.runId);
+  });
+
+  test("should verify pagination works on the Runs tab", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    await expect(dagsPage.paginationNextButton).toBeVisible();
+    await expect(dagsPage.paginationPrevButton).toBeVisible();
+
+    const initialRuns = await dagsPage.getRunDetails();
+
+    expect(initialRuns.length).toBeGreaterThan(0);
+
+    // Check if next button is enabled (has more than one page)
+    const isNextEnabled = await dagsPage.paginationNextButton.isEnabled();
+
+    if (isNextEnabled) {
+      await dagsPage.clickNextPage();
+
+      const runsAfterNext = await dagsPage.getRunDetails();
+
+      expect(runsAfterNext.length).toBeGreaterThan(0);
+      // Verify we got different runs
+      expect(runsAfterNext[0].runId).not.toEqual(initialRuns[0].runId);
+
+      await dagsPage.clickPrevPage();
+
+      const runsAfterPrev = await dagsPage.getRunDetails();
+
+      expect(runsAfterPrev[0].runId).toEqual(initialRuns[0].runId);
+    }
+  });
+});
