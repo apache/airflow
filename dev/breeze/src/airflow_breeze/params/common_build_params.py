@@ -109,7 +109,6 @@ class CommonBuildParams:
             extra_flags.append(f"--cache-from={self.get_cache(self.platform)}")
         elif self.docker_cache == "disabled":
             extra_flags.append("--no-cache")
-
         return extra_flags
 
     @property
