@@ -80,8 +80,9 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
 from airflow.serialization.definitions.assets import SerializedAsset
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.serialized_objects import OperatorSerialization, SerializedDAG
+from airflow.serialization.serialized_objects import OperatorSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES

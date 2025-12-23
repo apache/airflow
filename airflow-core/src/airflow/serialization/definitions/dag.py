@@ -245,7 +245,7 @@ class SerializedDAG:
         exclude_original: bool = False,
     ):
         from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
         def is_task(obj) -> TypeIs[SerializedOperator]:
             return isinstance(obj, (SerializedMappedOperator, SerializedBaseOperator))

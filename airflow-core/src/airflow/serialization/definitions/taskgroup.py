@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from typing import Any, ClassVar
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.serialization.serialized_objects import SerializedDAG, SerializedOperator
+    from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
 
 
 @attrs.define(eq=False, hash=False, kw_only=True)
@@ -186,7 +186,7 @@ class SerializedTaskGroup(DAGNode):
     def iter_tasks(self) -> Iterator[SerializedOperator]:
         """Return an iterator of the child tasks."""
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
         groups_to_visit = [self]
         while groups_to_visit:

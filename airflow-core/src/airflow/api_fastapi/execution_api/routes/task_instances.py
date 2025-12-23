@@ -70,7 +70,7 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState

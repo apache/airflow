@@ -25,7 +25,7 @@ from operator import methodcaller
 
 from airflow.configuration import conf
 from airflow.models.mappedoperator import MappedOperator, is_mapped
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 @cache

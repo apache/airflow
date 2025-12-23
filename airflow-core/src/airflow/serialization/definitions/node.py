@@ -27,8 +27,9 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG  # noqa: F401
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup  # noqa: F401
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG  # noqa: F401
 
     Operator: TypeAlias = SerializedBaseOperator | MappedOperator
 

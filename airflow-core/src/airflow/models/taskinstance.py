@@ -115,9 +115,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
