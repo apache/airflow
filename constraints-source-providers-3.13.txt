@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-23T09:51:33.561490
+# This constraints file was automatically generated on 2025-12-23T15:48:14.232903
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -178,7 +178,7 @@ duckdb==1.4.3
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
-elasticsearch==8.19.2
+elasticsearch==8.19.3
 email-validator==2.3.0
 entrypoints==0.4
 eralchemy==1.6.0
@@ -365,7 +365,7 @@ microsoft-kiota-authentication-azure==1.9.7
 microsoft-kiota-http==1.9.7
 microsoft-kiota-serialization-json==1.9.7
 microsoft-kiota-serialization-text==1.9.7
-mistune==3.1.4
+mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
 moto==5.1.18
