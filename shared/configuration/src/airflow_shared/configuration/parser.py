@@ -282,12 +282,6 @@ class AirflowConfigParser(ConfigParser):
         sensitive.update(depr_section, depr_option)
         return sensitive
 
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
-
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
         Update the defaults in _default_values based on values in config_string ("ini" format).
