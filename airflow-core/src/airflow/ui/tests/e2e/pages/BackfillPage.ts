@@ -59,7 +59,7 @@ export class BackfillPage extends BasePage {
 
     await this.page.waitForTimeout(1000);
 
-    const backfillRadio = this.page.locator('input[value="backfill"]');
+    const backfillRadio = this.page.locator('label:has-text("Backfill")');
 
     await backfillRadio.waitFor({ state: "visible", timeout: 10_000 });
     await backfillRadio.click();
