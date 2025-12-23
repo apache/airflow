@@ -45,22 +45,24 @@ def upgrade():
     # Note: we could repopulate the run_id of old runs via a join with DagRun on date + dag_id,
     # But this would incur a potentially heavy migration for non-essential changes.
     # Instead, we've chosen to only populate this column from 2.9.0 onwards.
+    # Ensure no NULL values exist before applying NOT NULL constraint
+    op.execute("UPDATE log SET event = '' WHERE event IS NULL")
+
     with op.batch_alter_table("log") as batch_op:
         batch_op.add_column(sa.Column("run_id", StringID(), nullable=True))
-        batch_op.alter_column("event", type_=sa.String(60))
+        batch_op.alter_column("event", type_=sa.String(60), nullable=False)
 
 
 def downgrade():
     """Unapply Add run_id to Log and increase Log event name length."""
-    with op.batch_alter_table("log") as batch_op:
-        batch_op.drop_column("run_id")
-
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         with op.batch_alter_table("log") as batch_op:
+            batch_op.drop_column("run_id")
             batch_op.drop_index("idx_log_event")
-            batch_op.alter_column("event", type_=sa.String(30))
+            batch_op.alter_column("event", type_=sa.String(30), nullable=True)
             batch_op.create_index("idx_log_event", ["event"])
     else:
         with op.batch_alter_table("log") as batch_op:
-            batch_op.alter_column("event", type_=sa.String(30))
+            batch_op.drop_column("run_id")
+            batch_op.alter_column("event", type_=sa.String(30), nullable=True)
