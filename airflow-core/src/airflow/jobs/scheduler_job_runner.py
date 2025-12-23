@@ -2119,15 +2119,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
-            if dag_model is None:
+            if not dag_model:
                 self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
                 return callback
 
             if not dag:
                 self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
-                return callback
-            if not dag_model:
-                self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
                 return callback
 
             if (
