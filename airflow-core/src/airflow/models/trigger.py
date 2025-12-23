@@ -426,10 +426,17 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     from airflow.sdk.serde import serialize
     from airflow.utils.state import TaskInstanceState
 
+    # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
     next_kwargs = task_instance.next_kwargs or {}
+
+    # Update the next kwargs of the task instance
     next_kwargs["event"] = serialize(event.payload)
     task_instance.next_kwargs = next_kwargs
+
+    # Remove ourselves as its trigger
     task_instance.trigger_id = None
+
+    # Set the state of the task instance to scheduled
     task_instance.state = TaskInstanceState.SCHEDULED
     task_instance.scheduled_dttm = timezone.utcnow()
     session.flush()
