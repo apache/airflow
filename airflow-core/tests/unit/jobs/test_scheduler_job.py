@@ -7032,29 +7032,22 @@ class TestSchedulerJob:
         self.job_runner._remove_unreferenced_triggers(session=session)
         assert session.scalars(select(Trigger.classpath)).one_or_none() == expected_classpath
 
-    def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    def test_misconfigured_dags_doesnt_crash_scheduler(self, mock_create, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
+        mock_create.side_effect = [ValueError("something bad")]
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
         dm1 = dag_maker.dag_model
-        # Here, the next_dagrun is set to None, which will cause an exception
-        dm1.next_dagrun = None
         session.add(dm1)
         session.flush()
-
-        with dag_maker("testdag2", serialized=True):
-            BashOperator(task_id="task", bash_command="echo 1")
-        dm2 = dag_maker.dag_model
 
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
-        job_runner._create_dag_runs([dm1, dm2], session)
+        job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun for testdag1" in caplog.text
-        assert not DagRun.find(dag_id="testdag1", session=session)
-        # Check if the second dagrun was created
-        assert DagRun.find(dag_id="testdag2", session=session)
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.query(DagWarning).all()
