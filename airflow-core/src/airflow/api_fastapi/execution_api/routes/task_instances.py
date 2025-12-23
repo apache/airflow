@@ -78,8 +78,6 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
-    from airflow.models.expandinput import SchedulerExpandInput
-
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
@@ -315,7 +313,7 @@ def _get_upstream_map_indexes(
             except NotFullyPopulated:
                 # Second try: resolve XCom for correct count
                 try:
-                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
+                    expand_input = upstream_mapped_group._expand_input
                     mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
                 except NotFullyPopulated:
                     # For these trigger rules, unresolved map indexes are acceptable.

@@ -284,9 +284,7 @@ class SerializedDAG:
         direct_upstreams: list[SerializedOperator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                # TODO (GH-52141): This should return scheduler types, but currently we reuse SDK DAGNode.
-                upstream = (u for u in cast("Iterable[SerializedOperator]", t.upstream_list) if is_task(u))
-                direct_upstreams.extend(upstream)
+                direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later

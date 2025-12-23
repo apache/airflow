@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -45,8 +45,7 @@ class SerializedTaskGroup(DAGNode):
     group_display_name: str | None = attrs.field()
     prefix_group_id: bool = attrs.field()
     parent_group: SerializedTaskGroup | None = attrs.field()
-    # TODO (GH-52141): Replace DAGNode dependency.
-    dag: SerializedDAG = attrs.field()  # type: ignore[assignment]
+    dag: SerializedDAG = attrs.field()
     tooltip: str = attrs.field()
     default_args: dict[str, Any] = attrs.field(factory=dict)
 

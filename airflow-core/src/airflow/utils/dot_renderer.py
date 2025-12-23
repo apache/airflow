@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     import graphviz
 
     from airflow.models import TaskInstance
-    from airflow.models.taskmixin import DependencyMixin
     from airflow.serialization.dag_dependency import DagDependency
 else:
     try:
@@ -136,7 +135,7 @@ def _draw_task_group(
 
 
 def _draw_nodes(
-    node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
+    node: object, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str | None] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
     if isinstance(node, (BaseOperator, MappedOperator, SerializedBaseOperator, SerializedMappedOperator)):
