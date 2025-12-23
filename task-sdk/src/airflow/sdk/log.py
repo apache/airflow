@@ -39,8 +39,6 @@ if TYPE_CHECKING:
 
 from airflow.sdk._shared.secrets_masker import redact
 
-__all__ = ["configure_logging", "reset_logging", "mask_secret", "redact"]
-
 
 class _WarningsInterceptor:
     """A class to hold the reference to the original warnings.showwarning function."""
@@ -66,8 +64,6 @@ class _WarningsInterceptor:
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    from airflow.sdk._shared.secrets_masker import redact
-
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict
 
