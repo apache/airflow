@@ -57,7 +57,9 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-from airflow.providers.common.compat.sdk import Connection, redact
+    from airflow.providers.common.compat.sdk import Connection
+
+from airflow.providers.common.compat.sdk import redact
 
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
 
