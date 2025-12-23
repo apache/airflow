@@ -20,20 +20,28 @@
 from __future__ import annotations
 
 import subprocess
+from enum import Enum
 from typing import Any
 
 import happybase
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.hbase.auth import AuthenticatorFactory
+from airflow.providers.ssh.hooks.ssh import SSHHook
+
+
+class ConnectionMode(Enum):
+    """HBase connection modes."""
+    THRIFT = "thrift"
+    SSH = "ssh"
 
 
 class HBaseHook(BaseHook):
     """
     Wrapper for connection to interact with HBase.
-    
+
     This hook provides basic functionality to connect to HBase
-    and perform operations on tables.
+    and perform operations on tables via Thrift or SSH.
     """
 
     conn_name_attr = "hbase_conn_id"
@@ -50,112 +58,155 @@ class HBaseHook(BaseHook):
         super().__init__()
         self.hbase_conn_id = hbase_conn_id
         self._connection = None
+        self._connection_mode = None  # 'thrift' or 'ssh'
+
+    def _get_connection_mode(self) -> ConnectionMode:
+        """Determine connection mode based on configuration."""
+        if self._connection_mode is None:
+            conn = self.get_connection(self.hbase_conn_id)
+            self.log.info("Connection extra: %s", conn.extra_dejson)
+            # Check if SSH connection is configured
+            if conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.SSH.value:
+                self._connection_mode = ConnectionMode.SSH
+                self.log.info("Using SSH connection mode")
+            else:
+                self._connection_mode = ConnectionMode.THRIFT
+                self.log.info("Using Thrift connection mode")
+        return self._connection_mode
 
     def get_conn(self) -> happybase.Connection:
-        """Return HBase connection."""
+        """Return HBase connection (Thrift mode only)."""
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            raise RuntimeError(
+                "get_conn() is not available in SSH mode. Use execute_hbase_command() instead.")
+
         if self._connection is None:
             conn = self.get_connection(self.hbase_conn_id)
-            
+
             connection_args = {
                 "host": conn.host or "localhost",
                 "port": conn.port or 9090,
             }
-            
-            # Add extra parameters from connection
-            if conn.extra_dejson:
-                connection_args.update(conn.extra_dejson)
-            
+
             # Setup authentication
             auth_method = conn.extra_dejson.get("auth_method", "simple") if conn.extra_dejson else "simple"
             authenticator = AuthenticatorFactory.create(auth_method)
             auth_kwargs = authenticator.authenticate(conn.extra_dejson or {})
             connection_args.update(auth_kwargs)
-            
-            self.log.info("Connecting to HBase at %s:%s with %s authentication", 
-                         connection_args["host"], connection_args["port"], auth_method)
+
+            self.log.info("Connecting to HBase at %s:%s with %s authentication",
+                          connection_args["host"], connection_args["port"], auth_method)
             self._connection = happybase.Connection(**connection_args)
-        
+
         return self._connection
 
     def get_table(self, table_name: str) -> happybase.Table:
         """
-        Get HBase table object.
-        
+        Get HBase table object (Thrift mode only).
+
         :param table_name: Name of the table to get.
         :return: HBase table object.
         """
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            raise RuntimeError(
+                "get_table() is not available in SSH mode. Use SSH-specific methods instead.")
         connection = self.get_conn()
         return connection.table(table_name)
 
     def table_exists(self, table_name: str) -> bool:
         """
         Check if table exists in HBase.
-        
+
         :param table_name: Name of the table to check.
         :return: True if table exists, False otherwise.
         """
-        connection = self.get_conn()
-        return table_name.encode() in connection.tables()
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            try:
+                result = self.execute_hbase_command(f"shell <<< \"list\"")
+                return table_name in result
+            except Exception:
+                return False
+        else:
+            connection = self.get_conn()
+            return table_name.encode() in connection.tables()
 
     def create_table(self, table_name: str, families: dict[str, dict]) -> None:
         """
         Create HBase table.
-        
+
         :param table_name: Name of the table to create.
         :param families: Dictionary of column families and their configuration.
         """
-        connection = self.get_conn()
-        connection.create_table(table_name, families)
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            families_str = ", ".join([f"'{name}'" for name in families.keys()])
+            command = f"create '{table_name}', {families_str}"
+            self.execute_hbase_command(f"shell <<< \"{command}\"")
+        else:
+            connection = self.get_conn()
+            connection.create_table(table_name, families)
         self.log.info("Created table %s", table_name)
 
     def delete_table(self, table_name: str, disable: bool = True) -> None:
         """
         Delete HBase table.
-        
+
         :param table_name: Name of the table to delete.
         :param disable: Whether to disable table before deletion.
         """
-        connection = self.get_conn()
-        if disable:
-            connection.disable_table(table_name)
-        connection.delete_table(table_name)
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            if disable:
+                self.execute_hbase_command(f"shell <<< \"disable '{table_name}'\"")
+            self.execute_hbase_command(f"shell <<< \"drop '{table_name}'\"")
+        else:
+            connection = self.get_conn()
+            if disable:
+                connection.disable_table(table_name)
+            connection.delete_table(table_name)
         self.log.info("Deleted table %s", table_name)
 
     def put_row(self, table_name: str, row_key: str, data: dict[str, Any]) -> None:
         """
         Put data into HBase table.
-        
+
         :param table_name: Name of the table.
         :param row_key: Row key for the data.
         :param data: Dictionary of column:value pairs to insert.
         """
-        table = self.get_table(table_name)
-        table.put(row_key, data)
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            raise NotImplementedError(
+                "put_row() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
+        else:
+            table = self.get_table(table_name)
+            table.put(row_key, data)
         self.log.info("Put row %s into table %s", row_key, table_name)
 
     def get_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
         """
         Get row from HBase table.
-        
+
         :param table_name: Name of the table.
         :param row_key: Row key to retrieve.
         :param columns: List of columns to retrieve (optional).
         :return: Dictionary of column:value pairs.
         """
-        table = self.get_table(table_name)
-        return table.row(row_key, columns=columns)
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            raise NotImplementedError(
+                "get_row() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
+        else:
+            table = self.get_table(table_name)
+            return table.row(row_key, columns=columns)
 
     def scan_table(
-        self, 
-        table_name: str, 
-        row_start: str | None = None, 
+        self,
+        table_name: str,
+        row_start: str | None = None,
         row_stop: str | None = None,
         columns: list[str] | None = None,
         limit: int | None = None
     ) -> list[tuple[str, dict[str, Any]]]:
         """
         Scan HBase table.
-        
+
         :param table_name: Name of the table.
         :param row_start: Start row key for scan.
         :param row_stop: Stop row key for scan.
@@ -163,18 +214,22 @@ class HBaseHook(BaseHook):
         :param limit: Maximum number of rows to return.
         :return: List of (row_key, data) tuples.
         """
-        table = self.get_table(table_name)
-        return list(table.scan(
-            row_start=row_start,
-            row_stop=row_stop,
-            columns=columns,
-            limit=limit
-        ))
+        if self._get_connection_mode() == ConnectionMode.SSH:
+            raise NotImplementedError(
+                "scan_table() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
+        else:
+            table = self.get_table(table_name)
+            return list(table.scan(
+                row_start=row_start,
+                row_stop=row_stop,
+                columns=columns,
+                limit=limit
+            ))
 
     def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
         """
         Insert multiple rows in batch.
-        
+
         :param table_name: Name of the table.
         :param rows: List of dictionaries with 'row_key' and data columns.
         """
@@ -185,10 +240,11 @@ class HBaseHook(BaseHook):
                 batch.put(row_key, row)
         self.log.info("Batch put %d rows into table %s", len(rows), table_name)
 
-    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[
+        dict[str, Any]]:
         """
         Get multiple rows in batch.
-        
+
         :param table_name: Name of the table.
         :param row_keys: List of row keys to retrieve.
         :param columns: List of columns to retrieve.
@@ -200,7 +256,7 @@ class HBaseHook(BaseHook):
     def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
         """
         Delete row or specific columns from HBase table.
-        
+
         :param table_name: Name of the table.
         :param row_key: Row key to delete.
         :param columns: List of columns to delete (if None, deletes entire row).
@@ -212,7 +268,7 @@ class HBaseHook(BaseHook):
     def get_table_families(self, table_name: str) -> dict[str, dict]:
         """
         Get column families for a table.
-        
+
         :param table_name: Name of the table.
         :return: Dictionary of column families and their properties.
         """
@@ -246,85 +302,61 @@ class HBaseHook(BaseHook):
             },
         }
 
-
-
-    def execute_hbase_command(self, command: str, ssh_conn_id: str | None = None, **kwargs) -> str:
+    def execute_hbase_command(self, command: str, **kwargs) -> str:
         """
         Execute HBase shell command.
-        
+
         :param command: HBase command to execute (without 'hbase' prefix).
-        :param ssh_conn_id: SSH connection ID for remote execution.
         :param kwargs: Additional arguments for subprocess.
         :return: Command output.
         """
+        conn = self.get_connection(self.hbase_conn_id)
+        ssh_conn_id = conn.extra_dejson.get("ssh_conn_id") if conn.extra_dejson else None
+        if not ssh_conn_id:
+            raise ValueError("SSH connection ID must be specified in extra parameters")
+
         full_command = f"hbase {command}"
         self.log.info("Executing HBase command: %s", full_command)
-        
-        if ssh_conn_id:
-            # Use SSH to execute command on remote server
-            try:
-                from airflow.providers.ssh.hooks.ssh import SSHHook
-            except (AttributeError, ImportError) as e:
-                if "DSSKey" in str(e) or "paramiko" in str(e):
-                    self.log.warning("SSH provider has compatibility issues with current paramiko version. Using local execution.")
-                    ssh_conn_id = None
-                else:
-                    raise
-            
-            if ssh_conn_id:  # If SSH is still available after import check
-                ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
-                
-                # Get hbase_home and java_home from SSH connection extra
-                ssh_conn = ssh_hook.get_connection(ssh_conn_id)
-                hbase_home = None
-                java_home = None
-                environment = {}
-                if ssh_conn.extra_dejson:
-                    hbase_home = ssh_conn.extra_dejson.get('hbase_home')
-                    java_home = ssh_conn.extra_dejson.get('java_home')
-                
-                # Use full path if hbase_home is provided
-                if hbase_home:
-                    full_command = full_command.replace('hbase ', f'{hbase_home}/bin/hbase ')
-                
-                # Set JAVA_HOME if provided - add it to the command
-                if java_home:
-                    full_command = f'JAVA_HOME={java_home} {full_command}'
-                
-                self.log.info("Executing via SSH: %s", full_command)
-                with ssh_hook.get_conn() as ssh_client:
-                    exit_status, stdout, stderr = ssh_hook.exec_ssh_client_command(
-                        ssh_client=ssh_client,
-                        command=full_command,
-                        get_pty=False,
-                        environment=None
-                    )
-                    if exit_status != 0:
-                        self.log.error("SSH command failed with exit code %d: %s", exit_status, stderr.decode())
-                        raise RuntimeError(f"SSH command failed: {stderr.decode()}")
-                    return stdout.decode()
-        
-        if not ssh_conn_id:
-            # Execute locally
-            try:
-                result = subprocess.run(
-                    full_command,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                    **kwargs
-                )
-                self.log.info("Command executed successfully")
-                return result.stdout
-            except subprocess.CalledProcessError as e:
-                self.log.error("Command failed with return code %d: %s", e.returncode, e.stderr)
-                raise
 
-    def create_backup_set(self, backup_set_name: str, tables: list[str], ssh_conn_id: str | None = None) -> str:
+        ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
+
+        # Get hbase_home and java_home from SSH connection extra
+        ssh_conn = ssh_hook.get_connection(ssh_conn_id)
+        hbase_home = None
+        java_home = None
+        if ssh_conn.extra_dejson:
+            hbase_home = ssh_conn.extra_dejson.get('hbase_home')
+            java_home = ssh_conn.extra_dejson.get('java_home')
+
+        if not java_home:
+            raise ValueError(
+                f"java_home must be specified in SSH connection '{ssh_conn_id}' extra parameters")
+
+        # Use full path if hbase_home is provided
+        if hbase_home:
+            full_command = full_command.replace('hbase ', f'{hbase_home}/bin/hbase ')
+
+        # Add JAVA_HOME export to command
+        full_command = f"export JAVA_HOME={java_home} && {full_command}"
+
+        self.log.info("Executing via SSH with Kerberos: %s", full_command)
+        with ssh_hook.get_conn() as ssh_client:
+            exit_status, stdout, stderr = ssh_hook.exec_ssh_client_command(
+                ssh_client=ssh_client,
+                command=full_command,
+                get_pty=False,
+                environment={"JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64"}
+            )
+            if exit_status != 0:
+                self.log.error("SSH command failed: %s", stderr.decode())
+                raise RuntimeError(f"SSH command failed: {stderr.decode()}")
+            return stdout.decode()
+
+    def create_backup_set(self, backup_set_name: str, tables: list[str],
+                          ssh_conn_id: str | None = None) -> str:
         """
         Create HBase backup set.
-        
+
         :param backup_set_name: Name of the backup set.
         :param tables: List of tables to include in the backup set.
         :param ssh_conn_id: SSH connection ID for remote execution.
@@ -337,7 +369,7 @@ class HBaseHook(BaseHook):
     def list_backup_sets(self, ssh_conn_id: str | None = None) -> str:
         """
         List all HBase backup sets.
-        
+
         :param ssh_conn_id: SSH connection ID for remote execution.
         :return: Command output with list of backup sets.
         """
@@ -347,7 +379,7 @@ class HBaseHook(BaseHook):
     def delete_backup_set(self, backup_set_name: str, ssh_conn_id: str | None = None) -> str:
         """
         Delete HBase backup set.
-        
+
         :param backup_set_name: Name of the backup set to delete.
         :param ssh_conn_id: SSH connection ID for remote execution.
         :return: Command output.
@@ -366,7 +398,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Create full HBase backup.
-        
+
         :param backup_path: Path where backup will be stored.
         :param tables: List of tables to backup (mutually exclusive with backup_set_name).
         :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
@@ -376,19 +408,19 @@ class HBaseHook(BaseHook):
         :return: Command output.
         """
         command_parts = ["backup create full", backup_path]
-        
+
         if tables:
             command_parts.append("-t")
             command_parts.append(",".join(tables))
         elif backup_set_name:
             command_parts.append("-s")
             command_parts.append(backup_set_name)
-        
+
         if workers:
             command_parts.extend(["-w", str(workers)])
         if bandwidth:
             command_parts.extend(["-b", str(bandwidth)])
-        
+
         command = " ".join(command_parts)
         return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
 
@@ -403,7 +435,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Create incremental HBase backup.
-        
+
         :param backup_path: Path where backup will be stored.
         :param tables: List of tables to backup (mutually exclusive with backup_set_name).
         :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
@@ -413,19 +445,19 @@ class HBaseHook(BaseHook):
         :return: Command output.
         """
         command_parts = ["backup create incremental", backup_path]
-        
+
         if tables:
             command_parts.append("-t")
             command_parts.append(",".join(tables))
         elif backup_set_name:
             command_parts.append("-s")
             command_parts.append(backup_set_name)
-        
+
         if workers:
             command_parts.extend(["-w", str(workers)])
         if bandwidth:
             command_parts.extend(["-b", str(bandwidth)])
-        
+
         command = " ".join(command_parts)
         return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
 
@@ -438,7 +470,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Get HBase backup history.
-        
+
         :param backup_path: Path to backup location.
         :param backup_set_name: Name of backup set.
         :param num_records: Number of records to return.
@@ -446,14 +478,14 @@ class HBaseHook(BaseHook):
         :return: Command output with backup history.
         """
         command_parts = ["backup history"]
-        
+
         if backup_path:
             command_parts.append(backup_path)
         if backup_set_name:
             command_parts.extend(["-s", backup_set_name])
         if num_records:
             command_parts.extend(["-n", str(num_records)])
-        
+
         command = " ".join(command_parts)
         return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
 
@@ -467,7 +499,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Restore HBase backup.
-        
+
         :param backup_path: Path where backup is stored.
         :param backup_id: Backup ID to restore.
         :param tables: List of tables to restore (optional).
@@ -476,13 +508,13 @@ class HBaseHook(BaseHook):
         :return: Command output.
         """
         command_parts = ["restore", backup_path, backup_id]
-        
+
         if tables:
             command_parts.append("-t")
             command_parts.append(",".join(tables))
         if overwrite:
             command_parts.append("-o")
-        
+
         command = " ".join(command_parts)
         return self.execute_hbase_command(command, ssh_conn_id=ssh_conn_id)
 
@@ -494,7 +526,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Delete HBase backup.
-        
+
         :param backup_path: Path where backup is stored.
         :param backup_ids: List of backup IDs to delete.
         :param ssh_conn_id: SSH connection ID for remote execution.
@@ -512,7 +544,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Merge HBase backups.
-        
+
         :param backup_path: Path where backups are stored.
         :param backup_ids: List of backup IDs to merge.
         :param ssh_conn_id: SSH connection ID for remote execution.

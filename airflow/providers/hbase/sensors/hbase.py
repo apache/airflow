@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 class HBaseTableSensor(BaseSensorOperator):
     """
     Sensor to check if HBase table exists.
-    
+
     :param table_name: Name of the table to check.
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
@@ -59,7 +59,7 @@ class HBaseTableSensor(BaseSensorOperator):
 class HBaseRowSensor(BaseSensorOperator):
     """
     Sensor to check if specific row exists in HBase table.
-    
+
     :param table_name: Name of the table to check.
     :param row_key: Row key to check for existence.
     :param hbase_conn_id: The connection ID to use for HBase connection.
@@ -94,35 +94,36 @@ class HBaseRowSensor(BaseSensorOperator):
 
 class HBaseRowCountSensor(BaseSensorOperator):
     """
-    Sensor to check if table has minimum number of rows.
-    
+    Sensor to check if table has expected number of rows.
+
     :param table_name: Name of the table to check.
-    :param min_row_count: Minimum number of rows required.
+    :param expected_count: Expected number of rows.
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
-    template_fields: Sequence[str] = ("table_name", "min_row_count")
+    template_fields: Sequence[str] = ("table_name", "expected_count")
 
     def __init__(
         self,
         table_name: str,
-        min_row_count: int,
+        expected_count: int,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.table_name = table_name
-        self.min_row_count = min_row_count
+        self.expected_count = expected_count
         self.hbase_conn_id = hbase_conn_id
 
     def poke(self, context: Context) -> bool:
-        """Check if table has minimum number of rows."""
+        """Check if table has expected number of rows."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         try:
-            rows = hook.scan_table(self.table_name, limit=self.min_row_count + 1)
+            rows = hook.scan_table(self.table_name, limit=self.expected_count + 1)
             row_count = len(rows)
-            self.log.info("Table %s has %d rows, minimum required: %d", self.table_name, row_count, self.min_row_count)
-            return row_count >= self.min_row_count
+            self.log.info("Table %s has %d rows, expected: %d", self.table_name, row_count,
+                          self.expected_count)
+            return row_count == self.expected_count
         except Exception as e:
             self.log.error("Error checking row count: %s", e)
             return False
@@ -131,7 +132,7 @@ class HBaseRowCountSensor(BaseSensorOperator):
 class HBaseColumnValueSensor(BaseSensorOperator):
     """
     Sensor to check if column has expected value.
-    
+
     :param table_name: Name of the table to check.
     :param row_key: Row key to check.
     :param column: Column to check.
@@ -162,16 +163,16 @@ class HBaseColumnValueSensor(BaseSensorOperator):
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         try:
             row_data = hook.get_row(self.table_name, self.row_key, columns=[self.column])
-            
+
             if not row_data:
                 self.log.info("Row %s not found in table %s", self.row_key, self.table_name)
                 return False
-                
+
             actual_value = row_data.get(self.column.encode('utf-8'), b'').decode('utf-8')
             matches = actual_value == self.expected_value
-            
+
             self.log.info(
-                "Column %s in row %s: expected '%s', actual '%s'", 
+                "Column %s in row %s: expected '%s', actual '%s'",
                 self.column, self.row_key, self.expected_value, actual_value
             )
             return matches

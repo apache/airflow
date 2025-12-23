@@ -35,7 +35,7 @@ Connection Configuration (Admin -> Connections):
 
 Alternative using Airflow secrets:
 - Extra: {
-    "auth_method": "kerberos", 
+    "auth_method": "kerberos",
     "principal": "your-principal@YOUR.REALM",
     "keytab_secret_key": "HBASE_KEYTAB_SECRET",
     "timeout": 30000
@@ -50,18 +50,10 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.hbase.operators.hbase import (
-    HBaseBackupHistoryOperator,
-    HBaseBackupSetOperator,
-    HBaseCreateBackupOperator,
     HBaseCreateTableOperator,
     HBaseDeleteTableOperator,
-    HBasePutOperator,
-    HBaseRestoreOperator,
 )
 from airflow.providers.hbase.sensors.hbase import (
-    HBaseColumnValueSensor,
-    HBaseRowCountSensor,
-    HBaseRowSensor,
     HBaseTableSensor,
 )
 
@@ -105,51 +97,6 @@ check_table = HBaseTableSensor(
     dag=dag,
 )
 
-put_data = HBasePutOperator(
-    task_id="put_data_kerberos",
-    table_name="test_table_krb",
-    row_key="row1",
-    data={
-        "cf1:col1": "kerberos_value1",
-        "cf1:col2": "kerberos_value2",
-        "cf2:col1": "kerberos_value3",
-    },
-    hbase_conn_id="hbase_kerberos",
-    dag=dag,
-)
-
-check_row = HBaseRowSensor(
-    task_id="check_row_exists_kerberos",
-    table_name="test_table_krb",
-    row_key="row1",
-    hbase_conn_id="hbase_kerberos",
-    timeout=60,
-    poke_interval=10,
-    dag=dag,
-)
-
-check_row_count = HBaseRowCountSensor(
-    task_id="check_row_count_kerberos",
-    table_name="test_table_krb",
-    expected_count=1,
-    hbase_conn_id="hbase_kerberos",
-    timeout=60,
-    poke_interval=10,
-    dag=dag,
-)
-
-check_column_value = HBaseColumnValueSensor(
-    task_id="check_column_value_kerberos",
-    table_name="test_table_krb",
-    row_key="row1",
-    column="cf1:col1",
-    expected_value="kerberos_value1",
-    hbase_conn_id="hbase_kerberos",
-    timeout=60,
-    poke_interval=10,
-    dag=dag,
-)
-
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table_kerberos",
     table_name="test_table_krb",
@@ -158,13 +105,4 @@ delete_table = HBaseDeleteTableOperator(
 )
 
 # Set dependencies - Basic HBase operations
-create_table >> check_table >> put_data >> check_row >> check_row_count >> check_column_value
-
-# Backup operations (parallel branch)
-create_table >> create_backup_set >> create_backup >> backup_history
-
-# Restore operation (depends on backup)
-create_backup >> restore_backup
-
-# Cleanup (after all operations)
-[check_column_value, backup_history, restore_backup] >> delete_table
+create_table >> check_table >> delete_table
