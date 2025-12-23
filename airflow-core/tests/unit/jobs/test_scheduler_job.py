@@ -4415,10 +4415,7 @@ class TestSchedulerJob:
         ],
     )
     @pytest.mark.parametrize("provide_run_count", [True, False])
-    @patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields")
-    def test_should_update_dag_next_dagruns(
-        self, mock_calculate, provide_run_count: bool, kwargs: dict, session, dag_maker
-    ):
+    def test_should_update_dag_next_dagruns(self, provide_run_count: bool, kwargs: dict, session, dag_maker):
         """Test if really required to update next dagrun or possible to save run time"""
         schedule: str | None = kwargs["schedule"]
         backfill_runs: int = kwargs["backfill_runs"]
@@ -4453,13 +4450,14 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner._update_next_dagrun_fields(
-            serdag=dag,
-            dag_model=dag_maker.dag_model,
-            active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
-            session=session,
-        )
-        assert mock_calculate.called == should_update
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._update_next_dagrun_fields(
+                serdag=dag,
+                dag_model=dag_maker.dag_model,
+                active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
+                session=session,
+            )
+        assert mock_calc.called == should_update
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),
@@ -4476,10 +4474,7 @@ class TestSchedulerJob:
             DagRunType.ASSET_TRIGGERED.name,
         ],
     )
-    @patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields")
-    def test_should_update_dag_next_dagruns_after_run_type(
-        self, mock_calculate, run_type, expected, session, dag_maker
-    ):
+    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, expected, session, dag_maker):
         """Test that whether next dag run is updated depends on run type"""
         with dag_maker(
             schedule="*/1 * * * *",
@@ -4502,13 +4497,15 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        self.job_runner._update_next_dagrun_fields(
-            serdag=dag,
-            dag_model=dag_model,
-            dag_run=run,
-            session=session,
-        )
-        assert mock_calculate.called == expected
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._update_next_dagrun_fields(
+                serdag=dag,
+                dag_model=dag_model,
+                dag_run=run,
+                session=session,
+            )
+
+        assert mock_calc.called == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
