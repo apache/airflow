@@ -2002,7 +2002,10 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         elif field_name == "resources":
             return Resources.from_dict(value) if value is not None else None
         elif field_name.endswith("_date"):
-            return cls._deserialize_datetime(value) if value is not None else None
+            # type security first: _deserialize_datetime expects numeric for serialization
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return cls._deserialize_datetime(value)
+            return value
         else:
             # For all other fields, return as-is (strings, ints, bools, etc.)
             return value
