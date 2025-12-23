@@ -37,18 +37,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-def redact(
-    value: Any, name: str | None = None, max_depth: int | None = None, replacement: str = "***"
-) -> Any:
-    """
-    Redact any secrets found in ``value`` with the given replacement.
-
-    This is a re-export from airflow.sdk._shared.secrets_masker for provider compatibility.
-    """
-    from airflow.sdk._shared.secrets_masker import redact as _redact
-
-    return _redact(value, name, max_depth, replacement)
-
+from airflow.sdk._shared.secrets_masker import redact
 
 __all__ = ["configure_logging", "reset_logging", "mask_secret", "redact"]
 
