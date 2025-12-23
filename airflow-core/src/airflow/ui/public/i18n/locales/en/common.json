@@ -161,12 +161,14 @@
   },
   "pools": {
     "deferred": "Deferred",
+    "includeDeferred": "Include Deferred",
     "open": "Open",
     "pools_one": "pool",
     "pools_other": "pools",
     "queued": "Queued",
     "running": "Running",
-    "scheduled": "Scheduled"
+    "scheduled": "Scheduled",
+    "totalPools": "Total Pools"
   },
   "reset": "Reset",
   "runId": "Run ID",
