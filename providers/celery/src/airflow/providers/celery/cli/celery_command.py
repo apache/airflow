@@ -135,7 +135,8 @@ def _run_stale_bundle_cleanup():
         try:
             yield
         finally:
-            return
+            pass  # ignore any problems
+        return
     from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
