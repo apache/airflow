@@ -477,20 +477,46 @@ Controlling Triggerer Host Assignment Per Trigger
 Under some circumstances, it may be desirable to assign a Trigger to a specific subset of ``triggerer`` hosts. Some examples of when this might be desirable are:
 
 * In a multi-tenant Airflow system where you run a distinct set of ``triggerers`` per team.
-* Running distinct sets of ``triggerers`` hosts, where each set of hosts are configured for different ``trigger`` operations (e.g. each set of ``triggerers`` may have different cloud permissions).
+* Running distinct sets of ``triggerers`` hosts, where each set of hosts are configured for different trigger operations (e.g. each set of triggerers may have different cloud permissions).
 
-To achieve ``trigger`` assignment, you may use the optional trigger queues feature.
+To achieve trigger assignment, you may use the optional "trigger queues" feature.
 
 To use trigger queues, do the following:
-1. For a given group of ``triggerer`` hosts, add ``--consume-trigger-queues=<comma-separated string of queue names to consume from>`` in the Triggerers' startup CLI command. This option ensures the triggerer will only run ``trigger`` instances with a ``trigger_queue`` value in the provided list.
-2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, set the ``trigger_queue`` keyword argument in the ``__init__`` method of ``trigger`` to any value present in the value you set ``--consume-trigger-queues`` to in the Trigger's startup command.
 
-If your trigger instances' ``trigger_queue`` value is left unset (default behavior), the ``--consume-trigger-queue`` option is not provided in your trigger startup command, then there is no trigger assignment constraint.
+1. For a given group of ``triggerer`` hosts, add ``--consume-trigger-queues=<comma-separated string of queue names to consume from>`` to the Triggerers' startup CLI command. This option ensures the triggerer will only run ``trigger`` instances with a ``trigger_queue`` value in the provided list.
+2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, assign your Trigger instance's ``trigger_queue`` value in the ``kwargs`` in your trigger to any value in the ``--consume-trigger-queues`` list.
+
+For example, let's say you are running two triggerer (Triggerers "X", and "Y") hosts with the following commands, then any ``trigger`` instance with
+``trigger_queue`` set to either ``"alice"``, or ``"bob"``, would be exclusively run by triggerer "X"; whereas, any ``trigger`` instance with
+``trigger_queue`` set to ``"test_q"`` would be exclusively run by triggerer "Y".
+
+.. code-block:: bash
+
+      # triggerer "X" startup command
+      airflow triggerer --consume-trigger-queues=alice,bob
+      # triggerer "Y" startup command
+      airflow triggerer --consume-trigger-queues=test_q
+
+
+If the ``--consume-trigger-queue`` option is not provided to any of your triggerer's startup commands, then there is no trigger assignment constraint.
 
 .. note::
     To enable this feature, you must set the ``--consume-trigger-queues`` option on the triggerers' startup command.
     If you set the ``trigger_queue`` value of a trigger instance to some value which is not present in the ``--consume-trigger-queues`` option, that trigger will never run.
-    Similarly, all ``triggerer`` instances running without the ``--consume-trigger-queues`` option will ignore all Trigger instances with an assigned ``trigger_queue`` value.
+    Similarly, all ``triggerer`` instances running without the ``--consume-trigger-queues`` option will only consume trigger instances without a ``trigger_queue`` value.
+
+
+The following example shows how to only assign some triggers to a specific triggerer host, while leaving other trigger instances unconstrained:
+
+.. code-block:: bash
+
+      # triggerer "A" startup command, consumes only from trigger queues "alice" and "bob"
+      airflow triggerer --consume-trigger-queues=alice,bob
+      # triggerer "B" startup command, consumes only from triggers which have no assigned trigger_queue value (the default behavior).
+      airflow triggerer
+
+In this scenario, triggerer "A" will only run trigger instances with an assigned ``trigger_queue`` value of ``"alice"``, or ``"bob"``; whereas,
+triggerer "B" will only run trigger instances with no ``trigger_queue`` value assigned.
 
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors
