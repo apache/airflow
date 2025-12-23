@@ -70,7 +70,7 @@ from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_er
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.static_checker import check_dag_file_static, get_warning_dag_format_dict
+from airflow.utils.static_checker import check_dag_file_static
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -207,7 +207,15 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    warning_statement = check_dag_file_static(os.fspath(msg.file))
+    static_check_result = check_dag_file_static(os.fspath(msg.file))
+
+    if static_check_error_dict := static_check_result.get_error_format_dict(msg.file, msg.bundle_path):
+        # If static check level is error, we shouldn't parse the Dags and return the result early
+        return DagFileParsingResult(
+            fileloc=msg.file,
+            serialized_dags=[],
+            import_errors=static_check_error_dict,
+        )
 
     bag = BundleDagBag(
         dag_folder=msg.file,
@@ -217,7 +225,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     )
 
     if msg.callback_requests:
-        # If the request is for callback, we shouldn't serialize the DAGs
+        # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
         return None
 
@@ -227,7 +235,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=get_warning_dag_format_dict(warning_statement, dag_ids=bag.dag_ids),
+        warnings=static_check_result.get_warning_dag_format_dict(bag.dag_ids),
     )
     return result
 

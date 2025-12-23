@@ -466,8 +466,8 @@ dag = DAG(dag_id=f"dag_{datetime.now()}")
 
         self.checker.visit(tree)
 
-        assert len(self.checker.warnings) == 1
-        assert any("Dag constructor" in w.message for w in self.checker.warnings)
+        assert len(self.checker.static_check_result.warnings) == 1
+        assert any("Dag constructor" in w.message for w in self.checker.static_check_result.warnings)
 
     def test_visit_call__detects_task_in_dag_context(self):
         """Detect task creation inside DAG with block."""
@@ -483,8 +483,8 @@ with DAG(dag_id="test") as dag:
 
         self.checker.visit(tree)
 
-        assert len(self.checker.warnings) == 1
-        assert any("PythonOperator" in w.code for w in self.checker.warnings)
+        assert len(self.checker.static_check_result.warnings) == 1
+        assert any("PythonOperator" in w.code for w in self.checker.static_check_result.warnings)
 
     def test_visit_for__warns_on_varying_range(self):
         """Warn when for-loop range is runtime-varying."""
@@ -507,7 +507,7 @@ with DAG(
         tree = ast.parse(code)
 
         self.checker.visit(tree)
-        warnings = self.checker.warnings
+        warnings = self.checker.static_check_result.warnings
 
         assert len(warnings) == 1
         assert any("BashOperator" in w.code for w in warnings)
@@ -521,8 +521,8 @@ with DAG(
 
         self.checker._check_and_warn(call_node, WarningContext.DAG_CONSTRUCTOR)
 
-        assert len(self.checker.warnings) == 1
-        warning = self.checker.warnings[0]
+        assert len(self.checker.static_check_result.warnings) == 1
+        warning = self.checker.static_check_result.warnings[0]
         assert WarningContext.DAG_CONSTRUCTOR.value in warning.message
         assert "datetime.now()" in warning.code
 
@@ -535,8 +535,8 @@ with DAG(
 
         self.checker._check_and_warn(call_node, WarningContext.TASK_CONSTRUCTOR)
 
-        assert len(self.checker.warnings) == 1
-        warning = self.checker.warnings[0]
+        assert len(self.checker.static_check_result.warnings) == 1
+        warning = self.checker.static_check_result.warnings[0]
         assert "dag_id" in warning.code
         assert "datetime.now()" in warning.code
 
@@ -552,7 +552,7 @@ class TestIntegrationScenarios:
         tree = ast.parse(code)
         checker = AirflowRuntimeVaryingValueChecker()
         checker.visit(tree)
-        return checker.warnings
+        return checker.static_check_result.warnings
 
     def test_antipattern__dynamic_dag_id_with_timestamp(self):
         """ANTI-PATTERN: Using timestamps in DAG IDs."""
@@ -682,6 +682,7 @@ def my_dag_function():
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from datetime import datetime
+import pendulum
 
 def create_dag(dag_id, task_id):
     default_args = {
@@ -699,13 +700,16 @@ def create_dag(dag_id, task_id):
 
     return dag
 
+now = pendulum.now()
+seoul = now.in_timezone('Asia/Seoul')
+
 for i in [datetime.now(), "3"]:
     dag_id = f"dag_{i}_{random.randint(1, 1000)}"
 
     dag = DAG(
         dag_id=dag_id,  # !problem
         schedule_interval='@daily',
-        tags=[f"iteration_{i}_{datetime.now().day}"],  # !problem
+        tags=[f"iteration_{i}"],
     )
 
     task1 = BashOperator(
@@ -720,7 +724,13 @@ for i in [datetime.now(), "3"]:
         dag=dag,
     )
 
-    task1 >> task2
+    task3 = BashOperator(
+        task_id=f'random_task_in_{seoul}',  # !problem
+        bash_command='echo "World"',
+        dag=dag,
+    )
+
+    task1 >> task2 >> task3
 """
         warnings = self._check_code(code)
-        assert len(warnings) == 4
+        assert len(warnings) == 5

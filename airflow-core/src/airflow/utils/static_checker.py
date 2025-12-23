@@ -22,6 +22,68 @@ from enum import Enum
 from pathlib import Path
 
 
+class StaticCheckerResult:
+    """
+    Represents the result of static analysis on a DAG file.
+
+    Stores detected warnings and formats them appropriately based on the configured check level
+    (warning or error).
+    """
+
+    def __init__(self, check_level):
+        self.check_level: str = check_level
+        self.warnings: list[RuntimeVaryingValueWarning] = []
+        self.runtime_varying_values: dict = {}
+
+    def format_warnings(self) -> str | None:
+        """Return formatted string of warning list."""
+        if not self.warnings:
+            return None
+
+        lines = [
+            "⚠️ This Dag uses runtime-variable values in Dag construction.",
+            "⚠️ It causes the Dag version to increase as values change on every Dag parse.",
+            "",
+        ]
+        for w in self.warnings:
+            lines.append(f"Line {w.line}, Col {w.col}")
+            lines.append(f"Code: {w.code}")
+            lines.append(f"Issue: {w.message}")
+            lines.append("")
+
+        if self.runtime_varying_values:
+            lines.append("️⚠️ Don't use the variables as arguments in DAG/Task constructors:")
+            # Sort by line number
+            sorted_vars = sorted(self.runtime_varying_values.items(), key=lambda x: x[1][0])
+            for var_name, (line, source) in sorted_vars:
+                lines.append(f"  Line {line}: '{var_name}' related '{source}'")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def get_warning_dag_format_dict(self, dag_ids):
+        """Convert warning statement to Dag warning format."""
+        from airflow.models.dagwarning import DagWarningType
+
+        if not self.warnings or self.check_level != "warning":
+            return []
+        return [
+            {
+                "dag_id": dag_id,
+                "warning_type": DagWarningType.RUNTIME_VARYING_VALUE.value,
+                "message": self.format_warnings(),
+            }
+            for dag_id in dag_ids
+        ]
+
+    def get_error_format_dict(self, file_path, bundle_path):
+        if not self.warnings or self.check_level != "error":
+            return None
+
+        relative_file_path = str(Path(file_path).relative_to(bundle_path)) if bundle_path else file_path
+        return {relative_file_path: self.format_warnings()}
+
+
 @dataclass
 class RuntimeVaryingValueWarning:
     """Warning information for runtime-varying value detection."""
@@ -52,6 +114,10 @@ RUNTIME_VARYING_CALLS = [
     ("random", "uniform"),
     ("uuid", "uuid4"),
     ("uuid", "uuid1"),
+    ("pendulum", "now"),
+    ("pendulum", "today"),
+    ("pendulum", "yesterday"),
+    ("pendulum", "tomorrow"),
 ]
 
 
@@ -286,11 +352,12 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     - Track runtime-varying values and generate warnings
     """
 
-    def __init__(self):
-        self.warnings: list[RuntimeVaryingValueWarning] = []
+    def __init__(self, check_level="warn"):
+        self.static_check_result: StaticCheckerResult = StaticCheckerResult(check_level=check_level)
         self.imports: dict[str, str] = {}
         self.from_imports: dict[str, tuple[str, str]] = {}
         self.varying_vars: dict[str, tuple[int, str]] = {}
+        self.check_level = check_level
 
         # Helper objects
         self.value_analyzer = RuntimeVaryingValueAnalyzer(self.varying_vars, self.imports, self.from_imports)
@@ -407,7 +474,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         """Check function call arguments and generate warnings."""
         varying_source = self.value_analyzer.get_varying_source(call)
         if varying_source:
-            self.warnings.append(
+            self.static_check_result.warnings.append(
                 RuntimeVaryingValueWarning(
                     line=call.lineno,
                     col=call.col_offset,
@@ -422,47 +489,20 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
             return "Don't use runtime-varying values as function arguments within with Dag block"
         return f"Don't use runtime-varying value as argument in {context.value}"
 
-    def format_warnings(self) -> str | None:
-        """Return formatted string of warning list."""
-        if not self.warnings:
-            return None
 
-        lines = [
-            "⚠️ This Dag uses runtime-variable values in Dag construction.",
-            "⚠️ It causes the Dag version to increase as values change on every Dag parse.",
-            "",
-        ]
-        for w in self.warnings:
-            lines.append(f"Line {w.line}, Col {w.col}")
-            lines.append(f"Code: {w.code}")
-            lines.append(f"Issue: {w.message}")
-            lines.append("")
+def check_dag_file_static(file_path) -> StaticCheckerResult:
+    from airflow.configuration import conf
 
-        return "\n".join(lines)
+    check_level = conf.get("dag_processor", "static_check_level").lower()
+    if check_level == "off" or check_level not in ("warning", "error"):
+        return StaticCheckerResult(check_level=check_level)
 
-
-def check_dag_file_static(file_path) -> str | None:
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
     except Exception:
-        return None
+        return StaticCheckerResult(check_level=check_level)
 
-    checker = AirflowRuntimeVaryingValueChecker()
+    checker = AirflowRuntimeVaryingValueChecker(check_level)
     checker.visit(parsed)
-    return checker.format_warnings()
-
-
-def get_warning_dag_format_dict(warning_statement: str | None, dag_ids):
-    """Convert warning statement to Dag warning format."""
-    from airflow.models.dagwarning import DagWarningType
-
-    if not warning_statement:
-        return []
-    return [
-        {
-            "dag_id": dag_id,
-            "warning_type": DagWarningType.RUNTIME_VARYING_VALUE.value,
-            "message": warning_statement,
-        }
-        for dag_id in dag_ids
-    ]
+    checker.static_check_result.runtime_varying_values = checker.varying_vars
+    return checker.static_check_result
