@@ -562,8 +562,9 @@ class TestPodManager:
             bytes(f"{second_ts} {second_message}", "utf-8"),
         ]
         mock_container_is_running.return_value = False
+        mock_pod = mock.MagicMock()
 
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), "base", follow=True)
+        self.pod_manager.fetch_container_logs(mock_pod, "base", follow=True)
         mock_callbacks.progress_callback.assert_has_calls(
             [
                 mock.call(
@@ -572,6 +573,7 @@ class TestPodManager:
                     mode="sync",
                     container_name="base",
                     timestamp=pendulum.parse(ts),
+                    pod=mock_pod,
                 ),
                 mock.call(
                     line=f"{second_message}",
@@ -579,6 +581,7 @@ class TestPodManager:
                     mode="sync",
                     container_name="base",
                     timestamp=pendulum.parse(second_ts),
+                    pod=mock_pod,
                 ),
             ]
         )
