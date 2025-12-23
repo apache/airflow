@@ -26,10 +26,11 @@ from pendulum import UTC, DateTime
 from sqlalchemy import select
 
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
-from airflow.models.serialized_dag import SerializedDAG, SerializedDagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, AssetAll, AssetAny, AssetOrTimeSchedule as SdkAssetOrTimeSchedule
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetAny
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.timetables.assets import AssetOrTimeSchedule as CoreAssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -308,7 +309,7 @@ class TestAssetConditionWithTimetable:
         )
 
         for serialized_dag in serialized_dags:
-            dag = SerializedDAG.deserialize(serialized_dag.data)
+            dag = DagSerialization.deserialize(serialized_dag.data)
             for asset_uri, status in dag_statuses[dag.dag_id].items():
                 cond = dag.timetable.asset_condition
                 assert evaluator.run(cond, {asset_uri: status}), "DAG trigger evaluation failed"
@@ -324,8 +325,8 @@ class TestAssetConditionWithTimetable:
 
         assert dag.timetable.asset_condition == AssetAny(asset1, AssetAll(asset2, asset1))
 
-        serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
-        deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
+        serialized_triggers = DagSerialization.serialize(dag.timetable.asset_condition)
+        deserialized_triggers = DagSerialization.deserialize(serialized_triggers)
         assert deserialized_triggers == SerializedAssetAny(
             [
                 SerializedAsset("hello1", "test://asset1/", "asset", {}, []),
@@ -338,7 +339,7 @@ class TestAssetConditionWithTimetable:
             ],
         )
 
-        serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
+        serialized_timetable_dict = DagSerialization.to_dict(dag)["dag"]["timetable"]["__var"]
         assert serialized_timetable_dict == {
             "asset_condition": {
                 "__type": "asset_any",

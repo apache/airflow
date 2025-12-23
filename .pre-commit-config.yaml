@@ -319,7 +319,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 1e30511413f07e516c1844ba91abce8aca984963  # frozen: v1.18.0
+    rev: ea18690d7f8e44203c9efd7bc6229447d02e3951  # frozen: v1.19.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -424,6 +424,7 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
             ^airflow-core/tests/unit/models/test_serialized_dag.py$|
             ^airflow-core/tests/unit/models/test_pool.py$|
@@ -439,7 +440,10 @@ repos:
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
             ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
             ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_xcoms.py$|
             ^airflow-core/tests/unit/models/test_deadline.py$|
             ^airflow-core/tests/unit/models/test_renderedtifields.py$|
             ^airflow-core/tests/unit/models/test_timestamp.py$|
