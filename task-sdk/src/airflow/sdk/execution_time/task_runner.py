@@ -962,10 +962,12 @@ def _defer_task(
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
 
+    from typing import cast
+
     from airflow.sdk.serde import serialize as serde_serialize
 
-    trigger_kwargs = serde_serialize(trigger_kwargs)
-    next_kwargs = serde_serialize(defer.kwargs or {})
+    trigger_kwargs = cast("JsonValue", serde_serialize(trigger_kwargs))
+    next_kwargs = cast("JsonValue", serde_serialize(defer.kwargs or {}))
 
     msg = DeferTask(
         classpath=classpath,
