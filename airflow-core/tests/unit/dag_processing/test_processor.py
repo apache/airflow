@@ -609,7 +609,7 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
-@conf_vars({("dag_processor", "static_check_level"): "error"})
+@conf_vars({("dag_processor", "dag_stability_check_level"): "error"})
 def test_parse_file_static_check_with_error():
     result = _parse_file(
         DagFileParseRequest(
