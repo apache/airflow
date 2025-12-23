@@ -20,7 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
+from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookAsyncHook, DiscordWebhookHook
+from airflow.providers.discord.version_compat import AIRFLOW_V_3_1_PLUS
 
 ICON_URL: str = (
     "https://raw.githubusercontent.com/apache/airflow/main/airflow-core/src/airflow/ui/public/pin_100.png"
@@ -50,8 +51,13 @@ class DiscordNotifier(BaseNotifier):
         username: str = "Airflow",
         avatar_url: str = ICON_URL,
         tts: bool = False,
+        **kwargs,
     ):
-        super().__init__()
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.discord_conn_id = discord_conn_id
         self.text = text
         self.username = username
@@ -66,11 +72,36 @@ class DiscordNotifier(BaseNotifier):
         """Discord Webhook Hook."""
         return DiscordWebhookHook(http_conn_id=self.discord_conn_id)
 
+    @cached_property
+    def hook_async(self) -> DiscordWebhookAsyncHook:
+        """Discord Webhook Async Hook."""
+        return DiscordWebhookAsyncHook(
+            http_conn_id=self.discord_conn_id,
+            message=self.text,
+            username=self.username,
+            avatar_url=self.avatar_url,
+            tts=self.tts,
+        )
+
     def notify(self, context):
-        """Send a message to a Discord channel."""
+        """
+        Send a message to a Discord channel.
+
+        :param context: the context object
+        :return: None
+        """
         self.hook.username = self.username
         self.hook.message = self.text
         self.hook.avatar_url = self.avatar_url
         self.hook.tts = self.tts
 
         self.hook.execute()
+
+    async def async_notify(self, context) -> None:
+        """
+        Send a message to a Discord channel using async HTTP.
+
+        :param context: the context object
+        :return: None
+        """
+        await self.hook_async.execute()

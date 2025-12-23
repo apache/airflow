@@ -28,13 +28,13 @@ from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import (
     BeamAsyncHook,
     BeamHook,
     beam_options_to_args,
     run_beam_command,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
@@ -74,6 +74,12 @@ try:
     APACHE_BEAM_VERSION: str | None = importlib_version("apache-beam")
 except ImportError:
     APACHE_BEAM_VERSION = None
+
+try:
+    from airflow._shared.configuration import AirflowConfigException as ConfigException
+except ImportError:
+    # Compat for airflow < 3.2, where AirflowConfigException is in airflow.exceptions
+    ConfigException = AirflowException  # type: ignore[assignment,misc]
 
 
 class TestBeamHook:
@@ -347,7 +353,7 @@ class TestBeamHook:
             r"You need to have Go installed to run beam go pipeline\. See .* "
             "installation guide. If you are running airflow in Docker see more info at '.*'"
         )
-        with pytest.raises(AirflowException, match=error_message):
+        with pytest.raises(ConfigException, match=error_message):
             hook.start_go_pipeline(
                 go_file=GO_FILE,
                 variables=copy.deepcopy(BEAM_VARIABLES_GO),

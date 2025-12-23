@@ -118,7 +118,7 @@ To trigger these fixes, run the following command:
 
 .. note::
 
-    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -192,12 +192,97 @@ Step 4: Install the Standard Provider
 - For convenience, this package can also be installed on Airflow 2.x versions, so that Dags can be modified to reference these Operators from the standard provider
   package instead of Airflow Core.
 
-Step 5: Review custom operators for direct db access
-----------------------------------------------------
+Step 5: Review custom written tasks for direct DB access
+--------------------------------------------------------
 
-- In Airflow 3 operators can not access the Airflow metadata database directly using database sessions.
-  If you have custom operators, review the code to make sure there are no direct db access.
-  You can follow examples in https://github.com/apache/airflow/issues/49187 to find how to modify your code if needed.
+In Airflow 3, operators cannot access the Airflow metadata database directly using database sessions.
+If you have custom operators, review your code to ensure there are no direct database access calls.
+You can follow examples in https://github.com/apache/airflow/issues/49187 to learn how to modify your code if needed.
+
+If you have custom operators or task code that previously accessed the metadata database directly, you must migrate to one of the following approaches:
+
+Recommended Approach: Use Airflow Python Client
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the official `Airflow Python Client <https://github.com/apache/airflow-client-python>`_ to interact with
+Airflow metadata database via REST API. The Python Client has APIs defined for most use cases, including DagRuns,
+TaskInstances, Variables, Connections, XComs, and more.
+
+**Pros:**
+- No direct database network access required from workers
+- Most aligned with Airflow 3's API-first architecture
+- No database credentials needed in worker environment (uses API tokens)
+- Workers don't need database drivers installed
+- Centralized access control and authentication via API server
+
+**Cons:**
+- Requires installing ``apache-airflow-client`` package
+- Requires acquisition of access tokens by performing API call to ``/auth/token`` and rotating them as needed
+- Requires API server availability and network access to API server
+- Not all database operations may be exposed via API endpoints
+
+.. note::
+   If you need functionality that is not available via the Airflow Python Client, consider requesting new API endpoints or Task SDK features. The Airflow community prioritizes adding missing API capabilities over enabling direct database access.
+
+Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+   This approach is **NOT recommended** and is documented only as a known workaround for users who cannot use the Airflow Python Client. This approach has significant limitations and **will** break in future Airflow versions.
+
+   **Important considerations:**
+
+   - **Will break in future versions**: This approach will break in Airflow 3.2+ and beyond. You are responsible for adapting your code when schema changes occur.
+   - **Database schema is NOT a public API**: The Airflow metadata database schema can change at any time without notice. Schema changes will break your queries without warning.
+   - **Breaks task isolation**: This contradicts one of Airflow 3's core features - task isolation. Tasks should not directly access the metadata database.
+   - **Performance implications**: This reintroduces Airflow 2 behavior where each task opens separate database connections, dramatically changing performance characteristics and scalability.
+
+If your use case cannot be addressed using the Python Client and you understand the risks above, you ma use database hooks to query your metadata database directly. Create a database
+connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
+and use Database Hooks in Airflow.
+
+**Note:** These hooks connect directly to the database (not via
+the API server) using database drivers like psycopg2 or mysqlclient.
+
+**Example using PostgresHook (MySql has similar interface too)**
+
+.. code-block:: python
+
+   from airflow.sdk import task
+   from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+
+   @task
+   def get_connections_from_db():
+       hook = PostgresHook(postgres_conn_id="metadata_postgres")
+       records = hook.get_records(
+           sql="""
+           SELECT conn_id, conn_type, host, schema, login
+           FROM connection
+           WHERE conn_type = 'postgres'
+           LIMIT 10;
+           """
+       )
+
+       return records
+
+**Example using SQLExecuteQueryOperator**
+
+You can also use ``SQLExecuteQueryOperator`` if you prefer to use operators instead of hooks:
+
+.. code-block:: python
+
+   from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+   query_task = SQLExecuteQueryOperator(
+       task_id="query_metadata",
+       conn_id="metadata_postgres",
+       sql="SELECT conn_id, conn_type FROM connection WHERE conn_type = 'postgres'",
+       do_xcom_push=True,
+   )
+
+.. note::
+   Always use **read-only database credentials** for metadata database connections and it is recommended to use temporary credentials.
 
 Step 6: Deployment Managers - Upgrade your Airflow Instance
 ------------------------------------------------------------

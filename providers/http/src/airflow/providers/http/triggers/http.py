@@ -32,7 +32,7 @@ from asgiref.sync import sync_to_async
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -253,6 +253,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
     :param headers: Additional headers to be passed through as a dict.
     :param data: Payload to be uploaded or request parameters.
     :param extra_options: Additional kwargs to pass when creating a request.
+    :parama poll_interval: How often, in seconds, the trigger should send a request to the API.
     """
 
     def __init__(
@@ -265,9 +266,11 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | None = None,
         extra_options: dict[str, Any] | None = None,
+        poll_interval: float = 60.0,
     ):
         super().__init__(http_conn_id, auth_type, method, endpoint, headers, data, extra_options)
         self.response_check_path = response_check_path
+        self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpEventTrigger arguments and classpath."""
@@ -276,12 +279,13 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
             {
                 "http_conn_id": self.http_conn_id,
                 "method": self.method,
-                "auth_type": self.auth_type,
+                "auth_type": serialize_auth_type(self.auth_type),
                 "endpoint": self.endpoint,
                 "headers": self.headers,
                 "data": self.data,
                 "extra_options": self.extra_options,
                 "response_check_path": self.response_check_path,
+                "poll_interval": self.poll_interval,
             },
         )
 
@@ -293,6 +297,7 @@ class HttpEventTrigger(HttpTrigger, BaseEventTrigger):
                 response = await super()._get_response(hook)
                 if await self._run_response_check(response):
                     break
+                await asyncio.sleep(self.poll_interval)
             yield TriggerEvent(
                 {
                     "status": "success",

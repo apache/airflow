@@ -22,7 +22,7 @@ import dayjsDuration from "dayjs/plugin/duration";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
@@ -54,6 +54,11 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
   const { openGroupIds, toggleGroupId } = useOpenGroups();
   const { dagId = "", runId = "" } = useParams();
+  const [searchParams] = useSearchParams();
+
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
@@ -72,7 +77,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const { data: dagStructure } = useGridStructure({
     dagRunState,
     hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
+    includeDownstream,
+    includeUpstream,
     limit,
+    root: filterRoot,
     runType,
     triggeringUser,
   });

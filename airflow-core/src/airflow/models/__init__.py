@@ -64,6 +64,7 @@ def import_all_models():
     import airflow.models.backfill
     import airflow.models.dag_favorite
     import airflow.models.dag_version
+    import airflow.models.dagbag
     import airflow.models.dagbundle
     import airflow.models.dagwarning
     import airflow.models.errors
@@ -80,7 +81,7 @@ def __getattr__(name):
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    from airflow.utils.module_loading import import_string
+    from airflow._shared.module_loading import import_string
 
     val = import_string(f"{path}.{name}")
 
@@ -99,7 +100,7 @@ __lazy_imports = {
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Callback": "airflow.models.callback",
     "Connection": "airflow.models.connection",
-    "DagBag": "airflow.models.dagbag",
+    "DagBag": "airflow.dag_processing.dagbag",
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
@@ -125,11 +126,11 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
+    from airflow.dag_processing.dagbag import DagBag
     from airflow.models.base import ID_LEN, Base
     from airflow.models.callback import Callback
     from airflow.models.connection import Connection
     from airflow.models.dag import DagModel, DagTag
-    from airflow.models.dagbag import DagBag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest

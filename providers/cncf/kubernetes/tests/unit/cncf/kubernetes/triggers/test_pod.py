@@ -114,6 +114,7 @@ class TestKubernetesPodTrigger:
             "pod_namespace": NAMESPACE,
             "base_container_name": BASE_CONTAINER_NAME,
             "kubernetes_conn_id": CONN_ID,
+            "connection_extras": None,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "config_dict": CONFIG_DICT,
@@ -128,6 +129,52 @@ class TestKubernetesPodTrigger:
             "logging_interval": None,
             "trigger_kwargs": {},
         }
+
+    def test_serialize_with_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["connection_extras"] == extras
+
+    def test_hook_uses_provided_connection_extras(self):
+        extras = {"token": "abc"}
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            connection_extras=extras,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_dict=CONFIG_DICT,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            startup_check_interval=STARTUP_CHECK_INTERVAL_SECS,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action=ON_FINISH_ACTION,
+        )
+
+        assert trigger.hook._extras == extras
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
@@ -297,7 +344,11 @@ class TestKubernetesPodTrigger:
 
         mock_datetime.timedelta = datetime.timedelta
         mock_datetime.timezone = datetime.timezone
-        mock_fetch_container_logs_before_current_sec.return_value = DateTime(2022, 1, 1)
+
+        async def async_datetime_return(*args, **kwargs):
+            return DateTime(2022, 1, 1)
+
+        mock_fetch_container_logs_before_current_sec.side_effect = async_datetime_return
         define_container_state.side_effect = ["running", "running", "terminated"]
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
@@ -354,16 +405,30 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_read_events_during_start(self, mock_hook, mock_method, trigger):
-        event1 = mock.AsyncMock()
+        event1 = mock.Mock()
+        event1.metadata.uid = "event-uid-1"
+        event1.metadata.resource_version = "100"
         event1.message = "event 1"
         event1.involved_object.field_path = "object 1"
-        event2 = mock.AsyncMock()
+        event2 = mock.Mock()
+        event2.metadata.uid = "event-uid-2"
+        event2.metadata.resource_version = "101"
         event2.message = "event 2"
         event2.involved_object.field_path = "object 2"
-        events_list = mock.AsyncMock()
-        events_list.items = [event1, event2]
 
-        mock_hook.get_pod_events = mock.AsyncMock(return_value=events_list)
+        call_count = 0
+
+        async def async_event_generator(*_, **__):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # First call: return events
+                yield event1
+                yield event2
+            # Subsequent calls: return nothing and stop watching
+            trigger.pod_manager.stop_watching_events = True
+
+        mock_hook.watch_pod_events = mock.Mock(side_effect=async_event_generator)
 
         pod_pending = mock.MagicMock()
         pod_pending.status.phase = PodPhase.PENDING

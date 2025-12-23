@@ -1407,7 +1407,7 @@ class TestMappedSetupTeardown:
                 timedelta(seconds=10),
                 timedelta(seconds=5),
                 timedelta(seconds=60),
-                True,
+                2.0,
                 1,
                 2,
                 "user",

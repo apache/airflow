@@ -27,7 +27,6 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowException
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
     ColumnLineageDatasetFacet,
@@ -41,6 +40,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.state import TaskInstanceState
 
@@ -123,6 +123,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -154,6 +156,33 @@ class TestGCSToBigQueryOperator:
             },
             project_id=JOB_PROJECT_ID,
         )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_external_table_explicitly_passes_dataset_and_table_ids(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        def _validate_create_table(**kwargs):
+            assert kwargs["dataset_id"] == DATASET
+            assert kwargs["table_id"] == TABLE
+
+        hook.return_value.create_table.side_effect = _validate_create_table
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_max_value_without_external_table_should_execute_successfully(self, hook):
@@ -333,6 +362,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": LABELS,
@@ -434,6 +465,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -536,6 +569,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -640,6 +675,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -745,6 +782,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -849,6 +888,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -1051,6 +1092,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -1235,6 +1278,8 @@ class TestGCSToBigQueryOperator:
             exists_ok=True,
             location=None,
             project_id=JOB_PROJECT_ID,
+            dataset_id=DATASET,
+            table_id=TABLE,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -1616,6 +1661,8 @@ class TestGCSToBigQueryOperator:
                 exists_ok=True,
                 location=None,
                 project_id=JOB_PROJECT_ID,
+                dataset_id=DATASET,
+                table_id=TABLE,
                 table_resource={
                     "tableReference": {
                         "projectId": PROJECT_ID,

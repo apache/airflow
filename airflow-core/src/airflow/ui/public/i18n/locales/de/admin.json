@@ -49,6 +49,12 @@
     "searchPlaceholder": "Verbindungen suchen",
     "test": "Verbindung testen",
     "testDisabled": "Das Testen von Verbindungen ist deaktiviert. Der Administrator kann via Konfiguration das Testen freischalten.",
+    "testError": {
+      "title": "Verbindungstest fehlgeschlagen"
+    },
+    "testSuccess": {
+      "title": "Verbindungstest erfolgreich"
+    },
     "typeMeta": {
       "error": "Fehler beim Abrufen der Liste der Verbindungstypen",
       "standardFields": {
@@ -128,8 +134,6 @@
       "tooltip": "Ausgewählte Variablen löschen"
     },
     "edit": "Variable bearbeiten",
-    "export": "Exportieren",
-    "exportTooltip": "Ausgewählte Variablen exportieren",
     "form": {
       "invalidJson": "JSON ist ungültig",
       "keyMaxLength": "Der Name kann maximal 250 Zeichen lang sein",

@@ -21,7 +21,7 @@ import pytest
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 

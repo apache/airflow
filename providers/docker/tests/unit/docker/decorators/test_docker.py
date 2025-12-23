@@ -20,8 +20,8 @@ from importlib.util import find_spec
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker

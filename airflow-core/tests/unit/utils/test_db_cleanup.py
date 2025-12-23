@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -36,8 +36,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.serialized_dag import LazyDeserializedDAG, SerializedDagModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -301,11 +302,11 @@ class TestDBCleanup:
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
-            assert len(session.query(model).all()) == expected_remaining
+            assert session.scalar(select(func.count()).select_from(model)) == expected_remaining
             if model.name == "task_instance":
-                assert len(session.query(DagRun).all()) == num_tis
+                assert session.scalar(select(func.count()).select_from(DagRun)) == num_tis
             elif model.name == "dag_run":
-                assert len(session.query(TaskInstance).all()) == expected_remaining
+                assert session.scalar(select(func.count()).select_from(TaskInstance)) == expected_remaining
             else:
                 raise Exception("unexpected")
 
@@ -384,7 +385,7 @@ class TestDBCleanup:
                 skip_archive=skip_archive,
             )
             model = config_dict["dag_run"].orm_model
-            assert len(session.query(model).all()) == 5
+            assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     @patch("airflow.utils.db.reflect_tables")

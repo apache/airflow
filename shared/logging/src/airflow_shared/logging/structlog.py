@@ -27,6 +27,7 @@ import sys
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cache, cached_property, partial
 from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, BinaryIO, Generic, TextIO, TypeVar, cast
 
 import pygtrie
@@ -96,7 +97,7 @@ def _make_airflow_structlogger(min_level):
 
             # See https://github.com/python/cpython/blob/3.13/Lib/logging/__init__.py#L307-L326 for reason
             if args and len(args) == 1 and isinstance(args[0], Mapping) and args[0]:
-                args = args[0]
+                return self._proxy_to_logger(name, event % args[0], **kw)
             return self._proxy_to_logger(name, event % args, **kw)
 
         meth.__name__ = name
@@ -185,14 +186,14 @@ LogOutputType = TypeVar("LogOutputType", bound=TextIO | BinaryIO)
 class LoggerFactory(Generic[LogOutputType]):
     def __init__(
         self,
-        cls: Callable[[str | None, LogOutputType | None], WrappedLogger],
+        cls: type[WrappedLogger],
         io: LogOutputType | None = None,
     ):
         self.cls = cls
         self.io = io
 
     def __call__(self, logger_name: str | None = None, *args: Any) -> WrappedLogger:
-        return self.cls(logger_name, self.io)
+        return self.cls(logger_name, self.io)  # type: ignore[call-arg]
 
 
 def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDict:
@@ -282,17 +283,17 @@ def structlog_processors(
 
     import click
 
-    suppress = (click, contextlib)
+    suppress: tuple[ModuleType, ...] = (click, contextlib)
     try:
         import httpcore
 
-        suppress += (httpcore,)
+        suppress = (*suppress, httpcore)
     except ImportError:
         pass
     try:
         import httpx
 
-        suppress += (httpx,)
+        suppress = (*suppress, httpx)
     except ImportError:
         pass
 
@@ -320,7 +321,8 @@ def structlog_processors(
         json = structlog.processors.JSONRenderer(serializer=json_dumps)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            return json(logger, method_name, event_dict).decode("utf-8")
+            result = json(logger, method_name, event_dict)
+            return result.decode("utf-8") if isinstance(result, bytes) else result
 
         shared_processors.extend(
             (
@@ -331,6 +333,7 @@ def structlog_processors(
 
         return shared_processors, json_processor, json
 
+    exc_formatter: structlog.dev.RichTracebackFormatter | structlog.typing.ExceptionRenderer
     if os.getenv("DEV", "") != "":
         # Only use Rich in dev -- otherwise for "production" deployments it makes the logs harder to read as
         # it uses lots of ANSI escapes and non ASCII characters. Simpler is better for non-dev non-JSON
@@ -349,6 +352,7 @@ def structlog_processors(
     if colors:
         my_styles["debug"] = structlog.dev.CYAN
 
+    console: PercentFormatRender | structlog.dev.ConsoleRenderer
     if log_format:
         console = PercentFormatRender(
             fmt=log_format,
@@ -479,15 +483,18 @@ def configure_logging(
 
     wrapper_class = cast("type[BindableLogger]", make_filtering_logger())
     if json_output:
-        logger_factory = LoggerFactory(NamedBytesLogger, io=output)
+        logger_factory: LoggerFactory[Any] = LoggerFactory(NamedBytesLogger, io=output)
     else:
         # There is no universal way of telling if a file-like-object is binary (and needs bytes) or text that
         # works for files, sockets and io.StringIO/BytesIO.
 
         # If given a binary object, wrap it in a text mode wrapper
+        text_output: TextIO | None = None
         if output is not None and not hasattr(output, "encoding"):
-            output = io.TextIOWrapper(output, line_buffering=True)
-        logger_factory = LoggerFactory(NamedWriteLogger, io=output)
+            text_output = io.TextIOWrapper(cast("BinaryIO", output), line_buffering=True)
+        elif output is not None:
+            text_output = cast("TextIO", output)
+        logger_factory = LoggerFactory(NamedWriteLogger, io=text_output)
 
     structlog.configure(
         processors=shared_pre_chain + [for_structlog],

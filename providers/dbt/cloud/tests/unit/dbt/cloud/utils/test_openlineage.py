@@ -21,14 +21,20 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from openlineage.common import __version__
+from openlineage.client.constants import __version__
 from packaging.version import parse
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
-from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.dbt.cloud.utils.openlineage import (
+    _get_parent_run_metadata,
+    generate_openlineage_events_from_dbt_cloud_run,
+)
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
+from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 TASK_ID = "dbt_test"
 DAG_ID = "dbt_dag"
@@ -94,12 +100,13 @@ def get_dbt_artifact(*args, **kwargs):
     [
         ("1.99.0", True),
         ("2.0.0", True),
-        ("2.3.0", False),
+        ("2.3.0", True),
+        ("2.5.0", False),
         ("2.99.0", False),
     ],
 )
 def test_previous_version_openlineage_provider(value, is_error):
-    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.3"""
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 2.4"""
 
     def _mock_version(package):
         if package == "apache-airflow-providers-openlineage":
@@ -110,7 +117,7 @@ def test_previous_version_openlineage_provider(value, is_error):
     mock_task_instance = MagicMock()
 
     expected_err = (
-        f"OpenLineage provider version `{value}` is lower than required `2.3.0`, "
+        f"OpenLineage provider version `{value}` is lower than required `2.5.0`, "
         "skipping function `generate_openlineage_events_from_dbt_cloud_run` execution"
     )
 
@@ -126,8 +133,32 @@ def test_previous_version_openlineage_provider(value, is_error):
                 generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
 
 
+def test_get_parent_run_metadata():
+    logical_date = timezone.datetime(2025, 1, 1)
+    dr = MagicMock(logical_date=logical_date, clear_number=0)
+    mock_ti = MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        map_index=1,
+        try_number=1,
+        logical_date=logical_date,
+        state=TaskInstanceState.SUCCESS,
+        dag_run=dr,
+    )
+    mock_ti.get_template_context.return_value = {"dag_run": dr}
+
+    result = _get_parent_run_metadata(mock_ti)
+
+    assert result.run_id == "01941f29-7c00-7087-8906-40e512c257bd"
+    assert result.job_namespace == namespace()
+    assert result.job_name == "dag_id.task_id"
+    assert result.root_parent_run_id == "01941f29-7c00-743e-b109-28b18d0a19c5"
+    assert result.root_parent_job_namespace == namespace()
+    assert result.root_parent_job_name == "dag_id"
+
+
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
-    @patch("importlib.metadata.version", return_value="2.3.0")
+    @patch("importlib.metadata.version", return_value="3.0.0")
     @patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
     @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_dag_run_id")

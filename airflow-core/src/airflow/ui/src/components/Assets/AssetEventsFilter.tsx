@@ -16,35 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useMemo } from "react";
-
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils/useFiltersHandler";
 
 const FILTER_KEYS: Array<FilterableSearchParamsKeys> = [
-  SearchParamsKeys.START_DATE,
-  SearchParamsKeys.END_DATE,
+  SearchParamsKeys.ASSET_EVENT_DATE_RANGE,
   SearchParamsKeys.DAG_ID,
   SearchParamsKeys.TASK_ID,
 ];
 
 export const AssetEventsFilter = () => {
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(FILTER_KEYS);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, string> = {};
-
-    FILTER_KEYS.forEach((key) => {
-      const value = searchParams.get(key);
-
-      if (value !== null && value.trim() !== "") {
-        values[key] = value;
-      }
-    });
-
-    return values;
-  }, [searchParams]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(FILTER_KEYS);
 
   return (
     <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />

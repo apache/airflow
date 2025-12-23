@@ -997,11 +997,16 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-keycloak",
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
+                "apache-airflow-providers-edge3",
             ]
-            if version.minor < 10:
-                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge3")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
+                github_actions=github_actions,
+                check=False,
+            )
+            console.print("[bright_blue]Upgrading typing-extensions for compatibility with pydantic_core")
+            run_command(
+                ["uv", "pip", "install", "--upgrade", "--no-deps", "typing-extensions>=4.15.0"],
                 github_actions=github_actions,
                 check=False,
             )

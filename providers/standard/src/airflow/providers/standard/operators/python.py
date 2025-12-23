@@ -43,13 +43,11 @@ from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
-    AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import context_merge
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
@@ -562,6 +560,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             )
 
             env_vars = dict(os.environ) if self.inherit_env else {}
+            if fd := os.getenv("__AIRFLOW_SUPERVISOR_FD"):
+                env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
 

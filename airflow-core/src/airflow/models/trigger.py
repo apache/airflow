@@ -31,6 +31,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
+from airflow.configuration import conf
 from airflow.models import Callback
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
@@ -111,6 +112,8 @@ class Trigger(Base):
     assets = association_proxy("asset_watchers", "asset")
 
     callback = relationship("Callback", back_populates="trigger", uselist=False)
+
+    max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=50)
 
     def __init__(
         self,
@@ -264,7 +267,7 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
+                asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
             )
@@ -373,7 +376,9 @@ class Trigger(Base):
         # It prioritizes callbacks, then DAGs over event driven scheduling which is fair
         queries = [
             # Callback triggers
-            select(cls.id).where(cls.callback.has()).order_by(cls.created_date),
+            select(cls.id)
+            .join(Callback, isouter=False)
+            .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
@@ -389,6 +394,10 @@ class Trigger(Base):
             remaining_capacity = capacity - len(result)
             if remaining_capacity <= 0:
                 break
+
+            # Limit the number of triggers selected per loop to avoid one triggerer
+            # picking up too many triggers and starving other triggerers for HA setup.
+            remaining_capacity = min(remaining_capacity, cls.max_trigger_to_select_per_loop)
 
             locked_query = with_row_locks(query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())

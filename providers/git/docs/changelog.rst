@@ -19,6 +19,54 @@
 Changelog
 ---------
 
+0.1.1
+.....
+
+Misc
+~~~~
+
+* ``Fix misleading error message when GitHook creation fails (#59084)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Updates to release process of providers (#58316)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add HTTP URL authentication support to GitHook (#58194)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove '.git' folder from versions in GitDagBundle (#57069)``
+* ``Fix Git corruption recovery by moving fetch into retry context (#56913)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Fix the '__init__.py' for tests (#58211)``
+   * ``Enable PT006 rule to 6 files in providers (edge3,git) (#58018)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
 0.0.9
 .....
 
@@ -72,8 +120,6 @@ Doc-only
    * ``Fix git connection test by adding required conn_type field (#54681)``
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 0.0.6

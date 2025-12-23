@@ -27,6 +27,7 @@ import os
 import selectors
 import signal
 import sys
+import threading
 import time
 import weakref
 from collections import deque
@@ -53,7 +54,6 @@ import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
     VariableResponse,
     XComSequenceIndexResponse,
 )
+from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
@@ -72,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     AssetResult,
     ConnectionResult,
     CreateHITLDetailPayload,
+    DagRunResult,
     DagRunStateResult,
     DeferTask,
     DeleteVariable,
@@ -82,9 +84,11 @@ from airflow.sdk.execution_time.comms import (
     GetAssetEventByAsset,
     GetAssetEventByAssetAlias,
     GetConnection,
+    GetDagRun,
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -132,12 +136,12 @@ except ImportError:
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger, WrappedLogger
+    from typing_extensions import Self
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.secrets import BaseSecretsBackend
-    from airflow.typing_compat import Self
 
 
 __all__ = ["ActivitySubprocess", "WatchedSubprocess", "supervise"]
@@ -291,6 +295,9 @@ def block_orm_access():
     conn = "airflow-db-not-allowed:///"
     if "airflow.settings" in sys.modules:
         from airflow import settings
+
+        # This one needs to be from core, because we are checking if settings is loaded to disallow ORM
+        # If settings is loaded, airflow.configuration will be too
         from airflow.configuration import conf
 
         to_block = frozenset(("engine", "async_engine", "Session", "AsyncSession", "NonScopedSession"))
@@ -906,15 +913,25 @@ def _remote_logging_conn(client: Client):
 
     if conn:
         key = f"AIRFLOW_CONN_{conn_id.upper()}"
-        old = os.getenv(key)
+        old_conn = os.getenv(key)
+        old_context = os.getenv("_AIRFLOW_PROCESS_CONTEXT")
+
         os.environ[key] = conn.get_uri()
+        # Set process context to "client" so that Connection deserialization uses SDK Connection class
+        # which has from_uri() method, instead of core Connection class
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         try:
             yield
         finally:
-            if old is None:
+            if old_conn is None:
                 del os.environ[key]
             else:
-                os.environ[key] = old
+                os.environ[key] = old_conn
+
+            if old_context is None:
+                del os.environ["_AIRFLOW_PROCESS_CONTEXT"]
+            else:
+                os.environ["_AIRFLOW_PROCESS_CONTEXT"] = old_context
 
 
 @attrs.define(kw_only=True)
@@ -953,15 +970,28 @@ class ActivitySubprocess(WatchedSubprocess):
         client: Client,
         target: Callable[[], None] = _subprocess_main,
         logger: FilteringBoundLogger | None = None,
+        sentry_integration: str = "",
         **kwargs,
     ) -> Self:
         """Fork and start a new subprocess to execute the given task."""
         proc: Self = super().start(id=what.id, client=client, target=target, logger=logger, **kwargs)
         # Tell the task process what it needs to do!
-        proc._on_child_started(ti=what, dag_rel_path=dag_rel_path, bundle_info=bundle_info)
+        proc._on_child_started(
+            ti=what,
+            dag_rel_path=dag_rel_path,
+            bundle_info=bundle_info,
+            sentry_integration=sentry_integration,
+        )
         return proc
 
-    def _on_child_started(self, ti: TaskInstance, dag_rel_path: str | os.PathLike[str], bundle_info):
+    def _on_child_started(
+        self,
+        *,
+        ti: TaskInstance,
+        dag_rel_path: str | os.PathLike[str],
+        bundle_info,
+        sentry_integration: str,
+    ) -> None:
         """Send startup message to the subprocess."""
         self.ti = ti  # type: ignore[assignment]
         start_date = datetime.now(tz=timezone.utc)
@@ -983,6 +1013,7 @@ class ActivitySubprocess(WatchedSubprocess):
             bundle_info=bundle_info,
             ti_context=ti_context,
             start_date=start_date,
+            sentry_integration=sentry_integration,
         )
 
         # Send the message to tell the process what it needs to execute
@@ -1071,6 +1102,13 @@ class ActivitySubprocess(WatchedSubprocess):
                     self._process_exit_monotonic
                     and time.monotonic() - self._process_exit_monotonic > SOCKET_CLEANUP_TIMEOUT
                 ):
+                    log.warning(
+                        "Process exited with open sockets; cleaning up after timeout",
+                        pid=self.pid,
+                        exit_code=self._exit_code,
+                        socket_types=list(self._open_sockets.values()),
+                        timeout_seconds=SOCKET_CLEANUP_TIMEOUT,
+                    )
                     self._cleanup_open_sockets()
 
             if alive:
@@ -1170,10 +1208,12 @@ class ActivitySubprocess(WatchedSubprocess):
         if self._exit_code != 0 and self._terminal_state == SERVER_TERMINATED:
             return SERVER_TERMINATED
 
-        # Any negative exit code indicates a signal kill
-        # We consider all signal kills as potentially retryable
-        # since they're often transient issues that could succeed on retry
-        if self._exit_code < 0 and self._should_retry:
+        # Any non zero exit code indicates a failure
+        # If retries are configured, mark as UP_FOR_RETRY
+        # Negative exit codes indicate signal kills (often transient)
+        # Positive exit codes can also be transient failures like network issues in a task communicating to
+        # external services
+        if self._exit_code != 0 and self._should_retry:
             return TaskInstanceState.UP_FOR_RETRY
 
         return TaskInstanceState.FAILED
@@ -1332,6 +1372,9 @@ class ActivitySubprocess(WatchedSubprocess):
                 msg.logical_date,
                 msg.reset_dag_run,
             )
+        elif isinstance(msg, GetDagRun):
+            dr_resp = self.client.dag_runs.get_detail(msg.dag_id, msg.run_id)
+            resp = DagRunResult.from_api_response(dr_resp)
         elif isinstance(msg, GetDagRunState):
             dr_resp = self.client.dag_runs.get_state(msg.dag_id, msg.run_id)
             resp = DagRunStateResult.from_api_response(dr_resp)
@@ -1374,6 +1417,14 @@ class ActivitySubprocess(WatchedSubprocess):
             resp = self.client.dag_runs.get_previous(
                 dag_id=msg.dag_id,
                 logical_date=msg.logical_date,
+                state=msg.state,
+            )
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
                 state=msg.state,
             )
         elif isinstance(msg, DeleteVariable):
@@ -1495,6 +1546,44 @@ class InProcessTestSupervisor(ActivitySubprocess):
             # Bypass the tenacity retries!
             return super().request.__wrapped__(self, *args, **kwargs)  # type: ignore[attr-defined]
 
+    def _check_subprocess_exit(
+        self, raise_on_timeout: bool = False, expect_signal: None | int = None
+    ) -> int | None:
+        # InProcessSupervisor has no subprocess, so we don't need to poll anything. This is called from
+        # _handle_socket_comms, so we need to override it
+        return None
+
+    def _handle_socket_comms(self):
+        while self._open_sockets:
+            self._service_subprocess(1.0)
+
+    @contextlib.contextmanager
+    def _setup_subprocess_socket(self):
+        thread = threading.Thread(target=self._handle_socket_comms, daemon=True)
+
+        requests, child_sock = socketpair()
+
+        self._open_sockets[requests] = "requests"
+        self.stdin = requests
+
+        self.selector.register(
+            requests,
+            selectors.EVENT_READ,
+            length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
+        )
+        os.set_inheritable(child_sock.fileno(), True)
+        os.environ["__AIRFLOW_SUPERVISOR_FD"] = str(child_sock.fileno())
+
+        try:
+            thread.start()
+            yield child_sock
+        finally:
+            requests.close()
+            child_sock.close()
+            self._on_socket_closed(requests)
+            thread.join(0)
+            os.environ.pop("__AIRFLOW_SUPERVISOR_FD", None)
+
     @classmethod
     def start(  # type: ignore[override]
         cls,
@@ -1547,16 +1636,19 @@ class InProcessTestSupervisor(ActivitySubprocess):
                 start_date=start_date,
                 state=TaskInstanceState.RUNNING,
             )
-            context = ti.get_template_context()
-            log = structlog.get_logger(logger_name="task")
 
-            state, msg, error = run(ti, context, log)
-            finalize(ti, state, context, log, error)
+            # Create a socketpair preemptively, in case the task process runs VirtualEnv operator or run_as_user
+            with supervisor._setup_subprocess_socket():
+                context = ti.get_template_context()
+                log = structlog.get_logger(logger_name="task")
 
-            # In the normal subprocess model, the task runner calls this before exiting.
-            # Since we're running in-process, we manually notify the API server that
-            # the task has finished—unless the terminal state was already sent explicitly.
-            supervisor.update_task_state_if_needed()
+                state, msg, error = run(ti, context, log)
+                finalize(ti, state, context, log, error)
+
+                # In the normal subprocess model, the task runner calls this before exiting.
+                # Since we're running in-process, we manually notify the API server that
+                # the task has finished—unless the terminal state was already sent explicitly.
+                supervisor.update_task_state_if_needed()
 
         return TaskRunResult(ti=ti, state=state, msg=msg, error=error)
 
@@ -1787,10 +1879,10 @@ def process_log_messages_from_subprocess(
             # TODO: convert the dict back to a pretty stack trace
             event["error_detail"] = exc
 
-        level = NAME_TO_LEVEL[event.pop("level")]
-        msg = event.pop("event", None)
-        for target in loggers:
-            target.log(level, msg, **event)
+        if level := NAME_TO_LEVEL.get(event.pop("level")):
+            msg = event.pop("event", None)
+            for target in loggers:
+                target.log(level, msg, **event)
 
 
 def forward_to_log(
@@ -1826,7 +1918,7 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     """
     import os
 
-    from airflow.configuration import ensure_secrets_loaded
+    from airflow.sdk.configuration import ensure_secrets_loaded
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
@@ -1889,6 +1981,7 @@ def supervise(
     log_path: str | None = None,
     subprocess_logs_to_stdout: bool = False,
     client: Client | None = None,
+    sentry_integration: str = "",
 ) -> int:
     """
     Run a single task execution to completion.
@@ -1902,6 +1995,8 @@ def supervise(
     :param log_path: Path to write logs, if required.
     :param subprocess_logs_to_stdout: Should task logs also be sent to stdout via the main logger.
     :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :param sentry_integration: If the executor has a Sentry integration, import
+        path to a callable to initialize it (empty means no integration).
     :return: Exit code of the process.
     :raises ValueError: If server URL is empty or invalid.
     """
@@ -1975,6 +2070,7 @@ def supervise(
             logger=logger,
             bundle_info=bundle_info,
             subprocess_logs_to_stdout=subprocess_logs_to_stdout,
+            sentry_integration=sentry_integration,
         )
 
         exit_code = process.wait()

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-presto"
-version = "5.9.3"
+version = "5.10.1"
 description = "Provider package apache-airflow-providers-presto for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -58,8 +58,8 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",
     "apache-airflow-providers-common-sql>=1.26.0",
     "presto-python-client>=0.8.4",
     'pandas>=2.1.2; python_version <"3.13"',
@@ -113,8 +113,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.9.3/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -17,6 +17,34 @@
  under the License.
  -->
 
+# v3.1.4
+
+## Bug Fixes:
+
+ - Update refresh token flow ([#55506](https://github.com/apache/airflow/pull/55506))
+ - Patch pools should have an optional description ([#58066](https://github.com/apache/airflow/pull/58066))
+
+# v3.1.3
+
+## New Features:
+
+- Add query limit protection to prevent excessive database queries in DAG runs list endpoints ([#57450](https://github.com/apache/airflow/pull/57450))
+- Change `extra` field type to `dict[str, JsonValue]` for Asset, AssetAlias, and AssetEvent models ([#57352](https://github.com/apache/airflow/pull/57352))
+- Add `task_display_name` alias field to EventLogResponse for better task identification ([#55160](https://github.com/apache/airflow/pull/55160))
+- Add `is_favorite` field to DAGs list API to support user-specific DAG favorites ([#56341](https://github.com/apache/airflow/pull/56341))
+
+## Improvements:
+
+- Enhance API documentation for sorting functionality ([#56617](https://github.com/apache/airflow/pull/56617))
+- Improve API documentation for the `order_by` query parameter ([#55988](https://github.com/apache/airflow/pull/55988))
+- Remove deprecated `dagReports` API endpoint ([#56609](https://github.com/apache/airflow/pull/56609))
+
+## Bug Fixes:
+
+- Fix logout functionality in airflow-core to properly handle session termination ([#57990](https://github.com/apache/airflow/pull/57990))
+- Fix API endpoint for clearing task instances to properly support mapped task instances with specific map indexes ([#56346](https://github.com/apache/airflow/pull/56346))
+
+
 # v3.1.0
 
 ## New Features:

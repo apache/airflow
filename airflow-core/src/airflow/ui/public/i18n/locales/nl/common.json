@@ -25,6 +25,7 @@
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "All extra JSON inklappen",
   "collapseDetailsPanel": "Details inklappen",
   "createdAssetEvent_one": "Asset Event aangemaakt",
   "createdAssetEvent_other": "Asset Events aangemaakt",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "Data interval einde",
     "dataIntervalStart": "Data interval begin",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
     "runType": "Run type",
@@ -78,6 +80,11 @@
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Druk op {{hotkey}} om logs te downloaden"
+  },
   "duration": "Duur",
   "endDate": "Einddatum",
   "error": {
@@ -93,6 +100,7 @@
     "hotkey": "e",
     "tooltip": "Druk op {{hotkey}} op in- of uit te klappen"
   },
+  "expandAllExtra": "Alle extra JSON uitklappen",
   "expression": {
     "all": "Alles",
     "and": "En",
@@ -101,6 +109,8 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Duur van",
+    "durationTo": "Duur tot",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
     "runAfterFrom": "Van Run na",

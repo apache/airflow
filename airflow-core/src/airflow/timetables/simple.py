@@ -16,16 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from airflow._shared.timezones import timezone
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAll, SerializedAssetBase
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
+try:
+    from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.serialization.encoders import ensure_serialized_asset
+except ModuleNotFoundError:
+    BaseAsset: TypeAlias = SerializedAssetBase  # type: ignore[no-redef]
+
+    def ensure_serialized_asset(o):  # type: ignore[misc,no-redef]
+        return o
+
+
 if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
     from pendulum import DateTime
 
-    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -46,15 +58,14 @@ class _TrivialTimetable(Timetable):
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        if not isinstance(other := coerce_to_core_timetable(other), type(self)):
             return NotImplemented
         return True
 
     def __hash__(self):
         return hash(self.__class__.__name__)
-
-    def serialize(self) -> dict[str, Any]:
-        return {}
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval.exact(run_after)
@@ -67,7 +78,7 @@ class NullTimetable(_TrivialTimetable):
     This corresponds to ``schedule=None``.
     """
 
-    can_be_scheduled = False
+    can_be_scheduled = False  # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     description: str = "Never, external triggers only"
 
     @property
@@ -123,6 +134,7 @@ class ContinuousTimetable(_TrivialTimetable):
 
     description: str = "As frequently as possible, but only one run at a time."
 
+    # TODO (GH-52141): Find a way to keep this and one in Core in sync.
     active_runs_limit = 1  # Continuous DAGRuns should be constrained to one run at a time
 
     @property
@@ -170,24 +182,28 @@ class AssetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by assets"
 
-    def __init__(self, assets: BaseAsset) -> None:
+    def __init__(self, assets: Collection[SerializedAsset] | SerializedAssetBase) -> None:
         super().__init__()
-        self.asset_condition = assets
+        # Compatibility: Handle SDK assets if needed so this class works in dag files.
+        if isinstance(assets, SerializedAssetBase | BaseAsset):
+            self.asset_condition = ensure_serialized_asset(assets)
+        else:
+            self.asset_condition = SerializedAssetAll([ensure_serialized_asset(a) for a in assets])
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_condition
+        from airflow.serialization.decoders import decode_asset_like
 
-        return cls(decode_asset_condition(data["asset_condition"]))
+        return cls(decode_asset_like(data["asset_condition"]))
 
     @property
     def summary(self) -> str:
         return "Asset"
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_condition
+        from airflow.serialization.encoders import encode_asset_like
 
-        return {"asset_condition": encode_asset_condition(self.asset_condition)}
+        return {"asset_condition": encode_asset_like(self.asset_condition)}
 
     def generate_run_id(
         self,
@@ -217,3 +233,65 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         return None
+
+
+class PartitionMapper(ABC):
+    """
+    Base partition mapper class.
+
+    Maps keys from asset events to target dag run partitions.
+    """
+
+    @abstractmethod
+    def to_downstream(self, key: str) -> str:
+        """Return the target key that the given source partition key maps to."""
+
+    @abstractmethod
+    def to_upstream(self, key: str) -> Iterable[str]:
+        """Yield the source keys that map to the given target partition key."""
+
+    def serialize(self) -> dict[str, Any]:
+        return {}
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> PartitionMapper:
+        return cls()
+
+
+class IdentityMapper(PartitionMapper):
+    """Partition mapper that does not change the key."""
+
+    def to_downstream(self, key: str) -> str:
+        return key
+
+    def to_upstream(self, key: str) -> Iterable[str]:
+        yield key
+
+
+class PartitionedAssetTimetable(AssetTriggeredTimetable):
+    """Asset-driven timetable that listens for partitioned assets."""
+
+    @property
+    def summary(self) -> str:
+        return "Partitioned Asset"
+
+    def __init__(self, assets: SerializedAssetBase, partition_mapper: PartitionMapper) -> None:
+        super().__init__(assets=assets)
+        self.partition_mapper = partition_mapper
+
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_asset_like, encode_partition_mapper
+
+        return {
+            "asset_condition": encode_asset_like(self.asset_condition),
+            "partition_mapper": encode_partition_mapper(self.partition_mapper),
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_asset_like, decode_partition_mapper
+
+        return cls(
+            assets=decode_asset_like(data["asset_condition"]),
+            partition_mapper=decode_partition_mapper(data["partition_mapper"]),
+        )

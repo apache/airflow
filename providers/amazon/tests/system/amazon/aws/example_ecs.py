@@ -89,7 +89,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -181,6 +180,8 @@ with DAG(
         # [END howto_awslogs_ecs]
     )
     # [END howto_operator_ecs_run_task]
+    # The default is 6 seconds between checks, which is very aggressive, setting to 60s to reduce throttling errors.
+    run_task.waiter_delay = 60
 
     # [START howto_operator_ecs_deregister_task_definition]
     deregister_task = EcsDeregisterTaskDefinitionOperator(

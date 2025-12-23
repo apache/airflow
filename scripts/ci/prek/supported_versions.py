@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "tabulate>=0.9.0",
 # ]
@@ -39,7 +39,7 @@ HEADERS = (
 )
 
 SUPPORTED_VERSIONS = (
-    ("3", "3.1.2", "Supported", "Apr 22, 2025", "TBD", "TBD"),
+    ("3", "3.1.5", "Supported", "Apr 22, 2025", "TBD", "TBD"),
     ("2", "2.11.0", "Supported", "Dec 17, 2020", "Oct 22, 2025", "Apr 22, 2026"),
     ("1.10", "1.10.15", "EOL", "Aug 27, 2018", "Dec 17, 2020", "June 17, 2021"),
     ("1.9", "1.9.0", "EOL", "Jan 03, 2018", "Aug 27, 2018", "Aug 27, 2018"),

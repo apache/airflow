@@ -21,9 +21,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+
+try:
+    from airflow.sdk import Connection  # type: ignore
+except ImportError:
+    from airflow.models import Connection  # type: ignore
 
 
 class TestWinRMHook:
@@ -42,6 +46,8 @@ class TestWinRMHook:
     @patch(
         "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection",
         return_value=Connection(
+            conn_id="",
+            conn_type="",
             login="username",
             password="password",
             host="remote_host",
@@ -113,6 +119,8 @@ class TestWinRMHook:
     @patch(
         "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection",
         return_value=Connection(
+            conn_id="",
+            conn_type="",
             login="username",
             password="password",
             host="remote_host",
@@ -154,6 +162,8 @@ class TestWinRMHook:
     @patch(
         "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook.get_connection",
         return_value=Connection(
+            conn_id="",
+            conn_type="",
             login="username",
             password="password",
             host="remote_host",
@@ -177,16 +187,20 @@ class TestWinRMHook:
                   }""",
         ),
     )
-    def test_run_without_stdout(self, mock_get_connection, mock_protocol):
+    def test_run_without_stdout_and_working_dir(self, mock_get_connection, mock_protocol):
         winrm_hook = WinRMHook(ssh_conn_id="conn_id")
-
+        working_dir = "c:\\test"
         mock_protocol.return_value.run_command = MagicMock(return_value="command_id")
         mock_protocol.return_value.get_command_output_raw = MagicMock(
             return_value=(b"stdout", b"stderr", 0, True)
         )
+        mock_protocol.return_value.open_shell = MagicMock()
 
-        return_code, stdout_buffer, stderr_buffer = winrm_hook.run("dir", return_output=False)
+        return_code, stdout_buffer, stderr_buffer = winrm_hook.run(
+            "dir", return_output=False, working_directory=working_dir
+        )
 
+        mock_protocol.return_value.open_shell.assert_called_once_with(working_directory=working_dir)
         assert return_code == 0
         assert not stdout_buffer
         assert stderr_buffer == [b"stderr"]

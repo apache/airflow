@@ -21,7 +21,7 @@ import json
 import logging
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,
@@ -401,24 +401,24 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
-        return select(XComModel.value).from_statement(stmt)
+        return cast("Select[tuple[Any]]", select(XComModel.value).from_statement(stmt))
 
     @staticmethod
     def _process_row(row: Row) -> Any:
         return XComModel.deserialize_value(row)
 
 
+__compat_imports = {
+    "BaseXCom": "airflow.sdk.bases.xcom",
+    "XCom": "airflow.sdk.execution_time.xcom",
+    "XComArg": "airflow.sdk",
+}
+
+
 def __getattr__(name: str):
-    if name == "BaseXCom":
-        from airflow.sdk.bases.xcom import BaseXCom
-
-        globals()[name] = BaseXCom
-        return BaseXCom
-
-    if name == "XCom":
-        from airflow.sdk.execution_time.xcom import XCom
-
-        globals()[name] = XCom
-        return XCom
-
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    try:
+        modpath = __compat_imports[name]
+    except KeyError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+    globals()[name] = value = getattr(__import__(modpath), name)
+    return value

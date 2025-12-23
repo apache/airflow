@@ -22,8 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
 
 at_least_one_event = [

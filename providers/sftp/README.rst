@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-sftp``
 
-Release: ``5.4.1``
+Release: ``5.5.1``
 
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``sftp`` provider. All classes for this provider 
 are in ``airflow.providers.sftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.4.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.1/>`_.
 
 Installation
 ------------
@@ -50,14 +50,15 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-================================  ==================
-PIP package                       Version required
-================================  ==================
-``apache-airflow``                ``>=2.10.0``
-``apache-airflow-providers-ssh``  ``>=4.0.0``
-``paramiko``                      ``>=2.9.0,<4.0.0``
-``asyncssh``                      ``>=2.12.0``
-================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-ssh``            ``>=4.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``paramiko``                                ``>=2.9.0,<4.0.0``
+``asyncssh``                                ``>=2.12.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -91,4 +92,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.4.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.5.1/changelog.html>`_.

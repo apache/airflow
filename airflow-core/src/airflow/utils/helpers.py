@@ -23,20 +23,25 @@ import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 from urllib.parse import urljoin
 
 from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import is_arg_set
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from typing import TypeGuard
+
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.definitions.context import Context
+
+    CT = TypeVar("CT", str, datetime)
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -90,7 +95,15 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
         signal.alarm(0)
 
 
-def is_container(obj: Any) -> bool:
+@overload
+def is_container(obj: None | int | Iterable[int] | range) -> TypeGuard[Iterable[int]]: ...
+
+
+@overload
+def is_container(obj: None | CT | Iterable[CT]) -> TypeGuard[Iterable[CT]]: ...
+
+
+def is_container(obj) -> bool:
     """Test if an object is a container (iterable) but not a string."""
     if isinstance(obj, Proxy):
         # Proxy of any object is considered a container because it implements __iter__
@@ -270,13 +283,7 @@ def at_most_one(*args) -> bool:
 
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
-
-    def is_set(val):
-        if val is NOTSET:
-            return False
-        return bool(val)
-
-    return sum(map(is_set, args)) in (0, 1)
+    return sum(is_arg_set(a) and bool(a) for a in args) in (0, 1)
 
 
 def prune_dict(val: Any, mode="strict"):
@@ -322,45 +329,25 @@ def prune_dict(val: Any, mode="strict"):
     return val
 
 
+__deprecated_imports = {
+    "render_template_as_native": "airflow.sdk.definitions.context",
+    "render_template_to_string": "airflow.sdk.definitions.context",
+    "prevent_duplicates": "airflow.sdk.definitions.mappedoperator",
+}
+
+
 def __getattr__(name: str):
     """Provide backward compatibility for moved functions in this module."""
-    if name == "render_template_as_native":
-        import warnings
+    try:
+        modpath = __deprecated_imports[name]
+    except KeyError:
+        raise AttributeError(f"module '{__name__}' has no attribute '{name}'") from None
 
-        from airflow.sdk.definitions.context import render_template_as_native
+    import warnings
 
-        warnings.warn(
-            "airflow.utils.helpers.render_template_as_native is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_as_native instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_template_as_native
-
-    if name == "prevent_duplicates":
-        import warnings
-
-        from airflow.sdk.definitions.mappedoperator import prevent_duplicates
-
-        warnings.warn(
-            "airflow.utils.helpers.prevent_duplicates is deprecated. "
-            "Use airflow.sdk.definitions.mappedoperator.prevent_duplicates instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return prevent_duplicates
-
-    if name == "render_template_to_string":
-        import warnings
-
-        from airflow.sdk.definitions.context import render_template_as_native
-
-        warnings.warn(
-            "airflow.utils.helpers.render_template_to_string is deprecated. "
-            "Use airflow.sdk.definitions.context.render_template_to_string instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_template_as_native
-
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+    warnings.warn(
+        f"{__name__}.{name} is deprecated. Use {modpath}.{name} instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(__import__(modpath), name)
