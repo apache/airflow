@@ -32,19 +32,20 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-REMOTE_TASK_LOG: RemoteLogIO | None
-DEFAULT_REMOTE_CONN_ID: str | None = None
+class _ActiveLoggingConfig:
+    """Private class to hold active logging config variables."""
+
+    remote_task_log: RemoteLogIO | None
+    default_remote_conn_id: str | None = None
 
 
-def __getattr__(name: str):
-    if name == "REMOTE_TASK_LOG":
-        load_logging_config()
-        return REMOTE_TASK_LOG
+def get_remote_task_log() -> RemoteLogIO | None:
+    load_logging_config()
+    return _ActiveLoggingConfig.remote_task_log
 
 
 def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
-    global REMOTE_TASK_LOG, DEFAULT_REMOTE_CONN_ID
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
 
@@ -75,8 +76,8 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             mod = import_module(modpath)
 
             # Load remote logging configuration from the custom module
-            REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
-            DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
+            _ActiveLoggingConfig.remote_task_log = getattr(mod, "REMOTE_TASK_LOG")
+            _ActiveLoggingConfig.default_remote_conn_id = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:
             log.info("Remote task logs will not be available due to an error:  %s", err)
 

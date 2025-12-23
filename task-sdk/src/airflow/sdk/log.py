@@ -188,9 +188,9 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def load_remote_log_handler() -> RemoteLogIO | None:
-    import airflow.logging_config
+    from airflow.logging_config import get_remote_task_log
 
-    return airflow.logging_config.REMOTE_TASK_LOG
+    return get_remote_task_log()
 
 
 def load_remote_conn_id() -> str | None:
