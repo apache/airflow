@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
+from sqlalchemy import select
 
 from airflow.models.variable import Variable
 
@@ -150,7 +151,7 @@ class TestPutVariable:
         assert response.status_code == 201, response.json()
         assert response.json()["message"] == "Variable successfully set"
 
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
+        var_from_db = session.scalars(select(Variable).where(Variable.key == key)).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
@@ -216,7 +217,7 @@ class TestPutVariable:
         assert response.status_code == 201
         assert response.json()["message"] == "Variable successfully set"
         # variable should have been updated to the new value
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
+        var_from_db = session.scalars(select(Variable).where(Variable.key == key)).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
@@ -253,25 +254,25 @@ class TestDeleteVariable:
         for i, key in enumerate(keys_to_create, 1):
             Variable.set(key=key, value=str(i))
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create)
 
         response = client.delete(f"/execution/variables/{key_to_delete}")
 
         assert response.status_code == 204
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create) - 1
 
     def test_should_not_delete_variable(self, client, session):
         Variable.set(key="key", value="value")
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1
 
         response = client.delete("/execution/variables/non_existent_key")
 
         assert response.status_code == 204
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1

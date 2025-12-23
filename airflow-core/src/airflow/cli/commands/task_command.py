@@ -38,7 +38,8 @@ from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -384,7 +385,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
     if dag:
         sdk_dag = dag
-        scheduler_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
     else:
         sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
         scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
@@ -429,11 +430,14 @@ def task_test(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
-    if not dag:
-        dag = get_bagged_dag(args.bundle_name, args.dag_id)
-    serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
     ti, _ = _get_ti(
-        serialized_dag.get_task(task_id=args.task_id),
+        scheduler_dag.get_task(task_id=args.task_id),
         args.map_index,
         logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
@@ -441,7 +445,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 
     with create_session() as session:
         context = ti.get_template_context(session=session)
-        task = dag.get_task(args.task_id)
+        task = sdk_dag.get_task(args.task_id)
         # TODO (GH-52141): After sdk separation, ti.get_template_context() would
         # contain serialized operators, but we need the real operators for
         # rendering. This does not make sense and eventually we should rewrite
