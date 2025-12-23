@@ -20,6 +20,7 @@ import copy
 import io
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -34,6 +35,9 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
 class TestGCSRemoteLogIO:
@@ -41,14 +45,82 @@ class TestGCSRemoteLogIO:
     def setup_tests(self, create_runtime_ti):
         # setup remote IO
         self.base_log_folder = "local/airflow/logs"
-        self.gcs_log_folder = "gs://bucket/remote/log/location"
-        self.gcs_remote_log_io = GCSRemoteLogIO(
-            remote_base=self.gcs_log_folder,
-            base_log_folder=self.base_log_folder,
-            delete_local_copy=True,
-        )
-        # setup task instance
+        self.gcs_log_folder = "bucket/airflow/logs"
         self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+
+    @pytest.mark.parametrize(
+        "is_absolute",
+        [pytest.param(True, id="absolute"), pytest.param(False, id="relative")],
+    )
+    @pytest.mark.parametrize(
+        "file_exists",
+        [pytest.param(True, id="file-exists"), pytest.param(False, id="file-not-exists")],
+    )
+    @pytest.mark.parametrize(
+        "delete_local_copy",
+        [pytest.param(True, id="delete-local"), pytest.param(False, id="keep-local")],
+    )
+    @pytest.mark.parametrize(
+        "mock_write_method_result",
+        [pytest.param(True, id="write-success"), pytest.param(False, id="write-fail")],
+    )
+    @mock.patch("google.cloud.storage.Client")
+    @mock.patch("google.cloud.storage.Blob")
+    @mock.patch("shutil.rmtree")
+    def test_upload(
+        self,
+        mock_rmtree,
+        mock_blob,
+        mock_client,
+        tmp_path: Path,
+        is_absolute: bool,
+        file_exists: bool,
+        delete_local_copy: bool,
+        mock_write_method_result: bool,
+    ):
+        # setup
+        gcs_remote_log_io = GCSRemoteLogIO(
+            remote_base=self.gcs_log_folder,
+            base_log_folder=tmp_path.as_posix(),
+            delete_local_copy=delete_local_copy,
+        )
+        if file_exists:
+            file_path = tmp_path / "existing.log" if is_absolute else "existing.log"
+            with open(tmp_path / "existing.log", "w") as f:
+                f.write("log content")
+        else:
+            file_path = tmp_path / "non_existing.log"
+
+        # action
+        with mock.patch.object(
+            gcs_remote_log_io,
+            "write",
+            return_value=mock_write_method_result,
+        ) as mock_write_method:
+            gcs_remote_log_io.upload(file_path, self.ti)
+
+            # verify
+            if file_exists:
+                mock_write_method.assert_called_once()
+                if delete_local_copy and mock_write_method_result:
+                    mock_rmtree.assert_called_once_with(tmp_path.as_posix())
+                else:
+                    mock_rmtree.assert_not_called()
+            else:
+                mock_write_method.assert_not_called()
+                mock_rmtree.assert_not_called()
+
+    def test_read_existing(self):
+        pass
+
+    def test_read_non_existing(self):
+        pass
+
+    def test_stream_existing(self):
+        pass
+
+    def test_stream_non_existing(self):
+        pass
 
 
 @pytest.mark.db_test
