@@ -158,10 +158,6 @@ class _VaultClient(LoggingMixin):
                 raise VaultError("The 'gcp' authentication type requires 'gcp_scopes'")
             if not role_id:
                 raise VaultError("The 'gcp' authentication type requires 'role_id'")
-            if not gcp_key_path and not gcp_keyfile_dict:
-                raise VaultError(
-                    "The 'gcp' authentication type requires 'gcp_key_path' or 'gcp_keyfile_dict'"
-                )
 
         self.kv_engine_version = kv_engine_version or 2
         self.url = url
@@ -319,15 +315,13 @@ class _VaultClient(LoggingMixin):
         import json
         import time
 
-        import googleapiclient
+        type = getattr(credentials, "type", None)
+        if type != "service_account":
+            raise VaultError("Credentials are not of type service_account")
 
-        if self.gcp_keyfile_dict:
-            creds = self.gcp_keyfile_dict
-        elif self.gcp_key_path:
-            with open(self.gcp_key_path) as f:
-                creds = json.load(f)
-
-        service_account = creds["client_email"]
+        service_account_email = getattr(credentials, "client_email", None)
+        if not service_account_email:
+            raise VaultError("Could not determine service account email from credentials")
 
         # Generate a payload for subsequent "signJwt()" call
         # Reference: https://googleapis.dev/python/google-auth/latest/reference/google.auth.jwt.html#google.auth.jwt.Credentials
@@ -335,9 +329,10 @@ class _VaultClient(LoggingMixin):
         expires = now + 900  # 15 mins in seconds, can't be longer.
         payload = {"iat": now, "exp": expires, "sub": credentials, "aud": f"vault/{self.role_id}"}
         body = {"payload": json.dumps(payload)}
-        name = f"projects/{project_id}/serviceAccounts/{service_account}"
+        name = f"projects/{project_id}/serviceAccounts/{service_account_email}"
 
         # Perform the GCP API call
+        import googleapiclient
         iam = googleapiclient.discovery.build("iam", "v1", credentials=credentials)
         request = iam.projects().serviceAccounts().signJwt(name=name, body=body)
         resp = request.execute()
