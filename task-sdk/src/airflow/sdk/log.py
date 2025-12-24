@@ -188,14 +188,12 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def load_remote_log_handler() -> RemoteLogIO | None:
-    import airflow.logging_config
+    from airflow.logging_config import get_remote_task_log
 
-    return airflow.logging_config.REMOTE_TASK_LOG
+    return get_remote_task_log()
 
 
 def load_remote_conn_id() -> str | None:
-    import airflow.logging_config
-
     # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
     # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
@@ -203,7 +201,9 @@ def load_remote_conn_id() -> str | None:
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
         return conn_id
 
-    return airflow.logging_config.DEFAULT_REMOTE_CONN_ID
+    from airflow.logging_config import get_default_remote_conn_id
+
+    return get_default_remote_conn_id()
 
 
 def relative_path_from_logger(logger) -> Path | None:
