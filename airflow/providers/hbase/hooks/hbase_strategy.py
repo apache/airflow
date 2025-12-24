@@ -87,6 +87,41 @@ class HBaseStrategy(ABC):
         """Scan table."""
         pass
 
+    @abstractmethod
+    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
+        """Create backup set."""
+        pass
+
+    @abstractmethod
+    def list_backup_sets(self) -> str:
+        """List backup sets."""
+        pass
+
+    @abstractmethod
+    def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create full backup."""
+        pass
+
+    @abstractmethod
+    def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create incremental backup."""
+        pass
+
+    @abstractmethod
+    def get_backup_history(self, backup_set_name: str | None = None) -> str:
+        """Get backup history."""
+        pass
+
+    @abstractmethod
+    def describe_backup(self, backup_id: str) -> str:
+        """Describe backup."""
+        pass
+
+    @abstractmethod
+    def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
+        """Restore backup."""
+        pass
+
 
 class ThriftStrategy(HBaseStrategy):
     """HBase strategy using Thrift protocol."""
@@ -158,6 +193,34 @@ class ThriftStrategy(HBaseStrategy):
             columns=columns,
             limit=limit
         ))
+
+    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
+        """Create backup set - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def list_backup_sets(self) -> str:
+        """List backup sets - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create full backup - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create incremental backup - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def get_backup_history(self, backup_set_name: str | None = None) -> str:
+        """Get backup history - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def describe_backup(self, backup_id: str) -> str:
+        """Describe backup - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
+        """Restore backup - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
 
 
 class SSHStrategy(HBaseStrategy):
@@ -300,3 +363,69 @@ class SSHStrategy(HBaseStrategy):
         result = self._execute_hbase_command(f"shell <<< \"{command}\"")
         # TODO: Parse result - this is a simplified implementation
         return []
+
+    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
+        """Create backup set via SSH."""
+        tables_str = ",".join(tables)
+        command = f"backup set add {backup_set_name} {tables_str}"
+        return self._execute_hbase_command(command)
+
+    def list_backup_sets(self) -> str:
+        """List backup sets via SSH."""
+        command = "backup set list"
+        return self._execute_hbase_command(command)
+
+    def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create full backup via SSH."""
+        command = f"backup create full {backup_root}"
+        
+        if backup_set_name:
+            command += f" -s {backup_set_name}"
+        elif tables:
+            tables_str = ",".join(tables)
+            command += f" -t {tables_str}"
+        
+        if workers:
+            command += f" -w {workers}"
+        
+        return self._execute_hbase_command(command)
+
+    def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create incremental backup via SSH."""
+        command = f"backup create incremental {backup_root}"
+        
+        if backup_set_name:
+            command += f" -s {backup_set_name}"
+        elif tables:
+            tables_str = ",".join(tables)
+            command += f" -t {tables_str}"
+        
+        if workers:
+            command += f" -w {workers}"
+        
+        return self._execute_hbase_command(command)
+
+    def get_backup_history(self, backup_set_name: str | None = None) -> str:
+        """Get backup history via SSH."""
+        command = "backup history"
+        if backup_set_name:
+            command += f" -s {backup_set_name}"
+        return self._execute_hbase_command(command)
+
+    def describe_backup(self, backup_id: str) -> str:
+        """Describe backup via SSH."""
+        command = f"backup describe {backup_id}"
+        return self._execute_hbase_command(command)
+
+    def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
+        """Restore backup via SSH."""
+        command = f"restore {backup_root} {backup_id}"
+        
+        if tables:
+            tables_str = ",".join(tables)
+            command += f" -t {tables_str}"
+        
+        if overwrite:
+            command += " -o"
+        
+        return self._execute_hbase_command(command)
