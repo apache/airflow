@@ -92,6 +92,8 @@ class ProviderPackageDetails(NamedTuple):
     plugins: list[PluginInfo]
     removed: bool
     extra_project_metadata: str | None = None
+    hatch_artifacts: list[str] = []
+    hatch_excludes: list[str] = []
 
 
 class PackageSuspendedException(Exception):
@@ -553,6 +555,9 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
     provider_yaml_path = get_provider_yaml(provider_id)
     pyproject_toml = load_pyproject_toml(provider_yaml_path.parent / "pyproject.toml")
     dependencies = pyproject_toml["project"]["dependencies"]
+    _hatch_targets: dict = pyproject_toml.get("tool", {}).get("hatch", {}).get("build", {}).get("targets", {})
+    hatch_artifacts = _hatch_targets.get("custom", {}).get("artifacts", [])
+    hatch_excludes = _hatch_targets.get("sdist", {}).get("exclude", [])
     changelog_path = provider_yaml_path.parent / "docs" / "changelog.rst"
     documentation_provider_distribution_path = get_documentation_package_path(provider_id)
     root_provider_path = provider_yaml_path.parent
@@ -577,6 +582,8 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         plugins=plugins,
         removed=provider_info["state"] == "removed",
         extra_project_metadata=provider_info.get("extra-project-metadata", ""),
+        hatch_artifacts=hatch_artifacts,
+        hatch_excludes=hatch_excludes,
     )
 
 
@@ -950,6 +957,13 @@ def regenerate_pyproject_toml(
         formatted_cross_provider_dependencies = ""
     context["CROSS_PROVIDER_DEPENDENCIES"] = formatted_cross_provider_dependencies
     context["DEPENDENCY_GROUPS"] = formatted_dependency_groups
+    context["BUILD_SYSTEM"] = (
+        "hatchling" if (provider_details.root_provider_path / "hatch_build.py").exists() else "flit_core"
+    )
+    if context["BUILD_SYSTEM"] == "hatchling":
+        context["HATCH_ARTIFACTS"] = provider_details.hatch_artifacts
+        context["HATCH_EXCLUDES"] = provider_details.hatch_excludes
+
     pyproject_toml_content = render_template(
         template_name="pyproject",
         context=context,

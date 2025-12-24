@@ -646,8 +646,12 @@ def start_airflow(
     perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
         assert_prek_installed()
+        # Compile edge assets as well if needed
+        additional_assets = ["compile-edge-assets"] if executor and "EdgeExecutor" in executor else []
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
-        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        run_compile_ui_assets(
+            dev=dev_mode, run_in_background=True, force_clean=False, additional_ui_hooks=additional_assets
+        )
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )

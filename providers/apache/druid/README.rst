@@ -90,5 +90,14 @@ Extra              Dependencies
 ``common.compat``  ``apache-airflow-providers-common-compat``
 =================  ==========================================
 
+Optional dependencies
+----------------------
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``apache.hive``  ``apache-airflow-providers-apache-hive``
+===============  ========================================
+
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-druid/4.4.1/changelog.html>`_.
