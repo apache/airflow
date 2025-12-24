@@ -73,7 +73,7 @@ else:
         from airflow.sdk.definitions.mappedoperator import OperatorPartial
     else:
         from airflow.datasets.metadata import Metadata
-        from airflow.decorators import _TaskDecorator
+        from airflow.decorators.base import _TaskDecorator
         from airflow.models import BaseOperator
         from airflow.models.mappedoperator import OperatorPartial
 
