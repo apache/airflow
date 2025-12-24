@@ -73,6 +73,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstance,
@@ -542,6 +543,13 @@ class PreviousDagRunResult(BaseModel):
     type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
 
 
+class PreviousTIResult(BaseModel):
+    """Response containing previous task instance data."""
+
+    task_instance: PreviousTIResponse | None = None
+    type: Literal["PreviousTIResult"] = "PreviousTIResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -655,6 +663,7 @@ ToTask = Annotated[
     | DRCount
     | ErrorResponse
     | PrevSuccessfulDagRunResult
+    | PreviousTIResult
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
@@ -853,6 +862,17 @@ class GetPreviousDagRun(BaseModel):
     type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
 
 
+class GetPreviousTI(BaseModel):
+    """Request to get previous task instance."""
+
+    dag_id: str
+    task_id: str
+    logical_date: AwareDatetime | None = None
+    map_index: int = -1
+    state: TaskInstanceState | None = None
+    type: Literal["GetPreviousTI"] = "GetPreviousTI"
+
+
 class GetAssetByName(BaseModel):
     name: str
     type: Literal["GetAssetByName"] = "GetAssetByName"
@@ -971,6 +991,7 @@ ToSupervisor = Annotated[
     | GetDRCount
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetPreviousTI
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskBreadcrumbs

@@ -53,6 +53,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
@@ -84,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -92,6 +94,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -2154,6 +2157,131 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
+
+    def test_get_previous_ti_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_ti sends the correct request without filters."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=None,
+            ),
+        )
+        assert prev_ti.task_id == "test_task"
+        assert prev_ti.dag_id == "test_dag"
+        assert prev_ti.run_id == "prev_run"
+        assert prev_ti.state == "success"
+
+    def test_get_previous_ti_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with state filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti(state=TaskInstanceState.SUCCESS)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=TaskInstanceState.SUCCESS,
+            ),
+        )
+        assert prev_ti.state == "success"
+        assert prev_ti.run_id == "prev_success_run"
+
+    def test_get_previous_ti_with_map_index(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with explicit map_index filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2), map_index=0
+        )
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        # Query for a different map_index than current TI
+        prev_ti = runtime_ti.get_previous_ti(map_index=1)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=1,
+                state=None,
+            ),
+        )
+        assert prev_ti.map_index == 1
+
+    def test_get_previous_ti_not_found(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti when no previous TI exists."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=None)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        assert prev_ti is None
 
     @pytest.mark.parametrize(
         "map_index",

@@ -350,6 +350,21 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
+class PreviousTIResponse(BaseModel):
+    """Schema for response with previous TaskInstance information."""
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None
+    state: str | None = None
+    try_number: int
+    map_index: int | None = -1
+    duration: float | None = None
+
+
 class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 

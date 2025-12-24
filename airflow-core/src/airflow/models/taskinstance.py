@@ -28,7 +28,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import attrs
@@ -116,8 +116,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -1483,7 +1484,8 @@ class TaskInstance(Base, LoggingMixin):
         """Run TaskInstance (only kept for tests)."""
         # This method is only used in ti.run and dag.test and task.test.
         # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.serialization.definitions.dag import SerializedDAG
+        from airflow.serialization.serialized_objects import DagSerialization
 
         original_task = self.task
         if TYPE_CHECKING:
@@ -1492,7 +1494,7 @@ class TaskInstance(Base, LoggingMixin):
 
         # We don't set up all tests well...
         if not isinstance(original_task.dag, SerializedDAG):
-            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
+            serialized_dag = DagSerialization.from_dict(DagSerialization.to_dict(original_task.dag))
             self.task = serialized_dag.get_task(original_task.task_id)
 
         res = self.check_and_change_state_before_execution(
@@ -2333,10 +2335,7 @@ def find_relevant_relatives(
                 # Treat it as a normal task instead.
                 _visit_relevant_relatives_for_normal([task_id])
                 continue
-            # TODO (GH-52141): This should return scheduler operator types, but
-            # currently get_flat_relatives is inherited from SDK DAGNode.
-            relatives = cast("Iterable[Operator]", task.get_flat_relatives(upstream=direction == "upstream"))
-            for relative in relatives:
+            for relative in task.get_flat_relatives(upstream=direction == "upstream"):
                 if relative.task_id in visited:
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(

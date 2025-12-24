@@ -44,6 +44,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
@@ -69,15 +70,13 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
-
-    from airflow.models.expandinput import SchedulerExpandInput
 
 router = VersionedAPIRouter()
 
@@ -248,11 +247,7 @@ def ti_run(
 
             xcom_keys = list(session.scalars(xcom_query))
         task_reschedule_count = (
-            session.query(
-                func.count(TaskReschedule.id)  # or any other primary key column
-            )
-            .filter(TaskReschedule.ti_id == ti_id_str)
-            .scalar()
+            session.scalar(select(func.count(TaskReschedule.id)).where(TaskReschedule.ti_id == ti_id_str))
             or 0
         )
 
@@ -304,7 +299,7 @@ def _get_upstream_map_indexes(
         if (upstream_mapped_group := upstream_task.get_closest_mapped_task_group()) is None:
             # regular tasks or non-mapped task groups
             map_indexes = None
-        elif task.get_closest_mapped_task_group() == upstream_mapped_group:
+        elif task.get_closest_mapped_task_group() is upstream_mapped_group:
             # tasks in the same mapped task group hierarchy
             map_indexes = ti.map_index
         else:
@@ -318,7 +313,7 @@ def _get_upstream_map_indexes(
             except NotFullyPopulated:
                 # Second try: resolve XCom for correct count
                 try:
-                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
+                    expand_input = upstream_mapped_group._expand_input
                     mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
                 except NotFullyPopulated:
                     # For these trigger rules, unresolved map indexes are acceptable.
@@ -416,7 +411,7 @@ def ti_update_state(
             "Error updating Task Instance state. Setting the task to failed.",
             payload=ti_patch_payload,
         )
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         if session.bind is not None:
             query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
         query = query.values(state=(updated_state := TaskInstanceState.FAILED))
@@ -466,7 +461,7 @@ def _create_ti_state_update_query_and_update_state(
     dag_id: str,
 ) -> tuple[Update, TaskInstanceState]:
     if isinstance(ti_patch_payload, (TITerminalStatePayload, TIRetryStatePayload, TISuccessStatePayload)):
-        ti = session.get(TI, ti_id_str)
+        ti = session.get(TI, ti_id_str, with_for_update=True)
         updated_state = TaskInstanceState(ti_patch_payload.state.value)
         if session.bind is not None:
             query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
@@ -541,22 +536,22 @@ def _create_ti_state_update_query_and_update_state(
                 if session.bind is not None:
                     query = TI.duration_expression_update(timezone.utcnow(), query, session.bind)
                 query = query.values(state=TaskInstanceState.FAILED)
-                ti = session.get(TI, ti_id_str)
-                if ti is not None:
-                    _handle_fail_fast_for_dag(ti=ti, dag_id=dag_id, session=session, dag_bag=dag_bag)
+                # We skip fail_fast handling in this error case to avoid fetching the TI object while the row
+                # is still locked from the earlier with_for_update() query, which might cause deadlock issues
+                # in SQLA2. The task is marked as FAILED regardless.
                 return query, TaskInstanceState.FAILED
 
-        task_instance = session.get(TI, ti_id_str)
+        # We can directly use ti_id_str instead of fetching the TaskInstance object to avoid SQLA2
+        #  lock contention issues when the TaskInstance row is already locked from before.
         actual_start_date = timezone.utcnow()
-        if task_instance is not None and task_instance.id is not None:
-            session.add(
-                TaskReschedule(
-                    UUID(str(task_instance.id)),
-                    actual_start_date,
-                    ti_patch_payload.end_date,
-                    ti_patch_payload.reschedule_date,
-                )
+        session.add(
+            TaskReschedule(
+                ti_id_str,
+                actual_start_date,
+                ti_patch_payload.end_date,
+                ti_patch_payload.reschedule_date,
             )
+        )
 
         query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
@@ -867,6 +862,58 @@ def get_task_instance_count(
 
     count = session.scalar(query)
     return count or 0
+
+
+@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+def get_previous_task_instance(
+    dag_id: str,
+    task_id: str,
+    session: SessionDep,
+    logical_date: Annotated[UtcDateTime | None, Query()] = None,
+    map_index: Annotated[int, Query()] = -1,
+    state: Annotated[TaskInstanceState | None, Query()] = None,
+) -> PreviousTIResponse | None:
+    """
+    Get the previous task instance matching the given criteria.
+
+    :param dag_id: DAG ID (from path)
+    :param task_id: Task ID (from path)
+    :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+    :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+    :param state: If provided, filters by TaskInstance state
+    """
+    query = (
+        select(TI)
+        .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
+        .options(joinedload(TI.dag_run))
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
+        .order_by(DR.logical_date.desc())
+    )
+
+    if logical_date:
+        # Find TI with logical_date BEFORE the provided date (previous)
+        query = query.where(DR.logical_date < logical_date)
+
+    if state:
+        query = query.where(TI.state == state)
+
+    ti = session.scalars(query).first()
+
+    if not ti:
+        return None
+
+    return PreviousTIResponse(
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        logical_date=ti.dag_run.logical_date,
+        start_date=ti.start_date,
+        end_date=ti.end_date,
+        state=ti.state,
+        try_number=ti.try_number,
+        map_index=ti.map_index,
+        duration=ti.duration,
+    )
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)
