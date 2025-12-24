@@ -69,8 +69,11 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.notset import NOTSET
+from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -78,9 +81,6 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
     OperatorSerialization,
-    SerializedBaseOperator,
-    SerializedParam,
-    XComOperatorLink,
 )
 from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep

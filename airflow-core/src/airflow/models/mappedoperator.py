@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.node import DAGNode as TaskSDKDAGNode
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.serialization.serialized_objects import XComOperatorLink
+    from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
