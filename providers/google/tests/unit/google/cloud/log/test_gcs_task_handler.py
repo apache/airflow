@@ -28,7 +28,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO, GCSTaskHandler
-from airflow.providers.google.version_compat import BaseOperator
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 
@@ -49,18 +48,26 @@ def patch_mock_client_for_list_blobs(mock_client: MagicMock, blob_names: list[st
     mock_client.return_value.list_blobs.return_value = mock_blobs
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+@pytest.mark.db_test
 @mock.patch(
     "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
     return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),
 )
 class TestGCSRemoteLogIO:
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_runtime_ti):
+    def setup_tests(self, create_task_instance, session):
         # setup remote IO
         self.base_log_folder = "local/airflow/logs"
         self.gcs_log_folder = "gs://bucket/airflow/logs"
-        self.ti = create_runtime_ti(BaseOperator(task_id="task_1"))
+        # setup TaskInstance
+        self.ti = ti = create_task_instance(task_id="task_1")
+        ti.try_number = 1
+        ti.raw = False
+        session.add(ti)
+        session.commit()
+        yield
+        clear_db_runs()
+        clear_db_dags()
 
     @pytest.mark.parametrize(
         "is_absolute",

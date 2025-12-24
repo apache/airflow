@@ -313,7 +313,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         if logs is None:
             logs = []
-            if not AIRFLOW_V_3_0_PLUS:
+            if not AIRFLOW_V_3_0_PLUS and not messages:
                 messages.append(f"No logs found in GCS; ti={ti}")
 
         return messages, logs
