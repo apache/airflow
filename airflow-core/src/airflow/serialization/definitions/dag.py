@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -60,13 +60,23 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
     from airflow.sdk.definitions.deadline import DeadlineAlert
-    from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+
+# TODO (GH-52141): Share definition with SDK?
+class EdgeInfoType(TypedDict):
+    """
+    Extra metadata that the Dag can store about an edge.
+
+    This is duplicated from SDK.
+    """
+
+    label: str | None
 
 
 @attrs.define(eq=False, hash=False, slots=False)
