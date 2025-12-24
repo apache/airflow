@@ -111,7 +111,6 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.serialization.serialized_objects import SerializedDAG
     from airflow.timetables.base import DataInterval
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -2266,11 +2265,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Conditionally update fields next_dagrun and next_dagrun_create_after on dag table.
 
-        If dag exceeds max active runs, don't update.
+        If dag exceeds max active runs, set to None.
 
         If dag's timetable not schedulable, don't update.
 
-        Otherwise, update.
+        Otherwise, update via ``DagModel.calculate_dagrun_date_fields``.
         """
         exceeds_max, active_runs = self._exceeds_max_active_runs(
             dag_model=dag_model,
