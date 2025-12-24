@@ -55,7 +55,9 @@ RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
 
 log = logging.getLogger(__name__)
 
-_auth_manager: BaseAuthManager | None = None
+
+class _AuthManagerState:
+    instance: BaseAuthManager | None = None
 
 
 @asynccontextmanager
@@ -115,9 +117,8 @@ def cached_app(config=None, testing=False, apps="all") -> FastAPI:
 
 def purge_cached_app() -> None:
     """Remove the cached version of the app and auth_manager in global state."""
-    global _auth_manager
     cached_app.cache_clear()
-    _auth_manager = None
+    _AuthManagerState.instance = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
@@ -138,10 +139,9 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    global _auth_manager
     auth_manager_cls = get_auth_manager_cls()
-    _auth_manager = auth_manager_cls()
-    return _auth_manager
+    _AuthManagerState.instance = auth_manager_cls()
+    return _AuthManagerState.instance
 
 
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
@@ -159,12 +159,12 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    if _auth_manager is None:
+    if _AuthManagerState.instance is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "
             "The `init_auth_manager` method needs to be called first."
         )
-    return _auth_manager
+    return _AuthManagerState.instance
 
 
 def init_plugins(app: FastAPI) -> None:
