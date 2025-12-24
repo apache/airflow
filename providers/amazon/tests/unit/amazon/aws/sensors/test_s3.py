@@ -24,11 +24,11 @@ import pytest
 import time_machine
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -95,7 +95,7 @@ class TestS3KeySensor:
             op.poke(None)
 
     @pytest.mark.parametrize(
-        "key, bucket, parsed_key, parsed_bucket",
+        ("key", "bucket", "parsed_key", "parsed_bucket"),
         [
             pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
             pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
@@ -294,7 +294,7 @@ class TestS3KeySensor:
         assert op.poke(None) is True
 
     @pytest.mark.parametrize(
-        "key, pattern, expected",
+        ("key", "pattern", "expected"),
         [
             ("test.csv", r"[a-z]+\.csv", True),
             ("test.txt", r"test/[a-z]+\.csv", False),
@@ -343,7 +343,7 @@ class TestS3KeySensor:
             op.execute_complete(context={}, event={"status": "error", "message": message})
 
     @pytest.mark.parametrize(
-        "metadata_keys, expected",
+        ("metadata_keys", "expected"),
         [
             (["Size", "Key"], True),
             (["Content"], False),
@@ -522,7 +522,7 @@ class TestS3KeysUnchangedSensor:
             self.sensor.is_keys_unchanged({"a"})
 
     @pytest.mark.parametrize(
-        "current_objects, expected_returns, inactivity_periods",
+        ("current_objects", "expected_returns", "inactivity_periods"),
         [
             pytest.param(
                 ({"a"}, {"a", "b"}, {"a", "b", "c"}),

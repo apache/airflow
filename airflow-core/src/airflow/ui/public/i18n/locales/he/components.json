@@ -53,6 +53,13 @@
     "warning_other": "{{count}} אזהרות",
     "warning_two": "שתי אזהרות"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "פורמט התאריך אינו תקין.",
+      "invalidTimeFormat": "פורמט הזמן אינו תקין.",
+      "startBeforeEnd": "תאריך/זמן התחלה חייב להיות לפני תאריך/זמן סיום"
+    }
+  },
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
@@ -96,9 +103,15 @@
   },
   "limitedList": "+ {{count}} נוספים",
   "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList.allTags_one": "כל התגיות (1)",
+  "limitedList.allTags_other": "כל התגיות ({{count}})",
+  "limitedList.allTags_two": "כל התגיות (2)",
   "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
   "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
   "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
+  "limitedList.showingItems_one": "מציג פריט אחד",
+  "limitedList.showingItems_other": "מציג {{count}} פריטים",
+  "limitedList.showingItems_two": "מציג שני פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
@@ -119,6 +132,9 @@
     "selectLabel": "ריצה בודדת",
     "title": "הפעל Dag",
     "toaster": {
+      "error": {
+        "title": "הפעלת Dag נכשלה"
+      },
       "success": {
         "description": "ריצת ה-Dag הופעלה בהצלחה.",
         "title": "ריצת Dag הופעלה"

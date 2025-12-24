@@ -36,13 +36,15 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import TaskNotFound
+from airflow.observability.stats import Stats
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskStates,
     GetTICount,
@@ -54,6 +56,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     TaskStatesResult,
@@ -64,9 +67,8 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -127,6 +129,7 @@ ToManager = Annotated[
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetPreviousTI
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
@@ -141,6 +144,7 @@ ToDagProcessor = Annotated[
     | VariableResult
     | TaskStatesResult
     | PreviousDagRunResult
+    | PreviousTIResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
     | OKResponse
@@ -239,7 +243,7 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
-            data = SerializedDAG.to_dict(dag)
+            data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
             log.exception("Failed to serialize DAG: %s", dag.fileloc)
@@ -457,7 +461,9 @@ def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: Filteri
     )
 
     try:
-        _send_task_error_email(task.email, runtime_ti, request.msg, log)
+        context = runtime_ti.get_template_context()
+        error = Exception(request.msg) if request.msg else None
+        _send_error_email_notification(task, runtime_ti, context, error, log)
     except Exception:
         log.exception(
             "Failed to send %s email",
@@ -630,6 +636,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

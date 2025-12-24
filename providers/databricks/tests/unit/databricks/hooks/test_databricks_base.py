@@ -28,8 +28,8 @@ from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 from tenacity import AsyncRetrying, Future, RetryError, retry_if_exception, stop_after_attempt, wait_fixed
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import (
     DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
     DEFAULT_DATABRICKS_SCOPE,
@@ -93,7 +93,7 @@ class TestBaseDatabricksHook:
         assert "after" in hook.retry_args
 
     @pytest.mark.parametrize(
-        "input_url, expected_host",
+        ("input_url", "expected_host"),
         [
             ("https://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
             ("http://xx.cloud.databricks.com", "xx.cloud.databricks.com"),
@@ -664,7 +664,7 @@ class TestBaseDatabricksHook:
         new_callable=mock.PropertyMock,
     )
     @pytest.mark.parametrize(
-        "schema,port,host,endpoint,expected_url",
+        ("schema", "port", "host", "endpoint", "expected_url"),
         [
             ("https", 443, "example.com", "api/2.0/jobs/list", "https://example.com:443/api/2.0/jobs/list"),
             ("http", 8080, "localhost", "status", "http://localhost:8080/status"),

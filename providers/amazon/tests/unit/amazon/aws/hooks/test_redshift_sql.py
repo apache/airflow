@@ -21,10 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
+from airflow.providers.common.compat.sdk import AirflowException
 
 LOGIN_USER = "login"
 LOGIN_PASSWORD = "password"
@@ -167,7 +167,7 @@ class TestRedshiftSQLHookConn:
         )
 
     @pytest.mark.parametrize(
-        "conn_params, conn_extra, expected_call_args",
+        ("conn_params", "conn_extra", "expected_call_args"),
         [
             ({}, {}, {}),
             ({"login": "test"}, {}, {"user": "test"}),
@@ -186,7 +186,7 @@ class TestRedshiftSQLHookConn:
             mock_connect.assert_called_once_with(**expected_call_args)
 
     @pytest.mark.parametrize(
-        "connection_host, connection_extra, expected_cluster_identifier, expected_exception_msg",
+        ("connection_host", "connection_extra", "expected_cluster_identifier", "expected_exception_msg"),
         [
             # test without a connection host and without a cluster_identifier in connection extra
             (None, {"iam": True}, None, "Please set cluster_identifier or host in redshift connection."),
@@ -244,7 +244,7 @@ class TestRedshiftSQLHookConn:
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_AWS_DEFAULT=f"aws://?region_name={MOCK_REGION_NAME}")
     @pytest.mark.parametrize(
-        "connection_host, connection_extra, expected_identity",
+        ("connection_host", "connection_extra", "expected_identity"),
         [
             # test without a connection host but with a cluster_identifier in connection extra
             (

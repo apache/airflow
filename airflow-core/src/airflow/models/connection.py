@@ -29,18 +29,16 @@ from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
-from sqlalchemy_utils import UUIDType
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.models.team import Team
 from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import mapped_column
 
@@ -140,7 +138,11 @@ class Connection(Base, LoggingMixin):
     port: Mapped[int | None] = mapped_column(Integer(), nullable=True)
     is_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
     is_extra_encrypted: Mapped[bool] = mapped_column(Boolean, unique=False, default=False)
-    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    team_name: Mapped[str | None] = mapped_column(
+        String(50),
+        ForeignKey("team.name", ondelete="SET NULL"),
+        nullable=True,
+    )
     _extra: Mapped[str | None] = mapped_column("extra", Text(), nullable=True)
 
     def __init__(
@@ -155,10 +157,9 @@ class Connection(Base, LoggingMixin):
         port: int | None = None,
         extra: str | dict | None = None,
         uri: str | None = None,
-        team_id: str | None = None,
+        team_name: str | None = None,
     ):
         super().__init__()
-        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
@@ -171,20 +172,27 @@ class Connection(Base, LoggingMixin):
         if uri:
             self._parse_from_uri(uri)
         else:
-            self.conn_type = conn_type
+            if conn_type is not None:
+                self.conn_type = conn_type
+
             self.host = host
             self.login = login
             self.password = password
             self.schema = schema
             self.port = port
             self.extra = extra
+
+        if conn_id is not None:
+            sanitized_id = sanitize_conn_id(conn_id)
+            if sanitized_id is not None:
+                self.conn_id = sanitized_id
         if self.extra:
             self._validate_extra(self.extra, self.conn_id)
 
         if self.password:
             mask_secret(self.password)
             mask_secret(quote(self.password))
-        self.team_id = team_id
+        self.team_name = team_name
 
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
@@ -274,6 +282,9 @@ class Connection(Base, LoggingMixin):
         else:
             uri = "//"
 
+        host_to_use: str | None
+        protocol_to_add: str | None
+
         if self.host and "://" in self.host:
             protocol, host = self.host.split("://", 1)
             # If the protocol in host matches the connection type, don't add it again
@@ -354,8 +365,9 @@ class Connection(Base, LoggingMixin):
         """Password. The value is decrypted/encrypted when reading/setting the value."""
         return synonym("_password", descriptor=property(cls.get_password, cls.set_password))
 
-    def get_extra(self) -> str:
+    def get_extra(self) -> str | None:
         """Return encrypted extra-data."""
+        extra_val: str | None
         if self._extra and self.is_extra_encrypted:
             fernet = get_fernet()
             if not fernet.is_encrypted:
@@ -595,11 +607,7 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def get_team_name(connection_id: str, session=NEW_SESSION) -> str | None:
-        stmt = (
-            select(Team.name)
-            .join(Connection, Team.id == Connection.team_id)
-            .where(Connection.conn_id == connection_id)
-        )
+        stmt = select(Connection.team_name).where(Connection.conn_id == connection_id)
         return session.scalar(stmt)
 
     @staticmethod
@@ -607,9 +615,5 @@ class Connection(Base, LoggingMixin):
     def get_conn_id_to_team_name_mapping(
         connection_ids: list[str], session=NEW_SESSION
     ) -> dict[str, str | None]:
-        stmt = (
-            select(Connection.conn_id, Team.name)
-            .join(Team, Connection.team_id == Team.id)
-            .where(Connection.conn_id.in_(connection_ids))
-        )
+        stmt = select(Connection.conn_id, Connection.team_name).where(Connection.conn_id.in_(connection_ids))
         return {conn_id: team_name for conn_id, team_name in session.execute(stmt)}

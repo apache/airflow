@@ -177,7 +177,7 @@ class TestDagFileProcessorManager:
             manager.run()
 
             with create_session() as session:
-                import_errors = session.query(ParseImportError).all()
+                import_errors = session.scalars(select(ParseImportError)).all()
                 assert len(import_errors) == 1
 
                 path_to_parse.unlink()
@@ -186,7 +186,7 @@ class TestDagFileProcessorManager:
             manager.run()
 
             with create_session() as session:
-                import_errors = session.query(ParseImportError).all()
+                import_errors = session.scalars(select(ParseImportError)).all()
 
                 assert len(import_errors) == 0
                 session.rollback()
@@ -440,7 +440,7 @@ class TestDagFileProcessorManager:
         manager._queue_requested_files_for_parsing()
         assert manager._file_queue == deque([file1])
         with create_session() as session2:
-            parsing_request_after = session2.query(DagPriorityParsingRequest).all()
+            parsing_request_after = session2.scalars(select(DagPriorityParsingRequest)).all()
         assert len(parsing_request_after) == 1
         assert parsing_request_after[0].relative_fileloc == "file_x.py"
 
@@ -485,34 +485,28 @@ class TestDagFileProcessorManager:
         manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
-        active_dag_count = (
-            session.query(func.count(DagModel.dag_id))
-            .filter(
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            .scalar()
         )
         assert active_dag_count == 1
 
         manager._scan_stale_dags()
 
-        active_dag_count = (
-            session.query(func.count(DagModel.dag_id))
-            .filter(
+        active_dag_count = session.scalar(
+            select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-            .scalar()
         )
         assert active_dag_count == 0
 
-        serialized_dag_count = (
-            session.query(func.count(SerializedDagModel.dag_id))
-            .filter(SerializedDagModel.dag_id == dag.dag_id)
-            .scalar()
+        serialized_dag_count = session.scalar(
+            select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
         )
         # Deactivating the DagModel should not delete the SerializedDagModel
         # SerializedDagModel gives history about Dags
@@ -553,7 +547,7 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     @pytest.mark.parametrize(
-        ["callbacks", "path", "expected_body"],
+        ("callbacks", "path", "expected_body"),
         [
             pytest.param(
                 [],
@@ -748,7 +742,7 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag2").is_stale is True
 
     @pytest.mark.parametrize(
-        "rel_filelocs, expected_return, expected_dag1_stale, expected_dag2_stale",
+        ("rel_filelocs", "expected_return", "expected_dag1_stale", "expected_dag2_stale"),
         [
             pytest.param(
                 ["test_dag1.py"],  # Only dag1 present, dag2 deleted
@@ -787,7 +781,7 @@ class TestDagFileProcessorManager:
         assert session.get(DagModel, "test_dag2").is_stale is expected_dag2_stale
 
     @pytest.mark.parametrize(
-        "active_files, should_call_cleanup",
+        ("active_files", "should_call_cleanup"),
         [
             pytest.param(
                 [
@@ -876,7 +870,7 @@ class TestDagFileProcessorManager:
                 assert callbacks[0].run_id == "123"
                 assert callbacks[1].run_id == "456"
 
-                assert session.query(DbCallbackRequest).count() == 0
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 0
 
     @conf_vars(
         {
@@ -905,11 +899,11 @@ class TestDagFileProcessorManager:
 
             with create_session() as session:
                 manager.run()
-                assert session.query(DbCallbackRequest).count() == 3
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 3
 
             with create_session() as session:
                 manager.run()
-                assert session.query(DbCallbackRequest).count() == 1
+                assert len(session.scalars(select(DbCallbackRequest)).all()) == 1
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
@@ -950,7 +944,7 @@ class TestDagFileProcessorManager:
                 assert [c.run_id for c in callbacks] == ["match"]
 
                 # The non-matching callback should remain in the DB
-                remaining = session.query(DbCallbackRequest).all()
+                remaining = session.scalars(select(DbCallbackRequest)).all()
                 assert len(remaining) == 1
                 # Decode remaining request and verify it's for the other bundle
                 remaining_req = remaining[0].get_callback_request()
@@ -1295,7 +1289,7 @@ class TestDagFileProcessorManager:
                 bundleone.get_current_version.assert_called_once()
 
     @pytest.mark.parametrize(
-        "bundle_names, expected",
+        ("bundle_names", "expected"),
         [
             (None, {"bundle1", "bundle2", "bundle3"}),
             (["bundle1"], {"bundle1"}),

@@ -24,18 +24,14 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
 import psycopg2
-import psycopg2.extensions
 import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-)
-from airflow.providers.common.compat.sdk import Connection
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException, Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -522,19 +518,17 @@ class PostgresHook(DbApiHook):
             azure_conn = Connection.get(azure_conn_id)
         except AttributeError:
             azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
-        azure_base_hook: AzureBaseHook = azure_conn.get_hook()
-        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
         try:
-            token = azure_base_hook.get_token(scope).token
-        except AttributeError as e:
-            if e.name == "get_token" and e.obj == azure_base_hook:
-                raise AttributeError(
-                    "'AzureBaseHook' object has no attribute 'get_token'. "
-                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0",
-                    name=e.name,
-                    obj=e.obj,
+            azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        except TypeError as e:
+            if "required positional argument: 'sdk_client'" in str(e):
+                raise AirflowOptionalProviderFeatureException(
+                    "Getting azure token is not supported by current version of 'AzureBaseHook'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
                 ) from e
             raise
+        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
         return cast("str", conn.login or azure_conn.login), token, conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:

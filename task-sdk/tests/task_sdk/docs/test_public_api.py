@@ -54,7 +54,11 @@ def test_airflow_sdk_no_unexpected_exports():
         "exceptions",
         "timezone",
         "secrets_masker",
+        "configuration",
         "module_loading",
+        "yaml",
+        "serde",
+        "observability",
     }
     unexpected = actual - public - ignore
     assert not unexpected, f"Unexpected exports in airflow.sdk: {sorted(unexpected)}"

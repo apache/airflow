@@ -15,10 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
-airflowctl 1.0.0 (2025-10-30)
+airflowctl 0.1.0 (2025-11-05)
 -----------------------------
 
-Beta Release of airflowctl, a command-line tool. There are lots of great features to use from start.
+Release of airflowctl, a command-line tool. There are lots of great features to use from start.
 Please check the documentation for quick start and usage instructions.
 
 Please visit quick start guide: :doc:`/start`

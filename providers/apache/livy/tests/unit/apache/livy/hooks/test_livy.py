@@ -26,9 +26,9 @@ import requests
 from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.db import clear_test_connections
 
@@ -96,7 +96,7 @@ class TestLivyDbHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         [
             pytest.param("default_port", "http://host", id="default-port"),
             pytest.param("default_protocol", "http://host", id="default-protocol"),

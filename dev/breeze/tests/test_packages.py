@@ -105,7 +105,7 @@ def test_get_long_package_name():
 def test_get_provider_requirements():
     # update me when asana dependencies change
     assert get_provider_requirements("asana") == [
-        "apache-airflow>=2.10.0",
+        "apache-airflow>=2.11.0",
         "apache-airflow-providers-common-compat>=1.8.0",
         "asana>=5.0.0",
     ]
@@ -127,7 +127,7 @@ def test_get_suspended_provider_folders():
 
 
 @pytest.mark.parametrize(
-    "short_packages, filters, long_packages",
+    ("short_packages", "filters", "long_packages"),
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
@@ -155,7 +155,7 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 @pytest.mark.parametrize(
-    "provider_id, pip_package_name",
+    ("provider_id", "pip_package_name"),
     [
         ("asana", "apache-airflow-providers-asana"),
         ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
@@ -166,7 +166,7 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, expected_package_name",
+    ("provider_id", "expected_package_name"),
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
@@ -177,7 +177,7 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
 
 
 @pytest.mark.parametrize(
-    "requirement_string, expected",
+    ("requirement_string", "expected"),
     [
         pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
         pytest.param(
@@ -217,7 +217,7 @@ def test_parse_pip_requirements_parse(requirement_string: str, expected: tuple[s
 
 
 @pytest.mark.parametrize(
-    "requirements, markdown, table",
+    ("requirements", "markdown", "table"),
     [
         (
             ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
@@ -253,9 +253,9 @@ def test_validate_provider_info_with_schema():
 
 
 @pytest.mark.parametrize(
-    "provider_id, min_version",
+    ("provider_id", "min_version"),
     [
-        ("amazon", "2.10.0"),
+        ("amazon", "2.11.0"),
         ("fab", "3.0.2"),
     ],
 )
@@ -348,7 +348,7 @@ def _check_dependencies_modified_properly(
 
 
 @pytest.mark.parametrize(
-    "provider_id, version_suffix, floored_version_suffix",
+    ("provider_id", "version_suffix", "floored_version_suffix"),
     [
         ("google", ".dev0", ".dev0"),
         ("google", ".dev1", ".dev0"),
@@ -375,7 +375,9 @@ def _check_dependencies_modified_properly(
         ("standard", ".post1", ".post1"),
     ],
 )
-def test_apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix, floored_version_suffix):
+def test_apply_version_suffix_to_provider_pyproject_toml(
+    provider_id, version_suffix, floored_version_suffix, tmp_path
+):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of provider.
     """
@@ -383,10 +385,30 @@ def test_apply_version_suffix_to_provider_pyproject_toml(provider_id, version_su
         import tomllib
     except ImportError:
         import tomli as tomllib
-    provider_details = get_provider_details(provider_id)
-    original_content = (provider_details.root_provider_path / "pyproject.toml").read_text()
-    with apply_version_suffix_to_provider_pyproject_toml(provider_id, version_suffix) as pyproject_toml_path:
-        modified_content = pyproject_toml_path.read_text()
+    from unittest.mock import patch
+
+    # Get the original provider details
+    original_provider_details = get_provider_details(provider_id)
+    original_pyproject_path = original_provider_details.root_provider_path / "pyproject.toml"
+    original_content = original_pyproject_path.read_text()
+
+    # Create a temporary copy of the provider directory structure
+    temp_provider_path = tmp_path / "providers" / provider_id.replace(".", "/")
+    temp_provider_path.mkdir(parents=True, exist_ok=True)
+    temp_pyproject_path = temp_provider_path / "pyproject.toml"
+    temp_pyproject_path.write_text(original_content)
+
+    # Mock get_provider_details to return a modified version with temporary path
+    def mock_get_provider_details(provider_id: str):
+        # Use NamedTuple's _replace() method to create a copy with modified root_provider_path
+        return original_provider_details._replace(root_provider_path=temp_provider_path)
+
+    with patch("airflow_breeze.utils.packages.get_provider_details", side_effect=mock_get_provider_details):
+        with apply_version_suffix_to_provider_pyproject_toml(
+            provider_id, version_suffix
+        ) as pyproject_toml_path:
+            modified_content = pyproject_toml_path.read_text()
+
     original_toml = tomllib.loads(original_content)
     modified_toml = tomllib.loads(modified_content)
     assert original_toml["project"]["version"] != modified_toml["project"]["version"]
@@ -401,8 +423,20 @@ TASK_SDK_INIT_PY = AIRFLOW_ROOT_PATH / "task-sdk" / "src" / "airflow" / "sdk" / 
 AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "__init__.py"
 
 
+@pytest.fixture
+def lock_version_files():
+    from filelock import FileLock
+
+    lock_file = AIRFLOW_ROOT_PATH / ".version_files.lock"
+    with FileLock(lock_file):
+        yield
+    if lock_file.exists():
+        lock_file.unlink()
+
+
+@pytest.mark.usefixtures("lock_version_files")
 @pytest.mark.parametrize(
-    "distributions,  init_file_path, version_suffix, floored_version_suffix",
+    ("distributions", "init_file_path", "version_suffix", "floored_version_suffix"),
     [
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev0", ".dev0"),
         (("airflow-core", "."), AIRFLOW_CORE_INIT_PY, ".dev1+testversion34", ".dev0"),
@@ -428,7 +462,11 @@ AIRFLOWCTL_INIT_PY = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / 
     ],
 )
 def test_apply_version_suffix_to_non_provider_pyproject_tomls(
-    distributions: tuple[str, ...], init_file_path: Path, version_suffix: str, floored_version_suffix: str
+    distributions: tuple[str, ...],
+    init_file_path: Path,
+    version_suffix: str,
+    floored_version_suffix: str,
+    tmp_path: Path,
 ):
     """
     Test the apply_version_suffix function with different version suffixes for pyproject.toml of non-provider.
@@ -440,15 +478,24 @@ def test_apply_version_suffix_to_non_provider_pyproject_tomls(
     distribution_paths = [AIRFLOW_ROOT_PATH / distribution for distribution in distributions]
     original_pyproject_toml_paths = [path / "pyproject.toml" for path in distribution_paths]
     original_contents = [path.read_text() for path in original_pyproject_toml_paths]
+    modified_pyproject_toml_paths = [
+        tmp_path / path.parent.name / path.name for path in original_pyproject_toml_paths
+    ]
+    for i, modified_pyproject_toml_path in enumerate(modified_pyproject_toml_paths):
+        modified_pyproject_toml_path.parent.mkdir(parents=True, exist_ok=True)
+        modified_pyproject_toml_path.write_text(original_pyproject_toml_paths[i].read_text())
     original_init_py = init_file_path.read_text()
+    modified_init_file_path = tmp_path / init_file_path.name
+    modified_init_file_path.write_text(original_init_py)
+
     with apply_version_suffix_to_non_provider_pyproject_tomls(
-        version_suffix, init_file_path, original_pyproject_toml_paths
+        version_suffix, modified_init_file_path, modified_pyproject_toml_paths
     ) as modified_pyproject_toml_paths:
         modified_contents = [path.read_text() for path in modified_pyproject_toml_paths]
 
         original_tomls = [tomllib.loads(content) for content in original_contents]
         modified_tomls = [tomllib.loads(content) for content in modified_contents]
-        modified_init_py = init_file_path.read_text()
+        modified_init_py = modified_init_file_path.read_text()
 
     assert original_init_py != modified_init_py
     assert version_suffix in modified_init_py

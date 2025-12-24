@@ -227,6 +227,10 @@ def clear_db_assets():
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import TaskInletAssetReference
+
+            session.query(TaskInletAssetReference).delete()
         from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
         session.query(AssetAliasModel).delete()
@@ -262,9 +266,9 @@ def clear_db_dags():
             session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
-        session.query(
-            DagRun
-        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
+        session.query(DagRun).delete(
+            synchronize_session=False
+        )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.query(DagModel).delete()
 
 
@@ -326,7 +330,13 @@ def clear_db_dag_code():
 
 def clear_db_callbacks():
     with create_session() as session:
-        session.query(DbCallbackRequest).delete()
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.callback import Callback
+
+            session.query(Callback).delete()
+
+        else:
+            session.query(DbCallbackRequest).delete()
 
 
 def set_default_pool_slots(slots):
@@ -353,6 +363,24 @@ def clear_db_dag_warnings():
 def clear_db_xcom():
     with create_session() as session:
         session.query(XCom).delete()
+
+
+def clear_db_pakl():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import PartitionedAssetKeyLog
+
+    with create_session() as session:
+        session.query(PartitionedAssetKeyLog).delete()
+
+
+def clear_db_apdr():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import AssetPartitionDagRun
+
+    with create_session() as session:
+        session.query(AssetPartitionDagRun).delete()
 
 
 def clear_db_logs():
@@ -887,6 +915,8 @@ def create_default_connections_for_tests():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_apdr()
+    clear_db_pakl()
     clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()

@@ -24,7 +24,12 @@ from unittest.mock import Mock
 import pytest
 import time_machine
 
-from airflow.exceptions import (
+from airflow.models.trigger import TriggerFailureReason
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import TaskInstanceState, timezone
+from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
+from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.exceptions import (
     AirflowException,
     AirflowFailException,
     AirflowRescheduleException,
@@ -32,11 +37,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTimeout,
 )
-from airflow.models.trigger import TriggerFailureReason
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import TaskInstanceState, timezone
-from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue, poke_mode_only
-from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.execution_time.comms import RescheduleTask, TaskRescheduleStartDate
 from airflow.sdk.timezone import datetime
 
@@ -274,7 +274,7 @@ class TestBaseSensor:
         assert state == TaskInstanceState.SUCCESS
 
     def test_invalid_mode(self):
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="The mode must be one of"):
             DummySensor(task_id="a", mode="foo")
 
     def test_ok_with_custom_reschedule_exception(self, make_sensor, run_task):
@@ -311,7 +311,9 @@ class TestBaseSensor:
         negative_poke_interval = -10
         non_number_poke_interval = "abcd"
         positive_poke_interval = 10
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_1",
                 return_value=None,
@@ -319,7 +321,9 @@ class TestBaseSensor:
                 timeout=25,
             )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_2",
                 return_value=None,
@@ -335,12 +339,16 @@ class TestBaseSensor:
         negative_timeout = -25
         non_number_timeout = "abcd"
         positive_timeout = 25
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `timeout` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_1", return_value=None, poke_interval=10, timeout=negative_timeout
             )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(
+            ValueError, match="Operator arg `timeout` must be timedelta object or a non-negative number"
+        ):
             DummySensor(
                 task_id="test_sensor_task_2", return_value=None, poke_interval=10, timeout=non_number_timeout
             )
@@ -666,7 +674,7 @@ class TestPokeModeOnly:
 
 class TestAsyncSensor:
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
+        ("soft_fail", "expected_exception"),
         [
             (True, AirflowSkipException),
             (False, AirflowException),

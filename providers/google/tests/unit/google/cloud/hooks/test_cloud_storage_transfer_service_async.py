@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 from google.cloud.storage_transfer_v1.types.transfer_types import TransferOperation
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
     GcpTransferOperationStatus,
@@ -151,7 +151,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
             (
@@ -186,7 +186,7 @@ class TestCloudDataTransferServiceAsyncHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "statuses, expected_statuses",
+        ("statuses", "expected_statuses"),
         [
             ([GcpTransferOperationStatus.ABORTED], GcpTransferOperationStatus.ABORTED),
             (

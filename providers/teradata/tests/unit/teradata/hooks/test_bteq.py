@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.teradata.hooks.bteq import BteqHook
 
 
@@ -150,7 +150,7 @@ def test_execute_bteq_script_at_local_success(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         shell=True,
-        preexec_fn=os.setsid,
+        start_new_session=True,
     )
     assert ret_code == 0
 

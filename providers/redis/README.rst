@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-redis``
 
-Release: ``4.3.2``
+Release: ``4.4.1``
 
 
 `Redis <https://redis.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``redis`` provider. All classes for this provider
 are in ``airflow.providers.redis`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.1/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 ==========================================  ===========================
 PIP package                                 Version required
 ==========================================  ===========================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.7.4``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``redis``                                   ``>=4.5.2,!=4.5.5,!=5.0.2``
 ==========================================  ===========================
 
@@ -68,12 +68,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-redis[common.messaging]
+    pip install apache-airflow-providers-redis[common.compat]
 
 
 ========================================================================================================================  ====================
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 ========================================================================================================================  ====================
 
@@ -87,4 +88,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-redis/4.4.1/changelog.html>`_.

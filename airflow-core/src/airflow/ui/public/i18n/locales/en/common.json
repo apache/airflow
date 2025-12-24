@@ -25,6 +25,7 @@
     "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
     "lastSchedulingDecision": "Last Scheduling Decision",
+    "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
@@ -72,6 +74,11 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
@@ -84,11 +91,13 @@
     "tooltip": "Press {{hotkey}} to download logs"
   },
   "duration": "Duration",
+  "edit": "Edit",
   "endDate": "End Date",
   "error": {
     "back": "Back",
     "defaultMessage": "An unexpected error occurred",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
     "title": "Error"
   },
@@ -98,6 +107,7 @@
     "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
+  "expandAllExtra": "Expand all extra JSON",
   "expression": {
     "all": "All",
     "and": "AND",
@@ -108,22 +118,27 @@
   "filters": {
     "durationFrom": "Duration From",
     "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "Logical Date From",
     "logicalDateTo": "Logical Date To",
     "runAfterFrom": "Run After From",
-    "runAfterTo": "Run After To"
+    "runAfterTo": "Run After To",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": {
       "button": "Delete",
       "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Admin",
@@ -177,6 +192,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",

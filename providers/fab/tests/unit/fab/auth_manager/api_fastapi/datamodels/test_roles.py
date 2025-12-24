@@ -26,6 +26,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
     ActionResponse,
     ResourceResponse,
     RoleBody,
+    RoleCollectionResponse,
     RoleResponse,
 )
 
@@ -86,3 +87,44 @@ class TestRoleModels:
         assert rr.permissions
         first = rr.permissions[0]
         assert first.action.name == "can_read"
+
+    def test_rolecollection_response_dump_and_counts(self):
+        ar = ActionResourceResponse(
+            action=ActionResponse(name="can_read"),
+            resource=ResourceResponse(name="DAG"),
+        )
+        rc = RoleCollectionResponse(
+            roles=[RoleResponse(name="viewer", permissions=[ar])],
+            total_entries=1,
+        )
+        dumped = rc.model_dump(by_alias=True)
+        assert dumped["total_entries"] == 1
+        assert isinstance(dumped["roles"], list)
+        assert dumped["roles"][0]["name"] == "viewer"
+        assert "actions" in dumped["roles"][0]
+        assert "permissions" not in dumped["roles"][0]
+
+    def test_rolecollection_model_validate_from_objects(self):
+        obj = types.SimpleNamespace(
+            roles=[
+                types.SimpleNamespace(
+                    name="admin",
+                    permissions=[
+                        types.SimpleNamespace(
+                            action=types.SimpleNamespace(name="can_read"),
+                            resource=types.SimpleNamespace(name="DAG"),
+                        )
+                    ],
+                )
+            ],
+            total_entries=1,
+        )
+        rc = RoleCollectionResponse.model_validate(obj)
+        assert rc.total_entries == 1
+        assert len(rc.roles) == 1
+        assert rc.roles[0].name == "admin"
+        assert rc.roles[0].permissions[0].action.name == "can_read"
+
+    def test_rolecollection_missing_total_entries_raises(self):
+        with pytest.raises(ValidationError):
+            RoleCollectionResponse.model_validate({"roles": []})

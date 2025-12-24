@@ -28,16 +28,18 @@ from typing import (
     Generic,
     Literal,
     TypeVar,
+    cast,
     overload,
 )
 
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, and_, case, func, not_, or_, select as sql_select
+from sqlalchemy import Column, and_, func, not_, or_, select as sql_select
 from sqlalchemy.inspection import inspect
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.models import Base
@@ -67,6 +69,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.attributes import InstrumentedAttribute
     from sqlalchemy.sql import ColumnElement, Select
 
+    from airflow.serialization.definitions.dag import SerializedDAG
+
 T = TypeVar("T")
 
 
@@ -75,7 +79,7 @@ class BaseParam(OrmClause[T], ABC):
 
     def __init__(self, value: T | None = None, skip_none: bool = True) -> None:
         super().__init__(value)
-        self.attribute: ColumnElement | None = None
+        self.attribute: ColumnElement | InstrumentedAttribute | None = None
         self.skip_none = skip_none
 
     def set_value(self, value: T | None) -> Self:
@@ -182,6 +186,57 @@ class _SearchParam(BaseParam[str]):
         raise NotImplementedError("Use search_param_factory instead , depends is not implemented.")
 
 
+class QueryTaskInstanceTaskGroupFilter(BaseParam[str]):
+    """Task group filter - returns all tasks in the specified group."""
+
+    def __init__(self, dag=None, skip_none: bool = True):
+        super().__init__(skip_none=skip_none)
+        self._dag: None | SerializedDAG = dag
+
+    @property
+    def dag(self) -> None | SerializedDAG:
+        return self._dag
+
+    @dag.setter
+    def dag(self, value: None | SerializedDAG) -> None:
+        self._dag = value
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if not self.dag:
+            raise ValueError("Dag must be set before calling to_orm")
+
+        if not hasattr(self.dag, "task_group"):
+            return select
+
+        # Exact matching on group_id
+        task_groups = self.dag.task_group.get_task_group_dict()
+        task_group = task_groups.get(self.value)
+        if not task_group:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"Task group {self.value} not found",
+                },
+            )
+
+        return select.where(TaskInstance.task_id.in_(task.task_id for task in task_group.iter_tasks()))
+
+    @classmethod
+    def depends(
+        cls,
+        value: str | None = Query(
+            alias="task_group_id",
+            default=None,
+            description="Filter by exact task group ID. Returns all tasks within the specified task group.",
+        ),
+    ) -> QueryTaskInstanceTaskGroupFilter:
+        return cls(dag=None).set_value(value)
+
+
 def search_param_factory(
     attribute: ColumnElement,
     pattern_name: str,
@@ -249,11 +304,6 @@ class SortParam(BaseParam[list[str]]):
             if column is None:
                 column = getattr(self.model, lstriped_orderby)
 
-            # MySQL does not support `nullslast`, and True/False ordering depends on the
-            # database implementation.
-            nullscheck = case((column.isnot(None), 0), else_=1)
-
-            columns.append(nullscheck)
             if order_by_value.startswith("-"):
                 columns.append(column.desc())
             else:
@@ -387,7 +437,7 @@ class FilterParam(BaseParam[T]):
 
 
 def filter_param_factory(
-    attribute: ColumnElement,
+    attribute: ColumnElement | InstrumentedAttribute,
     _type: type,
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
@@ -399,7 +449,7 @@ def filter_param_factory(
     description: str | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
+    filter_name = filter_name or getattr(attribute, "name", str(attribute))
     # can only set either default_value or default_factory
     query = (
         Query(alias=filter_name, default_factory=default_factory, description=description)
@@ -410,7 +460,9 @@ def filter_param_factory(
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
         if transform_callable:
             value = transform_callable(value)
-        return FilterParam(attribute, value, filter_option, skip_none)
+        # Cast to InstrumentedAttribute for type compatibility
+        attr = cast("InstrumentedAttribute", attribute)
+        return FilterParam(attr, value, filter_option, skip_none)
 
     # add type hint to value at runtime
     depends_filter.__annotations__["value"] = _type
@@ -579,7 +631,7 @@ class RangeFilter(BaseParam[Range]):
 
 def datetime_range_filter_factory(
     filter_name: str, model: Base, attribute_name: str | None = None
-) -> Callable[[datetime | None, datetime | None], RangeFilter]:
+) -> Callable[[datetime | None, datetime | None, datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound_gte: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: datetime | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -604,7 +656,7 @@ def datetime_range_filter_factory(
 
 def float_range_filter_factory(
     filter_name: str, model: Base
-) -> Callable[[float | None, float | None], RangeFilter]:
+) -> Callable[[float | None, float | None, float | None, float | None], RangeFilter]:
     def depends_float(
         lower_bound_gte: float | None = Query(alias=f"{filter_name}_gte", default=None),
         lower_bound_gt: float | None = Query(alias=f"{filter_name}_gt", default=None),
@@ -775,7 +827,7 @@ def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState 
         return [None if s in ("none", None) else DagRunState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
         )
 
@@ -801,7 +853,7 @@ def _transform_dag_run_types(types: list[str] | None) -> list[DagRunType | None]
         return [None if run_type in ("none", None) else DagRunType(run_type) for run_type in types]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for run type. Valid values are {', '.join(DagRunType)}",
         )
 
@@ -839,7 +891,7 @@ def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | N
         return [None if s in ("no_status", "none", None) else TaskInstanceState(s) for s in states]
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
         )
 
@@ -868,6 +920,15 @@ QueryTIQueueFilter = Annotated[
         filter_param_factory(TaskInstance.queue, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
     ),
 ]
+QueryTIPoolNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.pool, "pool_name_pattern")),
+]
+
+QueryTIQueueNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(search_param_factory(TaskInstance.queue, "queue_name_pattern")),
+]
 QueryTIExecutorFilter = Annotated[
     FilterParam[list[str]],
     Depends(
@@ -878,6 +939,9 @@ QueryTIExecutorFilter = Annotated[
 ]
 QueryTITaskDisplayNamePatternSearch = Annotated[
     _SearchParam, Depends(search_param_factory(TaskInstance.task_display_name, "task_display_name_pattern"))
+]
+QueryTITaskGroupFilter = Annotated[
+    QueryTaskInstanceTaskGroupFilter, Depends(QueryTaskInstanceTaskGroupFilter.depends)
 ]
 QueryTIDagVersionFilter = Annotated[
     FilterParam[list[int]],
@@ -916,6 +980,15 @@ QueryTIOperatorFilter = Annotated[
     Depends(
         filter_param_factory(
             TaskInstance.operator, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
+QueryTIOperatorNamePatternSearch = Annotated[
+    _SearchParam,
+    Depends(
+        search_param_factory(
+            TaskInstance.custom_operator_name,
+            "operator_name_pattern",
         )
     ),
 ]

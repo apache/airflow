@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
 log = logging.getLogger(__name__)
@@ -551,7 +551,7 @@ def _create_backfill(
                 info=info,
                 backfill_id=br.id,
                 dag_run_conf=br.dag_run_conf,
-                reprocess_behavior=br.reprocess_behavior,
+                reprocess_behavior=ReprocessBehavior(br.reprocess_behavior),
                 backfill_sort_ordinal=backfill_sort_ordinal,
                 triggering_user_name=br.triggering_user_name,
                 run_on_latest_version=run_on_latest_version,

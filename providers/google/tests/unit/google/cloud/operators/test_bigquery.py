@@ -29,12 +29,6 @@ import pytest
 from google.cloud.bigquery import DEFAULT_RETRY, ScalarQueryParameter, Table
 from google.cloud.exceptions import Conflict
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowSkipException,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
 from airflow.providers.common.compat.openlineage.facet import (
     DocumentationDatasetFacet,
     ErrorMessageRunFacet,
@@ -46,6 +40,12 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
     SQLJobFacet,
+)
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    TaskDeferred,
 )
 from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -238,7 +238,7 @@ class TestBigQueryCreateTableOperator:
         )
 
     @pytest.mark.parametrize(
-        "if_exists, is_conflict, expected_error, log_msg",
+        ("if_exists", "is_conflict", "expected_error", "log_msg"),
         [
             ("ignore", False, None, None),
             ("log", False, None, None),
@@ -370,7 +370,7 @@ class TestBigQueryCreateEmptyDatasetOperator:
         )
 
     @pytest.mark.parametrize(
-        "if_exists, is_conflict, expected_error, log_msg",
+        ("if_exists", "is_conflict", "expected_error", "log_msg"),
         [
             ("ignore", False, None, None),
             ("log", False, None, None),
@@ -896,7 +896,7 @@ class TestBigQueryGetDatasetTablesOperator:
 
 
 @pytest.mark.parametrize(
-    "operator_class, kwargs",
+    ("operator_class", "kwargs"),
     [
         (BigQueryCheckOperator, dict(sql="Select * from test_table")),
         (BigQueryValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
@@ -2480,7 +2480,7 @@ class TestBigQueryValueCheckOperator:
         assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
     @pytest.mark.parametrize(
-        "kwargs, expected",
+        ("kwargs", "expected"),
         [
             ({"sql": "SELECT COUNT(*) from Any"}, "missing keyword argument 'pass_value'"),
             ({"pass_value": "Any"}, "missing keyword argument 'sql'"),
@@ -2591,7 +2591,7 @@ class TestBigQueryValueCheckOperator:
 @pytest.mark.db_test
 class TestBigQueryColumnCheckOperator:
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 0),
             ("greater_than", 0, 1),
@@ -2625,7 +2625,7 @@ class TestBigQueryColumnCheckOperator:
         ti.task.execute(MagicMock())
 
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 1),
             ("greater_than", 0, -1),
@@ -2658,7 +2658,7 @@ class TestBigQueryColumnCheckOperator:
             ti.task.execute(MagicMock())
 
     @pytest.mark.parametrize(
-        "check_type, check_value, check_result",
+        ("check_type", "check_value", "check_result"),
         [
             ("equal_to", 0, 0),
             ("greater_than", 0, 1),

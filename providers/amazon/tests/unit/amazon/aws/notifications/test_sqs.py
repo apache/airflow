@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.notifications.sqs import SqsNotifier, send_sqs_notification
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
 

@@ -24,19 +24,18 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import DuplicateTaskIdFound, RemovedInAirflow4Warning
 from airflow.sdk import Context, Label, TaskGroup
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.definitions.dag import DAG, dag as dag_decorator
 from airflow.sdk.definitions.param import DagParam, Param, ParamsDict
-from airflow.sdk.exceptions import AirflowDagCycleException
+from airflow.sdk.exceptions import AirflowDagCycleException, DuplicateTaskIdFound, RemovedInAirflow4Warning
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
 class TestDag:
     @pytest.mark.parametrize(
-        "dag_id, exc_type, exc_value",
+        ("dag_id", "exc_type", "exc_value"),
         [
             pytest.param(
                 123,
@@ -340,7 +339,7 @@ class TestDag:
             dag.validate()
 
     def test_continuous_schedule_linmits_max_active_runs(self):
-        from airflow.timetables.simple import ContinuousTimetable
+        from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
@@ -397,7 +396,7 @@ class TestDag:
 
 # Test some of the arg validation. This is not all the validations we perform, just some of them.
 @pytest.mark.parametrize(
-    ["attr", "value"],
+    ("attr", "value"),
     [
         pytest.param("max_consecutive_failed_dag_runs", "not_an_int", id="max_consecutive_failed_dag_runs"),
         pytest.param("dagrun_timeout", "not_an_int", id="dagrun_timeout"),
@@ -410,7 +409,7 @@ def test_invalid_type_for_args(attr: str, value: Any):
 
 
 @pytest.mark.parametrize(
-    "tags, should_pass",
+    ("tags", "should_pass"),
     [
         pytest.param([], True, id="empty tags"),
         pytest.param(["a normal tag"], True, id="one tag"),
@@ -428,7 +427,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
 
 
 @pytest.mark.parametrize(
-    "input_tags, expected_result",
+    ("input_tags", "expected_result"),
     [
         pytest.param([], set(), id="empty tags"),
         pytest.param(
@@ -472,7 +471,7 @@ def test_create_dag_while_active_context():
 
 @pytest.mark.parametrize("max_active_runs", [0, 1])
 def test_continuous_schedule_interval_limits_max_active_runs(max_active_runs):
-    from airflow.timetables.simple import ContinuousTimetable
+    from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
     dag = DAG(dag_id="continuous", schedule="@continuous", max_active_runs=max_active_runs)
     assert isinstance(dag.timetable, ContinuousTimetable)
@@ -535,8 +534,8 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
 
     @pytest.mark.parametrize(
-        argnames=["dag_doc_md", "expected_doc_md"],
-        argvalues=[
+        ("dag_doc_md", "expected_doc_md"),
+        [
             pytest.param("dag docs.", "dag docs.", id="use_dag_doc_md"),
             pytest.param(None, "Regular Dag documentation", id="use_dag_docstring"),
         ],

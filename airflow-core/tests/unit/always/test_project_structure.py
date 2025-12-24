@@ -59,14 +59,12 @@ class TestProjectStructure:
         """
         # The test below had a but for quite a while and we missed a lot of modules to have tess
         # We should make sure that one goes to 0
-        # TODO(potiuk) - check if that test actually tests something
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/auth_manager/datamodels/test_login.py",
             "providers/amazon/tests/unit/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_boto_schema.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/executors/utils/test_base_config_keys.py",
@@ -136,7 +134,6 @@ class TestProjectStructure:
             "providers/fab/tests/unit/fab/www/test_session.py",
             "providers/fab/tests/unit/fab/www/test_views.py",
             "providers/google/tests/unit/google/cloud/fs/test_gcs.py",
-            "providers/google/tests/unit/google/cloud/links/test_automl.py",
             "providers/google/tests/unit/google/cloud/links/test_base.py",
             "providers/google/tests/unit/google/cloud/links/test_bigquery.py",
             "providers/google/tests/unit/google/cloud/links/test_bigquery_dts.py",
@@ -162,6 +159,7 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
             "providers/google/tests/unit/google/cloud/links/test_stackdriver.py",
             "providers/google/tests/unit/google/cloud/links/test_workflows.py",
+            "providers/google/tests/unit/google/cloud/links/test_translate.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_auto_ml.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_batch_prediction_job.py",
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_custom_job.py",

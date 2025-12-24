@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
+import { Box, Button, Heading, VStack } from "@chakra-ui/react";
 import { type ReactElement, useState } from "react";
 
-import { Button, Dialog } from "src/components/ui";
-import { ResizableWrapper } from "src/components/ui/ResizableWrapper";
+import { Dialog } from "src/components/ui";
+import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import ReactMarkdown from "./ReactMarkdown";
-
-const STORAGE_KEY = "airflow-markdown-dialog-size";
 
 const DisplayMarkdownButton = ({
   header,
@@ -52,7 +50,7 @@ const DisplayMarkdownButton = ({
         size="md"
       >
         <Dialog.Content backdrop maxHeight="none" maxWidth="none" padding={0} width="auto">
-          <ResizableWrapper storageKey={STORAGE_KEY}>
+          <ResizableWrapper storageKey={MARKDOWN_DIALOG_STORAGE_KEY}>
             <Dialog.Header bg="brand.muted" flexShrink={0}>
               <Heading size="xl">{header}</Heading>
               <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />

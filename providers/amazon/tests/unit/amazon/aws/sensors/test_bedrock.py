@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockBatchInferenceSensor,
@@ -30,6 +29,7 @@ from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockKnowledgeBaseActiveSensor,
     BedrockProvisionModelThroughputCompletedSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestBedrockCustomizeModelCompletedSensor:

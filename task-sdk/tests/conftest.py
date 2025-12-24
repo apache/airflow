@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any, NoReturn, Protocol
 
 import pytest
 
+from tests_common.test_utils.config import conf_vars
+
 pytest_plugins = "tests_common.pytest_plugin"
 
 # Task SDK does not need access to the Airflow database
@@ -58,7 +60,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     import airflow.settings
 
-    airflow.settings.configure_policy_plugin_manager()
+    airflow.settings.get_policy_plugin_manager()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -335,3 +337,14 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture(scope="class", autouse=True)
+def allow_test_classes_deserialization():
+    """
+    Allow test classes and airflow SDK classes to be deserialized. In airflow-core tests, this is provided by
+    unit_tests.cfg which sets allowed_deserialization_classes = airflow.* tests.*
+    SDK tests may not inherit that configuration, so we explicitly allow airflow.sdk.* and tests.* here.
+    """
+    with conf_vars({("core", "allowed_deserialization_classes"): "airflow.sdk.* tests.*"}):
+        yield

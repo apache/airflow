@@ -25,8 +25,7 @@ from operator import methodcaller
 
 from airflow.configuration import conf
 from airflow.models.mappedoperator import MappedOperator, is_mapped
-from airflow.sdk import TaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 @cache
@@ -57,7 +56,7 @@ def task_group_to_dict(task_item_or_group, parent_group_is_mapped=False):
             node_operator["is_mapped"] = True
         return node_operator
 
-    task_group: TaskGroup = task_item_or_group
+    task_group = task_item_or_group
     mapped = is_mapped(task_group)
     children = [
         task_group_to_dict(child, parent_group_is_mapped=parent_group_is_mapped or mapped)
@@ -103,7 +102,7 @@ def task_group_to_dict_grid(task_item_or_group, parent_group_is_mapped=False):
             "setup_teardown_type": setup_teardown_type,
         }
 
-    task_group: TaskGroup = task_item_or_group
+    task_group = task_item_or_group
     task_group_sort = get_task_group_children_getter()
     mapped = is_mapped(task_group)
     children = [

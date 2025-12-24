@@ -84,6 +84,33 @@ Finally, configure the chart to use the secret you created:
 
 .. _production-guide:pgbouncer:
 
+Metadata DB cleanup
+^^^^^^^^^^^^^^^^^^^
+
+It is recommended to periodically clean up the Airflow metadata database to remove old records and keep the database size manageable. A Kubernetes CronJob can be enabled for this purpose:
+
+.. code-block:: yaml
+
+  databaseCleanup:
+    enabled: true
+    retentionDays: 90
+
+Several additional options can be configured and passed to the ``airflow db clean`` command:
+
++-------------------------------------------------------+------------------------------------------+
+| Helm chart value                                      | ``airflow db clean`` option              |
++=======================================================+==========================================+
+| ``.Values.databaseCleanup.skipArchive``               | ``--skip-archive``                       |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.tables``                    | ``--tables``                             |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.batchSize``                 | ``--batch-size``                         |
++-------------------------------------------------------+------------------------------------------+
+| ``.Values.databaseCleanup.verbose``                   | ``--verbose``                            |
++-------------------------------------------------------+------------------------------------------+
+
+See :ref:`db clean usage <cli-db-clean>` for more details.
+
 PgBouncer
 ---------
 
@@ -631,6 +658,10 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-api-secret-key``                     | ``.Values.apiSecretKeySecretName``       | ``AIRFLOW__API__SECRET_KEY``                     |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-jwt-secret``                         | ``.Values.jwtSecretName``                | ``AIRFLOW__API_AUTH__JWT_SECRET``                |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
@@ -661,12 +692,185 @@ flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling th
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-pgbouncer-certificates``             |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
-| ``<RELEASE_NAME>-registry``                           | ``.Values.registry.secretName``          |                                                |
-+-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-kerberos-keytab``                    |                                          |                                                |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 | ``<RELEASE_NAME>-flower``                             | ``.Values.flower.secretName``            | ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``         |
 +-------------------------------------------------------+------------------------------------------+------------------------------------------------+
 
+A secret named ``<RELEASE_NAME>-registry`` is also created when ``.Values.registry.connection`` is
+defined and neither ``.Values.registry.secretName`` nor ``.Values.imagePullSecrets`` is set. However,
+this behavior is deprecated in favor of explicitly defining ``.Values.imagePullSecrets``.
+
 You can read more about advanced ways of setting configuration variables in the
 :doc:`apache-airflow:howto/set-config`.
+
+Service Account Token Volume Configuration
+------------------------------------------
+
+When using pod-launching executors (``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``),
+you can configure how Kubernetes service account tokens are mounted into pods. This provides enhanced security control
+and compatibility with security policies like Kyverno.
+
+Background
+^^^^^^^^^^
+
+By default, Kubernetes automatically mounts service account tokens into pods via the ``automountServiceAccountToken`` setting.
+However, for security reasons, you might want to disable automatic mounting and manually configure service account token volumes instead.
+
+This feature addresses Bug #59099 where ``scheduler.serviceAccount.automountServiceAccountToken: false`` was ignored
+when using the KubernetesExecutor. The solution implements a defense-in-depth approach with both ServiceAccount-level
+and Pod-level controls.
+
+Container-Specific Security
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Service Account Token Volume is mounted **only** in containers that require Kubernetes API access, implementing the
+**Principle of Least Privilege**:
+
+* **Scheduler Container**: Receives Service Account Token (needs API access for pod management)
+* **Init Container "wait-for-airflow-migrations"**: No Service Account Token (only performs database migrations)
+* **Sidecar Container "scheduler-log-groomer"**: No Service Account Token (only performs log cleanup operations)
+
+This container-specific approach ensures that:
+
+- **Database Migration Container**: Only accesses the database for schema updates, no Kubernetes API access required
+- **Log Groomer Container**: Only performs filesystem operations for log cleanup, no API access required
+- **Scheduler Container**: Requires API access for launching and managing pods with pod-launching executors
+
+**Security Benefits:**
+
+* **Reduced Attack Surface**: Containers without API access cannot interact with the Kubernetes API even if compromised
+* **Compliance**: Meets security policy requirements that mandate minimal privilege assignment
+* **Audit Trail**: Clear separation of which containers have API access for security auditing
+* **Defense-in-Depth**: Multiple layers of security controls at both ServiceAccount and container levels
+
+Configuration Options
+^^^^^^^^^^^^^^^^^^^^^
+
+The service account token volume configuration is available for the scheduler component and includes the following options:
+
+.. code-block:: yaml
+
+  scheduler:
+    serviceAccount:
+      automountServiceAccountToken: false  # Disable automatic token mounting
+      serviceAccountTokenVolume:
+        enabled: true                      # Enable manual token volume
+        mountPath: /var/run/secrets/kubernetes.io/serviceaccount  # Mount path for the token
+        volumeName: kube-api-access        # Name of the projected volume
+        expirationSeconds: 3600            # Token expiration time in seconds
+        audience: ~                        # Token audience (optional)
+
+Security Implications
+^^^^^^^^^^^^^^^^^^^^^
+
+**When to use manual token volumes:**
+
+* When security policies require explicit control over service account token mounting
+* When using security policy engines like Kyverno that restrict automatic token mounting
+* When implementing defense-in-depth security strategies
+* When you need custom token expiration times or audiences
+* When compliance frameworks mandate container-specific privilege assignment
+
+**Security benefits:**
+
+* **Explicit control**: Manual configuration makes token mounting intentional and visible
+* **Policy compliance**: Compatible with security policies that restrict ``automountServiceAccountToken: true``
+* **Defense-in-depth**: Provides both ServiceAccount-level and Pod-level security controls
+* **Custom expiration**: Allows setting shorter token lifetimes for enhanced security
+* **Container isolation**: Only scheduler container receives API access, reducing attack surface
+* **Principle of Least Privilege**: Each container receives only the minimum required permissions
+
+**Why Init and Sidecar Containers Don't Need API Access:**
+
+* **Init Container (wait-for-airflow-migrations)**:
+
+  - **Purpose**: Performs database schema migrations using ``airflow db migrate``
+  - **Required Access**: Database connection only
+  - **Security Rationale**: Database operations don't require Kubernetes API interaction
+
+* **Sidecar Container (scheduler-log-groomer)**:
+
+  - **Purpose**: Cleans up old log files from the filesystem
+  - **Required Access**: Local filesystem access only
+  - **Security Rationale**: Log cleanup is purely filesystem-based, no API calls needed
+
+* **Scheduler Container**:
+
+  - **Purpose**: Manages DAG scheduling and launches task pods
+  - **Required Access**: Kubernetes API for pod creation, monitoring, and cleanup
+  - **Security Rationale**: Pod-launching executors require API access for container orchestration
+
+Use Cases and Examples
+^^^^^^^^^^^^^^^^^^^^^^
+
+For comprehensive configuration examples, security scenarios, and detailed use cases,
+see :doc:`service-account-token-examples`.
+
+Supported Executors
+^^^^^^^^^^^^^^^^^^^
+
+The service account token volume configuration is only effective for pod-launching executors:
+
+* ``CeleryExecutor`` - When launching Celery worker pods
+* ``CeleryKubernetesExecutor`` - For both Celery workers and Kubernetes task pods
+* ``KubernetesExecutor`` - When launching task pods in Kubernetes
+* ``LocalKubernetesExecutor`` - For Kubernetes task pods in local mode
+
+For other executors (``LocalExecutor``, ``SequentialExecutor``), this configuration has no effect
+as they don't launch additional pods.
+
+Migration from Automatic to Manual Token Mounting
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To migrate from automatic to manual token mounting:
+
+1. **Test the configuration** in a non-production environment first
+2. **Update your values.yaml**:
+
+   .. code-block:: yaml
+
+     scheduler:
+       serviceAccount:
+         automountServiceAccountToken: false  # Disable automatic mounting
+         serviceAccountTokenVolume:
+           enabled: true                      # Enable manual mounting
+
+3. **Deploy the changes** using Helm upgrade
+4. **Verify** that the scheduler can still launch pods successfully
+5. **Monitor** for any authentication issues in the logs
+
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+**Common Issues:**
+
+* **Authentication failures**: Ensure ``serviceAccountTokenVolume.enabled`` is set to ``true`` when ``automountServiceAccountToken`` is ``false``
+* **Permission denied**: Verify that the service account has the necessary RBAC permissions
+* **Token expiration**: Check if ``expirationSeconds`` is too short for your workload patterns
+
+**Debugging:**
+
+Check the scheduler logs for authentication-related errors:
+
+.. code-block:: bash
+
+  kubectl logs deployment/airflow-scheduler -n <namespace>
+
+Verify the projected volume is mounted correctly:
+
+.. code-block:: bash
+
+  kubectl describe pod <scheduler-pod-name> -n <namespace>
+
+Backward Compatibility
+^^^^^^^^^^^^^^^^^^^^^^
+
+This feature maintains full backward compatibility:
+
+* Existing deployments with ``automountServiceAccountToken: true`` (default) continue to work unchanged
+* The ``serviceAccountTokenVolume`` configuration is only applied when explicitly enabled
+* Default values ensure no breaking changes for existing installations
+
+For more information about Kubernetes service account tokens and projected volumes, see the
+`Kubernetes documentation on service account tokens <https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection>`_.

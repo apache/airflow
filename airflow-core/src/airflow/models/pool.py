@@ -17,15 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
 from sqlalchemy.orm import Mapped
-from sqlalchemy_utils import UUIDType
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
-from airflow.models.team import Team
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -34,16 +33,17 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
 
 
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
-    total: int
+    total: int | float  # Note: float("inf") is used to mark infinite slots
     running: int
     deferred: int
     queued: int
-    open: int
+    open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
 
 
@@ -58,7 +58,9 @@ class Pool(Base):
     slots: Mapped[int] = mapped_column(Integer, default=0)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     include_deferred: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    team_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), ForeignKey("team.id"), nullable=True)
+    team_name: Mapped[str | None] = mapped_column(
+        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True
+    )
 
     DEFAULT_POOL_NAME = "default_pool"
 
@@ -67,7 +69,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
+    def get_pools(session: Session = NEW_SESSION) -> Sequence[Pool]:
         """Get all pools."""
         return session.scalars(select(Pool)).all()
 
@@ -173,15 +175,14 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
+        query: Select[Any] = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
-        for pool_name, total_slots, include_deferred in pool_rows:
-            if total_slots == -1:
-                total_slots = float("inf")
+        for pool_name, total_slots_in, include_deferred in pool_rows:
+            total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
             )
@@ -198,9 +199,9 @@ class Pool(Base):
         )
 
         # calculate queued and running metrics
-        for pool_name, state, count in state_count_by_pool:
+        for pool_name, state, decimal_count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
-            count = int(count)
+            count = int(decimal_count)
 
             stats_dict: PoolStats | None = pools.get(pool_name)
             if not stats_dict:
@@ -358,7 +359,7 @@ class Pool(Base):
     @staticmethod
     @provide_session
     def get_team_name(pool_name: str, session: Session = NEW_SESSION) -> str | None:
-        stmt = select(Team.name).join(Pool, Team.id == Pool.team_id).where(Pool.pool == pool_name)
+        stmt = select(Pool.team_name).where(Pool.pool == pool_name)
         return session.scalar(stmt)
 
     @staticmethod
@@ -366,7 +367,5 @@ class Pool(Base):
     def get_name_to_team_name_mapping(
         pool_names: list[str], session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
-        stmt = (
-            select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id).where(Pool.pool.in_(pool_names))
-        )
+        stmt = select(Pool.pool, Pool.team_name).where(Pool.pool.in_(pool_names))
         return {pool: team_name for pool, team_name in session.execute(stmt)}

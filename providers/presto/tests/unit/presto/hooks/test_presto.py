@@ -25,8 +25,8 @@ from unittest.mock import patch
 import pytest
 from prestodb.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
@@ -194,7 +194,7 @@ class TestPrestoHookConn:
         assert mock_connect.return_value == conn
 
     @pytest.mark.parametrize(
-        "current_verify, expected_verify",
+        ("current_verify", "expected_verify"),
         [
             ("False", False),
             ("false", False),

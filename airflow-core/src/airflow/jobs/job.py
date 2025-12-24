@@ -35,8 +35,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, add_debug_span
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -77,6 +77,8 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     elif job_type == "TriggererJob":
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    elif job_type == "DagProcessorJob":
+        health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
@@ -164,7 +166,7 @@ class Job(Base, LoggingMixin):
 
     @cached_property
     def heartrate(self) -> float:
-        return Job._heartrate(self.job_type)
+        return Job._heartrate(str(self.job_type))
 
     def is_alive(self) -> bool:
         """
@@ -232,7 +234,7 @@ class Job(Base, LoggingMixin):
                     self.kill()
 
                 # Figure out how long to sleep for
-                sleep_for = 0
+                sleep_for: float = 0
                 if self.latest_heartbeat:
                     seconds_remaining = (
                         self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
@@ -247,7 +249,11 @@ class Job(Base, LoggingMixin):
                     session.merge(self)
                     self.latest_heartbeat = timezone.utcnow()
                     session.commit()
-                    time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    time_since_last_heartbeat: float = (
+                        0
+                        if previous_heartbeat is None
+                        else (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    )
                     health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
                     if time_since_last_heartbeat > health_check_threshold_value:
                         self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
@@ -304,7 +310,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
-        return most_recent_job(self.job_type, session=session)
+        return most_recent_job(str(self.job_type), session=session)
 
     @staticmethod
     def _heartrate(job_type: str) -> float:

@@ -75,7 +75,7 @@ class TestExasolHookSqlalchemy:
         )
 
     @pytest.mark.parametrize(
-        "init_scheme, extra_scheme, expected_result, expect_error",
+        ("init_scheme", "extra_scheme", "expected_result", "expect_error"),
         [
             (None, None, "exa+websocket", False),
             ("exa+pyodbc", None, "exa+pyodbc", False),
@@ -103,7 +103,7 @@ class TestExasolHookSqlalchemy:
                 _ = hook.sqlalchemy_scheme
 
     @pytest.mark.parametrize(
-        "hook_scheme, extra, expected_url",
+        ("hook_scheme", "extra", "expected_url"),
         [
             (None, {}, "exa+websocket://login:password@host:1234/schema"),
             (

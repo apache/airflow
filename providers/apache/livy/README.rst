@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-livy``
 
-Release: ``4.4.4``
+Release: ``4.5.1``
 
 
 `Apache Livy <https://livy.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.livy`` provider. All classes for this pr
 are in ``airflow.providers.apache.livy`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.4.4/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.1/>`_.
 
 Installation
 ------------
@@ -53,9 +53,9 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
+``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-http``           ``>=5.1.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``aiohttp``                                 ``>=3.9.2``
 ``asgiref``                                 ``>=2.3.0``
 ==========================================  ==================
@@ -81,4 +81,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.4.4/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-livy/4.5.1/changelog.html>`_.

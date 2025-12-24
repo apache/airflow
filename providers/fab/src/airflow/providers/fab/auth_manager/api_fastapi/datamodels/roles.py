@@ -54,3 +54,10 @@ class RoleResponse(BaseModel):
 
     name: str
     permissions: list[ActionResourceResponse] = Field(default_factory=list, serialization_alias="actions")
+
+
+class RoleCollectionResponse(BaseModel):
+    """Outgoing representation of a paginated collection of roles."""
+
+    roles: list[RoleResponse]
+    total_entries: int

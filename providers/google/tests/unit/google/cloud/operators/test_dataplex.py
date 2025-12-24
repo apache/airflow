@@ -40,7 +40,7 @@ from google.cloud.dataplex_v1.types import (
     SearchEntriesResponse,
 )
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCatalogCreateAspectTypeOperator,
     DataplexCatalogCreateEntryGroupOperator,

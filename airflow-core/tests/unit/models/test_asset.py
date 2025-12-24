@@ -34,6 +34,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, AssetAlias
+from airflow.serialization.definitions.assets import SerializedAssetAlias
 
 from tests_common.test_utils.dag import sync_dags_to_db
 
@@ -49,10 +50,11 @@ def clear_assets():
     clear_db_assets()
 
 
-def test_asset_alias_from_public():
-    asset_alias = AssetAlias(name="test_alias")
-    asset_alias_model = AssetAliasModel.from_public(asset_alias)
+def test_asset_alias_from_serialized():
+    asset_alias = SerializedAssetAlias(name="test_alias", group="test_group")
+    asset_alias_model = AssetAliasModel.from_serialized(asset_alias)
     assert asset_alias_model.name == "test_alias"
+    assert asset_alias_model.group == "test_group"
 
 
 class TestAssetAliasModel:
@@ -94,7 +96,7 @@ class TestAssetAliasModel:
 
 
 @pytest.mark.parametrize(
-    "select_stmt, expected_before_clear_1, expected_before_clear_2",
+    ("select_stmt", "expected_before_clear_1", "expected_before_clear_2"),
     [
         pytest.param(
             select(AssetModel.name, AssetModel.uri, DagScheduleAssetReference.dag_id),

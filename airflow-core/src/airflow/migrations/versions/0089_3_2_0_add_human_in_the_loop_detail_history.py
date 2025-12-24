@@ -77,5 +77,5 @@ def upgrade():
 
 
 def downgrade():
-    """Response Human In the Loop Detail Hisotry table."""
+    """Response Human In the Loop Detail History table."""
     op.drop_table("hitl_detail_history")

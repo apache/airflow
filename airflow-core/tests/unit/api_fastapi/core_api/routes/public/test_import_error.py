@@ -144,7 +144,7 @@ def set_mock_auth_manager__batch_is_authorized_dag(
 
 class TestGetImportError:
     @pytest.mark.parametrize(
-        "prepared_import_error_idx, expected_status_code, expected_body",
+        ("prepared_import_error_idx", "expected_status_code", "expected_body"),
         [
             (
                 0,
@@ -242,7 +242,7 @@ class TestGetImportError:
 
 class TestGetImportErrors:
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_filenames",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_filenames"),
         [
             (
                 {},
@@ -346,7 +346,7 @@ class TestGetImportErrors:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "team, batch_is_authorized_dag_return_value, expected_stack_trace",
+        ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),
         [
             pytest.param(
                 "test_team",

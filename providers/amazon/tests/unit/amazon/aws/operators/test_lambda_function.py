@@ -23,12 +23,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -203,7 +203,7 @@ class TestLambdaInvokeFunctionOperator:
         "keep_empty_log_lines", [pytest.param(True, id="keep"), pytest.param(False, id="truncate")]
     )
     @pytest.mark.parametrize(
-        "log_result, expected_execution_logs",
+        ("log_result", "expected_execution_logs"),
         [
             pytest.param(LOG_RESPONSE, True, id="log-result"),
             pytest.param(BAD_LOG_RESPONSE, False, id="corrupted-log-result"),

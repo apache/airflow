@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 class TaskMapVariant(enum.Enum):
@@ -141,7 +141,7 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
         if not isinstance(task, (MappedOperator, SerializedBaseOperator)):
@@ -161,7 +161,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
             total_length = None
 
-        state: TaskInstanceState | None = None
+        state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == task.dag_id,
@@ -222,12 +222,15 @@ class TaskMap(TaskInstanceDependencies):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = session.scalar(
-                select(func.max(TaskInstance.map_index)).where(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.run_id == run_id,
+            current_max_mapping = (
+                session.scalar(
+                    select(func.max(TaskInstance.map_index)).where(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.run_id == run_id,
+                    )
                 )
+                or 0
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -265,8 +268,7 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

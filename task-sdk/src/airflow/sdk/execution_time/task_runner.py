@@ -38,27 +38,34 @@ import lazy_object_proxy
 import structlog
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
 from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRuntimeError,
+    AirflowTaskTimeout,
+    ErrorType,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -70,11 +77,14 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
+    GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
     InactiveAssetsResult,
     PreviousDagRunResult,
+    PreviousTIResult,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -84,6 +94,7 @@ from airflow.sdk.execution_time.comms import (
     SkipDownstreamTasks,
     StartupDetails,
     SucceedTask,
+    TaskBreadcrumbsResult,
     TaskRescheduleStartDate,
     TaskState,
     TaskStatesResult,
@@ -105,18 +116,19 @@ from airflow.sdk.execution_time.context import (
     get_previous_dagrun_success,
     set_current_context,
 )
+from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
 
 if TYPE_CHECKING:
     import jinja2
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -132,8 +144,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
-    _context: Context | None = None
-    """The Task Instance context."""
+    _cached_template_context: Context | None = None
+    """The Task Instance context. This is used to cache get_template_context."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -152,6 +164,8 @@ class RuntimeTaskInstance(TaskInstance):
     """True if the original task was mapped."""
 
     rendered_map_index: str | None = None
+
+    sentry_integration: str = ""
 
     def __rich_repr__(self):
         yield "id", self.id
@@ -179,7 +193,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._context: Context = self._context or {
+        self._cached_template_context: Context = self._cached_template_context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -219,7 +233,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._context.update(context_from_server)
+            self._cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -230,7 +244,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._context.update(
+                self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -257,7 +271,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return self._context
+        return self._cached_template_context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -357,7 +371,7 @@ class RuntimeTaskInstance(TaskInstance):
             task_ids = [task_ids]
 
         # If map_indexes is not specified, pull xcoms from all map indexes for each task
-        if isinstance(map_indexes, ArgNotSet):
+        if not is_arg_set(map_indexes):
             xcoms: list[Any] = []
             for t_id in task_ids:
                 values = XCom.get_all(
@@ -470,6 +484,46 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.dag_run
 
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None:
+        """
+        Return the previous task instance matching the given criteria.
+
+        :param state: Filter by TaskInstance state
+        :param logical_date: Filter by logical date (returns TI before this date)
+        :param map_index: Filter by map_index (defaults to -1 for non-mapped tasks)
+        :return: Previous task instance or None if not found
+        """
+        context = self.get_template_context()
+        dag_run = context.get("dag_run")
+
+        log = structlog.get_logger(logger_name="task")
+        log.debug("Getting previous task instance", task_id=self.task_id, state=state)
+
+        # Use current dag run's logical_date if not provided
+        effective_logical_date = logical_date
+        if effective_logical_date is None and dag_run and dag_run.logical_date:
+            effective_logical_date = dag_run.logical_date
+
+        response = SUPERVISOR_COMMS.send(
+            msg=GetPreviousTI(
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                logical_date=effective_logical_date,
+                map_index=map_index,
+                state=state,
+            )
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(response, PreviousTIResult)
+
+        return response.task_instance
+
     @staticmethod
     def get_ti_count(
         dag_id: str,
@@ -523,6 +577,14 @@ class RuntimeTaskInstance(TaskInstance):
             assert isinstance(response, TaskStatesResult)
 
         return response.task_states
+
+    @staticmethod
+    def get_task_breadcrumbs(dag_id: str, run_id: str) -> Iterable[dict[str, Any]]:
+        """Return task breadcrumbs for the given dag run."""
+        response = SUPERVISOR_COMMS.send(GetTaskBreadcrumbs(dag_id=dag_id, run_id=run_id))
+        if TYPE_CHECKING:
+            assert isinstance(response, TaskBreadcrumbsResult)
+        return response.breadcrumbs
 
     @staticmethod
     def get_dr_count(
@@ -628,6 +690,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_name=bundle_info.name,
     )
     if TYPE_CHECKING:
         assert what.ti.dag_id
@@ -667,6 +730,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
         state=TaskInstanceState.RUNNING,
+        sentry_integration=what.sentry_integration,
     )
 
 
@@ -763,13 +827,93 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     return ti, ti.get_template_context(), log
 
 
-def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
-    # TODO: Port one of the following to Task SDK
-    #   airflow.serialization.helpers.serialize_template_field or
-    #   airflow.models.renderedtifields.get_serialized_template_fields
-    from airflow.serialization.helpers import serialize_template_field
+def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
+    """
+    Return a serializable representation of the templated field.
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    If ``templated_field`` contains a class or instance that requires recursive
+    templating, store them as strings. Otherwise simply return the field as-is.
+
+    Used sdk secrets masker to redact secrets in the serialized output.
+    """
+    import json
+
+    from airflow.sdk._shared.secrets_masker import redact
+
+    def is_jsonable(x):
+        try:
+            json.dumps(x)
+        except (TypeError, OverflowError):
+            return False
+        else:
+            return True
+
+    def translate_tuples_to_lists(obj: Any):
+        """Recursively convert tuples to lists."""
+        if isinstance(obj, tuple):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, list):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, dict):
+            return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
+        return obj
+
+    def sort_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries to ensure consistent ordering."""
+        if isinstance(obj, dict):
+            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, list):
+            return [sort_dict_recursively(item) for item in obj]
+        if isinstance(obj, tuple):
+            return tuple(sort_dict_recursively(item) for item in obj)
+        return obj
+
+    max_length = conf.getint("core", "max_templated_field_length")
+
+    if not is_jsonable(template_field):
+        try:
+            serialized = template_field.serialize()
+        except AttributeError:
+            serialized = str(template_field)
+        if len(serialized) > max_length:
+            rendered = redact(serialized, name)
+            return (
+                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+                f"{rendered[: max_length - 79]!r}... "
+            )
+        return serialized
+    if not template_field and not isinstance(template_field, tuple):
+        # Avoid unnecessary serialization steps for empty fields unless they are tuples
+        # and need to be converted to lists
+        return template_field
+    template_field = translate_tuples_to_lists(template_field)
+    # Sort dictionaries recursively to ensure consistent string representation
+    # This prevents hash inconsistencies when dict ordering varies
+    if isinstance(template_field, dict):
+        template_field = sort_dict_recursively(template_field)
+    serialized = str(template_field)
+    if len(serialized) > max_length:
+        rendered = redact(serialized, name)
+        return (
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            f"{rendered[: max_length - 79]!r}... "
+        )
+    return template_field
+
+
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
+    from airflow.sdk._shared.secrets_masker import redact
+
+    rendered_fields = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = _serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        rendered_fields[field] = redact(serialized, field)
+
+    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -785,7 +929,7 @@ def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
             yield AssetProfile(name=obj.name, type=AssetAlias.__name__)
 
 
-def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, Any]]:
+def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[dict[str, JsonValue]]:
     if TYPE_CHECKING:
         assert isinstance(events, OutletEventAccessors)
     # We just collect everything the user recorded in the accessors.
@@ -800,6 +944,9 @@ def _serialize_outlet_events(events: OutletEventAccessorsProtocol) -> Iterator[d
 def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSupervisor | None:
     ti.hostname = get_hostname()
     ti.task = ti.task.prepare_for_execution()
+    # Since context is now cached, and calling `ti.get_template_context` will return the same dict, we want to
+    # update the value of the task that is sent from there
+    context["task"] = ti.task
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
@@ -870,6 +1017,7 @@ def _defer_task(
     return msg, state
 
 
+@Sentry.enrich_errors
 def run(
     ti: RuntimeTaskInstance,
     context: Context,
@@ -878,8 +1026,7 @@ def run(
     """Run the task in this process."""
     import signal
 
-    from airflow.exceptions import (
-        AirflowException,
+    from airflow.sdk.exceptions import (
         AirflowFailException,
         AirflowRescheduleException,
         AirflowSensorTimeout,
@@ -1114,14 +1261,17 @@ def _handle_trigger_dag_run(
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
     if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
         from airflow.providers.standard.triggers.external_task import DagStateTrigger
 
         defer = TaskDeferred(
             trigger=DagStateTrigger(
                 dag_id=drte.trigger_dag_id,
                 states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                execution_dates=[drte.logical_date] if drte.logical_date else None,
+                # Don't filter by execution_dates when run_ids is provided.
+                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                # drte.logical_date might be a newly calculated value that doesn't match
+                # the persisted logical_date in the database, causing the trigger to never find the run.
+                execution_dates=None,
                 run_ids=[drte.dag_run_id],
                 poll_interval=drte.poke_interval,
             ),
@@ -1188,99 +1338,78 @@ def _run_task_state_change_callbacks(
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
-def _get_email_subject_content(
-    *,
-    task_instance: RuntimeTaskInstance,
-    exception: BaseException | str | None,
-    log: Logger,
-) -> tuple[str, str, str]:
-    """
-    Get the email subject content for exceptions.
-
-    :param task_instance: the task instance
-    :param exception: the exception sent in the email
-    :param task:
-
-    :meta private:
-    """
-    from airflow.sdk.definitions._internal.templater import SandboxedEnvironment
-    from airflow.sdk.definitions.context import Context, render_template_to_string
-
-    exception_html = str(exception).replace("\n", "<br>")
-
-    default_subject = "Airflow alert: {{ti}}"
-    # For reporting purposes, we report based on 1-indexed,
-    # not 0-indexed lists (i.e. Try 1 instead of
-    # Try 0 for the first attempt).
-    default_html_content = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>{{exception_html}}<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
-
-    default_html_content_err = (
-        "Try {{try_number}} out of {{max_tries + 1}}<br>"
-        "Exception:<br>Failed attempt to attach error logs<br>"
-        'Log: <a href="{{ti.log_url}}">Link</a><br>'
-        "Host: {{ti.hostname}}<br>"
-        'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-    )
-
-    additional_context: dict[str, Any] = {
-        "exception": exception,
-        "exception_html": exception_html,
-        "try_number": task_instance.try_number,
-        "max_tries": task_instance.max_tries,
-    }
-
-    # Use the Dag's get_template_env() to set force_sandboxed. Don't add
-    # the flag to the function on task object -- that function can be
-    # overridden, and adding a flag breaks backward compatibility.
-    dag = task_instance.task.get_dag()
-    if dag:
-        jinja_env = dag.get_template_env(force_sandboxed=True)
-    else:
-        jinja_env = SandboxedEnvironment(cache_size=0)
-    jinja_context = task_instance.get_template_context()
-    if not jinja_context:
-        jinja_context = Context()
-    # Add additional fields to the context for email template rendering
-    jinja_context.update(additional_context)  # type: ignore[typeddict-item]
-
-    def render(key: str, content: str) -> str:
-        if conf.has_option("email", key):
-            path = conf.get_mandatory_value("email", key)
-            try:
-                with open(path) as f:
-                    content = f.read()
-            except FileNotFoundError:
-                log.warning("Could not find email template file. Using defaults...", file=path)
-            except OSError:
-                log.exception("Error while using email template. Using defaults...", file=path)
-        return render_template_to_string(jinja_env.from_string(content), jinja_context)
-
-    subject = render("subject_template", default_subject)
-    html_content = render("html_content_template", default_html_content)
-    html_content_err = render("html_content_template", default_html_content_err)
-
-    return subject, html_content, html_content_err
-
-
-def _send_task_error_email(
-    to: Iterable[str],
+def _send_error_email_notification(
+    task: BaseOperator | MappedOperator,
     ti: RuntimeTaskInstance,
-    exception: BaseException | str | None,
+    context: Context,
+    error: BaseException | str | None,
     log: Logger,
 ) -> None:
-    from airflow.utils.email import send_email
-
-    subject, content, err = _get_email_subject_content(task_instance=ti, exception=exception, log=log)
+    """Send email notification for task errors using SmtpNotifier."""
     try:
-        send_email(to, subject, content)
+        from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    except ImportError:
+        log.error(
+            "Failed to send task failure or retry email notification: "
+            "`apache-airflow-providers-smtp` is not installed. "
+            "Install this provider to enable email notifications."
+        )
+        return
+
+    if not task.email:
+        return
+
+    subject_template_file = conf.get("email", "subject_template", fallback=None)
+
+    # Read the template file if configured
+    if subject_template_file and Path(subject_template_file).exists():
+        subject = Path(subject_template_file).read_text()
+    else:
+        # Fallback to default
+        subject = "Airflow alert: {{ti}}"
+
+    html_content_template_file = conf.get("email", "html_content_template", fallback=None)
+
+    # Read the template file if configured
+    if html_content_template_file and Path(html_content_template_file).exists():
+        html_content = Path(html_content_template_file).read_text()
+    else:
+        # Fallback to default
+        # For reporting purposes, we report based on 1-indexed,
+        # not 0-indexed lists (i.e. Try 1 instead of Try 0 for the first attempt).
+        html_content = (
+            "Try {{try_number}} out of {{max_tries + 1}}<br>"
+            "Exception:<br>{{exception_html}}<br>"
+            'Log: <a href="{{ti.log_url}}">Link</a><br>'
+            "Host: {{ti.hostname}}<br>"
+            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
+        )
+
+    # Add exception_html to context for template rendering
+    import html
+
+    exception_html = html.escape(str(error)).replace("\n", "<br>")
+    additional_context = {
+        "exception": error,
+        "exception_html": exception_html,
+        "try_number": ti.try_number,
+        "max_tries": ti.max_tries,
+    }
+    email_context = {**context, **additional_context}
+    to_emails = task.email
+    if not to_emails:
+        return
+
+    try:
+        notifier = SmtpNotifier(
+            to=to_emails,
+            subject=subject,
+            html_content=html_content,
+            from_email=conf.get("email", "from_email", fallback="airflow@airflow"),
+        )
+        notifier(email_context)
     except Exception:
-        send_email(to, subject, err)
+        log.exception("Failed to send email notification")
 
 
 def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
@@ -1412,9 +1541,17 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-        _xcom_push_to_db(ti, key=xcom_key, value=link)
+        try:
+            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+            _xcom_push_to_db(ti, key=xcom_key, value=link)
+        except Exception:
+            log.exception(
+                "Failed to push an xcom for task operator extra link",
+                link_name=oe.name,
+                xcom_key=oe.xcom_key,
+                ti=ti,
+            )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
@@ -1441,7 +1578,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_retry and task.email:
-            _send_task_error_email(task.email, ti, error, log)
+            _send_error_email_notification(task, ti, context, error, log)
     elif state == TaskInstanceState.FAILED:
         _run_task_state_change_callbacks(task, "on_failure_callback", context, log)
         try:
@@ -1451,7 +1588,7 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
         if error and task.email_on_failure and task.email:
-            _send_task_error_email(task.email, ti, error, log)
+            _send_error_email_notification(task, ti, context, error, log)
 
     try:
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
@@ -1496,11 +1633,15 @@ def reinit_supervisor_comms() -> None:
     run_as_user, or from inside the python code in a virtualenv (et al.) operator to re-connect so those tasks
     can continue to access variables etc.
     """
+    import socket
+
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
         log = structlog.get_logger(logger_name="task")
 
-        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+        fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
+
+        SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
 
     logs = SUPERVISOR_COMMS.send(ResendLoggingFD())
     if isinstance(logs, SentFDs):

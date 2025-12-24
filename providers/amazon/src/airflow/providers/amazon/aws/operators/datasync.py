@@ -23,11 +23,11 @@ import random
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskExecutionLink, DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

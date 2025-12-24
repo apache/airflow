@@ -25,8 +25,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from sqlalchemy.engine import Engine
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
 DEFAULT_CONN_ID = "vertica_default"
@@ -88,7 +88,7 @@ def test_sqlalchemy_url_property(vertica_hook):
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, expected_calls, cursor_results, expected_result",
+    ("return_last", "split_statements", "sql", "expected_calls", "cursor_results", "expected_result"),
     [
         pytest.param(
             True,

@@ -16,7 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
-minimum_prek_version: '0.0.28'
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
 repos:
   - repo: local
     hooks:
@@ -108,7 +112,7 @@ repos:
           ^src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ../scripts/ci/prek/compile_ui_assets.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
       - id: compile-ui-assets-dev
         name: Compile ui assets in dev mode (manual)
         language: node
@@ -120,7 +124,7 @@ repos:
           ^src/airflow/api_fastapi/auth/managers/simple/ui/
         entry: ../scripts/ci/prek/compile_ui_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
       - id: check-tests-in-the-right-folders
         name: Check if tests are in the right folders
         entry: ../scripts/ci/prek/check_tests_in_right_folders.py
@@ -190,7 +194,9 @@ repos:
         pass_filenames: true
         files: ^src/airflow/migrations/versions/.*\.py$
         exclude:
-          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key.py$
+          (?x)
+          ^src/airflow/migrations/versions/0000_2_6_2_squashed_migrations\.py$|
+          ^src/airflow/migrations/versions/0028_3_0_0_drop_ab_user_id_foreign_key\.py$
       - id: ts-compile-lint-ui
         name: Compile / format / lint UI
         description: TS types generation / ESLint / Prettier new UI files
@@ -205,7 +211,7 @@ repos:
           ^src/airflow/ui/node-modules/.*|
           ^src/airflow/ui/.pnpm-store
         entry: ../scripts/ci/prek/ts_compile_lint_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
       - id: ts-compile-lint-simple-auth-manager-ui
@@ -222,7 +228,7 @@ repos:
           ^src/airflow/api_fastapi/node-modules/.*|
           ^src/airflow/api_fastapi/.pnpm-store
         entry: ../scripts/ci/prek/ts_compile_lint_simple_auth_manager_ui.py
-        additional_dependencies: ['pnpm@9.7.1']
+        additional_dependencies: ['pnpm@10.25.0']
         pass_filenames: true
         require_serial: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
@@ -371,7 +377,9 @@ repos:
           ^src/airflow/plugins_manager\.py$|
           ^src/airflow/providers_manager\.py$|
           ^src/airflow/secrets/__init__.py$|
-          ^src/airflow/serialization/definitions/[_a-z]+\.py$|
+          ^src/airflow/serialization/decoders\.py$|
+          ^src/airflow/serialization/definitions/[_/a-z]+\.py$|
+          ^src/airflow/serialization/encoders\.py$|
           ^src/airflow/serialization/enums\.py$|
           ^src/airflow/serialization/helpers\.py$|
           ^src/airflow/serialization/serialized_objects\.py$|
@@ -398,6 +406,7 @@ repos:
           ^src/airflow/utils/session\.py$|
           ^src/airflow/utils/task_group\.py$|
           ^src/airflow/utils/trigger_rule\.py$|
+          ^src/airflow/utils/json\.py$|
           ^src/airflow/utils/types\.py$
         ## ONLY ADD PREK HOOKS HERE THAT REQUIRE CI IMAGE
       - id: check-schema-defaults

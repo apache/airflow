@@ -36,8 +36,8 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
-    from airflow.utils.types import ArgNotSet
+    from airflow.providers.amazon.version_compat import ArgNotSet
+    from airflow.sdk import Context
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -216,9 +216,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]
-        with NamedTemporaryFile() as f:
+        with NamedTemporaryFile() as f_tmp:
             try:
-                f = self._scan_dynamodb_and_upload_to_s3(f, scan_kwargs, table)
+                f = self._scan_dynamodb_and_upload_to_s3(f_tmp, scan_kwargs, table)
             except Exception as e:
                 err = e
                 raise e

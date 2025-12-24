@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Iterable, Iterator
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, TypeAlias
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
@@ -32,10 +32,10 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
-    from sqlalchemy.sql import ColumnElement
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
@@ -77,10 +77,13 @@ def set_state(
     if not tasks:
         return []
 
-    task_dags = {task[0].dag if isinstance(task, tuple) else task.dag for task in tasks}
+    task_dags = {
+        (dag.dag_id if dag else None): dag
+        for dag in (task[0].dag if isinstance(task, tuple) else task.dag for task in tasks)
+    }
     if len(task_dags) > 1:
         raise ValueError(f"Received tasks from multiple DAGs: {task_dags}")
-    dag = next(iter(task_dags))
+    dag = next(iter(task_dags.values()))
     if dag is None:
         raise ValueError("Received tasks with no DAG")
     if not run_id:
@@ -113,8 +116,7 @@ def get_all_dag_task_query(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
     )
-    # Apply ti_selector_condition separately to handle type issues
-    qry_dag = qry_dag.where(cast("ColumnElement[bool]", TaskInstance.ti_selector_condition(task_ids)))
+    qry_dag = qry_dag.where(TaskInstance.ti_selector_condition(task_ids))
 
     qry_dag = qry_dag.where(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
         lazyload(TaskInstance.dag_run)

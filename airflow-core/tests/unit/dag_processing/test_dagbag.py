@@ -837,7 +837,7 @@ with airflow.DAG(
             + "NameError: name 'airflow_DAG' is not defined\n"
         )
 
-    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    @pytest.mark.parametrize("depth", (None, 1))
     def test_import_error_tracebacks(self, tmp_path, depth):
         unparseable_filename = tmp_path.joinpath("dag.py").as_posix()
         with open(unparseable_filename, "w") as unparseable_file:
@@ -852,7 +852,7 @@ with airflow.DAG(
         assert unparseable_filename in import_errors
         assert import_errors[unparseable_filename] == self._make_test_traceback(unparseable_filename, depth)
 
-    @pytest.mark.parametrize(("depth",), ((None,), (1,)))
+    @pytest.mark.parametrize("depth", (None, 1))
     def test_import_error_tracebacks_zip(self, tmp_path, depth):
         invalid_zip_filename = (tmp_path / "test_zip_invalid.zip").as_posix()
         invalid_dag_filename = os.path.join(invalid_zip_filename, "dag.py")

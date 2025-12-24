@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-flink``
 
-Release: ``1.7.3``
+Release: ``1.8.1``
 
 
 `Apache Flink <https://flink.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.flink`` provider. All classes for this p
 are in ``airflow.providers.apache.flink`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.1/>`_.
 
 Installation
 ------------
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-============================================  ==================
+============================================  ====================
 PIP package                                   Version required
-============================================  ==================
-``apache-airflow``                            ``>=2.10.0``
-``cryptography``                              ``>=41.0.0``
+============================================  ====================
+``apache-airflow``                            ``>=2.11.0``
+``apache-airflow-providers-common-compat``    ``>=1.10.1``
+``cryptography``                              ``>=41.0.0,<46.0.0``
 ``apache-airflow-providers-cncf-kubernetes``  ``>=5.1.0``
-============================================  ==================
+============================================  ====================
 
 Cross provider package dependencies
 -----------------------------------
@@ -75,16 +76,8 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                       Extra
 ======================================================================================================================  ===================
 `apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_      ``common.compat``
 ======================================================================================================================  ===================
 
-Optional dependencies
-----------------------
-
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.7.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-flink/1.8.1/changelog.html>`_.

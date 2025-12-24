@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, PipelineStates
 from airflow.providers.google.cloud.openlineage.facets import DataFusionRunFacet
 from airflow.providers.google.cloud.operators.datafusion import (
@@ -414,7 +414,7 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
             op.execute(context=mock.MagicMock())
 
     @pytest.mark.parametrize(
-        "pipeline_id, runtime_args, expected_run_id, expected_runtime_args, expected_output_suffix",
+        ("pipeline_id", "runtime_args", "expected_run_id", "expected_runtime_args", "expected_output_suffix"),
         [
             ("abc123", {"arg1": "val1"}, "abc123", {"arg1": "val1"}, "abc123"),
             (None, None, None, None, "unknown"),

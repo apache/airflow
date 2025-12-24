@@ -34,8 +34,8 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.exceptions import NotFound
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -96,7 +96,7 @@ class TestGCSHookHelperFunctions:
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
 
     @pytest.mark.parametrize(
-        "json_value, parsed_value",
+        ("json_value", "parsed_value"),
         [
             ("[1, 2, 3]", [1, 2, 3]),
             ('"string value"', "string value"),
@@ -960,7 +960,7 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, blob_names, returned_prefixes, call_args, result",
+        ("prefix", "blob_names", "returned_prefixes", "call_args", "result"),
         (
             (
                 "prefix",

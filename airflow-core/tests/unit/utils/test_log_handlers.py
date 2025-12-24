@@ -21,7 +21,6 @@ import heapq
 import io
 import itertools
 import logging
-import logging.config
 import os
 import re
 from http import HTTPStatus
@@ -37,6 +36,7 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
+from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -99,8 +99,8 @@ def cleanup_tables():
 class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TaskInstance))
 
     def setup_method(self):
         settings.configure_logging()
@@ -494,7 +494,7 @@ class TestFileTaskLogHandler:
         assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
-        "remote_logs, local_logs, served_logs_checked",
+        ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
             (True, False, False),
@@ -670,7 +670,7 @@ class TestFileTaskLogHandler:
 
                     import airflow.logging_config
 
-                    airflow.logging_config.REMOTE_TASK_LOG = s3_remote_log_io
+                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
 
                     sources, logs = fth._read_remote_logs(ti, try_number=1)
 
@@ -782,16 +782,14 @@ class TestFilenameRendering:
         )
         TaskInstanceHistory.record_ti(ti, session=session)
         session.flush()
-        tih = (
-            session.query(TaskInstanceHistory)
-            .filter_by(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-                try_number=ti.try_number,
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == ti.try_number,
             )
-            .one()
         )
         fth = FileTaskHandler("")
         rendered_ti = fth._render_filename(ti, ti.try_number, session=session)
@@ -858,7 +856,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 
 @pytest.mark.parametrize(
-    "chunk_size, expected_read_calls",
+    ("chunk_size", "expected_read_calls"),
     [
         (10, 4),
         (20, 3),
@@ -1000,7 +998,7 @@ def test__create_sort_key():
 
 
 @pytest.mark.parametrize(
-    "timestamp, line_num, expected",
+    ("timestamp", "line_num", "expected"),
     [
         pytest.param(
             pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -1027,7 +1025,7 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
 
 
 @pytest.mark.parametrize(
-    "log_stream, expected",
+    ("log_stream", "expected"),
     [
         pytest.param(
             convert_list_to_stream(
@@ -1129,7 +1127,7 @@ def test__add_log_from_parsed_log_streams_to_heap():
 
 
 @pytest.mark.parametrize(
-    "heap_setup, flush_size, last_log, expected_events",
+    ("heap_setup", "flush_size", "last_log", "expected_events"),
     [
         pytest.param(
             [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],

@@ -31,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.settings import AIRFLOW_PATH
 
@@ -47,7 +48,7 @@ def init_views(app: FastAPI) -> None:
     app.include_router(ui_router)
     app.include_router(public_router)
 
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+    dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
 
     directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 
@@ -185,6 +186,10 @@ def init_middlewares(app: FastAPI) -> None:
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
 
     app.add_middleware(JWTRefreshMiddleware)
+    if conf.getboolean("core", "simple_auth_manager_all_admins"):
+        from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
+
+        app.add_middleware(SimpleAllAdminMiddleware)
 
 
 def init_ui_plugins(app: FastAPI) -> None:

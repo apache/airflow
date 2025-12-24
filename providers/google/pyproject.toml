@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "18.1.0"
+version = "19.2.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -57,8 +58,8 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.8.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",
     "apache-airflow-providers-common-sql>=1.27.0",
     "asgiref>=3.5.2",
     "dill>=0.2.3",
@@ -104,7 +105,7 @@ dependencies = [
     "google-cloud-monitoring>=2.18.0",
     "google-cloud-orchestration-airflow>=1.10.0",
     "google-cloud-os-login>=2.9.1",
-    "google-cloud-pubsub>=2.21.3",
+    "google-cloud-pubsub>=2.24.0",
     "google-cloud-redis>=2.12.0",
     "google-cloud-secret-manager>=2.16.0",
     "google-cloud-spanner>=3.50.0",
@@ -203,6 +204,9 @@ dependencies = [
 "http" = [
     "apache-airflow-providers-http"
 ]
+"standard" = [
+    "apache-airflow-providers-standard"
+]
 
 [dependency-groups]
 dev = [
@@ -227,6 +231,7 @@ dev = [
     "apache-airflow-providers-salesforce",
     "apache-airflow-providers-sftp",
     "apache-airflow-providers-ssh",
+    "apache-airflow-providers-standard",
     "apache-airflow-providers-trino",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-apache-kafka",
@@ -259,8 +264,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/18.1.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/18.1.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.2.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/19.2.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -34,7 +34,7 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.connection import Connection
 from airflow.sdk.definitions.variable import Variable
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, ErrorType
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
     AssetEventResult,
@@ -42,10 +42,12 @@ from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
     ConnectionResult,
+    DagRunResult,
     ErrorResponse,
     GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
+    GetDagRun,
     GetXCom,
     VariableResult,
     XComResult,
@@ -346,15 +348,16 @@ class TestCurrentContext:
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "add_arg",
+        "add_args",
         [
-            Asset("name", "uri"),
-            Asset.ref(name="name"),
-            Asset.ref(uri="uri"),
+            (Asset("name", "uri", extra={"extra": "from asset itself"}), {"extra": "from event"}),
+            (Asset.ref(name="name"), {"extra": "from event"}),
+            (Asset.ref(uri="uri"), {"extra": "from event"}),
         ],
+        ids=["asset", "asset name ref", "asset uri ref"],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -363,29 +366,34 @@ class TestOutletEventAccessor:
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
         ),
+        ids=["inactive asset", "active asset"],
     )
-    def test_add(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
+    def test_add(self, add_args, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResponse(
+            name="name", uri="uri", group="", extra={"extra": "from asset itself"}
+        )
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={})
-        outlet_event_accessor.add(add_arg)
+        outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.parametrize(
-        "add_arg",
+        "add_args",
         [
-            Asset("name", "uri"),
-            Asset.ref(name="name"),
-            Asset.ref(uri="uri"),
+            (Asset(name="name", uri="uri", extra={"extra": "from asset itself"}), {"extra": "from event"}),
+            (Asset.ref(name="name"), {"extra": "from event"}),
+            (Asset.ref(uri="uri"), {"extra": "from event"}),
         ],
+        ids=["asset", "asset name ref", "asset uri ref"],
     )
     @pytest.mark.parametrize(
-        "key, asset_alias_events",
+        ("key", "asset_alias_events"),
         (
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
             (
@@ -394,17 +402,21 @@ class TestOutletEventAccessor:
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="name", uri="uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
         ),
+        ids=["inactive asset", "active asset"],
     )
-    def test_add_with_db(self, add_arg, key, asset_alias_events, mock_supervisor_comms):
-        mock_supervisor_comms.send.return_value = AssetResponse(name="name", uri="uri", group="")
+    def test_add_with_db(self, add_args, key, asset_alias_events, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResponse(
+            name="name", uri="uri", group="", extra={"extra": "from asset itself"}
+        )
 
-        outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
-        outlet_event_accessor.add(add_arg, extra={})
+        outlet_event_accessor = OutletEventAccessor(key=key)
+        outlet_event_accessor.add(*add_args)
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
 
@@ -472,7 +484,7 @@ class TestTriggeringAssetEventsAccessor:
         )
 
     @pytest.mark.parametrize(
-        "key, result_indexes",
+        ("key", "result_indexes"),
         [
             (Asset("1"), [0, 1]),
             (Asset("2"), [2]),
@@ -485,7 +497,7 @@ class TestTriggeringAssetEventsAccessor:
         assert accessor[key] == expected
 
     @pytest.mark.parametrize(
-        "name, resolved_asset, result_indexes",
+        ("name", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -504,11 +516,13 @@ class TestTriggeringAssetEventsAccessor:
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(name=name)] == expected
 
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByName(name=name, type="GetAssetByName"))
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetAssetByName(name=name, type="GetAssetByName"))
+        ]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     @pytest.mark.parametrize(
-        "uri, resolved_asset, result_indexes",
+        ("uri", "resolved_asset", "result_indexes"),
         [
             ("1", AssetResult(name="1", uri="1", group="whatever"), [0, 1]),
             ("2", AssetResult(name="2", uri="2", group="whatever"), [2]),
@@ -526,29 +540,35 @@ class TestTriggeringAssetEventsAccessor:
         mock_supervisor_comms.send.return_value = resolved_asset
         expected = [AssetEventDagRunReferenceResult.model_validate(event_data[i]) for i in result_indexes]
         assert accessor[Asset.ref(uri=uri)] == expected
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetByUri(uri=uri))
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByUri(uri=uri))]
         assert _AssetRefResolutionMixin._asset_ref_cache
 
     def test_source_task_instance_xcom_pull(self, mock_supervisor_comms, accessor):
         events = accessor[Asset("2")]
         assert len(events) == 1
+
+        mock_dag_run = mock.Mock(dag_id="d1", run_id="r1")
+        mock_supervisor_comms.send.side_effect = [mock_dag_run]
         source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(dag_id="d1", task_id="t2", run_id="r1", map_index=-1)
+        assert source == AssetEventSourceTaskInstance(dag_run=mock_dag_run, task_id="t2", map_index=-1)
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetDagRun(dag_id="d1", run_id="r1"))]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="d1",
-                run_id="r1",
-                task_id="t2",
-                map_index=-1,
-            ),
-        )
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="d1",
+                    run_id="r1",
+                    task_id="t2",
+                    map_index=-1,
+                ),
+            )
+        ]
 
 
 TEST_ASSET = Asset(name="test_uri", uri="test://test")
@@ -559,7 +579,7 @@ TEST_INLETS = [TEST_ASSET, TEST_ASSET_ALIAS] + TEST_ASSET_REFS
 
 class TestOutletEventAccessors:
     @pytest.mark.parametrize(
-        "access_key, internal_key",
+        ("access_key", "internal_key"),
         (
             (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
             (
@@ -578,7 +598,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        ["access_key", "asset"],
+        ("access_key", "asset"),
         (
             (Asset.ref(name="test"), Asset(name="test")),
             (Asset.ref(name="test1"), Asset(name="test1", uri="test://asset-uri")),
@@ -604,7 +624,7 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),
@@ -750,7 +770,7 @@ class TestInletEventAccessor:
         )
 
     @pytest.mark.parametrize(
-        "name, uri, expected_key",
+        ("name", "uri", "expected_key"),
         (
             ("test_uri", "test://test/", TEST_ASSET),
             ("test_uri", None, TEST_ASSET_REFS[0]),
@@ -791,42 +811,55 @@ class TestInletEventAccessor:
             )
         ]
         events = list(sample_inlet_evnets_accessor[Asset.ref(name="test_uri")])
-        mock_supervisor_comms.send.assert_called_once_with(
-            GetAssetEventByAsset(
-                name="test_uri",
-                uri=None,
-                after=None,
-                before=None,
-                limit=None,
-                ascending=True,
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetAssetEventByAsset(
+                    name="test_uri",
+                    uri=None,
+                    after=None,
+                    before=None,
+                    limit=None,
+                    ascending=True,
+                )
             )
-        )
+        ]
 
         assert len(events) == 2
-        assert events[1].source_task_instance is None
 
-        source = events[0].source_task_instance
-        assert source == AssetEventSourceTaskInstance(
+        dag_run_result = DagRunResult(
             dag_id="__dag__",
             run_id="__run__",
-            task_id="__task__",
-            map_index=0,
+            run_after=timezone.utcnow(),
+            start_date=timezone.utcnow(),
+            run_type="scheduled",
+            state="success",
+            consumed_asset_events=[],
         )
+        mock_supervisor_comms.reset_mock()
+        mock_supervisor_comms.send.side_effect = [dag_run_result]
+        assert events[1].source_task_instance is None
+        source = events[0].source_task_instance
+        assert source == AssetEventSourceTaskInstance(dag_run=dag_run_result, task_id="__task__", map_index=0)
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetDagRun(dag_id="__dag__", run_id="__run__"))
+        ]
 
         mock_supervisor_comms.reset_mock()
         mock_supervisor_comms.send.side_effect = [
             XComResult(key=BaseXCom.XCOM_RETURN_KEY, value="__example_xcom_value__"),
         ]
         assert source.xcom_pull() == "__example_xcom_value__"
-        mock_supervisor_comms.send.assert_called_once_with(
-            msg=GetXCom(
-                key=BaseXCom.XCOM_RETURN_KEY,
-                dag_id="__dag__",
-                run_id="__run__",
-                task_id="__task__",
-                map_index=0,
-            ),
-        )
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(
+                GetXCom(
+                    key=BaseXCom.XCOM_RETURN_KEY,
+                    dag_id="__dag__",
+                    run_id="__run__",
+                    task_id="__task__",
+                    map_index=0,
+                ),
+            )
+        ]
 
 
 class TestAsyncGetConnection:
@@ -946,7 +979,6 @@ class TestSecretsBackend:
 
     def test_get_connection_not_found_raises_error(self, mock_supervisor_comms):
         """Test that _get_connection raises error when no backend finds connection."""
-        from airflow.exceptions import AirflowNotFoundException
 
         # Backend returns None (not found)
         class EmptyBackend:

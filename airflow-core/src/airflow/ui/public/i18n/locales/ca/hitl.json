@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Cos",
-    "createdAtFrom": "Creat a partir de",
-    "createdAtTo": "Creat fins a",
+    "createdAt": "Creat a",
     "response": {
       "all": "Totes",
       "pending": "Pendents",
@@ -15,11 +14,13 @@
   "requiredActionCount_other": "Accions requerides ({{count}})",
   "requiredActionState": "Estat de l'acció requerida",
   "response": {
+    "created": "Resposta creada a ",
     "error": "Resposta fallida",
     "optionsDescription": "Escull les teves opcions per a aquesta instància de tasca",
     "optionsLabel": "Opcions",
     "received": "Resposta rebuda a ",
     "respond": "Respondre",
+    "responded_by_user_name": "Respost per (usuari)",
     "success": "Resposta de {{taskId}} exitosa",
     "title": "Instància de tasca humana - {{taskId}}"
   },

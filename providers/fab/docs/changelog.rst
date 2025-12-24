@@ -20,6 +20,99 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Create 'create_token' method in FAB auth manager (#59245)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Permit 'airflow db migrate -r' with an empty database (#59205)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Remove global statement from Fab provider (#59018)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#58954)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+* ``Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead of 'HTTP_422_UNPROCESSABLE_ENTITY' (#58828)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: adjust misleading docs (#59228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+3.0.3
+.....
+
+Misc
+~~~~
+
+* ``Bump stylelint from 16.25.0 to 16.26.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58678)``
+* ``Remove deprecation warning in Fab provider (#58686)``
+* ``Fix mypy errors in providers (#58644)``
+* ``Bump webpack from 5.102.1 to 5.103.0 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#58634)``
+* ``Upgrade js-yaml to 4.1.1 in FAB (#58501)``
+* ``Migrate FAB PATCH /roles/{name} to FastAPI (#58023)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix duplicated SQLAlchemy sessions caused transactions fail to close (#58196)``
+* ``Fix logout in Fab and Keycloak auth managers (#57992)``
+* ``Fix double redirection while authenticating in Fab auth manager (#57993)``
+* ``Fix remote user authentication in Fab auth manager (#57775)``
+* ``Fix Fab auth manager with 'securecookie' as session backend (#57578)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate FAB GET /roles/{name} to FastAPI (#58009)``
+* ``Migrate FAB DELETE /roles to FastAPI (#57780)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#57760)``
+* ``Migrate FAB GET /roles to FastAPI (#57411)``
+* ``Synchronize boto3 and sqlalchemy dependency lower-binds (#57385)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#57160)``
+* ``Migrate FAB POST /roles to FastAPI (#57199)``
+* ``Upgrade 'flask-appbuilder' to 5.0.1 (#57170)``
+* ``refactor: migrate models to use mapped_column for SQLAlchemy 2.0 compatibility (#56827)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fixing some typos and spelling errors (#57186)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Revert "Fix duplicated SQLAlchemy sessions caused transactions fail to close (#57815)" (#58097)``
+   * ``Fix duplicated SQLAlchemy sessions caused transactions fail to close (#57815)``
+   * ``Synchronize default versions in all split .pre-commit-config.yaml (#57851)``
+   * ``Fix mypy static errors in fab provider (#57761)``
+   * ``Fix mypy static errors in main (#57755)``
+   * ``Fix mypy type errors in providers/standard/ in external_task.py for SQLAlchemy 2 migration (#57369)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Extract prek hooks for FAB provider (#57181)``
+
 3.0.1
 .....
 
@@ -655,8 +748,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add TODOs in providers code for Subdag code removal (#41963)``
    * ``Add fixes by breeze/precommit-lint static checks (#41604) (#41618)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix pre-commit for auto update of fab migration versions (#42382)``
    * ``Handle 'AUTH_ROLE_PUBLIC' in FAB auth manager (#42280)``
 

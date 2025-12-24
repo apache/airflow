@@ -24,6 +24,242 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.5 (2025-12-12)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Handle invalid token in JWTRefreshMiddleware (#56904)
+- Fix inconsistent Dag hashes when template fields contain unordered dicts (#59091) (#59175)
+- Fix assets used only as inlets being incorrectly orphaned (#58986)
+- Fix exception when logging stdout with a custom %-format string (#58963)
+- Fix backfill max_active_runs race condition with concurrent schedulers (#58935)
+- Fix LocalExecutor memory spike by applying ``gc.freeze`` (#58934)
+- Fix string to datetime pydantic conversion (#58916)
+- Fix deadlines being incorrectly pruned for DAG runs with the same run_id (#58910)
+- Fix handling of ``pre-AIP-39`` DAG runs (#58773)
+- Mask secrets properly when using deprecated import path (#58726)
+- Preserve Asset.extra when using AssetAlias (#58712)
+- Fix timeout_after in run_trigger method of TriggerRunner (#58703)
+- Fix connection retrieval from secrets backend without conn_type (#58664)
+- Fix task retry logic to respect retries for all exit codes (#58478)
+- Respect default_args in DAG when set to a "falsy" value (#58396)
+- Fix airflow config list output for multi-line values (#58378)
+- Fix TriggerDagRunOperator stuck in deferred state with reset_dag_run=True (#58333)
+- Fix HITLTrigger params serialization (#58297)
+- Fix atomicity issue in SerializedDagModel.write_dag preventing orphaned DAG versions (#58281)
+- Mask kwargs when illegal arguments are passed (#58283)
+- Fix supervisor communications not reconnecting when using ``dag.test()`` (#58266)
+- Fix supervisor communications and logs not reconnecting in task subprocesses (#58263)
+- Make pool description optional when patching pools (#58169)
+- Fix check_files.py script after source tarball was renamed (#58192)
+- Fix db cleanup logging behavior and docstrings (#58523)
+- Fix Asset URI normalization for user info without password (#58485)
+- UI: Fix object rendering in Human-in-the-Loop (HITL) interface (#58611)
+- UI: Fix "Consuming Tasks" section not in asset header (#58060)
+- UI: Fix timezone string parsing to use ``dayjs`` correctly (#57880)
+- UI: Ensure task instance ``endDate`` is not null (#58435)
+- UI: Fix trigger parameter field showing as dict when param.value is null (#58899)
+- UI: Remove unnecessary refresh state consumption for DAG header (#58692)
+- UI: Fix mobile responsiveness of Dashboard sections (#58853)
+- UI: Fix incorrect backfill duration calculation in Grid view (#58816)
+- UI: Redact secrets in rendered templates to not expose them in UI (#58772)
+- UI: Add fallback value of 1 for number of DAG runs in Grid view (#58735)
+- UI: Update refresh token flow (#58649)
+- UI: Fix 404 handling with fallback route for invalid URLs (#58629)
+- UI: Fix excessive database queries in UI grid endpoint by adding query count guard (#57977, #58632)
+- UI: Fix DAG documentation markdown display issue (#58627)
+- UI: Fix duration chart duration format (#58564)
+- UI: Fix TaskGroup nodes not being properly highlighted when selected in Graph view (#58559)
+- UI: Fix tag filter with special characters (#58558)
+- UI: Fix group task instance tab memory leak (#58557)
+- UI: Fix popup automatically closing when DAG run completes (#58538)
+- UI: Fix operator extra links not appearing on failed tasks (#58508)
+- UI: Fix TypeError in ``parseStreamingLogContent`` for non-string data (#58399)
+- UI: Fix Dag tag order (#58904)
+
+Miscellaneous
+^^^^^^^^^^^^^
+- Do not remove ``.pyc`` and ``.pyo`` files after building Python (#58947)
+- Improve cross-distribution dependency management (#58472)
+- Bump glob from 10.4.5 to 10.5.0 in simple auth manager UI (#58463)
+- Bump glob in React core UI (#58461)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Fix Chinese (Traditional) translations for trigger-related terminology (#58989)
+- Close translation gaps in German (#58971)
+- Add missing Polish translations (#58939)
+- Clarify that Connection extra JSON masking is keyword-dependent (#58587)
+- Add migration guide for Airflow 2 users accessing database in tasks (#57479)
+- Update UIAlert import path and usage for v3 (#58891)
+- Add clarifying documentation for TaskGroup parameters (#58880)
+- Enhance asset extra field documentation (#58830)
+- Update mask_secret documentation to use the latest import path (#58534)
+- Improve disable_bundle_versioning configuration documentation (#58405)
+- Fix documentation for installing from sources (#58373)
+- Fix broken link on installing-from-sources page (#58324)
+- Add missing DAG run table translations (#58572)
+
+
+
+Airflow 3.1.3 (2025-11-13)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Fix Connection & Variable access in API server contexts (plugins, log handlers)(#56583)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Previously, hooks used in API server contexts (plugins, middlewares, log handlers) would fail with an ``ImportError``
+for ``SUPERVISOR_COMMS``, because ``SUPERVISOR_COMMS`` only exists in task runner child processes.
+
+This has been fixed by implementing automatic context detection with three separate secrets backend chains:
+
+**Context Detection:**
+
+1. **Client contexts** (task runner in worker): Detected via ``SUPERVISOR_COMMS`` presence
+2. **Server contexts** (API server, scheduler): Explicitly marked with ``_AIRFLOW_PROCESS_CONTEXT=server`` environment variable
+3. **Fallback contexts** (supervisor, unknown contexts): Neither marker present, uses minimal safe chain
+
+**Backend Chains:**
+
+- **Client**: ``EnvironmentVariablesBackend`` → ``ExecutionAPISecretsBackend`` (routes to Execution API via SUPERVISOR_COMMS)
+- **Server**: ``EnvironmentVariablesBackend`` → ``MetastoreBackend`` (direct database access)
+- **Fallback**: ``EnvironmentVariablesBackend`` only (+ external backends from config like AWS Secrets Manager, Vault)
+
+The fallback chain is crucial for supervisor processes (worker-side, before task runner starts) which need to access
+external secrets for remote logging setup but should not use ``MetastoreBackend`` (to maintain worker isolation).
+
+**Architecture Benefits:**
+
+- Workers (supervisor + task runner) never use ``MetastoreBackend``, maintaining strict isolation
+- External secrets backends (AWS Secrets Manager, Vault, etc.) work in all three contexts
+- Supervisor falls back to Execution API client for connections not found in external backends
+- API server and scheduler have direct database access for optimal performance
+
+**Impact:**
+
+- Hooks like ``GCSHook``, ``S3Hook`` now work correctly in log handlers and plugins
+- No code changes required for existing plugins or hooks
+- Workers remain isolated from direct database access (network-level DB blocking fully supported)
+- External secrets work everywhere (workers, supervisor, API server)
+- Robust handling of unknown contexts with safe minimal chain
+
+See: `#56120 <https://github.com/apache/airflow/issues/56120>`__, `#56583 <https://github.com/apache/airflow/issues/56583>`__, `#51816 <https://github.com/apache/airflow/issues/51816>`__
+
+Remove insecure dag reports API endpoint that executed user code in API server (#56609)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+  The ``/api/v2/dagReports`` endpoint has been removed because it loaded user DAG files directly in the API server process,
+  violating Airflow's security architecture. This endpoint was not used in the UI and had no known consumers.
+  Use the ``airflow dags report`` CLI command instead for DAG loading reports.
+
+Bug Fixes
+^^^^^^^^^
+- Fix HITL tasks not properly validating params (#57547) (#58144)
+- Fix secrets being exposed in Jinja template rendering error messages (#57467) (#57962)
+- UI: Fix slow loading on next run assets page (#58052) (#58064)
+- Fix logout not working in airflow-core (#57990) (#58043)
+- Fix slow loading on UI [(#57820) (#57856), (#57956) (#57973), (#57957) (#57972),(#57869) (#57882), (#57868) (#57918),(#57624) (#57757)]
+- UI: Fix log download to include .txt file extension (#57991) (#58040)
+- Fix scheduler using incorrect max_active_runs value from cached DAG (#57619) (#57959)
+- Fix database migration failures when XCom contains NaN values (#57866) (#57893)
+- Fix incorrect task context in trigger rule scenarios (#57884) (#57892)
+- UI: Fix test connection not working (#57811) (#57852)
+- Fix worker ``healthcheck`` timeout not respecting worker-timeout CLI option (#57731) (#57854)
+- Fix provider hooks not loading when FAB provider is not installed (#57717) (#57830)
+- Fix slow API responses for task instances list [(#57645) (#57794), (#57646) (#57664),(#57500) (#57735), (#57549) (#57738), (#57450) (#57736),(#57647) (#57732)]
+- Fix task instance errors when tasks are triggered by trigger rules (#57474) (#57786)
+- Fix type consistency for extra field in Asset, AssetAlias, and AssetEvent (#57352) (#57728)
+- Fix upgrade failures when XCom contains NaN in string values (#57614)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- UI: Add resize functionality to DAG run and task instance notes (#57897) (#58068)
+- Add Taiwan translation for UI (#58121)
+- UI: Shorten German translation of Asset in navigation (#57671) (#57690)
+- Fix code formatting via ruff preview (#57641) (#57670)
+- Remove remnants from unlimited parallelism in local executor (#57579) (#57644)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+
+- Add learning from Airflow 3 migration guide (#57989) (#58083)
+- Fix duplicate mention of 'DAGs' and 'tasks' in overview documentation (#57524) (#57793)
+- Document asset event extra storage behavior (#57727) (#57734)
+
+
+Airflow 3.1.2 (2025-11-05)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix import error when upgrading structlog to 25.5.0+ (#57335)
+- Fix connection retrieval in ``DagProcessorManager`` for bundle initialization (#57459)
+- Fix incorrect task instance counts displayed in task group headers (#55670)
+- Fix task retry execution after tasks are killed by external signals (#55767)
+- Fix triggerer errors after Airflow 2 to 3 migration (#55884)
+- Fix tasks unable to access ``triggering_user_name`` context variable (#56193)
+- Fix outlet event extra data being empty in task instance success listener callbacks (#57031)
+- UI: Fix panel button spacing and alignment issues (#57062)
+- UI: Fix broken grid view links for tasks with retries (#57097)
+- Fix DAG processor crash when renaming DAG tag case on MySQL (#57113)
+- Fix iteration errors when using ``ObjectStoragePath`` (#57156)
+- Fix auto-refresh not working on Required Actions page (#57207)
+- Fix DAG processor crash by ignoring callbacks from other bundles (#57330)
+- Fix asset name text overflow in DAG list view (#57363)
+- Fix memory leak caused by repeated SSL context creation in API client (#57374)
+- Fix performance issues loading DAG list page with many DAGs (#57444)
+- Fix text selection jumping unexpectedly in log viewer (#57453)
+- Fix DAG documentation pane not scroll-able when content is too long (#57518)
+- Fix incorrect macro listings in template reference documentation (#57529)
+- Fix Human-In-The-Loop operators failing when using notifiers (#57551)
+- Fix n+1 query issues in XCom API endpoints (#57554)
+- Fix n+1 query issues in Event Logs API endpoint (#57558)
+- Fix n+1 query to fetch tags in the dags list page (#57570)
+- Optimize database query to prevent "Out of sort memory" errors with many DAG versions (#57042)
+- Optimize DAG list query for users with limited access (#57460)
+- Optimize dynamic DAG updates to avoid loading large serialized DAGs (#57592)
+- Reduce serialized DAG size by optimizing callback serialization in ``default_args`` (#57397)
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- UI: Improve global navigation visual design, interaction, and accessibility (#57565)
+- UI: Add button to download all task logs at once (#56771)
+- UI: Add timestamp column to ``XCom`` viewer and standardize task instance columns (#57447)
+- UI: Improve highlighting of selected task instances and edges in grid view (#57560)
+- Improve retry logic by migrating from ``retryhttp`` to ``tenacity`` library (#56762)
+- Improve exception logging for task instance heartbeat failures (#57179)
+- Add ``Content-Type`` header to Task SDK API requests (#57386)
+- Log execution API server URL at task startup (#57409)
+- Reduce log noise by changing "Connection not found" from error to debug level (#57548)
+- Add ``task_display_name`` alias in event log API responses (#57609)
+- Improve Pydantic model validation strictness in serialization (#57616)
+- Fix systemd service files issues (#57231)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Improve plugin system documentation for clarity and completeness (#57068)
+- Improve clarity on api workers recommendation in docs (#57404)
+- Fix ``instance_name`` in UI docs (#57523)
+- Fix airflow macros list in template document (#57529)
+
 Airflow 3.1.1 (2025-10-27)
 --------------------------
 
@@ -1756,15 +1992,16 @@ in Airflow 3.0. Run ``airflow --help`` to review the current set of available co
 Provider Refactor & Standardization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Airflow 3.0 completes the migration of several core operators, sensors, and hooks into the new
+Airflow 3.0 completes the migration of several core operators, sensors, hooks, and triggers into the new
 ``apache-airflow-providers-standard`` package. This package now includes commonly used components such as:
 
-- ``PythonOperator``
-- ``BashOperator``
-- ``EmailOperator``
-- ``ShortCircuitOperator``
+- ``PythonOperator``, ``BashOperator``
+- ``ExternalTaskSensor``, ``FileSensor``
+- ``ShortCircuitOperator``, ``LatestOnlyOperator``
+- ``SubprocessHook``, ``FilesystemHook``
+- ``DateTimeTrigger``, ``TimeDeltaTrigger``, ``FileTrigger``
 
-These operators were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
+These operators, sensors, hooks, and triggers were previously bundled inside ``airflow-core`` but are now treated as provider-managed components to
 improve modularity, testability, and lifecycle independence.
 
 This change enables more consistent versioning across providers and prepares Airflow for a future where all integrations
@@ -3369,6 +3606,7 @@ using ``pyproject.toml``. Airflow is now compliant with those accepted PEPs:
 * `PEP-685 Comparison of extra names for optional distribution dependencies <https://www.python.org/dev/peps/pep-0685/>`__
 
 Also we implement multiple license files support coming from Draft, not yet accepted (but supported by ``hatchling``) PEP:
+
 * `PEP 639 Improving License Clarity with Better Package Metadata <https://peps.python.org/pep-0639/>`__
 
 This has almost no noticeable impact on users if they are using modern Python packaging and development tools, generally

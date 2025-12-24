@@ -22,9 +22,9 @@ import datetime
 import pytest
 import time_machine
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.base import DataInterval
@@ -121,7 +121,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-07-07 10:54:05")
@@ -130,7 +130,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -147,7 +147,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @pytest.mark.parametrize(
@@ -163,7 +163,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = target_upper
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info, time_machine.travel(date):
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -189,7 +189,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -214,7 +214,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -239,7 +239,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -264,7 +264,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)
@@ -282,7 +282,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")
@@ -301,7 +301,7 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 self.dag_maker.run_ti("datetime_branch", self.dr)

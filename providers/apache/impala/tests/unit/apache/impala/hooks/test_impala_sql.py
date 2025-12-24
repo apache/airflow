@@ -61,7 +61,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
 
 
 @pytest.mark.parametrize(
-    "host, login, password, port, schema, extra_dict, expected_query",
+    ("host", "login", "password", "port", "schema", "extra_dict", "expected_query"),
     [
         (
             "localhost",
@@ -125,7 +125,7 @@ def test_sqlalchemy_url_property(
 
 
 @pytest.mark.parametrize(
-    "sql, expected_rows",
+    ("sql", "expected_rows"),
     [
         ("SELECT * FROM users", [("Alice", 1), ("Bob", 2)]),
         ("SELECT 1", [(1,)]),

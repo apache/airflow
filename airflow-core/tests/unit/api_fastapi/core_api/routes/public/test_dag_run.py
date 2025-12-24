@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -39,6 +39,7 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_connections,
     clear_db_dag_bundles,
@@ -76,7 +77,7 @@ class CustomTimetable(CronDataIntervalTimetable):
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
     from airflow import plugins_manager
-    from airflow.utils.module_loading import qualname
+    from airflow._shared.module_loading import qualname
 
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
@@ -258,12 +259,13 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
+        "partition_key": None,
     }
 
 
 class TestGetDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
+        ("dag_id", "run_id", "state", "run_type", "triggered_by", "dag_run_note"),
         [
             (
                 DAG1_ID,
@@ -327,7 +329,10 @@ class TestGetDagRun:
 
 
 class TestGetDagRuns:
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    @pytest.mark.parametrize(
+        ("dag_id", "total_entries"),
+        [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)],
+    )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/dags/{dag_id}/dagRuns")
@@ -335,11 +340,9 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == total_entries
         for each in body["dag_runs"]:
-            run = (
-                session.query(DagRun)
-                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
-                .one()
-            )
+            run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
+            ).one()
             assert each == get_dag_run_dict(run)
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -367,7 +370,7 @@ class TestGetDagRuns:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_id"),
             pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
@@ -384,7 +387,10 @@ class TestGetDagRuns:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
         # Test ascending order
-        response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
+        with assert_queries_count(7):
+            response = test_client.get("/dags/test_dag1/dagRuns", params={"order_by": order_by})
+
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
@@ -398,7 +404,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "query_params, expected_dag_id_order",
+        ("query_params", "expected_dag_id_order"),
         [
             ({}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
             ({"limit": 1}, [DAG1_RUN1_ID]),
@@ -418,7 +424,7 @@ class TestGetDagRuns:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "query_params, expected_detail",
+        ("query_params", "expected_detail"),
         [
             (
                 {"limit": 1, "offset": -1},
@@ -471,7 +477,7 @@ class TestGetDagRuns:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "dag_id, query_params, expected_dag_id_list",
+        ("dag_id", "query_params", "expected_dag_id_list"),
         [
             (
                 DAG1_ID,
@@ -807,12 +813,13 @@ class TestGetDagRuns:
 class TestListDagRunsBatch:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_return_200(self, test_client, session):
-        response = test_client.post("/dags/~/dagRuns/list", json={})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
         for each in body["dag_runs"]:
-            run = session.query(DagRun).where(DagRun.run_id == each["dag_run_id"]).one()
+            run = session.scalars(select(DagRun).where(DagRun.run_id == each["dag_run_id"])).one()
             expected = get_dag_run_dict(run)
             assert each == expected
 
@@ -839,7 +846,7 @@ class TestListDagRunsBatch:
         ]
 
     @pytest.mark.parametrize(
-        "dag_ids, status_code, expected_dag_id_list",
+        ("dag_ids", "status_code", "expected_dag_id_list"),
         [
             ([], 200, DAG_RUNS_LIST),
             ([DAG1_ID], 200, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
@@ -848,7 +855,8 @@ class TestListDagRunsBatch:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
-        response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
+        with assert_queries_count(5):
+            response = test_client.post("/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
         assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
@@ -862,7 +870,7 @@ class TestListDagRunsBatch:
         )
 
     @pytest.mark.parametrize(
-        "order_by,expected_order",
+        ("order_by", "expected_order"),
         [
             pytest.param("id", DAG_RUNS_LIST, id="order_by_id"),
             pytest.param(
@@ -895,7 +903,7 @@ class TestListDagRunsBatch:
         assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_order",
+        ("post_body", "expected_dag_id_order"),
         [
             ({}, DAG_RUNS_LIST),
             ({"page_limit": 1}, DAG_RUNS_LIST[:1]),
@@ -915,7 +923,7 @@ class TestListDagRunsBatch:
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             (
                 {"page_limit": 1, "page_offset": -1},
@@ -968,7 +976,7 @@ class TestListDagRunsBatch:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_list",
+        ("post_body", "expected_dag_id_list"),
         [
             (
                 {"logical_date_gte": LOGICAL_DATE1.isoformat()},
@@ -1099,7 +1107,7 @@ class TestListDagRunsBatch:
         assert body["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_response",
+        ("post_body", "expected_response"),
         [
             (
                 {"states": ["invalid"]},
@@ -1134,7 +1142,7 @@ class TestListDagRunsBatch:
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, patch_body, response_body, note_data",
+        ("dag_id", "run_id", "patch_body", "response_body", "note_data"),
         [
             (
                 DAG1_ID,
@@ -1202,7 +1210,7 @@ class TestPatchDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, response_body, expected_status_code, note_data",
+        ("query_params", "patch_body", "response_body", "expected_status_code", "note_data"),
         [
             (
                 {"update_mask": ["state"]},
@@ -1285,7 +1293,7 @@ class TestPatchDagRun:
         get_listener_manager().clear()
 
     @pytest.mark.parametrize(
-        "state, listener_state",
+        ("state", "listener_state"),
         [
             ("queued", []),
             ("success", [DagRunState.SUCCESS]),
@@ -1334,7 +1342,7 @@ class TestGetDagRunAssetTriggerEvents:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
             source_task_id=ti.task_id,
@@ -1352,9 +1360,10 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        response = test_client.get(
-            "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
-        )
+        with assert_queries_count(3):
+            response = test_client.get(
+                "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+            )
         assert response.status_code == 200
         expected_response = {
             "asset_events": [
@@ -1382,6 +1391,7 @@ class TestGetDagRunAssetTriggerEvents:
                             "state": "running",
                         }
                     ],
+                    "partition_key": None,
                 }
             ],
             "total_entries": 1,
@@ -1445,7 +1455,7 @@ class TestClearDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body, dag_run_id, expected_state",
+        ("body", "dag_run_id", "expected_state"),
         [
             [{"dry_run": True}, DAG1_RUN1_ID, ["success", "success"]],
             [{}, DAG1_RUN1_ID, ["success", "success"]],
@@ -1461,13 +1471,15 @@ class TestClearDagRun:
         assert body["total_entries"] == len(expected_state)
         for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
             assert each["state"] == expected_state[index]
-        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
         assert dag_run.state == DAG1_RUN1_STATE
 
-        logs = (
-            session.query(Log)
-            .filter(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
-            .count()
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
         )
         assert logs == 0
 
@@ -1515,7 +1527,7 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, note, data_interval_start, data_interval_end, note_data",
+        ("dag_run_id", "note", "data_interval_start", "data_interval_end", "note_data"),
         [
             ("dag_run_5", "test-note", None, None, {"user_id": "test", "content": "test-note"}),
             (
@@ -1560,9 +1572,10 @@ class TestTriggerDagRun:
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
         expected_logical_date = fixed_now.replace("+00:00", "Z")
 
-        run = (
-            session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
-        )
+        run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id)
+        ).one()
+
         expected_response_json = {
             "bundle_version": None,
             "conf": {},
@@ -1584,6 +1597,7 @@ class TestTriggerDagRun:
             "note": note,
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
+            "partition_key": None,
         }
 
         assert response.json() == expected_response_json
@@ -1607,7 +1621,7 @@ class TestTriggerDagRun:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "post_body, expected_detail",
+        ("post_body", "expected_detail"),
         [
             (
                 {"executiondate": "2020-11-10T08:25:56Z"},
@@ -1711,7 +1725,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"
@@ -1777,12 +1791,13 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": note,
+            "partition_key": None,
         }
 
         assert response_2.status_code == 409
 
     @pytest.mark.parametrize(
-        "data_interval_start, data_interval_end",
+        ("data_interval_start", "data_interval_end"),
         [
             (
                 LOGICAL_DATE1.isoformat(),
@@ -1865,6 +1880,7 @@ class TestTriggerDagRun:
             "triggering_user_name": "test",
             "conf": {},
             "note": None,
+            "partition_key": None,
         }
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
@@ -1891,7 +1907,7 @@ class TestTriggerDagRun:
         run_id_with_logical_date = response.json()["dag_run_id"]
         assert run_id_with_logical_date.startswith("custom_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_with_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_with_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
         response = test_client.post(
@@ -1902,7 +1918,7 @@ class TestTriggerDagRun:
         run_id_without_logical_date = response.json()["dag_run_id"]
         assert run_id_without_logical_date.startswith("custom_manual_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_without_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
 
@@ -1942,7 +1958,7 @@ class TestWaitDagRun:
         assert response.status_code == 422
 
     @pytest.mark.parametrize(
-        "run_id, state",
+        ("run_id", "state"),
         [(DAG1_RUN1_ID, DAG1_RUN1_STATE), (DAG1_RUN2_ID, DAG1_RUN2_STATE)],
     )
     def test_should_respond_200_immediately_for_finished_run(self, test_client, run_id, state):

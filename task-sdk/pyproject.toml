@@ -20,12 +20,13 @@ name = "apache-airflow-task-sdk"
 dynamic = ["version"]
 description = "Python Task SDK for Apache Airflow DAG Authors"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # in all our providers - and usually it will take a while before we can support it for majority of
 # providers, so we proactively limit it to <3.14.
 # It takes about 4-7 months after Python release before we can support it
-requires-python = ">=3.10, <3.14"
+requires-python = ">=3.10,!=3.14"
 
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
@@ -41,7 +42,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -73,7 +73,28 @@ dependencies = [
     # Start of shared logging dependencies
     "pygtrie>=2.5.0",
     # End of shared logging dependencies
+    # Start of shared configuration dependencies
+    "packaging>=24.0",
+    "typing-extensions>=4.14.1",
+    # End of shared configuration dependencies
 ]
+
+[project.optional-dependencies]
+"sentry" = [
+    "sentry-sdk>=2.30.0",
+]
+"otel" = [
+    "opentelemetry-api>=1.27.0",
+    "opentelemetry-exporter-otlp>=1.27.0",
+    "opentelemetry-proto<9999,>=1.27.0",
+]
+"statsd" = [
+    "statsd>=3.3.0",
+]
+"datadog" = [
+    "datadog>=0.50.0",
+]
+"all" = ["apache-airflow-task-sdk[sentry,otel,statsd,datadog]"]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
@@ -94,7 +115,12 @@ build-backend = "hatchling.build"
 path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
+"../shared/dagnode/src/airflow_shared/dagnode" = "src/airflow/sdk/_shared/dagnode"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
+"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/sdk/_shared/module_loading"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 
@@ -199,7 +225,7 @@ url = 'http://0.0.0.0:8080/execution/openapi.json'
 output = 'src/airflow/sdk/api/datamodels/_generated.py'
 
 ## pytest settings ##
-[tool.pytest.ini_options]
+[tool.pytest]
 addopts = [
     "--tb=short",
     "-rasl",
@@ -230,7 +256,7 @@ testpaths = [
 ]
 asyncio_default_fixture_loop_scope = "function"
 
-pythonpath = "tests"
+pythonpath = ["tests"]
 
 # Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
 tmp_path_retention_count = "2"
@@ -238,7 +264,12 @@ tmp_path_retention_policy = "failed"
 
 [tool.airflow]
 shared_distributions = [
+    "apache-airflow-shared-configuration",
+    "apache-airflow-shared-dagnode",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
+    "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-observability",
 ]

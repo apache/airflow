@@ -25,7 +25,7 @@ import jenkins
 import pytest
 from jenkins import JenkinsException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
@@ -186,7 +186,7 @@ class TestJenkinsOperator:
                 operator.execute(None)
 
     @pytest.mark.parametrize(
-        "state, allowed_jenkins_states",
+        ("state", "allowed_jenkins_states"),
         [
             (
                 "SUCCESS",
@@ -253,7 +253,7 @@ class TestJenkinsOperator:
                 pytest.fail(f"Job failed with state={state} while allowed states={allowed_jenkins_states}")
 
     @pytest.mark.parametrize(
-        "state, allowed_jenkins_states",
+        ("state", "allowed_jenkins_states"),
         [
             (
                 "FAILURE",

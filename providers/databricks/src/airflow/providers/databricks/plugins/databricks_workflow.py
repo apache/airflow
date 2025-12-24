@@ -17,15 +17,16 @@
 
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from sqlalchemy import select
+
+from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import BaseOperatorLink, TaskGroup, XCom
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperatorLink, TaskGroup, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -38,10 +39,6 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
     from airflow.sdk.types import Logger
-
-
-REPAIR_WAIT_ATTEMPTS = os.getenv("DATABRICKS_REPAIR_WAIT_ATTEMPTS", 20)
-REPAIR_WAIT_DELAY = os.getenv("DATABRICKS_REPAIR_WAIT_DELAY", 0.5)
 
 
 def get_databricks_task_ids(
@@ -148,7 +145,9 @@ if not AIRFLOW_V_3_0_PLUS:
         if not session:
             raise AirflowException("Session not provided.")
 
-        return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).first()
+        return session.scalars(
+            select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
+        ).one()
 
     @provide_session
     def _clear_task_instances(
@@ -167,15 +166,13 @@ if not AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun.find(dag_id, execution_date=dttm)[0]  # type: ignore[call-arg]
         else:
             dag_run = DagRun.find(dag_id, logical_date=dttm)[0]
-        ti = (
-            session.query(TaskInstance)
-            .filter(
+        ti = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == dag_run.run_id,
                 TaskInstance.task_id == operator.task_id,
             )
-            .one_or_none()
-        )
+        ).one_or_none()
         if not ti:
             raise TaskInstanceNotFound("Task instance not found")
         return ti

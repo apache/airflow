@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, TypeVar, cast
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import AirflowException
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli_action_loggers
@@ -47,7 +46,7 @@ T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 logger = logging.getLogger(__name__)
 
@@ -240,6 +239,7 @@ def get_dag_by_file_location(dag_id: str):
         raise AirflowException(
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
+    # This method is called only when we explicitly do not have a bundle name
     dagbag = DagBag(dag_folder=dag_model.fileloc)
     return dagbag.dags[dag_id]
 
@@ -273,7 +273,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.dag_processing.dagbag import sync_bag_to_db
+    from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
@@ -472,3 +472,10 @@ def validate_dag_bundle_arg(bundle_names: list[str]) -> None:
     unknown_bundles: set[str] = set(bundle_names) - known_bundles
     if unknown_bundles:
         raise SystemExit(f"Bundles not found: {', '.join(unknown_bundles)}")
+
+
+def should_enable_hot_reload(args) -> bool:
+    """Check whether hot-reload should be enabled based on --dev flag or DEV_MODE env var."""
+    if getattr(args, "dev", False):
+        return True
+    return os.getenv("DEV_MODE", "false").lower() == "true"

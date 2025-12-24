@@ -16,10 +16,11 @@
 # under the License.
 ---
 default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.22'
 default_language_version:
   python: python3
   node: 22.19.0
-minimum_prek_version: '0.2.0'
+  golang: 1.24.0
 exclude: ^.*/.*_vendor/
 repos:
   - repo: meta
@@ -29,8 +30,17 @@ repos:
         description: Print input to the static check hooks for troubleshooting
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
+  - repo: https://github.com/eclipse-csi/octopin
+    # We need this commit because if supports two spaces before comments (yamllint compatibility)
+    rev: 74fd075c7b326c771cd95ca86c59cbe65f0dda37
+    hooks:
+      - id: pin-versions
+        name: Pin versions of dependencies in CI workflows (manual)
+        stages: ['manual']
+        language: python
+        language_version: python311
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: 70fdcd39ef919754011a827bd25f23a0b141c3c3  # frozen: v2.2.0
+    rev: 68f070c98b9a053eabfa7f8899d1f42b9919f98c  # frozen: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for Markdown and RST files
@@ -49,7 +59,7 @@ repos:
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     # replace hash with version once PR #103 merged comes in a release
-    rev: abdd8b62891099da34162217ecb3872d22184a51
+    rev: f5cfd5fdaf0211dfd1027d9d8442b764a232c7ad
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -170,6 +180,18 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: check-version-consistency
+        name: Check version consistency
+        entry: ./scripts/ci/prek/check_version_consistency.py
+        language: python
+        files: >
+          (?x)
+          ^airflow-core/src/airflow/__init__\.py$|
+          ^airflow-core/pyproject\.toml$|
+          ^task-sdk/src/airflow/sdk/__init__\.py$|
+          ^pyproject\.toml$
+        pass_filenames: false
+        require_serial: true
       - id: upgrade-important-versions
         name: Upgrade important versions (manual)
         entry: ./scripts/ci/prek/upgrade_important_versions.py
@@ -182,15 +204,8 @@ repos:
           ^scripts/ci/prek/update_installers_and_prek\.py$
         pass_filenames: false
         require_serial: true
-      - id: check-translations-completeness
-        name: Check translation completeness (manual)
-        entry: ./dev/i18n/check_translations_completeness.py
-        stages: ['manual']
-        language: python
-        pass_filenames: false
-        require_serial: true
   - repo: https://github.com/adamchainz/blacken-docs
-    rev: dda8db18cfc68df532abf33b185ecd12d5b7b326  # frozen: 1.20.0
+    rev: fda77690955e9b63c6687d8806bafd56a526e45f  # frozen: 1.20.0
     hooks:
       - id: blacken-docs
         name: Run black on docs
@@ -265,7 +280,8 @@ repos:
           ^.*openapi.*\.yaml$|
           ^\.pre-commit-config\.yaml$|
           ^.*reproducible_build\.yaml$|
-          ^.*pnpm-lock\.yaml$
+          ^.*pnpm-lock\.yaml$|
+          ^.*-generated\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: 97be693bf18bc2f050667dd282d243e2824b81e2  # frozen: 1.0.6
     hooks:
@@ -303,7 +319,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 77c6d22b0c515f1635e07a99140d2230db2e2c97  # frozen: v1.16.1
+    rev: ea18690d7f8e44203c9efd7bc6229447d02e3951  # frozen: v1.19.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -340,7 +356,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.3']
+        additional_dependencies: ['ruff==0.14.10']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -408,6 +424,49 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/models/test_serialized_dag.py$|
+            ^airflow-core/tests/unit/models/test_pool.py$|
+            ^airflow-core/tests/unit/models/test_trigger.py$|
+            ^airflow-core/tests/unit/models/test_callback.py$|
+            ^airflow-core/tests/unit/models/test_cleartasks.py$|
+            ^airflow-core/tests/unit/models/test_xcom.py$|
+            ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
+            ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
+            ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py$|
+            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_xcoms.py$|
+            ^airflow-core/tests/unit/models/test_deadline.py$|
+            ^airflow-core/tests/unit/models/test_renderedtifields.py$|
+            ^airflow-core/tests/unit/models/test_timestamp.py$|
+            ^airflow-core/tests/unit/utils/test_cli_util.py$|
+            ^airflow-core/tests/unit/timetables/test_assets_timetable.py$|
+            ^airflow-core/tests/unit/assets/test_manager.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
+            ^airflow-core/tests/unit/models/test_dagwarning.py$|
+            ^airflow-core/tests/integration/otel/test_otel.py$|
+            ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
+            ^airflow-core/tests/unit/utils/test_state.py$|
+            ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/utils/test_types.py$|
+            ^airflow-core/tests/unit/dag_processing/test_manager.py$|
+            ^airflow-core/tests/unit/dag_processing/test_processor.py$|
+            ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
+            ^providers/celery/.*\.py$|
+            ^providers/cncf/kubernetes/.*\.py$|
+            ^providers/databricks/.*\.py$|
+            ^providers/edge3/.*\.py$|
+            ^providers/mysql/.*\.py$|
+            ^providers/openlineage/.*\.py$|
             ^task_sdk.*\.py$
         pass_filenames: true
       - id: update-supported-versions
@@ -471,6 +530,8 @@ repos:
         pass_filenames: true
         exclude: >
           (?x)
+          ^README\.md$|
+          ^generated/PYPI_README\.md$|
           ^airflow-core/docs/.*commits\.rst$|
           ^airflow-core/newsfragments/41368\.significant\.rst$|
           ^airflow-core/newsfragments/41761.significant\.rst$|
@@ -545,6 +606,7 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
+          ^scripts/ci/prek/upgrade_important_versions.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-template-context-variable-in-sync
         name: Sync template context variable refs

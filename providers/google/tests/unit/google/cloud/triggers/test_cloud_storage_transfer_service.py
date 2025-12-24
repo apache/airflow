@@ -23,7 +23,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.storage_transfer_v1 import TransferOperation
 from google.protobuf import struct_pb2
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
     GcpTransferOperationStatus,
@@ -157,7 +157,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
     @pytest.mark.parametrize(
-        "latest_operations_names, expected_failed_job",
+        ("latest_operations_names", "expected_failed_job"),
         [
             ([None, LATEST_OPERATION_NAME_1], JOB_0),
             ([LATEST_OPERATION_NAME_0, None], JOB_1),
@@ -189,7 +189,7 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.parametrize(
-        "job_statuses, failed_operation, expected_status",
+        ("job_statuses", "failed_operation", "expected_status"),
         [
             (
                 [TransferOperation.Status.ABORTED, TransferOperation.Status.SUCCESS],
@@ -336,7 +336,7 @@ class TestCloudStorageTransferServiceCheckJobStatusTrigger:
         }
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("impersonation_chain", IMPERSONATION_CHAIN),
@@ -421,7 +421,7 @@ class TestCloudDataTransferServiceRunJobTrigger:
         }
 
     @pytest.mark.parametrize(
-        "attr, expected_value",
+        ("attr", "expected_value"),
         [
             ("gcp_conn_id", GCP_CONN_ID),
             ("impersonation_chain", IMPERSONATION_CHAIN),

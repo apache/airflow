@@ -47,7 +47,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   build-info:
     name: "Build info"
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
@@ -116,8 +115,10 @@ jobs:
       run-mypy: ${{ steps.selective-checks.outputs.run-mypy }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
+      run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       runner-type: ${{ steps.selective-checks.outputs.runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+      run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
       selected-providers-list-as-string: >-
@@ -204,9 +205,12 @@ jobs:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: true
       - name: "Run pin-versions"
-        run: >
-          prek -c dev/.pre-commit-config.yaml --all-files --verbose --hook-stage manual
-          pin-versions
+        run: |
+          if ! prek --all-files --verbose --hook-stage manual pin-versions; then
+              echo -e "\n\033[0;31mThere are changes in actions hooks after upgrade check.\033[0m"
+              echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+              exit 1
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -227,6 +231,23 @@ jobs:
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
       shared-distributions-as-json: ${{needs.build-info.outputs.shared-distributions-as-json}}
+
+  verify-release-calendar:
+    name: "Verify release calendar"
+    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    needs: [build-info]
+    # Only run on canary builds (push to main, scheduled runs, or manual dispatch)
+    if: needs.build-info.outputs.canary-run == 'true'
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: "Verify release calendar"
+        run: uv run dev/verify_release_calendar.py
 
   build-ci-images:
     name: Build CI images
@@ -374,6 +395,7 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
+
   tests-postgres-core:
     name: "Postgres tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -490,7 +512,6 @@ jobs:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true' && needs.build-info.outputs.platform == 'linux/amd64'
 
-
   tests-sqlite-core:
     name: "Sqlite tests: core"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -552,7 +573,6 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
-
 
   tests-non-db-core:
     name: "Non-DB tests: core"
@@ -768,8 +788,10 @@ jobs:
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      run-task-sdk-integration-tests: ${{ needs.build-info.outputs.run-task-sdk-integration-tests }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
+      run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
@@ -790,6 +812,7 @@ jobs:
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.run-helm-tests == 'true')
+
 
   tests-task-sdk:
     name: "Task SDK tests"

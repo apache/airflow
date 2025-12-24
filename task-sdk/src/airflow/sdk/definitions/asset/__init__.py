@@ -17,27 +17,25 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import operator
 import os
 import urllib.parse
 import warnings
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, overload
+from typing import TYPE_CHECKING, Any, ClassVar, overload
 
 import attrs
 
-from airflow.sdk.api.datamodels._generated import AssetProfile
-from airflow.serialization.dag_dependency import DagDependency
-
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Collection
     from urllib.parse import SplitResult
 
-    from airflow.models.asset import AssetModel
+    from pydantic.types import JsonValue
+    from typing_extensions import Self
+
+    from airflow.sdk.api.datamodels._generated import AssetProfile
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.serialization.serialized_objects import SerializedAssetWatcher
     from airflow.triggers.base import BaseEventTrigger
 
     AttrsInstance = attrs.AttrsInstance
@@ -58,7 +56,7 @@ __all__ = [
     "AssetWatcher",
 ]
 
-from airflow.configuration import conf
+from airflow.sdk.configuration import conf
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +65,7 @@ SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN", fallback="NOT AVAILA
 
 
 @attrs.define(frozen=True)
-class AssetUniqueKey(attrs.AttrsInstance):
+class AssetUniqueKey(AttrsInstance):
     """
     Columns to identify an unique asset.
 
@@ -77,19 +75,12 @@ class AssetUniqueKey(attrs.AttrsInstance):
     name: str
     uri: str
 
-    @staticmethod
-    def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
-        return AssetUniqueKey(name=asset.name, uri=asset.uri)
+    @classmethod
+    def from_asset(cls, asset: Asset) -> Self:
+        return cls(name=asset.name, uri=asset.uri)
 
     def to_asset(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
-
-    @staticmethod
-    def from_str(key: str) -> AssetUniqueKey:
-        return AssetUniqueKey(**json.loads(key))
-
-    def to_str(self) -> str:
-        return json.dumps(attrs.asdict(self))
 
     @staticmethod
     def from_profile(profile: AssetProfile) -> AssetUniqueKey:
@@ -114,9 +105,9 @@ class AssetAliasUniqueKey:
 
     name: str
 
-    @staticmethod
-    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
-        return AssetAliasUniqueKey(name=asset_alias.name)
+    @classmethod
+    def from_asset_alias(cls, asset_alias: AssetAlias) -> Self:
+        return cls(name=asset_alias.name)
 
     def to_asset_alias(self) -> AssetAlias:
         return AssetAlias(name=self.name)
@@ -164,15 +155,16 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
         return uri
     if normalized_scheme == "airflow":
         raise ValueError("Asset scheme 'airflow' is reserved")
-    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
-    if auth_exists:
+    if parsed.password:
         # TODO: Collect this into a DagWarning.
         warnings.warn(
-            "An Asset URI should not contain auth info (e.g. username or "
-            "password). It has been automatically dropped.",
+            "An Asset URI should not contain a password. User info has been automatically dropped.",
             UserWarning,
             stacklevel=3,
         )
+        _, _, normalized_netloc = parsed.netloc.rpartition("@")
+    else:
+        normalized_netloc = parsed.netloc
     if parsed.query:
         normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:
@@ -196,8 +188,8 @@ def _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot exceed 1500 characters")
     if value.isspace():
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be just whitespace")
-    ## We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
-    ## relaxing this check for non mysql backend
+    # We use latin1_general_cs to store the name (and group, asset values etc.) on MySQL.
+    # relaxing this check for non mysql backend
     if SQL_ALCHEMY_CONN.startswith("mysql") and not value.isascii():
         raise ValueError(f"{type(instance).__name__} {attribute.name} must only consist of ASCII characters")
     return value
@@ -216,7 +208,7 @@ def _validate_asset_name(instance, attribute, value):
     return value
 
 
-def _set_extra_default(extra: dict | None) -> dict:
+def _set_extra_default(extra: dict[str, JsonValue] | None) -> dict:
     """
     Automatically convert None to an empty dict.
 
@@ -235,9 +227,6 @@ class BaseAsset:
     :meta private:
     """
 
-    def __bool__(self) -> bool:
-        return True
-
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
             return NotImplemented
@@ -248,60 +237,21 @@ class BaseAsset:
             return NotImplemented
         return AssetAll(self, other)
 
-    def as_expression(self) -> Any:
-        """
-        Serialize the asset into its scheduling expression.
 
-        The return value is stored in DagModel for display purposes. It must be
-        JSON-compatible.
+def _validate_asset_watcher_trigger(instance, attribute, value):
+    from airflow.triggers.base import BaseEventTrigger
 
-        :meta private:
-        """
-        raise NotImplementedError
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        raise NotImplementedError
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        raise NotImplementedError
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        raise NotImplementedError
-
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
-        """
-        Iterate a base asset as dag dependency.
-
-        :meta private:
-        """
-        raise NotImplementedError
+    if not isinstance(value, BaseEventTrigger):
+        raise ValueError("Asset watcher trigger must inherit BaseEventTrigger")
+    return value
 
 
-@attrs.define(init=False)
+@attrs.define
 class AssetWatcher:
     """A representation of an asset watcher. The name uniquely identifies the watch."""
 
     name: str
-    # This attribute serves double purpose.
-    # For a "normal" asset instance loaded from Dag, this holds the trigger used to monitor an external
-    # resource. In that case, ``AssetWatcher`` is used directly by users.
-    # For an asset recreated from a serialized Dag, this holds the serialized data of the trigger. In that
-    # case, `SerializedAssetWatcher` is used. We need to keep the two types to make mypy happy because
-    # `SerializedAssetWatcher` is a subclass of `AssetWatcher`.
-    trigger: BaseEventTrigger | dict
-
-    def __init__(
-        self,
-        name: str,
-        trigger: BaseEventTrigger | dict,
-    ) -> None:
-        from airflow.triggers.base import BaseEventTrigger, BaseTrigger
-
-        if isinstance(trigger, BaseTrigger) and not isinstance(trigger, BaseEventTrigger):
-            raise ValueError("The trigger used to watch an asset must inherit ``BaseEventTrigger``")
-
-        self.name = name
-        self.trigger = trigger
+    trigger: BaseEventTrigger = attrs.field(validator=_validate_asset_watcher_trigger)
 
 
 @attrs.define(init=False, unsafe_hash=False)
@@ -319,11 +269,11 @@ class Asset(os.PathLike, BaseAsset):
         default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
         validator=[_validate_identifier],
     )
-    extra: dict[str, Any] = attrs.field(
+    extra: dict[str, JsonValue] = attrs.field(
         factory=dict,
         converter=_set_extra_default,
     )
-    watchers: list[AssetWatcher | SerializedAssetWatcher] = attrs.field(
+    watchers: list[AssetWatcher] = attrs.field(
         factory=list,
     )
 
@@ -337,8 +287,8 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath,
         *,
         group: str = ...,
-        extra: dict | None = None,
-        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
+        extra: dict[str, JsonValue] | None = None,
+        watchers: list[AssetWatcher] = ...,
     ) -> None:
         """Canonical; both name and uri are provided."""
 
@@ -348,8 +298,8 @@ class Asset(os.PathLike, BaseAsset):
         name: str,
         *,
         group: str = ...,
-        extra: dict | None = None,
-        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
+        extra: dict[str, JsonValue] | None = None,
+        watchers: list[AssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
@@ -359,8 +309,8 @@ class Asset(os.PathLike, BaseAsset):
         *,
         uri: str | ObjectStoragePath,
         group: str = ...,
-        extra: dict | None = None,
-        watchers: list[AssetWatcher | SerializedAssetWatcher] = ...,
+        extra: dict[str, JsonValue] | None = None,
+        watchers: list[AssetWatcher] = ...,
     ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
@@ -370,8 +320,8 @@ class Asset(os.PathLike, BaseAsset):
         uri: str | ObjectStoragePath | None = None,
         *,
         group: str | None = None,
-        extra: dict | None = None,
-        watchers: list[AssetWatcher | SerializedAssetWatcher] | None = None,
+        extra: dict[str, JsonValue] | None = None,
+        watchers: list[AssetWatcher] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -426,6 +376,10 @@ class Asset(os.PathLike, BaseAsset):
         f = attrs.filters.include(*attrs.fields_dict(Asset))
         return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
 
+    def __hash__(self):
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return hash(attrs.asdict(self, filter=f))
+
     @property
     def normalized_uri(self) -> str | None:
         """
@@ -448,47 +402,6 @@ class Asset(os.PathLike, BaseAsset):
         except ValueError:
             return None
 
-    def as_expression(self) -> Any:
-        """
-        Serialize the asset into its scheduling expression.
-
-        :meta private:
-        """
-        return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        yield AssetUniqueKey.from_asset(self), self
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        return iter(())
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        return iter(())
-
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
-        """
-        Iterate an asset as dag dependency.
-
-        :meta private:
-        """
-        yield DagDependency(
-            source=source or "asset",
-            target=target or "asset",
-            label=self.name,
-            dependency_type="asset",
-            # We can't get asset id at this stage.
-            # This will be updated when running SerializedDagModel.get_dag_dependencies
-            dependency_id=AssetUniqueKey.from_asset(self).to_str(),
-        )
-
-    def asprofile(self) -> AssetProfile:
-        """
-        Profiles Asset to AssetProfile.
-
-        :meta private:
-        """
-        return AssetProfile(name=self.name or None, uri=self.uri or None, type=Asset.__name__)
-
 
 class AssetRef(BaseAsset, AttrsInstance):
     """
@@ -500,30 +413,6 @@ class AssetRef(BaseAsset, AttrsInstance):
     :meta private:
     """
 
-    _dependency_type: Literal["asset-name-ref", "asset-uri-ref"]
-
-    def as_expression(self) -> Any:
-        return {"asset_ref": attrs.asdict(self)}
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        return iter(())
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        return iter(())
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        yield self
-
-    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
-        (dependency_id,) = attrs.astuple(self)
-        yield DagDependency(
-            source=source or self._dependency_type,
-            target=target or self._dependency_type,
-            label=dependency_id,
-            dependency_type=self._dependency_type,
-            dependency_id=dependency_id,
-        )
-
 
 @attrs.define(hash=True)
 class AssetNameRef(AssetRef):
@@ -531,16 +420,12 @@ class AssetNameRef(AssetRef):
 
     name: str
 
-    _dependency_type = "asset-name-ref"
-
 
 @attrs.define(hash=True)
 class AssetUriRef(AssetRef):
     """URI reference to an asset."""
 
     uri: str
-
-    _dependency_type = "asset-uri-ref"
 
 
 class Dataset(Asset):
@@ -555,43 +440,16 @@ class Model(Asset):
     asset_type: ClassVar[str] = "model"
 
 
-@attrs.define(unsafe_hash=False)
+@attrs.define(hash=True)
 class AssetAlias(BaseAsset):
-    """A representation of asset alias which is used to create asset during the runtime."""
+    """
+    A representation of an asset alias.
+
+    An asset alias can be used to create assets at task execution time.
+    """
 
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="asset", validator=_validate_identifier)
-
-    def as_expression(self) -> Any:
-        """
-        Serialize the asset alias into its scheduling expression.
-
-        :meta private:
-        """
-        return {"alias": {"name": self.name, "group": self.group}}
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        return iter(())
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        yield self.name, self
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        return iter(())
-
-    def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
-        """
-        Iterate an asset alias and its resolved assets as dag dependency.
-
-        :meta private:
-        """
-        yield DagDependency(
-            source=source or "asset-alias",
-            target=target or "asset-alias",
-            label=self.name,
-            dependency_type="asset-alias",
-            dependency_id=self.name,
-        )
 
 
 class AssetBooleanCondition(BaseAsset):
@@ -601,39 +459,24 @@ class AssetBooleanCondition(BaseAsset):
     :meta private:
     """
 
-    agg_func: Callable[[Iterable], bool]
+    objects: Collection[BaseAsset]
 
     def __init__(self, *objects: BaseAsset) -> None:
         if not all(isinstance(o, BaseAsset) for o in objects):
             raise TypeError("expect asset expressions in condition")
         self.objects = objects
 
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        for o in self.objects:
-            yield from o.iter_assets()
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return NotImplemented
+        return self.objects == other.objects
 
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        for o in self.objects:
-            yield from o.iter_asset_aliases()
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        for o in self.objects:
-            yield from o.iter_asset_refs()
-
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
-        """
-        Iterate asset, asset aliases and their resolved assets  as dag dependency.
-
-        :meta private:
-        """
-        for obj in self.objects:
-            yield from obj.iter_dag_dependencies(source=source, target=target)
+    def __hash__(self) -> int:
+        return hash(tuple(self.objects))
 
 
 class AssetAny(AssetBooleanCondition):
     """Use to combine assets schedule references in an "or" relationship."""
-
-    agg_func = any  # type: ignore[assignment]
 
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
@@ -643,14 +486,6 @@ class AssetAny(AssetBooleanCondition):
 
     def __repr__(self) -> str:
         return f"AssetAny({', '.join(map(str, self.objects))})"
-
-    def as_expression(self) -> dict[str, Any]:
-        """
-        Serialize the asset into its scheduling expression.
-
-        :meta private:
-        """
-        return {"any": [o.as_expression() for o in self.objects]}
 
 
 class AssetAll(AssetBooleanCondition):
@@ -667,14 +502,6 @@ class AssetAll(AssetBooleanCondition):
     def __repr__(self) -> str:
         return f"AssetAll({', '.join(map(str, self.objects))})"
 
-    def as_expression(self) -> Any:
-        """
-        Serialize the assets into its scheduling expression.
-
-        :meta private:
-        """
-        return {"all": [o.as_expression() for o in self.objects]}
-
 
 @attrs.define
 class AssetAliasEvent(attrs.AttrsInstance):
@@ -682,4 +509,5 @@ class AssetAliasEvent(attrs.AttrsInstance):
 
     source_alias_name: str
     dest_asset_key: AssetUniqueKey
-    extra: dict[str, Any]
+    dest_asset_extra: dict[str, JsonValue]
+    extra: dict[str, JsonValue]

@@ -26,8 +26,8 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.slack.hooks.slack import SlackHook
 
 MOCK_SLACK_API_TOKEN = "xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx"
@@ -125,7 +125,7 @@ class TestSlackHook:
             hook._get_conn_params(conn)
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {
@@ -522,7 +522,7 @@ class TestSlackHook:
             )
 
     @pytest.mark.parametrize(
-        "file,content",
+        ("file", "content"),
         [
             pytest.param(None, None, id="both-none"),
             pytest.param("", "", id="both-empty"),
@@ -536,7 +536,7 @@ class TestSlackHook:
             hook.send_file_v1_to_v2(file=file, content=content)
 
     @pytest.mark.parametrize(
-        "channels, expected_calls",
+        ("channels", "expected_calls"),
         [
             pytest.param("#foo, #bar", 2, id="comma-separated-string"),
             pytest.param(["#random", "#development", "#airflow-upgrades"], 3, id="list"),

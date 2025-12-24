@@ -38,7 +38,8 @@ from airflow.models.dagrun import DagRun, get_or_create_dagrun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils import cli as cli_utils
@@ -54,7 +55,6 @@ from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State
-from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
     Operator = MappedOperator | SerializedBaseOperator
@@ -216,7 +216,6 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task, pool_override=pool)
 
     # we do refresh_from_task so that if TI has come back via RPC, we ensure that ti.task
     # is the original task object and not the result of the round trip
@@ -386,7 +385,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
     if dag:
         sdk_dag = dag
-        scheduler_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
     else:
         sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
         scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
@@ -431,19 +430,22 @@ def task_test(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Render and displays templated fields for a given task."""
-    if not dag:
-        dag = get_bagged_dag(args.bundle_name, args.dag_id)
-    serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    if dag:
+        sdk_dag = dag
+        scheduler_dag = DagSerialization.from_dict(DagSerialization.to_dict(dag))
+    else:
+        sdk_dag = get_bagged_dag(args.bundle_name, args.dag_id)
+        scheduler_dag = get_db_dag(args.bundle_name, args.dag_id)
     ti, _ = _get_ti(
-        serialized_dag.get_task(task_id=args.task_id),
+        scheduler_dag.get_task(task_id=args.task_id),
         args.map_index,
         logical_date_or_run_id=args.logical_date_or_run_id,
         create_if_necessary="memory",
     )
 
-    with create_session() as session, set_current_task_instance_session(session=session):
+    with create_session() as session:
         context = ti.get_template_context(session=session)
-        task = dag.get_task(args.task_id)
+        task = sdk_dag.get_task(args.task_id)
         # TODO (GH-52141): After sdk separation, ti.get_template_context() would
         # contain serialized operators, but we need the real operators for
         # rendering. This does not make sense and eventually we should rewrite

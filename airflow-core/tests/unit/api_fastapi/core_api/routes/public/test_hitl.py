@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
@@ -34,6 +34,7 @@ from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -215,7 +216,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "defaults": ["Approve"],
         "multiple": False,
         "options": ["Approve", "Reject"],
-        "params": {"input_1": 1},
+        "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
         "assigned_users": [],
         "created_at": mock.ANY,
         "params_input": {},
@@ -274,7 +275,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def cleanup_audit_log(session: Session) -> None:
-    session.query(Log).delete()
+    session.execute(delete(Log))
     session.commit()
 
 
@@ -528,7 +529,8 @@ class TestGetHITLDetailsEndpoint:
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
             "hitl_details": [expected_sample_hitl_detail_dict],
@@ -537,7 +539,7 @@ class TestGetHITLDetailsEndpoint:
 
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize(
-        "params, expected_ti_count",
+        ("params", "expected_ti_count"),
         [
             # ti related filter
             ({"dag_id_pattern": "hitl_dag"}, 5),
@@ -597,7 +599,8 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count
@@ -618,7 +621,7 @@ class TestGetHITLDetailsEndpoint:
                     "body": "this is body 0",
                     "defaults": ["Approve"],
                     "multiple": False,
-                    "params": {"input_1": 1},
+                    "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
                     "assigned_users": [],
                     "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
                     "responded_by_user": None,
@@ -634,7 +637,7 @@ class TestGetHITLDetailsEndpoint:
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize("asc_desc_mark", ["", "-"], ids=["asc", "desc"])
     @pytest.mark.parametrize(
-        "key, get_key_lambda",
+        ("key", "get_key_lambda"),
         [
             # ti key
             ("ti_id", lambda x: x["task_instance"]["id"]),
@@ -693,6 +696,10 @@ class TestGetHITLDetailsEndpoint:
             ),
             reverse=reverse,
         )
+
+        # Remove entries with None, because None orders depends on the DB implementation
+        hitl_details = [d for d in hitl_details if get_key_lambda(d) is not None]
+        sorted_hitl_details = [d for d in sorted_hitl_details if get_key_lambda(d) is not None]
 
         assert hitl_details == sorted_hitl_details
 

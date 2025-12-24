@@ -16,12 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import ANY
-
 import pytest
 
 from airflow.models.team import Team
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_teams,
@@ -48,20 +47,18 @@ class TestListTeams:
         session.add(Team(name="team2"))
         session.add(Team(name="team3"))
         session.commit()
-        response = test_client.get("/teams", params={})
+        with assert_queries_count(3):
+            response = test_client.get("/teams", params={})
         assert response.status_code == 200
         assert response.json() == {
             "teams": [
                 {
-                    "id": ANY,
                     "name": "team1",
                 },
                 {
-                    "id": ANY,
                     "name": "team2",
                 },
                 {
-                    "id": ANY,
                     "name": "team3",
                 },
             ],

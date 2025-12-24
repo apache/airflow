@@ -49,7 +49,7 @@ from googleapiclient.errors import HttpError
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.version_compat import AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
@@ -1287,7 +1287,7 @@ class CloudSQLDatabaseHook(BaseHook):
         cloud_sql_hook = CloudSQLHook(api_version="v1", gcp_conn_id=self.gcp_conn_id)
 
         with cloud_sql_hook.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != 0:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])

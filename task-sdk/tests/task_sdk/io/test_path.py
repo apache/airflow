@@ -28,9 +28,9 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
 from airflow.sdk import Asset, ObjectStoragePath
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.io import attach
 from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
-from airflow.sdk.module_loading import qualname
 
 
 def test_init():
@@ -135,7 +135,7 @@ class TestAttach:
         assert p.stat() == {**fsspec_info, "conn_id": "fake", "protocol": "fake"}
 
     @pytest.mark.parametrize(
-        "fn, args, fn2, path, expected_args, expected_kwargs",
+        ("fn", "args", "fn2", "path", "expected_args", "expected_kwargs"),
         [
             ("checksum", {}, "checksum", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),

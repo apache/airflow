@@ -20,9 +20,13 @@ from __future__ import annotations
 import json
 from typing import Annotated
 
+from fastapi import Body, Depends, HTTPException, Path, status
 from sqlalchemy import select
 
-from airflow.providers.common.compat.sdk import timezone
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, set_metrics
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import (
@@ -31,17 +35,6 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
-from airflow.providers.edge3.worker_api.routes._v2_compat import (
-    AirflowRouter,
-    Body,
-    Depends,
-    HTTPException,
-    Path,
-    SessionDep,
-    create_openapi_http_exception_doc,
-    status,
-)
-from airflow.stats import Stats
 
 worker_router = AirflowRouter(
     tags=["Worker"],
@@ -50,6 +43,7 @@ worker_router = AirflowRouter(
         [
             status.HTTP_400_BAD_REQUEST,
             status.HTTP_403_FORBIDDEN,
+            status.HTTP_409_CONFLICT,
         ]
     ),
 )
@@ -175,6 +169,19 @@ def register(
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
         worker = EdgeWorkerModel(worker_name=worker_name, state=body.state, queues=body.queues)
+    else:
+        # Prevent duplicate workers unless the existing worker is in offline or unknown state
+        allowed_states_for_reuse = {
+            EdgeWorkerState.OFFLINE,
+            EdgeWorkerState.UNKNOWN,
+            EdgeWorkerState.OFFLINE_MAINTENANCE,
+        }
+        if worker.state not in allowed_states_for_reuse:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Worker '{worker_name}' is already active in state '{worker.state}'. "
+                f"Cannot start a duplicate worker with the same name.",
+            )
     worker.state = redefine_state(worker.state, body.state)
     worker.maintenance_comment = redefine_maintenance_comments(
         worker.maintenance_comment, body.maintenance_comments
@@ -215,7 +222,7 @@ def set_state(
         free_concurrency=int(body.sysinfo["free_concurrency"]),
         queues=worker.queues,
     )
-    _assert_version(body.sysinfo)  #  Exception only after worker state is in the DB
+    _assert_version(body.sysinfo)  # Exception only after worker state is in the DB
     return WorkerSetStateReturn(
         state=worker.state, queues=worker.queues, maintenance_comments=worker.maintenance_comment
     )

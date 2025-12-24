@@ -33,7 +33,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
@@ -81,7 +81,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -235,7 +235,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -400,7 +400,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
 
 
 @pytest.mark.parametrize(
-    "template, expected_rendered_names",
+    ("template", "expected_rendered_names"),
     [
         pytest.param(None, [None, None], id="unset"),
         pytest.param("", ["", ""], id="constant"),
@@ -1377,28 +1377,28 @@ class TestMappedSetupTeardown:
 
     @pytest.mark.parametrize(
         (
-            "email,"
-            "execution_timeout,"
-            "retry_delay,"
-            "max_retry_delay,"
-            "retry_exponential_backoff,"
-            "max_active_tis_per_dag,"
-            "max_active_tis_per_dagrun,"
-            "run_as_user,"
-            "resources,"
-            "has_on_execute_callback,"
-            "has_on_failure_callback,"
-            "has_on_retry_callback,"
-            "has_on_success_callback,"
-            "has_on_skipped_callback,"
-            "executor_config,"
-            "inlets,"
-            "outlets,"
-            "doc,"
-            "doc_md,"
-            "doc_json,"
-            "doc_yaml,"
-            "doc_rst"
+            "email",
+            "execution_timeout",
+            "retry_delay",
+            "max_retry_delay",
+            "retry_exponential_backoff",
+            "max_active_tis_per_dag",
+            "max_active_tis_per_dagrun",
+            "run_as_user",
+            "resources",
+            "has_on_execute_callback",
+            "has_on_failure_callback",
+            "has_on_retry_callback",
+            "has_on_success_callback",
+            "has_on_skipped_callback",
+            "executor_config",
+            "inlets",
+            "outlets",
+            "doc",
+            "doc_md",
+            "doc_json",
+            "doc_yaml",
+            "doc_rst",
         ),
         [
             pytest.param(
@@ -1407,7 +1407,7 @@ class TestMappedSetupTeardown:
                 timedelta(seconds=10),
                 timedelta(seconds=5),
                 timedelta(seconds=60),
-                True,
+                2.0,
                 1,
                 2,
                 "user",

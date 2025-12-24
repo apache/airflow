@@ -25,8 +25,8 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 from sqlalchemy.engine.url import make_url
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.presto.hooks.presto import PrestoHook
 
 SerializableRow = namedtuple("SerializableRow", ["id", "value"])
@@ -87,7 +87,14 @@ def mock_cursor(mock_get_conn: MagicMock | mock.AsyncMock):
 
 
 @pytest.mark.parametrize(
-    "custom_extra, expected_catalog, expected_protocol, expected_source, conn_schema_override, expected_schema",
+    (
+        "custom_extra",
+        "expected_catalog",
+        "expected_protocol",
+        "expected_source",
+        "conn_schema_override",
+        "expected_schema",
+    ),
     [
         pytest.param(
             {"catalog": "reporting_db", "protocol": "https", "source": "airflow"},
@@ -169,7 +176,7 @@ def test_sqlalchemy_url_property(
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, expected_calls, cursor_results, expected_result",
+    ("return_last", "split_statements", "sql", "expected_calls", "cursor_results", "expected_result"),
     [
         pytest.param(
             True,

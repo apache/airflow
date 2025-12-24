@@ -45,7 +45,7 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.version import version as airflow_version
@@ -298,7 +298,7 @@ class DataprocHook(GoogleBaseHook):
         success_code = 0
 
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != success_code:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])

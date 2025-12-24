@@ -81,7 +81,7 @@ export const Logs = () => {
     "log_show_timestamp",
     defaultShowTimestamp,
   );
-  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", true);
+  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -121,7 +121,7 @@ export const Logs = () => {
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([logContent], { type: "text/plain" }));
-    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}`;
+    element.download = `logs_${taskInstance?.dag_id}_${taskInstance?.dag_run_id}_${taskInstance?.task_id}_${taskInstance?.map_index}_${taskInstance?.try_number}.txt`;
     document.body.append(element);
     element.click();
     element.remove();

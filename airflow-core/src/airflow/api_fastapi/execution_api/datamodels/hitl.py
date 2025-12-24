@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 from uuid import UUID
 
@@ -61,7 +62,7 @@ class HITLDetailResponse(BaseModel):
     responded_by_user: HITLUser | None = None
     responded_at: UtcDateTime | None
     # It's empty if the user has not yet responded.
-    chosen_options: list[str] | None
+    chosen_options: Iterable[str] | None
     params_input: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
@@ -79,6 +80,6 @@ class HITLDetailResponse(BaseModel):
             response_received=hitl_detail.response_received,
             responded_at=hitl_detail.responded_at,
             responded_by_user=hitl_user,
-            chosen_options=hitl_detail.chosen_options,
+            chosen_options=hitl_detail.chosen_options or (),
             params_input=hitl_detail.params_input or {},
         )

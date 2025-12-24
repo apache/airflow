@@ -25,9 +25,9 @@ from unittest.mock import call, mock_open, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSparkSubmitHook:
@@ -1016,7 +1016,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.parametrize(
-        "command, expected",
+        ("command", "expected"),
         [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),

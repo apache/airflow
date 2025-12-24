@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 
 TASK_ID = "test-gcs-to-sftp-operator"
@@ -333,7 +333,7 @@ class TestSFTPToGCSOperator:
         )
 
     @pytest.mark.parametrize(
-        "source_object, destination_path, expected_source, expected_destination",
+        ("source_object", "destination_path", "expected_source", "expected_destination"),
         [
             ("folder/test_object.txt", "dest/dir", "folder/test_object.txt", "dest"),
             ("folder/test_object.txt", "dest/dir/", "folder/test_object.txt", "dest/dir"),

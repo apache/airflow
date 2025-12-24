@@ -24,6 +24,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pendulum
 import pytest
+from openlineage.client.facet_v2 import parent_run
 from uuid6 import uuid7
 
 from airflow import DAG
@@ -31,6 +32,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.sdk import BaseOperator, TaskGroup, task, timezone
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
     _MAX_DOC_BYTES,
@@ -40,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInfo,
     TaskInfoComplete,
     TaskInstanceInfo,
+    _get_openlineage_data_from_dagrun_conf,
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
@@ -47,22 +50,25 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_job_facet,
     get_airflow_state_run_facet,
     get_dag_documentation,
+    get_dag_parent_run_facet,
     get_fully_qualified_class_name,
     get_job_name,
     get_operator_class,
     get_operator_provider_version,
+    get_parent_information_from_dagrun_conf,
+    get_root_information_from_dagrun_conf,
     get_task_documentation,
+    get_task_parent_run_facet,
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
@@ -156,6 +162,7 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.external_trigger = True
     dagrun_mock.run_id = "manual_2024-06-01T00:00:00+00:00"
     dagrun_mock.run_type = DagRunType.MANUAL
+    dagrun_mock.execution_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.logical_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
@@ -198,6 +205,7 @@ def test_get_airflow_dag_run_facet():
                 "start_date": "2024-06-01T01:02:04+00:00",
                 "end_date": "2024-06-01T01:02:14.034172+00:00",
                 "duration": 10.034172,
+                "execution_date": "2024-06-01T01:02:04+00:00",
                 "logical_date": "2024-06-01T01:02:04+00:00",
                 "run_after": "2024-06-01T01:02:04+00:00",
                 "dag_bundle_name": "bundle_name",
@@ -262,8 +270,8 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_before_serialization = get_fully_qualified_class_name(op)
     assert op_path_before_serialization == f"{op_module_path}.{op_name}"
 
-    serialized = SerializedBaseOperator.serialize_operator(op)
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    serialized = OperatorSerialization.serialize_operator(op)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
 
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
@@ -363,7 +371,7 @@ def test_truncate_string_to_byte_size_non_bmp_characters():
 
 
 @pytest.mark.parametrize(
-    "operator, expected_doc, expected_mime_type",
+    ("operator", "expected_doc", "expected_mime_type"),
     [
         (None, None, None),
         (MagicMock(doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None), None, None),
@@ -397,8 +405,8 @@ def test_get_task_documentation_serialized_operator():
     op_doc_before_serialization = get_task_documentation(op)
     assert op_doc_before_serialization == ("some_doc", "text/plain")
 
-    serialized = SerializedBaseOperator.serialize_operator(op)
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    serialized = OperatorSerialization.serialize_operator(op)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
 
     op_doc_after_deserialization = get_task_documentation(deserialized)
     assert op_doc_after_deserialization == ("some_doc", "text/plain")
@@ -419,7 +427,7 @@ def test_get_task_documentation_longer_than_allowed():
 
 
 @pytest.mark.parametrize(
-    "dag, expected_doc, expected_mime_type",
+    ("dag", "expected_doc", "expected_mime_type"),
     [
         (None, None, None),
         (MagicMock(doc_md=None, description=None), None, None),
@@ -463,6 +471,609 @@ def test_get_operator_class_mapped_operator():
     mapped = MockOperator.partial(task_id="task").expand(arg2=["a", "b", "c"])
     op_class = get_operator_class(mapped)
     assert op_class == MockOperator
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_openlineage_data_from_dagrun_conf_none_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_no_openlineage_key():
+    dr_conf = {"something_else": {"a": 1}}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"something_else": {"a": 1}}  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_invalid_type():
+    dr_conf = {"openlineage": "not_a_dict"}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": "not_a_dict"}  # Assert conf is not changed
+
+
+def test_get_openlineage_data_from_dagrun_conf_valid_dict():
+    dr_conf = {"openlineage": {"key": "value"}}
+    assert _get_openlineage_data_from_dagrun_conf(dr_conf) == {"key": "value"}
+    assert dr_conf == {"openlineage": {"key": "value"}}  # Assert conf is not changed
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_parent_information_from_dagrun_conf_no_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert get_parent_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_parent_information_from_dagrun_conf_no_openlineage():
+    dr_conf = {"something": "else"}
+    assert get_parent_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"something": "else"}  # Assert conf is not changed
+
+
+def test_get_parent_information_from_dagrun_conf_openlineage_not_dict():
+    dr_conf = {"openlineage": "my_value"}
+    assert get_parent_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": "my_value"}  # Assert conf is not changed
+
+
+def test_get_parent_information_from_dagrun_conf_missing_keys():
+    dr_conf = {"openlineage": {"parentRunId": "id_only"}}
+    assert get_parent_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": {"parentRunId": "id_only"}}  # Assert conf is not changed
+
+
+def test_get_parent_information_from_dagrun_conf_invalid_run_id():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobX",
+        }
+    }
+    assert get_parent_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobX",
+        }
+    }
+
+
+def test_get_parent_information_from_dagrun_conf_valid_data():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobX",
+        }
+    }
+    expected = {
+        "parent_run_id": "11111111-1111-1111-1111-111111111111",
+        "parent_job_namespace": "ns",
+        "parent_job_name": "jobX",
+    }
+    assert get_parent_information_from_dagrun_conf(dr_conf) == expected
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobX",
+        }
+    }
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_root_information_from_dagrun_conf_no_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_no_openlineage():
+    dr_conf = {"something": "else"}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"something": "else"}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_openlineage_not_dict():
+    dr_conf = {"openlineage": "my_value"}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": "my_value"}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_missing_keys():
+    dr_conf = {"openlineage": {"rootParentRunId": "id_only"}}
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {"openlineage": {"rootParentRunId": "id_only"}}  # Assert conf is not changed
+
+
+def test_get_root_information_from_dagrun_conf_invalid_run_id():
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "not_uuid",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+    assert get_root_information_from_dagrun_conf(dr_conf) == {}
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "rootParentRunId": "not_uuid",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+
+
+def test_get_root_information_from_dagrun_conf_valid_data():
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+    expected = {
+        "root_parent_run_id": "11111111-1111-1111-1111-111111111111",
+        "root_parent_job_namespace": "ns",
+        "root_parent_job_name": "jobX",
+    }
+    assert get_root_information_from_dagrun_conf(dr_conf) == expected
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "rootParentRunId": "11111111-1111-1111-1111-111111111111",
+            "rootParentJobNamespace": "ns",
+            "rootParentJobName": "jobX",
+        }
+    }
+
+
+@pytest.mark.parametrize("dr_conf", (None, {}))
+def test_get_dag_parent_run_facet_no_conf(dr_conf):
+    _dr_conf = None if dr_conf is None else {}
+    assert get_dag_parent_run_facet(dr_conf) == {}
+    assert dr_conf == _dr_conf  # Assert conf is not changed
+
+
+def test_get_dag_parent_run_facet_missing_keys():
+    dr_conf = {"openlineage": {"parentRunId": "11111111-1111-1111-1111-111111111111"}}
+    assert get_dag_parent_run_facet(dr_conf) == {}
+    # Assert conf is not changed
+    assert dr_conf == {"openlineage": {"parentRunId": "11111111-1111-1111-1111-111111111111"}}
+
+
+def test_get_dag_parent_run_facet_valid_no_root():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root is not None  # parent is used as root, since root is missing
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+
+def test_get_dag_parent_run_facet_invalid_uuid():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    assert result == {}
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "not_uuid",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+        }
+    }
+
+
+def test_get_dag_parent_run_facet_valid_with_root():
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+    result = get_dag_parent_run_facet(dr_conf)
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root is not None
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "rootns"
+    assert parent_facet.root.job.name == "rootjob"
+
+    assert dr_conf == {  # Assert conf is not changed
+        "openlineage": {
+            "parentRunId": "11111111-1111-1111-1111-111111111111",
+            "parentJobNamespace": "ns",
+            "parentJobName": "jobA",
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+
+def test_get_task_parent_run_facet_defaults():
+    """Test default behavior with minimal parameters - parent is used as root with default namespace."""
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+    )
+    parent_facet = result.get("parent")
+
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == namespace()
+    assert parent_facet.job.name == "jobA"
+    # Root should default to parent values when no root info is provided
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == namespace()
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_custom_root_values():
+    """Test with all explicit root parameters provided - root should use the provided values."""
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        root_parent_run_id="22222222-2222-2222-2222-222222222222",
+        root_parent_job_name="rjob",
+        root_parent_job_namespace="rns",
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "rns"
+    assert parent_facet.root.job.name == "rjob"
+
+
+def test_get_task_parent_run_facet_partial_root_info_ignored():
+    """Test that incomplete explicit root identifiers are ignored - root defaults to parent."""
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        root_parent_run_id="22222222-2222-2222-2222-222222222222",  # Only run_id provided
+        # Missing root_parent_job_name and root_parent_job_namespace
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should default to parent since incomplete root info was ignored
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_with_empty_dr_conf():
+    """Test with empty dr_conf - root should default to function parent parameters."""
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf={},
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should default to parent
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_with_dr_conf_root_info():
+    """Test with dr_conf containing root information - root should use values from dr_conf."""
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use values from dr_conf
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "rootns"
+    assert parent_facet.root.job.name == "rootjob"
+
+
+def test_get_task_parent_run_facet_with_dr_conf_parent_info_only():
+    """Test with dr_conf containing only parent information - parent info is used as root fallback."""
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "conf_parent_ns",
+            "parentJobName": "conf_parent_job",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use parent info from dr_conf as fallback
+    assert parent_facet.root.run.runId == "33333333-3333-3333-3333-333333333333"
+    assert parent_facet.root.job.namespace == "conf_parent_ns"
+    assert parent_facet.root.job.name == "conf_parent_job"
+
+
+def test_get_task_parent_run_facet_with_dr_conf_both_parent_and_root():
+    """Test with dr_conf containing both root and parent information - root info takes precedence."""
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "conf_parent_ns",
+            "parentJobName": "conf_parent_job",
+            "rootParentRunId": "44444444-4444-4444-4444-444444444444",
+            "rootParentJobNamespace": "conf_root_ns",
+            "rootParentJobName": "conf_root_job",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use explicit root info from dr_conf
+    assert parent_facet.root.run.runId == "44444444-4444-4444-4444-444444444444"
+    assert parent_facet.root.job.namespace == "conf_root_ns"
+    assert parent_facet.root.job.name == "conf_root_job"
+
+
+def test_get_task_parent_run_facet_with_dr_conf_incomplete_root():
+    """Test with dr_conf containing incomplete root information - root defaults to function parent."""
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+            # Missing rootParentJobNamespace and rootParentJobName
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should default to parent since dr_conf root info is incomplete
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_with_dr_conf_invalid_root_uuid():
+    """Test with dr_conf containing invalid root UUID - validation fails, root defaults to parent."""
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "not_a_valid_uuid",
+            "rootParentJobNamespace": "rootns",
+            "rootParentJobName": "rootjob",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should default to parent since dr_conf root UUID is invalid
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_explicit_root_overrides_dr_conf():
+    """Test that explicitly provided root parameters take precedence over dr_conf values."""
+    dr_conf = {
+        "openlineage": {
+            "rootParentRunId": "99999999-9999-9999-9999-999999999999",
+            "rootParentJobNamespace": "conf_rootns",
+            "rootParentJobName": "conf_rootjob",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        root_parent_run_id="22222222-2222-2222-2222-222222222222",
+        root_parent_job_name="explicit_rjob",
+        root_parent_job_namespace="explicit_rns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use explicitly provided values, not dr_conf
+    assert parent_facet.root.run.runId == "22222222-2222-2222-2222-222222222222"
+    assert parent_facet.root.job.namespace == "explicit_rns"
+    assert parent_facet.root.job.name == "explicit_rjob"
+
+
+def test_get_task_parent_run_facet_partial_root_in_dr_conf_with_full_parent():
+    """Test partial root + full parent in dr_conf - parent info is used as root fallback."""
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "conf_parent_ns",
+            "parentJobName": "conf_parent_job",
+            "rootParentRunId": "44444444-4444-4444-4444-444444444444",
+            # Missing rootParentJobNamespace and rootParentJobName
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use parent info from dr_conf since root info is incomplete
+    assert parent_facet.root is not None
+    assert parent_facet.root.run.runId == "33333333-3333-3333-3333-333333333333"
+    assert parent_facet.root.job.namespace == "conf_parent_ns"
+    assert parent_facet.root.job.name == "conf_parent_job"
+
+
+def test_get_task_parent_run_facet_partial_root_and_partial_parent_in_dr_conf():
+    """Test both root and parent incomplete in dr_conf - root defaults to function parent."""
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            # Missing parentJobNamespace and parentJobName
+            "rootParentRunId": "44444444-4444-4444-4444-444444444444",
+            # Missing rootParentJobNamespace and rootParentJobName
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should default to function parent since both dr_conf root and parent are incomplete
+    assert parent_facet.root is not None
+    assert parent_facet.root.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.root.job.namespace == "ns"
+    assert parent_facet.root.job.name == "jobA"
+
+
+def test_get_task_parent_run_facet_invalid_root_uuid_with_valid_parent_in_dr_conf():
+    """Test invalid root UUID with valid parent in dr_conf - parent info used as root fallback."""
+    dr_conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "conf_parent_ns",
+            "parentJobName": "conf_parent_job",
+            "rootParentRunId": "not_a_valid_uuid",
+            "rootParentJobNamespace": "conf_root_ns",
+            "rootParentJobName": "conf_root_job",
+        }
+    }
+
+    result = get_task_parent_run_facet(
+        parent_run_id="11111111-1111-1111-1111-111111111111",
+        parent_job_name="jobA",
+        parent_job_namespace="ns",
+        dr_conf=dr_conf,
+    )
+
+    parent_facet = result.get("parent")
+    assert isinstance(parent_facet, parent_run.ParentRunFacet)
+    assert parent_facet.run.runId == "11111111-1111-1111-1111-111111111111"
+    assert parent_facet.job.namespace == "ns"
+    assert parent_facet.job.name == "jobA"
+    # Root should use parent info from dr_conf since root UUID is invalid
+    assert parent_facet.root is not None
+    assert parent_facet.root.run.runId == "33333333-3333-3333-3333-333333333333"
+    assert parent_facet.root.job.namespace == "conf_parent_ns"
+    assert parent_facet.root.job.name == "conf_parent_job"
 
 
 def test_get_tasks_details():
@@ -1735,6 +2346,7 @@ def test_dagrun_info_af2():
         "run_type": DagRunType.MANUAL,
         "external_trigger": False,
         "start_date": "2024-06-01T00:00:00+00:00",
+        "execution_date": "2024-06-01T00:00:00+00:00",
         "logical_date": "2024-06-01T00:00:00+00:00",
         "dag_bundle_name": None,
         "dag_bundle_version": None,
@@ -1814,10 +2426,36 @@ def test_taskinstance_info_af2():
 def test_task_info_af3():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
-            self.deferrable = True
-            self.trigger_dag_id = "trigger_dag_id"
-            self.external_dag_id = "external_dag_id"
-            self.external_task_id = "external_task_id"
+            # Mock some specific attributes from different operators
+            self.deferrable = True  # Deferrable operators
+            self.column_mapping = "column_mapping"  # SQLColumnCheckOperator
+            self.column_names = "column_names"  # SQLInsertRowsOperator
+            self.database = "database"  # BaseSQlOperator
+            self.execution_date = "execution_date"  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_dag_id = (
+                "external_dag_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            )
+            self.external_dates_filter = "external_dates_filter"  # ExternalTaskSensor
+            self.external_task_group_id = "external_task_group_id"  # ExternalTaskSensor
+            self.external_task_id = "external_task_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_task_ids = "external_task_ids"  # ExternalTaskSensor
+            self.follow_branch = "follow_branch"  # BranchSQLOperator
+            self.follow_task_ids_if_false = "follow_task_ids_if_false"  # BranchSQLOperator
+            self.follow_task_ids_if_true = "follow_task_ids_if_true"  # BranchSQLOperator
+            self.ignore_zero = "ignore_zero"  # SQLIntervalCheckOperator
+            self.logical_date = "logical_date"  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.max_threshold = "max_threshold"  # SQLThresholdCheckOperator
+            self.metrics_thresholds = "metrics_thresholds"  # SQLIntervalCheckOperator
+            self.min_threshold = "min_threshold"  # SQLThresholdCheckOperator
+            self.parameters = "parameters"  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+            self.pass_value = "pass_value"  # SQLValueCheckOperator
+            self.postoperator = "postoperator"  # SQLInsertRowsOperator
+            self.preoperator = "preoperator"  # SQLInsertRowsOperator
+            self.ratio_formula = "ratio_formula"  # SQLIntervalCheckOperator
+            self.table_name_with_schema = "table_name_with_schema"  # SQLInsertRowsOperator
+            self.tol = "tol"  # SQLValueCheckOperator
+            self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
+            self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -1856,8 +2494,6 @@ def test_task_info_af3():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
-        "external_dag_id": "external_dag_id",
-        "external_task_id": "external_task_id",
         "ignore_first_depends_on_past": False,
         "inlets": "[{'uri': 'uri1', 'extra': {'a': 1}}]",
         "mapped": False,
@@ -1877,11 +2513,37 @@ def test_task_info_af3():
         "run_as_user": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
-        "trigger_dag_id": "trigger_dag_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        # Operator-specific useful attributes
+        "column_mapping": "column_mapping",
+        "column_names": "column_names",
+        "database": "database",
+        "execution_date": "execution_date",
+        "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
+        "external_task_group_id": "external_task_group_id",
+        "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "follow_branch": "follow_branch",
+        "follow_task_ids_if_false": "follow_task_ids_if_false",
+        "follow_task_ids_if_true": "follow_task_ids_if_true",
+        "ignore_zero": "ignore_zero",
+        "logical_date": "logical_date",
+        "max_threshold": "max_threshold",
+        "metrics_thresholds": "metrics_thresholds",
+        "min_threshold": "min_threshold",
+        "parameters": "parameters",
+        "pass_value": "pass_value",
+        "postoperator": "postoperator",
+        "preoperator": "preoperator",
+        "ratio_formula": "ratio_formula",
+        "table_name_with_schema": "table_name_with_schema",
+        "tol": "tol",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
     }
 
 
@@ -1889,10 +2551,36 @@ def test_task_info_af3():
 def test_task_info_af2():
     class CustomOperator(PythonOperator):
         def __init__(self, *args, **kwargs):
-            self.deferrable = True
-            self.trigger_dag_id = "trigger_dag_id"
-            self.external_dag_id = "external_dag_id"
-            self.external_task_id = "external_task_id"
+            # Mock some specific attributes from different operators
+            self.deferrable = True  # Deferrable operators
+            self.column_mapping = "column_mapping"  # SQLColumnCheckOperator
+            self.column_names = "column_names"  # SQLInsertRowsOperator
+            self.database = "database"  # BaseSQlOperator
+            self.execution_date = "execution_date"  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_dag_id = (
+                "external_dag_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            )
+            self.external_dates_filter = "external_dates_filter"  # ExternalTaskSensor
+            self.external_task_group_id = "external_task_group_id"  # ExternalTaskSensor
+            self.external_task_id = "external_task_id"  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.external_task_ids = "external_task_ids"  # ExternalTaskSensor
+            self.follow_branch = "follow_branch"  # BranchSQLOperator
+            self.follow_task_ids_if_false = "follow_task_ids_if_false"  # BranchSQLOperator
+            self.follow_task_ids_if_true = "follow_task_ids_if_true"  # BranchSQLOperator
+            self.ignore_zero = "ignore_zero"  # SQLIntervalCheckOperator
+            self.logical_date = "logical_date"  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+            self.max_threshold = "max_threshold"  # SQLThresholdCheckOperator
+            self.metrics_thresholds = "metrics_thresholds"  # SQLIntervalCheckOperator
+            self.min_threshold = "min_threshold"  # SQLThresholdCheckOperator
+            self.parameters = "parameters"  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+            self.pass_value = "pass_value"  # SQLValueCheckOperator
+            self.postoperator = "postoperator"  # SQLInsertRowsOperator
+            self.preoperator = "preoperator"  # SQLInsertRowsOperator
+            self.ratio_formula = "ratio_formula"  # SQLIntervalCheckOperator
+            self.table_name_with_schema = "table_name_with_schema"  # SQLInsertRowsOperator
+            self.tol = "tol"  # SQLValueCheckOperator
+            self.trigger_dag_id = "trigger_dag_id"  # TriggerDagRunOperator
+            self.trigger_run_id = "trigger_run_id"  # TriggerDagRunOperator
             super().__init__(*args, **kwargs)
 
     with DAG(
@@ -1931,8 +2619,6 @@ def test_task_info_af2():
         "downstream_task_ids": "['task_1']",
         "execution_timeout": None,
         "executor_config": {},
-        "external_dag_id": "external_dag_id",
-        "external_task_id": "external_task_id",
         "ignore_first_depends_on_past": True,
         "is_setup": False,
         "is_teardown": False,
@@ -1955,11 +2641,37 @@ def test_task_info_af2():
         "run_as_user": None,
         "task_group": tg_info,
         "task_id": "section_1.task_3",
-        "trigger_dag_id": "trigger_dag_id",
         "trigger_rule": "all_success",
         "upstream_task_ids": "['task_0']",
         "wait_for_downstream": False,
         "wait_for_past_depends_before_skipping": False,
+        # Operator-specific useful attributes
+        "column_mapping": "column_mapping",
+        "column_names": "column_names",
+        "database": "database",
+        "execution_date": "execution_date",
+        "external_dag_id": "external_dag_id",
+        "external_dates_filter": "external_dates_filter",
+        "external_task_group_id": "external_task_group_id",
+        "external_task_id": "external_task_id",
+        "external_task_ids": "external_task_ids",
+        "follow_branch": "follow_branch",
+        "follow_task_ids_if_false": "follow_task_ids_if_false",
+        "follow_task_ids_if_true": "follow_task_ids_if_true",
+        "ignore_zero": "ignore_zero",
+        "logical_date": "logical_date",
+        "max_threshold": "max_threshold",
+        "metrics_thresholds": "metrics_thresholds",
+        "min_threshold": "min_threshold",
+        "parameters": "parameters",
+        "pass_value": "pass_value",
+        "postoperator": "postoperator",
+        "preoperator": "preoperator",
+        "ratio_formula": "ratio_formula",
+        "table_name_with_schema": "table_name_with_schema",
+        "tol": "tol",
+        "trigger_dag_id": "trigger_dag_id",
+        "trigger_run_id": "trigger_run_id",
     }
 
 

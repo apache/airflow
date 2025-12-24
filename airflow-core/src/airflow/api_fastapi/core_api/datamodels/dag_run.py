@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -31,7 +32,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
 class DAGRunPatchStates(str, Enum):
@@ -83,12 +84,13 @@ class DAGRunResponse(BaseModel):
     dag_versions: list[DagVersionResponse]
     bundle_version: str | None
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))
+    partition_key: str | None
 
 
 class DAGRunCollectionResponse(BaseModel):
     """DAG Run Collection serializer for responses."""
 
-    dag_runs: list[DAGRunResponse]
+    dag_runs: Iterable[DAGRunResponse]
     total_entries: int
 
 
@@ -103,6 +105,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
 
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None
+    partition_key: str | None = None
 
     @model_validator(mode="after")
     def check_data_intervals(self):
@@ -140,6 +143,7 @@ class TriggerDAGRunPostBody(StrictBaseModel):
             "run_after": run_after,
             "conf": self.conf,
             "note": self.note,
+            "partition_key": self.partition_key,
         }
 
 

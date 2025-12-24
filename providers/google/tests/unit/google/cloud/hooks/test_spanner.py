@@ -437,7 +437,7 @@ class TestGcpSpannerHookDefaultProjectId:
         pass
 
     @pytest.mark.parametrize(
-        "returned_items, expected_counts",
+        ("returned_items", "expected_counts"),
         [
             pytest.param(
                 [

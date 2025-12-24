@@ -29,12 +29,10 @@ from git import Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -427,7 +425,7 @@ class TestGitDagBundle:
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             ("git@github.com:apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
@@ -497,7 +495,7 @@ class TestGitDagBundle:
         bundle.initialize.assert_not_called()
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             (
                 "git@github.com:apache/airflow.git",
@@ -587,7 +585,7 @@ class TestGitDagBundle:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             (
                 "git@github.com:apache/airflow.git",
@@ -717,20 +715,29 @@ class TestGitDagBundle:
 
     @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        "conn_id, expected_hook_type",
-        [("my_test_git", GitHook), ("something-else", type(None))],
+        ("conn_id", "expected_hook_type", "exception_expected"),
+        [
+            ("my_test_git", GitHook, False),
+            ("something-else", None, True),
+        ],
     )
-    def test_repo_url_access_missing_connection_doesnt_error(
-        self, conn_id, expected_hook_type, mock_supervisor_comms
+    def test_repo_url_access_missing_connection_raises_exception(
+        self, conn_id, expected_hook_type, exception_expected
     ):
-        if expected_hook_type is type(None):
-            mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
-        bundle = GitDagBundle(
-            name="testa",
-            tracking_ref="main",
-            git_conn_id=conn_id,
-        )
-        assert isinstance(bundle.hook, expected_hook_type)
+        if exception_expected:
+            with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
+                GitDagBundle(
+                    name="testa",
+                    tracking_ref="main",
+                    git_conn_id=conn_id,
+                )
+        else:
+            bundle = GitDagBundle(
+                name="testa",
+                tracking_ref="main",
+                git_conn_id=conn_id,
+            )
+            assert isinstance(bundle.hook, expected_hook_type)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
@@ -742,7 +749,7 @@ class TestGitDagBundle:
             assert mock_lock.call_count == 2  # both initialize and refresh
 
     @pytest.mark.parametrize(
-        "conn_json, repo_url, expected",
+        ("conn_json", "repo_url", "expected"),
         [
             (
                 {"host": "git@github.com:apache/airflow.git"},

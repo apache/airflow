@@ -836,7 +836,6 @@ def update_release_notes(
                 return with_breaking_changes, maybe_with_new_features, False
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
-            global SHORT_HASH_TO_TYPE_DICT
             type_of_current_package_changes: list[TypeOfChange] = []
             while table_iter < change_table_len:
                 get_console().print()
@@ -1120,15 +1119,22 @@ def _generate_new_changelog(
     provider_details.changelog_path.write_text("\n".join(new_changelog_lines) + "\n")
 
 
-def _update_index_rst(
-    context: dict[str, Any],
+def update_index_rst(
     provider_id: str,
-    target_path: Path,
+    with_breaking_changes: bool,
+    maybe_with_new_features: bool,
 ):
-    index_update = render_template(
-        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    get_console().print(f"\n[info]Update index.rst for {provider_id}\n")
+    provider_details = get_provider_details(provider_id)
+    jinja_context = get_provider_documentation_jinja_context(
+        provider_id=provider_id,
+        with_breaking_changes=with_breaking_changes,
+        maybe_with_new_features=maybe_with_new_features,
     )
-    index_file_path = target_path / "index.rst"
+    index_update = render_template(
+        template_name="PROVIDER_INDEX", context=jinja_context, extension=".rst", keep_trailing_newline=True
+    )
+    index_file_path = provider_details.documentation_provider_distribution_path / "index.rst"
     old_text = ""
     if index_file_path.is_file():
         old_text = index_file_path.read_text()
@@ -1209,8 +1215,6 @@ def update_changelog(
             maybe_with_new_features=maybe_with_new_features,
             with_min_airflow_version_bump=with_min_airflow_version_bump,
         )
-    get_console().print(f"\n[info]Update index.rst for {package_id}\n")
-    _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_distribution_path)
 
 
 def _generate_get_provider_info_py(context: dict[str, Any], provider_details: ProviderPackageDetails):
@@ -1278,7 +1282,7 @@ def _generate_build_files_for_provider(
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(
         BREEZE_SOURCES_PATH / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
-        provider_details.base_provider_package_path / "LICENSE",
+        provider_details.root_provider_path / "LICENSE",
     )
 
 

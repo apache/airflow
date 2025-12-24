@@ -22,12 +22,15 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 state: ready
-source-date-epoch: 1761138118
+source-date-epoch: 1765298805
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 4.8.1
+  - 4.8.0
+  - 4.7.4
   - 4.7.3
   - 4.7.2
   - 4.7.1

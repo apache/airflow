@@ -252,7 +252,7 @@ class TestBaseAuthManager:
         assert result == token
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -274,7 +274,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -294,7 +294,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -314,7 +314,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "return_values, expected",
+        ("return_values", "expected"),
         [
             ([False, False], False),
             ([True, False], False),
@@ -336,7 +336,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_dag, access_per_team, rows, expected",
+        ("access_per_dag", "access_per_team", "rows", "expected"),
         [
             # Without teams
             # No access to any dag
@@ -392,7 +392,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_connection, access_per_team, rows, expected",
+        ("access_per_connection", "access_per_team", "rows", "expected"),
         [
             # Without teams
             # No access to any connection
@@ -449,18 +449,18 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_team, rows, expected",
+        ("access_per_team", "rows", "expected"),
         [
             # No access to any team
             (
                 {},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 set(),
             ),
             # Access to specific teams
             (
                 {"team1": True},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 {"team1"},
             ),
         ],
@@ -479,12 +479,12 @@ class TestBaseAuthManager:
         auth_manager.is_authorized_team = MagicMock(side_effect=side_effect_func)
         user = Mock()
         session = Mock()
-        session.execute.return_value.all.return_value = rows
+        session.scalars.return_value.all.return_value = rows
         result = auth_manager.get_authorized_teams(user=user, session=session)
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_variable, access_per_team, rows, expected",
+        ("access_per_variable", "access_per_team", "rows", "expected"),
         [
             # Without teams
             # No access to any variable
@@ -541,7 +541,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @pytest.mark.parametrize(
-        "access_per_pool, access_per_team, rows, expected",
+        ("access_per_pool", "access_per_team", "rows", "expected"),
         [
             # Without teams
             # No access to any pool

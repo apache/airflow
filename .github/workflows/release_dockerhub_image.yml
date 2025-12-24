@@ -58,16 +58,19 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
-      UV_VERSION: "0.9.7"  # Keep this comment to allow automatic replacement of uv version
+      UV_VERSION: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
-      "utkarsharma2"
+      "utkarsharma2",
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"
