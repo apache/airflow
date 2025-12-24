@@ -44,6 +44,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryFavoriteFilter,
     QueryHasAssetScheduleFilter,
     QueryHasImportErrorsFilter,
+    QueryIsDagScheduledFilter,
     QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
@@ -95,6 +96,7 @@ def get_dags(
     last_dag_run_state: QueryLastDagRunStateFilter,
     bundle_name: QueryBundleNameFilter,
     bundle_version: QueryBundleVersionFilter,
+    is_scheduled: QueryIsDagScheduledFilter,
     has_asset_schedule: QueryHasAssetScheduleFilter,
     asset_dependency: QueryAssetDependencyFilter,
     dag_run_start_date_range: Annotated[
@@ -156,6 +158,7 @@ def get_dags(
             readable_dags_filter,
             bundle_name,
             bundle_version,
+            is_scheduled,
             has_asset_schedule,
             asset_dependency,
         ],
