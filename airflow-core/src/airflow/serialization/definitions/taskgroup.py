@@ -288,7 +288,7 @@ class SerializedMappedTaskGroup(SerializedTaskGroup):
 
     def iter_mapped_dependencies(self) -> Iterator[SerializedOperator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import SchedulerXComArg
+        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
         for op, _ in SchedulerXComArg.iter_xcom_references(self._expand_input):
             yield op
