@@ -1428,7 +1428,7 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                from airflow.sdk.serde import deserialize
+                from airflow.sdk.serde import deserialize, serialize
                 from airflow.utils.session import create_session
 
                 # API Server expects the task instance to be in QUEUED state before
@@ -1441,7 +1441,7 @@ def _run_task(
                 trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
+                ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.
