@@ -26,6 +26,7 @@ from copy import deepcopy
 from itertools import chain
 from pathlib import Path
 from shlex import quote
+from typing import Any
 
 import click
 import yaml
@@ -45,10 +46,10 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
 from airflow_breeze.global_constants import (
+    AIRFLOW_SOURCES_TO,
     ALLOWED_EXECUTORS,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_LOG_LEVELS,
-    AIRFLOW_SOURCES_TO,
     CELERY_EXECUTOR,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_LOG_LEVEL,
@@ -86,9 +87,9 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 KUBERNETES_PYTEST_ARGS = [
     "--strict-markers",
@@ -848,7 +849,7 @@ def _build_skaffold_config(
     dags_relative_path: str,
     dags_dest: str,
     log_level: str,
-) -> dict[str, object]:
+) -> dict[str, Any]:
     from packaging.version import Version
 
     params = BuildProdParams(python=python)
@@ -1429,16 +1430,12 @@ def dev(
         dags_path_abs = AIRFLOW_ROOT_PATH / dags_path_abs
     dags_path_abs = dags_path_abs.resolve()
     if not dags_path_abs.is_dir():
-        get_console().print(
-            f"[error]DAGs path does not exist or is not a directory: {dags_path_abs}"
-        )
+        get_console().print(f"[error]DAGs path does not exist or is not a directory: {dags_path_abs}")
         sys.exit(1)
     try:
         dags_relative_path = dags_path_abs.relative_to(AIRFLOW_ROOT_PATH).as_posix()
     except ValueError:
-        get_console().print(
-            f"[error]DAGs path must be under the Airflow sources: {AIRFLOW_ROOT_PATH}"
-        )
+        get_console().print(f"[error]DAGs path must be under the Airflow sources: {AIRFLOW_ROOT_PATH}")
         sys.exit(1)
     if not get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version).exists():
         get_console().print(
@@ -1473,9 +1470,7 @@ def dev(
         }
         dev_env_values_path = Path(tmp_dir) / "dev-env-values.yaml"
         dev_env_values_path.write_text(yaml.safe_dump(dev_env_values, sort_keys=False))
-        skaffold_config["deploy"]["helm"]["releases"][0]["valuesFiles"] = [
-            dev_env_values_path.as_posix()
-        ]
+        skaffold_config["deploy"]["helm"]["releases"][0]["valuesFiles"] = [dev_env_values_path.as_posix()]
         skaffold_config_path = Path(tmp_dir) / "skaffold.yaml"
         skaffold_config_path.write_text(yaml.safe_dump(skaffold_config, sort_keys=False))
         skaffold_command = [
