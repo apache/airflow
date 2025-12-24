@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
@@ -25,6 +24,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 import sqlalchemy_jsonfield
+import structlog
+from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Float,
@@ -59,6 +60,7 @@ from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import DagRunState
@@ -89,7 +91,7 @@ if TYPE_CHECKING:
         | Collection["SerializedAsset" | "SerializedAssetAlias"]
     )
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 TAG_MAX_LEN = 100
 
@@ -139,6 +141,10 @@ def get_run_data_interval(timetable: Timetable, run: DagRun) -> DataInterval:
 
     :meta private:
     """
+    if run.partition_key is not None:
+        # todo: AIP-76 need to examine blast radius of returning None here
+        return None
+
     if (
         data_interval := _get_model_data_interval(run, "data_interval_start", "data_interval_end")
     ) is not None:
@@ -707,24 +713,73 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: SerializedDAG | LazyDeserializedDAG,
-        last_automated_dag_run: None | DataInterval,
+        *,
+        last_automated_run: DagRun | None,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval of most recent run of this dag, or none
+        :param last_automated_run: DagRun of most recent run of this dag, or none
             if not yet scheduled.
+            TODO: AIP-76 This is not always latest run! See https://github.com/apache/airflow/issues/59618.
         """
-        if isinstance(last_automated_dag_run, datetime):
+        if isinstance(last_automated_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_automated_dag_run)
+
+        if hasattr(dag.timetable, "partitions"):
+            # todo: AIP-76 improve this detection with subclass
+            # todo: AIP-76 also! why is this not tz-aware????!?!?!?!
+            #  oh perhaps it wasn't roundtripped through orm-db yet.
+            last_run_after = last_automated_run and timezone.coerce_datetime(last_automated_run.run_after)
+            log.info(
+                "setting next dagrun for partitioned dag",
+                dag_id=dag.dag_id,
+                last_partition_key=last_automated_run.partition_key if last_automated_run else None,
+                last_run_after=str(last_run_after),
+            )
+
+            # TODO: AIP-76 we should generalize this to not pretend it's an "interval"
+            #  this is basically a hack to avoid dealing with next_dagrun_info
+            #  we sorta need to change the next_dagrun_info interface
+            last_interval = DataInterval.exact(last_run_after) if last_run_after else None
+            next_dagrun_info = dag.next_dagrun_info(last_interval)
+
+            self.next_dagrun_data_interval = None
+            if next_dagrun_info:
+                # TODO: AIP-76 "next dagrun" should be the next partition date
+                #  but next_dagrun_create_after should be the next run after
+                #  to accomplish this, we will need a way to map from partition key to partition date
+                self.next_dagrun = self.next_dagrun_create_after = next_dagrun_info.run_after
+            else:
+                self.next_dagrun = self.next_dagrun_create_after = None
+
+        # TODO: AIP-76 perhaps we need to add validation for manual runs ensure consistency between
+        #   partition_key / partition_date and run_after
+        if last_automated_run is None:
+            last_data_interval = None
+        else:
+            last_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
+
+        next_dagrun_info = dag.next_dagrun_info(last_data_interval)
+        log.info(
+            "evaluating next dag run",
+            next_dagrun_info=next_dagrun_info,
+            last_data_interval=last_data_interval,
+        )
+
         if next_dagrun_info is None:
+            log.info("setting next dagrun to None")
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
+            log.info(
+                "setting next dagrun",
+                logical_date=str(next_dagrun_info.logical_date),
+                partition_key=next_dagrun_info.partition_key,
+            )
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
             self.next_dagrun = next_dagrun_info.logical_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
