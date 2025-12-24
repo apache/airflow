@@ -70,15 +70,13 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
-
-    from airflow.models.expandinput import SchedulerExpandInput
 
 router = VersionedAPIRouter()
 
@@ -315,7 +313,7 @@ def _get_upstream_map_indexes(
             except NotFullyPopulated:
                 # Second try: resolve XCom for correct count
                 try:
-                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
+                    expand_input = upstream_mapped_group._expand_input
                     mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
                 except NotFullyPopulated:
                     # For these trigger rules, unresolved map indexes are acceptable.

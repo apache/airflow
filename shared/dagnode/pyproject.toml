@@ -14,36 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from typing import TYPE_CHECKING
+[project]
+name = "apache-airflow-shared-dagnode"
+description = "Shared DAGNode logic for Airflow distributions"
+version = "0.0"
+classifiers = [
+    "Private :: Do Not Upload",
+]
 
-from airflow.models.taskmap import TaskMap
+dependencies = [
+    "structlog>=25.4.0",
+]
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+[dependency-groups]
+dev = [
+    "apache-airflow-devel-common",
+]
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow_shared"]
 
-def expand_mapped_task(
-    mapped: SerializedBaseOperator | MappedOperator,
-    run_id: str,
-    upstream_task_id: str,
-    length: int,
-    session: Session,
-):
-    session.add(
-        TaskMap(
-            dag_id=mapped.dag_id,
-            task_id=upstream_task_id,
-            run_id=run_id,
-            map_index=-1,
-            length=length,
-            keys=None,
-        )
-    )
-    session.flush()
+[tool.ruff]
+extend = "../../pyproject.toml"
+src = ["src"]
 
-    TaskMap.expand_mapped_task(mapped, run_id, session=session)
+[tool.ruff.lint.per-file-ignores]
+# Ignore Doc rules et al for anything outside of tests
+"!src/*" = ["D", "S101", "TRY002"]

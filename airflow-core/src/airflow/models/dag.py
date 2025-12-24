@@ -76,7 +76,8 @@ if TYPE_CHECKING:
         SerializedAssetAlias,
         SerializedAssetBase,
     )
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
     UKey: TypeAlias = SerializedAssetUniqueKey

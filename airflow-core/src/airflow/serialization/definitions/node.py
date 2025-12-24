@@ -17,37 +17,38 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+import abc
+from typing import TYPE_CHECKING
+
+from airflow._shared.dagnode.node import GenericDAGNode
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Sequence
     from typing import TypeAlias
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG  # noqa: F401
+    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup  # noqa: F401
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    Operator: TypeAlias = SerializedBaseOperator | MappedOperator
+
+__all__ = ["DAGNode"]
 
 
-@runtime_checkable
-class ReferenceMixin(Protocol):
+class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"], metaclass=abc.ABCMeta):
     """
-    Mixin for things that references a task.
+    Base class for a node in the graph of a workflow.
 
-    This should be implemented by things that reference operators and use them
-    to lazily resolve values at runtime. The most prominent examples are XCom
-    references (XComArg).
-
-    This is a partial interface to the SDK's ResolveMixin with the resolve()
-    method removed since the scheduler should not need to resolve the reference.
+    A node may be an operator or task group, either mapped or unmapped.
     """
 
-    def iter_references(self) -> Iterable[tuple[Operator, str]]:
-        """
-        Find underlying XCom references this contains.
+    @property
+    @abc.abstractmethod
+    def roots(self) -> Sequence[DAGNode]:
+        raise NotImplementedError()
 
-        This is used by the DAG parser to recursively find task dependencies.
-
-        :meta private:
-        """
-        raise NotImplementedError
+    @property
+    @abc.abstractmethod
+    def leaves(self) -> Sequence[DAGNode]:
+        raise NotImplementedError()
