@@ -414,7 +414,7 @@ class BundleVersionLock:
 
     def _log_exc(self, msg):
         log.exception(
-            "% name=%s version=%s lock_file=%s",
+            "%s name=%s version=%s lock_file=%s",
             msg,
             self.bundle_name,
             self.version,
