@@ -29,6 +29,7 @@ from google.genai.types import (
 )
 
 from airflow.providers.google.cloud.hooks.gen_ai import (
+    GenAIGeminiAPIHook,
     GenAIGenerativeModelHook,
 )
 
@@ -94,6 +95,25 @@ CACHED_CONTENT_CONFIG = CreateCachedContentConfig(
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.gen_ai.{}"
+
+TEST_API_KEY = "test-api-key"
+TEST_JOB_NAME = "batches/test-job-id"
+TEST_MODEL = "models/gemini-2.5-flash"
+TEST_BATCH_JOB_SOURCE_INLINE = [
+    {"contents": [{"parts": [{"text": "Tell me a one-sentence joke."}], "role": "user"}]},
+    {"contents": [{"parts": [{"text": "Why is the sky blue?"}], "role": "user"}]},
+]
+TEST_EMBEDDINGS_JOB_SOURCE_INLINE = {
+    "contents": [{"parts": [{"text": "Why is the sky blue?"}], "role": "user"}]
+}
+TEST_SOURCE_FILE = "test-bucket/source.jsonl"
+TEST_LOCAL_FILE_PATH = "/tmp/data/test_file.json"
+TEST_FILE_NAME = "files/test-file-id"
+
+# Mock constants for configuration objects
+TEST_LIST_BATCH_JOBS_CONFIG = {"page_size": 10}
+TEST_CREATE_BATCH_JOB_CONFIG = {"display_name": "test-job"}
+TEST_UPLOAD_FILE_CONFIG = {"display_name": "custom_name", "mime_type": "text/plain"}
 
 
 def assert_warning(msg: str, warnings):
@@ -191,3 +211,167 @@ class TestGenAIGenerativeModelHookWithDefaultProjectId:
             model=TEST_CACHED_MODEL,
             config=CACHED_CONTENT_CONFIG,
         )
+
+
+class TestGenAIGeminiAPIHook:
+    def setup_method(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+        ):
+            self.hook = GenAIGeminiAPIHook(gemini_api_key=TEST_API_KEY)
+
+    @mock.patch("google.genai.Client")
+    def test_get_genai_client(self, mock_client):
+        """Test client initialization with correct parameters."""
+        self.hook.get_genai_client()
+
+        mock_client.assert_called_once_with(
+            api_key=TEST_API_KEY,
+            vertexai=False,
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_get_batch_job(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.get_batch_job(job_name=TEST_JOB_NAME)
+
+        client_mock.batches.get.assert_called_once_with(name=TEST_JOB_NAME)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_list_batch_jobs(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.list_batch_jobs(list_batch_jobs_config=TEST_LIST_BATCH_JOBS_CONFIG)
+
+        client_mock.batches.list.assert_called_once_with(config=TEST_LIST_BATCH_JOBS_CONFIG)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_create_batch_job(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.create_batch_job(
+            model=TEST_MODEL,
+            source=TEST_BATCH_JOB_SOURCE_INLINE,
+            create_batch_job_config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+        client_mock.batches.create.assert_called_once_with(
+            model=TEST_MODEL, src=TEST_BATCH_JOB_SOURCE_INLINE, config=TEST_CREATE_BATCH_JOB_CONFIG
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_delete_batch_job(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.delete_batch_job(job_name=TEST_JOB_NAME)
+
+        client_mock.batches.delete.assert_called_once_with(name=TEST_JOB_NAME)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_cancel_batch_job(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.cancel_batch_job(job_name=TEST_JOB_NAME)
+
+        client_mock.batches.cancel.assert_called_once_with(name=TEST_JOB_NAME)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_create_embeddings_with_inline_source(self, mock_get_client):
+        """Test create_embeddings when source is a dict (inline)."""
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        self.hook.create_embeddings(
+            model=TEST_MODEL,
+            source=TEST_EMBEDDINGS_JOB_SOURCE_INLINE,
+            create_embeddings_config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+        client_mock.batches.create_embeddings.assert_called_once_with(
+            model=TEST_MODEL,
+            src={"inlined_requests": TEST_EMBEDDINGS_JOB_SOURCE_INLINE},
+            config=TEST_CREATE_BATCH_JOB_CONFIG,
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_create_embeddings_with_file_source(self, mock_get_client):
+        """Test create_embeddings when source is a string (file name)."""
+        client_mock = mock_get_client.return_value
+        client_mock.batches = mock.Mock()
+
+        # Test with str (File name)
+        source_file = "/bucket/file.jsonl"
+        self.hook.create_embeddings(
+            model=TEST_MODEL, source=source_file, create_embeddings_config=TEST_CREATE_BATCH_JOB_CONFIG
+        )
+
+        client_mock.batches.create_embeddings.assert_called_once_with(
+            model=TEST_MODEL, src={"file_name": source_file}, config=TEST_CREATE_BATCH_JOB_CONFIG
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_upload_file_with_provided_config(self, mock_get_client):
+        """Test upload_file when explicit config is provided."""
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        self.hook.upload_file(path_to_file=TEST_LOCAL_FILE_PATH, upload_file_config=TEST_UPLOAD_FILE_CONFIG)
+
+        client_mock.files.upload.assert_called_once_with(
+            file=TEST_LOCAL_FILE_PATH, config=TEST_UPLOAD_FILE_CONFIG
+        )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_upload_file_default_config_generation(self, mock_get_client):
+        """Test that upload_file generates correct config from filename if config is None."""
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        # Path: /tmp/data/test_file.json -> name: test_file, type: json
+        self.hook.upload_file(path_to_file=TEST_LOCAL_FILE_PATH, upload_file_config=None)
+
+        expected_config = {"display_name": "test_file", "mime_type": "json"}
+
+        client_mock.files.upload.assert_called_once_with(file=TEST_LOCAL_FILE_PATH, config=expected_config)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_get_file(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        self.hook.get_file(file_name=TEST_FILE_NAME)
+
+        client_mock.files.get.assert_called_once_with(name=TEST_FILE_NAME)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_download_file(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        self.hook.download_file(file_name=TEST_FILE_NAME)
+
+        client_mock.files.download.assert_called_once_with(file=TEST_FILE_NAME)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_list_files(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        self.hook.list_files()
+
+        client_mock.files.list.assert_called_once()
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
+    def test_delete_file(self, mock_get_client):
+        client_mock = mock_get_client.return_value
+        client_mock.files = mock.Mock()
+
+        self.hook.delete_file(file_name=TEST_FILE_NAME)
+
+        client_mock.files.delete.assert_called_once_with(name=TEST_FILE_NAME)
