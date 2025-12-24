@@ -137,7 +137,7 @@ class TaskMap(TaskInstanceDependencies):
     @classmethod
     def expand_mapped_task(
         cls,
-        task: BaseOperator | MappedOperator | SerializedBaseOperator,
+        task: BaseOperator | MappedOperator | SerializedBaseOperator | None,
         run_id: str,
         *,
         session: Session,
