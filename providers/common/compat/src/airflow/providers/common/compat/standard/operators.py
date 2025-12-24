@@ -39,24 +39,30 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
-    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, create_async_executable_runner
+    from airflow.sdk.execution_time.callback_runner import (
+        AsyncExecutionCallableRunner,
+        create_async_executable_runner,
+    )
     from airflow.sdk.types import OutletEventAccessorsProtocol
 elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
-    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, create_async_executable_runner
+    from airflow.sdk.execution_time.callback_runner import (
+        AsyncExecutionCallableRunner,
+        create_async_executable_runner,
+    )
 else:
     import asyncio
     import contextlib
     import inspect
     import logging
-
     from asyncio import AbstractEventLoop
     from collections.abc import AsyncIterator, Awaitable, Callable, Generator
     from contextlib import suppress
     from functools import partial
-    from structlog.typing import FilteringBoundLogger as Logger
     from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
+
+    from structlog.typing import FilteringBoundLogger as Logger
     from typing_extensions import ParamSpec
 
     if AIRFLOW_V_3_0_PLUS:
@@ -133,11 +139,9 @@ else:
 
         return False
 
-
     class _AsyncExecutionCallableRunner(Generic[P, R]):
         @staticmethod
         async def run(*args: P.args, **kwargs: P.kwargs) -> R: ...  # type: ignore[empty-body]
-
 
     class AsyncExecutionCallableRunner(Protocol):
         def __call__(
@@ -147,7 +151,6 @@ else:
             *,
             logger: logging.Logger | Logger,
         ) -> _AsyncExecutionCallableRunner[P, R]: ...
-
 
     def create_async_executable_runner(
         func: Callable[P, Awaitable[R] | AsyncIterator],
@@ -193,7 +196,6 @@ else:
                 return cast("R", results)
 
         return cast("_AsyncExecutionCallableRunner[P, R]", _AsyncExecutionCallableRunnerImpl)
-
 
     class BaseAsyncOperator(BaseOperator):
         """
