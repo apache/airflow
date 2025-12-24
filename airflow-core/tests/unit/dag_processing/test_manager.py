@@ -485,32 +485,32 @@ class TestDagFileProcessorManager:
         manager._files = [test_dag_path]
         manager._file_stats[test_dag_path] = stat
 
-        active_dag_count = session.scalars(
+        active_dag_count = session.scalar(
             select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-        ).all()
-        assert active_dag_count == [1]
+        )
+        assert active_dag_count == 1
 
         manager._scan_stale_dags()
 
-        active_dag_count = session.scalars(
+        active_dag_count = session.scalar(
             select(func.count(DagModel.dag_id)).where(
                 ~DagModel.is_stale,
                 DagModel.relative_fileloc == str(test_dag_path.rel_path),
                 DagModel.bundle_name == test_dag_path.bundle_name,
             )
-        ).all()
-        assert active_dag_count == [0]
+        )
+        assert active_dag_count == 0
 
-        serialized_dag_count = session.scalars(
+        serialized_dag_count = session.scalar(
             select(func.count(SerializedDagModel.dag_id)).where(SerializedDagModel.dag_id == dag.dag_id)
-        ).all()
+        )
         # Deactivating the DagModel should not delete the SerializedDagModel
         # SerializedDagModel gives history about Dags
-        assert serialized_dag_count == [1]
+        assert serialized_dag_count == 1
 
     def test_kill_timed_out_processors_kill(self):
         manager = DagFileProcessorManager(max_runs=1, processor_timeout=5)
