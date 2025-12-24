@@ -258,6 +258,7 @@ class _TimetableSerializer:
             "timezone": encode_timezone(timetable.timezone),
             "interval": encode_interval(timetable.interval),
             "run_immediately": encode_run_immediately(timetable.run_immediately),
+            "partitions": timetable.partitions,
         }
 
     @serialize.register

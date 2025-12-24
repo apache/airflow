@@ -49,7 +49,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag, get_run_data_interval
+from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
@@ -129,6 +129,39 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
     )
 
 
+def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
+    """Build a select statement to retrieve the last automated run for each dag."""
+    # todo: AIP-76 we should add a partition date field
+    latest_run_id = (
+        select(DagRun.id)
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_type.in_(
+                (
+                    DagRunType.BACKFILL_JOB,
+                    DagRunType.SCHEDULED,
+                )
+            ),
+            DagRun.partition_key.is_not(None),
+        )
+        .order_by(DagRun.id.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    return (
+        select(DagRun)
+        .where(DagRun.id == latest_run_id)
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.logical_date,
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+            )
+        )
+    )
+
+
 class _RunInfo(NamedTuple):
     latest_run: DagRun | None
     num_active_runs: int
@@ -141,10 +174,24 @@ class _RunInfo(NamedTuple):
         :param dags: dict of dags to query
         """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
-        if not dag.timetable.can_be_scheduled:
+        timetable = dag.timetable
+        if not timetable.can_be_scheduled:
             return cls(None, 0)
 
-        latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
+        if hasattr(dag.timetable, "partitions"):
+            # todo: AIP-76 improve this detection with subclass
+            latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
+        else:
+            latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
+        if latest_run:
+            log.info(
+                "got latest run",
+                dag_id=dag.dag_id,
+                logical_date=str(latest_run.logical_date),
+                partition_key=latest_run.partition_key,
+            )
+        else:
+            log.info("no latest run found", dag_id=dag.dag_id)
         active_run_counts = DagRun.active_runs_of_dags(
             dag_ids=[dag.dag_id],
             exclude_backfill=True,
@@ -540,14 +587,10 @@ class DagModelOperation(NamedTuple):
             dm.bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_run
-            if last_automated_run is None:
-                last_automated_data_interval = None
-            else:
-                last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
             if run_info.num_active_runs >= dm.max_active_runs:
                 dm.next_dagrun_create_after = None
             else:
-                dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)  # type: ignore[arg-type]
+                dm.calculate_dagrun_date_fields(dag, last_automated_run=last_automated_run)  # type: ignore[arg-type]
 
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
