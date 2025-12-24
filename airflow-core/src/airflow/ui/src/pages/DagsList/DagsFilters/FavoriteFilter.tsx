@@ -43,8 +43,8 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
       onValueChange={onFavoriteChange}
       value={[showFavorites ?? "all"]}
     >
-      <Select.Trigger colorPalette="brand" isActive={Boolean(showFavorites)}>
-        <Select.ValueText width={20} />
+      <Select.Trigger colorPalette="brand" isActive={Boolean(showFavorites)} width="100%">
+        <Select.ValueText />
       </Select.Trigger>
       <Select.Content>
         {enabledOptions.items.map((option) => (
