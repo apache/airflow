@@ -109,7 +109,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,

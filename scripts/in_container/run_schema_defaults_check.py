@@ -60,7 +60,7 @@ def load_schema_defaults(object_type: str = "operator") -> dict[str, Any]:
 def get_server_side_operator_defaults() -> dict[str, Any]:
     """Get default values from server-side SerializedBaseOperator class."""
     try:
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
         # Get all serializable fields
         serialized_fields = SerializedBaseOperator.get_serialized_fields()

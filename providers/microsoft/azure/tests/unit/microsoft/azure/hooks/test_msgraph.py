@@ -21,7 +21,7 @@ import inspect
 from json import JSONDecodeError
 from os.path import dirname
 from typing import TYPE_CHECKING, cast
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Response
@@ -411,6 +411,26 @@ class TestKiotaRequestAdapterHook:
 
             assert isinstance(actual, list)
             assert actual == [users, next_users]
+
+    @pytest.mark.asyncio
+    async def test_build_request_adapter_masks_secrets(self):
+        """Test that sensitive data is masked when building request adapter."""
+        with patch_hook(
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                password="my_secret_password",
+                proxies={"http": "http://user:pass@proxy:3128"},
+            )
+        ):
+            with patch("airflow.providers.microsoft.azure.hooks.msgraph.redact") as mock_redact:
+                mock_redact.side_effect = lambda x, name=None: "***" if x else x
+
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
+
+                assert mock_redact.call_count >= 3
+                mock_redact.assert_any_call({"http": "http://user:pass@proxy:3128"}, name="proxies")
+                mock_redact.assert_any_call("my_secret_password", name="client_secret")
 
 
 class TestResponseHandler:

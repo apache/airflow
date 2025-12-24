@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.logging_config import RemoteLogIO, RemoteLogStreamIO
+    from airflow.logging.remote import RemoteLogIO, RemoteLogStreamIO
 
 LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 

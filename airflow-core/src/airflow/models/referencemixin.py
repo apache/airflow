@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 

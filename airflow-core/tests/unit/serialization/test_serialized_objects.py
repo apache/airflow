@@ -173,7 +173,7 @@ def test_strict_mode():
 
 def test_prevent_re_serialization_of_serialized_operators():
     """SerializedBaseOperator should not be re-serializable."""
-    from airflow.serialization.serialized_objects import BaseSerialization, SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     serialized_op = SerializedBaseOperator(task_id="test_task")
 

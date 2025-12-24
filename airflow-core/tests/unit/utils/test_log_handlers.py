@@ -670,7 +670,7 @@ class TestFileTaskLogHandler:
 
                     import airflow.logging_config
 
-                    airflow.logging_config.REMOTE_TASK_LOG = s3_remote_log_io
+                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
 
                     sources, logs = fth._read_remote_logs(ti, try_number=1)
 

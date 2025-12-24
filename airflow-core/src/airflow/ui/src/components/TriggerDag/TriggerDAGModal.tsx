@@ -17,9 +17,8 @@
  * under the License.
  */
 import { Heading, VStack, HStack, Spinner, Center, Text } from "@chakra-ui/react";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams, useNavigate } from "react-router-dom";
 
 import { useDagServiceGetDag } from "openapi/queries";
 import { Dialog, Tooltip } from "src/components/ui";
@@ -49,11 +48,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   open,
 }) => {
   const { t: translate } = useTranslation("components");
-  const { mode } = useParams();
-  const navigate = useNavigate();
-  const [runMode, setRunMode] = useState<RunMode>(
-    mode === RunMode.BACKFILL ? RunMode.BACKFILL : RunMode.SINGLE,
-  );
+  const [runMode, setRunMode] = useState<RunMode>(RunMode.SINGLE);
   const {
     data: dag,
     isError,
@@ -68,17 +63,6 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     },
   );
 
-  useEffect(() => {
-    if (mode === RunMode.BACKFILL) {
-      setRunMode(RunMode.BACKFILL);
-    } else {
-      setRunMode(RunMode.SINGLE);
-    }
-  }, [mode]);
-  const handleModeChange = (value: string) => {
-    setRunMode(value as RunMode);
-    navigate(`/dags/${dagId}/trigger/${value}`, { replace: true });
-  };
   const hasSchedule = dag?.timetable_summary !== null;
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
@@ -114,10 +98,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
               {dag ? (
                 <RadioCardRoot
                   my={4}
-                  onValueChange={(details) => {
-                    if (details.value !== null) {
-                      handleModeChange(details.value);
-                    }
+                  onChange={(event) => {
+                    setRunMode((event.target as HTMLInputElement).value as RunMode);
                   }}
                   value={runMode}
                 >

@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import State
@@ -36,22 +37,22 @@ def test_runtype_enum_escape(dag_maker, session):
         pass
     dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-    query = session.query(
+    query = select(
         DagRun.dag_id,
         DagRun.state,
         DagRun.run_type,
-    ).filter(
+    ).where(
         DagRun.dag_id == "test_enum_dags",
         # make sure enum value can be used in filter queries
         DagRun.run_type == DagRunType.SCHEDULED,
     )
-    assert str(query.statement.compile(compile_kwargs={"literal_binds": True})) == (
+    rows = session.execute(query).all()
+    assert str(query.compile(compile_kwargs={"literal_binds": True})) == (
         "SELECT dag_run.dag_id, dag_run.state, dag_run.run_type \n"
         "FROM dag_run \n"
         "WHERE dag_run.dag_id = 'test_enum_dags' AND dag_run.run_type = 'scheduled'"
     )
 
-    rows = query.all()
     assert len(rows) == 1
     assert rows[0].dag_id == "test_enum_dags"
     assert rows[0].state == State.RUNNING
