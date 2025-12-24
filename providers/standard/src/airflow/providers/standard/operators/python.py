@@ -48,7 +48,11 @@ from airflow.exceptions import (
 )
 from airflow.models.variable import Variable
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
-from airflow.providers.common.compat.standard.operators import BaseAsyncOperator, is_async_callable
+from airflow.providers.common.compat.standard.operators import (
+    AsyncExecutionCallableRunner,
+    BaseAsyncOperator,
+    is_async_callable,
+)
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
@@ -76,10 +80,7 @@ if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.providers.common.compat.sdk import Context
-    from airflow.sdk.execution_time.callback_runner import (
-        AsyncExecutionCallableRunner,
-        ExecutionCallableRunner,
-    )
+    from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]

@@ -24,8 +24,10 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS, A
 
 _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Re-export from sdk (which handles Airflow 2.x/3.x fallbacks)
+    "AsyncExecutionCallableRunner": "airflow.providers.common.compat.sdk",
     "BaseOperator": "airflow.providers.common.compat.sdk",
     "BaseAsyncOperator": "airflow.providers.common.compat.sdk",
+    "create_async_executable_runner": "airflow.providers.common.compat.sdk",
     "get_current_context": "airflow.providers.common.compat.sdk",
     "is_async_callable": "airflow.providers.common.compat.sdk",
     # Standard provider items with direct fallbacks
@@ -37,22 +39,39 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
+    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, create_async_executable_runner
+    from airflow.sdk.types import OutletEventAccessorsProtocol
 elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
+    from airflow.sdk.execution_time.callback_runner import AsyncExecutionCallableRunner, create_async_executable_runner
 else:
     import asyncio
     import contextlib
     import inspect
+    import logging
+
     from asyncio import AbstractEventLoop
-    from collections.abc import Generator
+    from collections.abc import AsyncIterator, Awaitable, Callable, Generator
     from contextlib import suppress
     from functools import partial
+    from structlog.typing import FilteringBoundLogger as Logger
+    from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
+    from typing_extensions import ParamSpec
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
+        from airflow.sdk.bases.decorator import _TaskDecorator
+        from airflow.sdk.definitions.asset.metadata import Metadata
+        from airflow.sdk.definitions.mappedoperator import OperatorPartial
     else:
+        from airflow.assets import Metadata
+        from airflow.decorators.base import _TaskDecorator
         from airflow.models import BaseOperator
+        from airflow.models.mappedoperator import OperatorPartial
+
+    P = ParamSpec("P")
+    R = TypeVar("R")
 
     @contextlib.contextmanager
     def event_loop() -> Generator[AbstractEventLoop]:
@@ -80,9 +99,6 @@ else:
         return fn
 
     def unwrap_callable(func):
-        from airflow.sdk.bases.decorator import _TaskDecorator
-        from airflow.sdk.definitions.mappedoperator import OperatorPartial
-
         # Airflow-specific unwrap
         if isinstance(func, (_TaskDecorator, OperatorPartial)):
             func = getattr(func, "function", getattr(func, "_func", func))
@@ -116,6 +132,68 @@ else:
                 return True
 
         return False
+
+
+    class _AsyncExecutionCallableRunner(Generic[P, R]):
+        @staticmethod
+        async def run(*args: P.args, **kwargs: P.kwargs) -> R: ...  # type: ignore[empty-body]
+
+
+    class AsyncExecutionCallableRunner(Protocol):
+        def __call__(
+            self,
+            func: Callable[P, R],
+            outlet_events: OutletEventAccessorsProtocol,
+            *,
+            logger: logging.Logger | Logger,
+        ) -> _AsyncExecutionCallableRunner[P, R]: ...
+
+
+    def create_async_executable_runner(
+        func: Callable[P, Awaitable[R] | AsyncIterator],
+        outlet_events: OutletEventAccessorsProtocol,
+        *,
+        logger: logging.Logger | logging.Logger,
+    ) -> _AsyncExecutionCallableRunner[P, R]:
+        """
+        Run an async execution callable against a task context and given arguments.
+
+        If the callable is a simple function, this simply calls it with the supplied
+        arguments (including the context). If the callable is a generator function,
+        the generator is exhausted here, with the yielded values getting fed back
+        into the task context automatically for execution.
+
+        This convoluted implementation of inner class with closure is so *all*
+        arguments passed to ``run()`` can be forwarded to the wrapped function. This
+        is particularly important for the argument "self", which some use cases
+        need to receive. This is not possible if this is implemented as a normal
+        class, where "self" needs to point to the runner object, not the object
+        bounded to the inner callable.
+
+        :meta private:
+        """
+
+        class _AsyncExecutionCallableRunnerImpl(_AsyncExecutionCallableRunner):
+            @staticmethod
+            async def run(*args: P.args, **kwargs: P.kwargs) -> R:
+                if not inspect.isasyncgenfunction(func):
+                    result = cast("Awaitable[R]", func(*args, **kwargs))
+                    return await result
+
+                results: list[Any] = []
+
+                async for result in func(*args, **kwargs):
+                    if isinstance(result, Metadata):
+                        outlet_events[result.asset].extra.update(result.extra)
+                        if result.alias:
+                            outlet_events[result.alias].add(result.asset, extra=result.extra)
+
+                    results.append(result)
+
+                return cast("R", results)
+
+        return cast("_AsyncExecutionCallableRunner[P, R]", _AsyncExecutionCallableRunnerImpl)
+
 
     class BaseAsyncOperator(BaseOperator):
         """
