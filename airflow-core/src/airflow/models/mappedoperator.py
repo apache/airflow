@@ -478,7 +478,7 @@ class MappedOperator(DAGNode):
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
-        from airflow.models.xcom_arg import SchedulerXComArg
+        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
         for op, _ in SchedulerXComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield op
