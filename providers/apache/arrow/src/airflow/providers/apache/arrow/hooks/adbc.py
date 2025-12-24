@@ -166,7 +166,7 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def dialect_name(self) -> str:
-        return self.connection_extra_lower["dialect"]
+        return self.connection_extra_lower.get("dialect", "default")
 
     def get_conn(self) -> Connection:
         return connect(
