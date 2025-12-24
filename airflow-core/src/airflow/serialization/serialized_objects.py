@@ -48,7 +48,6 @@ from airflow.exceptions import AirflowException, DeserializationError, Serializa
 from airflow.models.connection import Connection
 from airflow.models.expandinput import create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.xcom import XComModel
 from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
@@ -76,6 +75,7 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.node import DAGNode
+from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.encoders import (
@@ -100,8 +100,6 @@ from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -2361,48 +2359,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         return ", ".join(
             set(filter(None, (task[Encoding.VAR].get("owner") for task in self.data["dag"]["tasks"])))
         )
-
-
-@attrs.define()
-class XComOperatorLink(LoggingMixin):
-    """
-    Generic operator link class that can retrieve link only using XCOMs.
-
-    Used while deserializing operators.
-    """
-
-    name: str
-    xcom_key: str
-
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        """
-        Retrieve the link from the XComs.
-
-        :param operator: The Airflow operator object this link is associated to.
-        :param ti_key: TaskInstance ID to return link for.
-        :return: link to external system, but by pulling it from XComs
-        """
-        self.log.info(
-            "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
-        )
-        with create_session() as session:
-            value = session.execute(
-                XComModel.get_many(
-                    key=self.xcom_key,
-                    run_id=ti_key.run_id,
-                    dag_ids=ti_key.dag_id,
-                    task_ids=ti_key.task_id,
-                    map_indexes=ti_key.map_index,
-                ).with_only_columns(XComModel.value)
-            ).first()
-        if not value:
-            self.log.debug(
-                "No link with name: %s present in XCom as key: %s, returning empty link",
-                self.name,
-                self.xcom_key,
-            )
-            return ""
-        return XComModel.deserialize_value(value)
 
 
 @overload

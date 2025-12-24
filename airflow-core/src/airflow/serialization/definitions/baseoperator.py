@@ -42,8 +42,8 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import Context
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
-    from airflow.serialization.serialized_objects import XComOperatorLink
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
