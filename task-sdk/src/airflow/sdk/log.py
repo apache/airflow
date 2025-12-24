@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-__all__ = ["configure_logging", "reset_logging", "mask_secret"]
+from airflow.sdk._shared.secrets_masker import redact
 
 
 class _WarningsInterceptor:
@@ -64,8 +64,6 @@ class _WarningsInterceptor:
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    from airflow.sdk._shared.secrets_masker import redact
-
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict
 
