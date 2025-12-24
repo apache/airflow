@@ -35,7 +35,8 @@ __all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
 
 if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.typing_compat import Self
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -71,7 +72,7 @@ class SchedulerXComArg:
         collection objects, and instances with ``template_fields`` set.
         """
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
         if isinstance(arg, ReferenceMixin):
             yield from arg.iter_references()

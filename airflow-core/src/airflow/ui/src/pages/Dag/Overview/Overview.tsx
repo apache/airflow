@@ -20,13 +20,12 @@ import { Box, HStack, Skeleton } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { lazy, useState, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import {
   useAssetServiceGetAssetEvents,
   useDagRunServiceGetDagRuns,
-  useDagServiceGetDag,
   useTaskInstanceServiceGetTaskInstances,
 } from "openapi/queries";
 import { AssetEvents } from "src/components/Assets/AssetEvents";
@@ -34,7 +33,6 @@ import { DurationChart } from "src/components/DurationChart";
 import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
-import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 
@@ -44,10 +42,7 @@ const defaultHour = "24";
 
 export const Overview = () => {
   const { t: translate } = useTranslation("dag");
-  const { dagId, mode } = useParams();
-  const navigate = useNavigate();
-
-  const { data: dagData } = useDagServiceGetDag({ dagId: dagId ?? "" });
+  const { dagId } = useParams();
 
   const now = dayjs();
   const [startDate, setStartDate] = useState(now.subtract(Number(defaultHour), "hour").toISOString());
@@ -145,16 +140,6 @@ export const Overview = () => {
       <Suspense fallback={<Skeleton height="100px" width="full" />}>
         <FailedLogs failedTasks={failedTasks} />
       </Suspense>
-
-      {dagData ? (
-        <TriggerDAGModal
-          dagDisplayName={dagData.dag_display_name}
-          dagId={dagData.dag_id}
-          isPaused={dagData.is_paused}
-          onClose={() => navigate(`/dags/${dagId}`)}
-          open={Boolean(mode)}
-        />
-      ) : null}
     </Box>
   );
 };
