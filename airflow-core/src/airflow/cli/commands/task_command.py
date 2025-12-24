@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
     Operator = MappedOperator | SerializedBaseOperator

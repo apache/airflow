@@ -62,14 +62,13 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.events import EventsTimetable
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
@@ -271,8 +270,8 @@ def test_get_fully_qualified_class_name_serialized_operator():
     op_path_before_serialization = get_fully_qualified_class_name(op)
     assert op_path_before_serialization == f"{op_module_path}.{op_name}"
 
-    serialized = SerializedBaseOperator.serialize_operator(op)
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    serialized = OperatorSerialization.serialize_operator(op)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
 
     op_path_after_deserialization = get_fully_qualified_class_name(deserialized)
     assert op_path_after_deserialization == f"{op_module_path}.{op_name}"
@@ -406,8 +405,8 @@ def test_get_task_documentation_serialized_operator():
     op_doc_before_serialization = get_task_documentation(op)
     assert op_doc_before_serialization == ("some_doc", "text/plain")
 
-    serialized = SerializedBaseOperator.serialize_operator(op)
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    serialized = OperatorSerialization.serialize_operator(op)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
 
     op_doc_after_deserialization = get_task_documentation(deserialized)
     assert op_doc_after_deserialization == ("some_doc", "text/plain")
