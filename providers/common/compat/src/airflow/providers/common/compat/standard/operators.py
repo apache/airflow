@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         create_async_executable_runner,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
+    from structlog.typing import FilteringBoundLogger as Logger
 elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
@@ -62,7 +63,6 @@ else:
     from functools import partial
     from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 
-    from structlog.typing import FilteringBoundLogger as Logger
     from typing_extensions import ParamSpec
 
     if AIRFLOW_V_3_0_PLUS:
