@@ -150,7 +150,7 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def driver(self) -> str:
-        return f"adbc_driver_{self.dialect_name}"
+        return self.connection_extra_lower.get("driver") or f"adbc_driver_{self.dialect_name}"
 
     @cached_property
     def entrypoint(self) -> str | None:
