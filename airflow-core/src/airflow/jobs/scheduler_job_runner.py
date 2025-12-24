@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -2188,7 +2188,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
-                dag_run = session.scalar(
+                dag_run_reloaded = session.scalar(
                     select(DagRun)
                     .where(DagRun.id == dag_run.id)
                     .options(
@@ -2196,6 +2196,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     )
                 )
+                if dag_run_reloaded is None:
+                    # This should never happen since we just had the dag_run
+                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                    return None
+                dag_run = dag_run_reloaded
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc or "",
                     dag_id=dag.dag_id,

@@ -28,7 +28,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
 from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import attrs
@@ -115,9 +115,9 @@ if TYPE_CHECKING:
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.utils.context import Context
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
@@ -2332,10 +2332,7 @@ def find_relevant_relatives(
                 # Treat it as a normal task instead.
                 _visit_relevant_relatives_for_normal([task_id])
                 continue
-            # TODO (GH-52141): This should return scheduler operator types, but
-            # currently get_flat_relatives is inherited from SDK DAGNode.
-            relatives = cast("Iterable[Operator]", task.get_flat_relatives(upstream=direction == "upstream"))
-            for relative in relatives:
+            for relative in task.get_flat_relatives(upstream=direction == "upstream"):
                 if relative.task_id in visited:
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(
