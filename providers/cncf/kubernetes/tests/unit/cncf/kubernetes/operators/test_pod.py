@@ -443,6 +443,40 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
         }
 
+    def test_base_container_name_annotation_default(self):
+        """Test that base container name annotation is added with default value."""
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.metadata.annotations is not None
+        assert pod.metadata.annotations[KubernetesPodOperator.BASE_CONTAINER_NAME_ANNOTATION_KEY] == "base"
+
+    def test_base_container_name_annotation_custom(self):
+        """Test that base container name annotation is added with custom value."""
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            base_container_name="custom-container",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.metadata.annotations is not None
+        assert pod.metadata.annotations[KubernetesPodOperator.BASE_CONTAINER_NAME_ANNOTATION_KEY] == "custom-container"
+
+    def test_base_container_name_annotation_with_existing_annotations(self):
+        """Test that base container name annotation is added even when annotations already exist."""
+        k = KubernetesPodOperator(
+            name="test",
+            task_id="task",
+            annotations={"existing": "annotation"},
+            base_container_name="my-container",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.metadata.annotations is not None
+        assert pod.metadata.annotations["existing"] == "annotation"
+        assert pod.metadata.annotations[KubernetesPodOperator.BASE_CONTAINER_NAME_ANNOTATION_KEY] == "my-container"
+
     def test_find_custom_pod_labels(self):
         k = KubernetesPodOperator(
             labels={"foo": "bar", "hello": "airflow"},
