@@ -162,7 +162,7 @@ class OpenLineageAdapter(LoggingMixin):
         try:
             with ExitStack() as stack:
                 try:
-                    from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+                    from airflow.observability.metrics.dual_stats_manager import DualStatsManager
 
                     stack.enter_context(
                         DualStatsManager.timer(

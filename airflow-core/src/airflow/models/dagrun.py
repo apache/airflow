@@ -56,7 +56,6 @@ from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
-from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -69,6 +68,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
+from airflow.observability.metrics.dual_stats_manager import DualStatsManager
 from airflow.observability.stats import Stats
 from airflow.observability.trace import Trace
 from airflow.sdk.definitions.deadline import DeadlineReference

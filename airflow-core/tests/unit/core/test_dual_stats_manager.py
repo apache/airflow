@@ -272,7 +272,7 @@ class TestDualStatsManager:
         raises_value_error: bool,
         expected_error_msg: str,
     ):
-        from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+        from airflow.observability.metrics.dual_stats_manager import DualStatsManager
 
         manager = DualStatsManager()
 
