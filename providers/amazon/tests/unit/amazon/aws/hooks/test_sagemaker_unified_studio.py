@@ -199,3 +199,138 @@ class TestSageMakerNotebookHook:
     def test_set_xcom_s3_path_negative_missing_context(self):
         with pytest.raises(AirflowException, match="context is required"):
             self.hook._set_xcom_s3_path(self.s3Path, {})
+
+    def test_start_notebook_execution_default_compute(self):
+        """Test that default compute uses ml.m6i.xlarge instance type."""
+        hook_without_compute = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            output_config={"output_formats": ["NOTEBOOK"]},
+            execution_name="test-execution",
+            waiter_delay=10,
+        )
+        hook_without_compute._sagemaker_studio = MagicMock()
+        hook_without_compute._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_without_compute._sagemaker_studio.execution_client.start_execution.return_value = {
+            "executionId": "123456"
+        }
+
+        hook_without_compute.start_notebook_execution()
+
+        call_kwargs = hook_without_compute._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["compute"] == {"instance_type": "ml.m6i.xlarge"}
+
+    def test_start_notebook_execution_custom_compute(self):
+        """Test that custom compute config is used when provided."""
+        custom_compute = {"instance_type": "ml.c5.xlarge", "volume_size_in_gb": 50}
+        hook_with_compute = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            output_config={"output_formats": ["NOTEBOOK"]},
+            execution_name="test-execution",
+            waiter_delay=10,
+            compute=custom_compute,
+        )
+        hook_with_compute._sagemaker_studio = MagicMock()
+        hook_with_compute._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_with_compute._sagemaker_studio.execution_client.start_execution.return_value = {
+            "executionId": "123456"
+        }
+
+        hook_with_compute.start_notebook_execution()
+
+        call_kwargs = hook_with_compute._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["compute"] == custom_compute
+
+    def test_start_notebook_execution_params(self):
+        """Test that start_notebook_execution passes correct parameters."""
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio.execution_client.start_execution.return_value = {"executionId": "123456"}
+
+        self.hook.start_notebook_execution()
+
+        call_kwargs = self.hook._sagemaker_studio.execution_client.start_execution.call_args[1]
+        assert call_kwargs["execution_name"] == "test-execution"
+        assert call_kwargs["execution_type"] == "NOTEBOOK"
+        assert call_kwargs["input_config"] == {
+            "notebook_config": {
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_parameters": {"key": "value"},
+            }
+        }
+        assert call_kwargs["output_config"] == {"notebook_config": {"output_formats": ["NOTEBOOK"]}}
+        assert call_kwargs["compute"] == {"instance_type": "ml.c4.2xlarge"}
+
+    @patch("time.sleep", return_value=None)
+    def test_wait_for_execution_completion_timeout(self, mock_sleep):
+        """Test that wait_for_execution_completion raises exception on timeout."""
+        execution_id = "123456"
+        hook_with_low_attempts = SageMakerNotebookHook(
+            input_config={
+                "input_path": "test-data/notebook/test_notebook.ipynb",
+                "input_params": {"key": "value"},
+            },
+            execution_name="test-execution",
+            waiter_delay=1,
+            waiter_max_attempts=1,
+        )
+        hook_with_low_attempts._sagemaker_studio = MagicMock()
+        hook_with_low_attempts._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        hook_with_low_attempts._sagemaker_studio.execution_client.get_execution.return_value = {
+            "status": "IN_PROGRESS"
+        }
+
+        with pytest.raises(AirflowException, match="Execution timed out"):
+            hook_with_low_attempts.wait_for_execution_completion(execution_id, self.context)
+
+    @patch("time.sleep", return_value=None)
+    def test_wait_for_execution_completion_with_files(self, mock_sleep):
+        """Test that wait_for_execution_completion sets xcom files when present."""
+        execution_id = "123456"
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {
+            "status": "COMPLETED",
+            "files": [
+                {"display_name": "output", "file_format": "ipynb", "file_path": "s3://bucket/output.ipynb"}
+            ],
+        }
+
+        result = self.hook.wait_for_execution_completion(execution_id, self.context)
+
+        assert result == {"Status": "COMPLETED", "ExecutionId": execution_id}
+        self.context["ti"].xcom_push.assert_called()
+
+    @patch("time.sleep", return_value=None)
+    def test_wait_for_execution_completion_with_s3_path(self, mock_sleep):
+        """Test that wait_for_execution_completion sets xcom s3_path when present."""
+        execution_id = "123456"
+        self.hook._sagemaker_studio = MagicMock()
+        self.hook._sagemaker_studio.execution_client = MagicMock(spec=ExecutionClient)
+        self.hook._sagemaker_studio.execution_client.get_execution.return_value = {
+            "status": "COMPLETED",
+            "s3_path": "s3://bucket/path",
+        }
+
+        result = self.hook.wait_for_execution_completion(execution_id, self.context)
+
+        assert result == {"Status": "COMPLETED", "ExecutionId": execution_id}
+        self.context["ti"].xcom_push.assert_called_with(key="s3_path", value="s3://bucket/path")
+
+    def test_hook_initialization_defaults(self):
+        """Test hook initialization with default values."""
+        hook = SageMakerNotebookHook(
+            input_config={"input_path": "notebook.ipynb"},
+            execution_name="test",
+        )
+        assert hook.output_config == {"output_formats": ["NOTEBOOK"]}
+        assert hook.termination_condition == {}
+        assert hook.tags == {}
+        assert hook.waiter_delay == 10
+        assert hook.waiter_max_attempts == 1440
+        assert hook.compute is None
