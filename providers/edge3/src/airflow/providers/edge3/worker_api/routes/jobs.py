@@ -87,7 +87,7 @@ def fetch(
     # Edge worker does not backport emitted Airflow metrics, so export some metrics
     tags = {"dag_id": job.dag_id, "task_id": job.task_id, "queue": job.queue}
     try:
-        from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+        from airflow.observability.metrics.dual_stats_manager import DualStatsManager
 
         DualStatsManager.incr("edge_worker.ti.start", tags=tags)
     except ImportError:
@@ -146,7 +146,7 @@ def state(
                 "state": str(state),
             }
             try:
-                from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+                from airflow.observability.metrics.dual_stats_manager import DualStatsManager
 
                 DualStatsManager.incr(
                     "edge_worker.ti.finish",

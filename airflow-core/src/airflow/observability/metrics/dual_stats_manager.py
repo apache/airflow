@@ -20,13 +20,12 @@ from __future__ import annotations
 from contextlib import AbstractContextManager, ExitStack, nullcontext
 from typing import TYPE_CHECKING, Any, cast
 
+from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
 from airflow.configuration import conf
 from airflow.observability.stats import Stats
 
-from .metrics_registry import MetricsRegistry
-
 if TYPE_CHECKING:
-    from .protocols import DeltaType
+    from airflow._shared.observability.metrics.protocols import DeltaType
 
 
 def _value_is_provided(value: Any):
