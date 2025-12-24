@@ -48,7 +48,14 @@ dag = DAG(
     tags=["example", "hbase"],
 )
 
-# [START howto_operator_hbase_create_table]
+# Delete table if exists for idempotency
+delete_table_cleanup = HBaseDeleteTableOperator(
+    task_id="delete_table_cleanup",
+    table_name="test_table",
+    hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
+    dag=dag,
+)
+
 # Note: "hbase_thrift" is the Connection ID configured in Airflow UI (Admin -> Connections)
 create_table = HBaseCreateTableOperator(
     task_id="create_table",
@@ -60,9 +67,7 @@ create_table = HBaseCreateTableOperator(
     hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
-# [END howto_operator_hbase_create_table]
 
-# [START howto_sensor_hbase_table]
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
     table_name="test_table",
@@ -71,9 +76,7 @@ check_table = HBaseTableSensor(
     poke_interval=10,
     dag=dag,
 )
-# [END howto_sensor_hbase_table]
 
-# [START howto_operator_hbase_put]
 put_data = HBasePutOperator(
     task_id="put_data",
     table_name="test_table",
@@ -86,9 +89,7 @@ put_data = HBasePutOperator(
     hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
-# [END howto_operator_hbase_put]
 
-# [START howto_sensor_hbase_row]
 check_row = HBaseRowSensor(
     task_id="check_row_exists",
     table_name="test_table",
@@ -98,16 +99,13 @@ check_row = HBaseRowSensor(
     poke_interval=10,
     dag=dag,
 )
-# [END howto_sensor_hbase_row]
 
-# [START howto_operator_hbase_delete_table]
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="test_table",
     hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     dag=dag,
 )
-# [END howto_operator_hbase_delete_table]
 
 # Set dependencies
-create_table >> check_table >> put_data >> check_row >> delete_table
+delete_table_cleanup >> create_table >> check_table >> put_data >> check_row >> delete_table
