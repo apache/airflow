@@ -129,7 +129,7 @@ class TIDeferredStatePayload(StrictBaseModel):
         ),
     ]
     classpath: str
-    trigger_kwargs: Annotated[JsonValue | str, Field(default_factory=dict)]
+    trigger_kwargs: Annotated[dict[str, JsonValue] | str, Field(default_factory=dict)]
     """
     Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
 
@@ -139,7 +139,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     trigger_timeout: timedelta | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[JsonValue, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
