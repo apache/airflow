@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from fastapi import FastAPI, HTTPException, status
+from sqlalchemy import delete
 
 from airflow.models.connection import Connection
 
@@ -86,6 +87,28 @@ class TestGetConnection:
         session.delete(connection)
         session.commit()
 
+    def test_connection_get_with_percent_encoded_slash(self, client, session):
+        session.execute(delete(Connection).where(Connection.conn_id == "dev-env/project-name"))
+        session.commit()
+        conn_with_slash = Connection(
+            conn_id="dev-env/project-name",
+            conn_type="http",
+            host="airflow.apache.org",
+            login="user",
+            password="password",
+        )
+
+        session.add(conn_with_slash)
+        session.commit()
+
+        response = client.get("/execution/connections/dev-env%2Fproject-name")
+
+        assert response.status_code == 200
+        assert response.json()["conn_id"] == "dev-env/project-name"
+
+        session.delete(conn_with_slash)
+        session.commit()
+
     @mock.patch.dict(
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
@@ -113,6 +136,28 @@ class TestGetConnection:
             "detail": {
                 "message": "Connection with ID non_existent_test_conn not found",
                 "reason": "not_found",
+            }
+        }
+
+    def test_connection_get_missing_conn_type(self, client, monkeypatch):
+        connection = Connection(conn_id="missing_type", host="example.com")
+
+        def fake_get_connection(cls, conn_id):
+            assert conn_id == "missing_type"
+            return connection
+
+        monkeypatch.setattr(Connection, "get_connection_from_secrets", classmethod(fake_get_connection))
+
+        response = client.get("/execution/connections/missing_type")
+
+        assert response.status_code == 422
+        assert response.json() == {
+            "detail": {
+                "reason": "missing_conn_type",
+                "message": (
+                    "Connection with ID missing_type is missing `conn_type`. Define it on the connection or "
+                    "secret so the Execution API can return it to tasks."
+                ),
             }
         }
 
