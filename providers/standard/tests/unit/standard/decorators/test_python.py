@@ -44,7 +44,7 @@ if AIRFLOW_V_3_0_PLUS:
         task as task_decorator,
         teardown,
     )
-    from airflow.sdk.bases.decorator import DecoratedMappedOperator
+    from airflow.sdk.bases.decorator import DecoratedMappedOperator, _TaskDecorator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
     from airflow.sdk.definitions.mappedoperator import MappedOperator
 else:
@@ -53,7 +53,7 @@ else:
         task as task_decorator,
         teardown,
     )
-    from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
+    from airflow.decorators.base import DecoratedMappedOperator, _TaskDecorator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput
@@ -1147,7 +1147,6 @@ async def async_fn():
 
 def test_python_task():
     from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
-    from airflow.sdk.bases.decorator import _TaskDecorator
 
     decorator = python_task(async_fn)
 
