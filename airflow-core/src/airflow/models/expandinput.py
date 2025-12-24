@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.xcom_arg import SchedulerXComArg
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
