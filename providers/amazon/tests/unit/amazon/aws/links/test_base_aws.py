@@ -24,8 +24,8 @@ import pytest
 
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.providers.common.compat.sdk import XCom
-from airflow.serialization.serialized_objects import SerializedDAG
 
+from tests_common.test_utils.compat import DagSerialization
 from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
@@ -197,7 +197,7 @@ class BaseAwsLinksTestCase:
         """Test: Operator links should exist for serialized DAG."""
         self.create_op_and_ti(self.link_class, dag_id="test_link_serialize", task_id=self.task_id)
         serialized_dag = self.dag_maker.get_serialized_data()
-        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
         operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
         error_message = "Operator links should exist for serialized DAG"
         assert operator_extra_link.name == self.link_class.name, error_message
@@ -209,7 +209,7 @@ class BaseAwsLinksTestCase:
         ).task_instance
 
         serialized_dag = self.dag_maker.get_serialized_data()
-        deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+        deserialized_dag = DagSerialization.from_dict(serialized_dag)
         deserialized_task = deserialized_dag.task_dict[self.task_id]
 
         assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == "", (

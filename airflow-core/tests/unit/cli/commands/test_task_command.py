@@ -43,7 +43,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -354,7 +354,7 @@ class TestCliTasks:
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
 
         task2 = dag2.get_task(task_id="print_the_context")
-        dag2 = SerializedDAG.from_dict(lazy_deserialized_dag2.data)
+        dag2 = DagSerialization.from_dict(lazy_deserialized_dag2.data)
 
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()

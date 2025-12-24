@@ -42,7 +42,7 @@ class Log(Base):
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    event: Mapped[str] = mapped_column(String(60))
+    event: Mapped[str] = mapped_column(String(60), nullable=False)
     logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     owner: Mapped[str | None] = mapped_column(String(500), nullable=True)
