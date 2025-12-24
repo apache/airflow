@@ -1129,9 +1129,21 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            "trigger_kwargs": serialize(
-                {"key": "value", "moment": datetime(2024, 12, 18, 0, 0, 1, tzinfo=timezone.utc)}
-            ),
+            "trigger_kwargs": {
+                "key": "value",
+                "moment": {
+                    "__classname__": "datetime.datetime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1734480001.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+            },
             "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
