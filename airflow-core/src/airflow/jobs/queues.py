@@ -140,7 +140,7 @@ class KeyedHeadQueue(Generic[K, KV]):
             return [key for key in self.__map.keys() if key not in self.__popped_keys]
 
 
-class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[V]]):
+class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[tuple[K, V]]]):
     """
     Dict-like container where each key maps to an asyncio.Queue.
 
@@ -170,7 +170,7 @@ class PartitionedQueue(Generic[K, V], defaultdict[K, Queue[V]]):
                 self._sizes[key] += 1
                 self._total_size += 1
 
-    def popleft(self) -> V:
+    def popleft(self) -> tuple[K, V]:
         """Pop an item from the first non-empty queue synchronously (non-blocking) using thread lock."""
         for key, queue in list(self.items()):
             with self._locks[key]:
