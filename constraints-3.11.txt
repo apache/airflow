@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-23T15:51:56.733329
+# This constraints file was automatically generated on 2025-12-24T04:07:13.660684
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -75,7 +75,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.0.0
-aiosqlite==0.21.0
+aiosqlite==0.22.1
 airbyte-api==0.53.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.7.0
@@ -541,7 +541,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
 protobuf==4.25.8
-psutil==7.1.3
+psutil==7.2.0
 psycopg2-binary==2.9.11
 ptyprocess==0.7.0
 pure-sasl==0.6.2
