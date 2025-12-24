@@ -194,8 +194,11 @@ class InconsistentDataInterval(AirflowException):
     """
 
     _template = (
-        "Inconsistent {cls}: {start[0]}={start[1]!r}, {end[0]}={end[1]!r}, "
-        "they must be either both None or both datetime"
+        "Inconsistent {cls} data interval detected: "
+        "{start[0]}={start[1]!r}, {end[0]}={end[1]!r}. "
+        "Both fields must be either None (pre-AIP-39 runs) or datetime. "
+        "This can occur due to mixed DAG run metadata or an invalid timetable "
+        "configuration."
     )
 
     def __init__(self, instance: Any, start_field_name: str, end_field_name: str) -> None:
