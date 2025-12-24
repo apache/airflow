@@ -37,6 +37,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
 }
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
     from airflow.sdk.execution_time.callback_runner import (
@@ -44,7 +46,6 @@ if TYPE_CHECKING:
         create_async_executable_runner,
     )
     from airflow.sdk.types import OutletEventAccessorsProtocol
-    from structlog.typing import FilteringBoundLogger as Logger
 elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
