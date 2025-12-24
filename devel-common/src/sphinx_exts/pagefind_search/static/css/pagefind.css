@@ -157,12 +157,12 @@
 
 .search-modal__result-item:hover,
 .search-modal__result-item--selected {
-  background: #f8f9fa;
+  background: #e9ecef;
 }
 
 [data-bs-theme="dark"] .search-modal__result-item:hover,
 [data-bs-theme="dark"] .search-modal__result-item--selected {
-  background: #21262d;
+  background: #30363d;
 }
 
 .search-modal__result-icon {

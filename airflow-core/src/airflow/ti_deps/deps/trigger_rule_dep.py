@@ -37,8 +37,8 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
@@ -620,12 +620,7 @@ class TriggerRuleDep(BaseTIDep):
 
         if not task.is_teardown:
             # a teardown cannot have any indirect setups
-            relevant_setups: dict[str, MappedOperator | SerializedBaseOperator] = {
-                # TODO (GH-52141): This should return scheduler types, but
-                # currently we reuse logic in SDK DAGNode.
-                t.task_id: t  # type: ignore[misc]
-                for t in task.get_upstreams_only_setups()
-            }
+            relevant_setups = {t.task_id: t for t in task.get_upstreams_only_setups()}
             if relevant_setups:
                 for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
                     yield status

@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.bases.operator import BaseOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 class TaskMapVariant(enum.Enum):
@@ -152,7 +152,7 @@ class TaskMap(TaskInstanceDependencies):
         from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.mappedoperator import MappedOperator, get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
         from airflow.settings import task_instance_mutation_hook
 
         if not isinstance(task, (MappedOperator, SerializedBaseOperator)):

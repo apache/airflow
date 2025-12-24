@@ -61,6 +61,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetHITLDetailResponse,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -271,6 +272,7 @@ ToTriggerSupervisor = Annotated[
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
+    | GetPreviousTI
     | GetHITLDetailResponse
     | UpdateHITLDetail
     | MaskSecret,
@@ -508,6 +510,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         elif isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
