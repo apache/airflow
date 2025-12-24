@@ -583,7 +583,8 @@ class TestTIRunState:
         ti.next_method = "execute_complete"
         # explicitly serialize using serde before assigning since we use JSON/JSONB now
         # this value comes serde serialized from the worker
-        ti.next_kwargs = serialize({"moment": instant})
+        expected_next_kwargs = serialize({"moment": instant})
+        ti.next_kwargs = expected_next_kwargs
 
         session.commit()
 
@@ -609,10 +610,7 @@ class TestTIRunState:
             "connections": [],
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
-            "next_kwargs": {
-                "__type": "dict",
-                "__var": {"moment": {"__type": "datetime", "__var": 1727697600.0}},
-            },
+            "next_kwargs": expected_next_kwargs,
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -640,10 +638,10 @@ class TestTIRunState:
         # explicitly serialize using serde before assigning since we use JSON/JSONB now
         # this value comes serde serialized from the worker
         if resume:
-            ti.next_kwargs = serialize({"moment": second_start_time})
-            expected_start_date = orig_task_start_time
             # expected format is now in serde serialized format
             expected_next_kwargs = serialize({"moment": second_start_time})
+            ti.next_kwargs = expected_next_kwargs
+            expected_start_date = orig_task_start_time
         else:
             expected_start_date = second_start_time
             expected_next_kwargs = None
