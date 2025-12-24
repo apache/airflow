@@ -74,8 +74,6 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
-.. autoapiclass:: airflow.sdk.XComArg
-
 .. autoapiclass:: airflow.sdk.PokeReturnValue
 
 .. autoapiclass:: airflow.sdk.BaseHook
@@ -90,13 +88,19 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
-.. autoapifunction:: airflow.sdk.get_current_context
+.. autoapiclass:: airflow.sdk.XComArg
 
-.. autoapifunction:: airflow.sdk.get_parsing_context
+.. autoapifunction:: airflow.sdk.literal
 
 .. autoapiclass:: airflow.sdk.Param
 
+.. autoclass:: airflow.sdk.ParamsDict
+
 .. autoclass:: airflow.sdk.TriggerRule
+
+.. autoapifunction:: airflow.sdk.get_current_context
+
+.. autoapifunction:: airflow.sdk.get_parsing_context
 
 State Enums
 -----------
@@ -113,8 +117,6 @@ Setting Dependencies
 .. autoapifunction:: airflow.sdk.chain_linear
 
 .. autoapifunction:: airflow.sdk.cross_downstream
-
-.. autoapifunction:: airflow.sdk.literal
 
 Edges & Labels
 ~~~~~~~~~~~~~~
