@@ -118,7 +118,6 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
 
