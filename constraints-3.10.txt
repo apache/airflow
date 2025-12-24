@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-22T21:55:08.830885
+# This constraints file was automatically generated on 2025-12-24T20:31:01.609171
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -75,7 +75,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.0.0
-aiosqlite==0.21.0
+aiosqlite==0.22.1
 airbyte-api==0.53.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.7.0
@@ -294,7 +294,7 @@ docstring_parser==0.17.0
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
-elasticsearch==8.19.2
+elasticsearch==8.19.3
 email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
@@ -378,7 +378,7 @@ google-genai==1.56.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
-greenback==1.2.1
+greenback==1.3.0
 greenlet==3.3.0
 gremlinpython==3.8.0
 grpc-google-iam-v1==0.14.3
@@ -415,7 +415,7 @@ ipython==8.37.0
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.0.1
+jaraco.context==6.0.2
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
@@ -459,7 +459,7 @@ microsoft-kiota-authentication-azure==1.9.7
 microsoft-kiota-http==1.9.7
 microsoft-kiota-serialization-json==1.9.7
 microsoft-kiota-serialization-text==1.9.7
-mistune==3.1.4
+mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
 msal-extensions==1.3.1
@@ -476,7 +476,7 @@ mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
 mysqlclient==2.2.7
 natsort==8.4.0
-nbclient==0.10.3
+nbclient==0.10.4
 nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==6.0.3
@@ -538,7 +538,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
 protobuf==4.25.8
-psutil==7.1.3
+psutil==7.2.0
 psycopg2-binary==2.9.11
 ptyprocess==0.7.0
 pure-sasl==0.6.2
@@ -565,7 +565,7 @@ pymongo==4.15.5
 pymssql==2.3.10
 pyodbc==5.3.0
 pyodps==0.12.5.1
-pyparsing==3.3.0
+pyparsing==3.3.1
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyspark==4.1.0
@@ -700,7 +700,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.16
-ydb==3.22.4
+ydb==3.23.0
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0

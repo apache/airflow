@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-22T21:52:21.461022
+# This constraints file was automatically generated on 2025-12-24T20:27:49.741366
 # via `uv sync --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -19,7 +19,7 @@ SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
 SQLAlchemy==1.4.54
 a2wsgi==1.10.10
-aiosqlite==0.21.0
+aiosqlite==0.22.1
 alembic==1.17.2
 annotated-types==0.7.0
 anyio==4.12.0
@@ -43,7 +43,7 @@ fastapi-cli==0.0.20
 fastapi==0.117.1
 fsspec==2025.12.0
 googleapis-common-protos==1.72.0
-greenback==1.2.1
+greenback==1.3.0
 greenlet==3.3.0
 grpcio==1.65.5
 h11==0.16.0
@@ -79,7 +79,7 @@ pathspec==0.12.1
 pendulum==3.1.0
 pluggy==1.6.0
 protobuf==4.25.8
-psutil==7.1.3
+psutil==7.2.0
 pycparser==2.23
 pydantic==2.12.5
 pydantic_core==2.41.5
