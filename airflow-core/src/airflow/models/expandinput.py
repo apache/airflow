@@ -40,8 +40,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.models.xcom_arg import SchedulerXComArg
     from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
@@ -58,7 +58,7 @@ __all__ = [
 
 
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
-    from airflow.models.xcom_arg import SchedulerXComArg
+    from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
     return isinstance(v, (MappedArgument, SchedulerXComArg))
 
@@ -89,7 +89,7 @@ class SchedulerDictOfListsExpandInput:
         If any arguments are not known right now (upstream task not finished),
         they will not be present in the dict.
         """
-        from airflow.models.xcom_arg import SchedulerXComArg, get_task_map_length
+        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, get_task_map_length
 
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
@@ -136,7 +136,7 @@ class SchedulerListOfDictsExpandInput:
         raise NotFullyPopulated({"expand_kwargs() argument"})
 
     def get_total_map_length(self, run_id: str, *, session: Session) -> int:
-        from airflow.models.xcom_arg import get_task_map_length
+        from airflow.serialization.definitions.xcom_arg import get_task_map_length
 
         if isinstance(self.value, Sized):
             return len(self.value)
