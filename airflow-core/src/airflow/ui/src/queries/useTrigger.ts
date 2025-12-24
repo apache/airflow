@@ -29,8 +29,8 @@ import {
   UseGridServiceGetGridRunsKeyFn,
 } from "openapi/queries";
 import type { TriggerDagRunResponse } from "openapi/requests/types.gen";
+import type { DagRunTriggerParams } from "src/components/TriggerDag/TriggerDAGForm";
 import { toaster } from "src/components/ui";
-import type { DagRunTriggerParams } from "src/utils/trigger";
 
 export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSuccessConfirm: () => void }) => {
   const queryClient = useQueryClient();
@@ -107,7 +107,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
         data_interval_start: formattedDataIntervalStart,
         logical_date: formattedLogicalDate,
         note: checkNote,
-        partition_key: dagRunRequestBody.partitionKey ?? undefined,
+        partition_key: dagRunRequestBody.partitionKey ?? null,
       },
     });
   };

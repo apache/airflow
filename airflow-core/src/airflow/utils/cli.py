@@ -46,7 +46,7 @@ T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 logger = logging.getLogger(__name__)
 

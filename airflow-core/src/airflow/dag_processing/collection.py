@@ -60,8 +60,9 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetNameRef,
     SerializedAssetUriRef,
 )
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks

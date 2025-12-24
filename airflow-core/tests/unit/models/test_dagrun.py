@@ -48,7 +48,7 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
@@ -67,6 +67,8 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)

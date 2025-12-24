@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import FromClause
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 def _get_nested_value(obj: Any, path: str) -> Any:
