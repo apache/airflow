@@ -27,14 +27,14 @@ from typing import TYPE_CHECKING
 import attrs
 import methodtools
 
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.serialization.definitions.node import DAGNode
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from typing import Any, ClassVar
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.serialization.serialized_objects import SerializedDAG, SerializedOperator
+    from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
 
 
 @attrs.define(eq=False, hash=False, kw_only=True)
@@ -45,8 +45,7 @@ class SerializedTaskGroup(DAGNode):
     group_display_name: str | None = attrs.field()
     prefix_group_id: bool = attrs.field()
     parent_group: SerializedTaskGroup | None = attrs.field()
-    # TODO (GH-52141): Replace DAGNode dependency.
-    dag: SerializedDAG = attrs.field()  # type: ignore[assignment]
+    dag: SerializedDAG = attrs.field()
     tooltip: str = attrs.field()
     default_args: dict[str, Any] = attrs.field(factory=dict)
 
@@ -187,7 +186,7 @@ class SerializedTaskGroup(DAGNode):
     def iter_tasks(self) -> Iterator[SerializedOperator]:
         """Return an iterator of the child tasks."""
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
         groups_to_visit = [self]
         while groups_to_visit:
