@@ -23,9 +23,9 @@ import pytest
 from airbyte_api.api import CancelJobRequest, GetJobRequest
 from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestAirbyteHook:
@@ -224,3 +224,18 @@ class TestAirbyteHook:
         # Check if the session is created correctly
         assert hook.airbyte_api is not None
         assert hook.airbyte_api.sdk_configuration.client.proxies == self._mock_proxy["proxies"]
+
+    def test_get_ui_field_behaviour(self):
+        """
+        Test the UI field behavior configuration for Airbyte connections.
+        """
+        assert AirbyteHook.get_ui_field_behaviour() == {
+            "hidden_fields": ["extra", "port"],
+            "relabeling": {
+                "host": "Server URL",
+                "login": "Client ID",
+                "password": "Client Secret",
+                "schema": "Token URL",
+            },
+            "placeholders": {},
+        }

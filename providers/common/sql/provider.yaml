@@ -22,12 +22,16 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1757950161
+source-date-epoch: 1765298925
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.30.1
+  - 1.30.0
+  - 1.29.0
+  - 1.28.2
   - 1.28.1
   - 1.28.0
   - 1.27.5

@@ -67,32 +67,34 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+{{- if and .Values.webserver.enabled (or .Values.ingress.web.enabled .Values.ingress.enabled) }}
 Airflow Webserver:
 {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
       {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
       {{- $hostname := $.Values.ingress.web.host -}}
+      {{- $path := $.Values.ingress.web.path -}}
       {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
       {{- if .tls }}
       {{- $tlsEnabled = .tls.enabled -}}
-      {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.web.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
 {{- end }}
 {{- end }}
 {{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
-Flower dashboard:
+Flower Dashboard:
 {{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
       {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
       {{- $hostname := $.Values.ingress.flower.host -}}
+      {{- $path := $.Values.ingress.flower.path -}}
       {{- if . | kindIs "string" | not }}
+      {{- $hostname = .name -}}
       {{- if .tls }}
       {{- $tlsEnabled = .tls.enabled -}}
-      {{- $hostname = .name -}}
       {{- end }}
       {{- end }}
-      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $.Values.ingress.flower.path }}/
+      http{{ if $tlsEnabled }}s{{ end }}://{{ (tpl $hostname $) }}{{ $path }}{{ if (hasSuffix "/" $path) | not }}/{{ end }}
 {{- end }}
 {{- end }}
 {{- else }}
@@ -106,8 +108,7 @@ Airflow API Server:     kubectl port-forward svc/{{ include "airflow.fullname" .
 
 {{- if .Values.flower.enabled }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)}}
-Flower dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
-
+Flower Dashboard:      kubectl port-forward svc/{{ include "airflow.fullname" . }}-flower {{ .Values.ports.flowerUI }}:{{ .Values.ports.flowerUI }} --namespace {{ .Release.Namespace }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -177,7 +178,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName) }}
+{{- if not (or .Values.webserverSecretKey .Values.webserverSecretKeySecretName .Values.apiSecretKey .Values.apiSecretKeySecretName) }}
 
 {{- if .Values.securityContext }}
 
@@ -187,15 +188,21 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+#####################################################
+#  WARNING: You should set a static API secret key  #
+#####################################################
+{{ else }}
 ###########################################################
 #  WARNING: You should set a static webserver secret key  #
 ###########################################################
-
-You are using a dynamically generated webserver secret key, which can lead to
+{{ end }}
+{{- $serverKind := ternary "API" "webserver" (semverCompare ">=3.0.0" .Values.airflowVersion) }}
+You are using a dynamically generated {{ $serverKind }} secret key, which can lead to
 unnecessary restarts of your Airflow components.
 
-Information on how to set a static webserver secret key can be found here:
-https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#webserver-secret-key
+Information on how to set a static {{ $serverKind }} secret key can be found here:
+https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secret-key
 
 {{- end }}
 

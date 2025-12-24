@@ -29,8 +29,8 @@ try:
 except ImportError:
     from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
-from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout, TaskDeferred
 from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.providers.standard.triggers.file import FileTrigger
 

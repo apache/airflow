@@ -33,13 +33,18 @@ description: |
   are provided by the API server.
 
 state: ready
-source-date-epoch: 1758734943
+source-date-epoch: 1765299029
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.0.0
+  - 1.6.0
+  - 1.5.0
+  - 1.4.1
+  - 1.4.0
   - 1.3.1
   - 1.3.0
   - 1.2.0
@@ -130,6 +135,15 @@ config:
         type: integer
         example: ~
         default: "524288"
+      push_logs:
+        description: |
+          Flag to enable or disable pushing of log files from edge worker to the central site.
+          When enabled, edge workers will upload task log files in chunks to the central Airflow site.
+          When disabled, logs will only be available locally on the edge worker.
+        version_added: 1.5.0
+        type: boolean
+        example: "True"
+        default: "True"
       worker_umask:
         description: |
           The default umask to use for edge worker when run in daemon mode

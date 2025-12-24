@@ -27,9 +27,9 @@ from unittest import mock
 
 import pytest
 
+from airflow._shared.module_loading import qualname
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
-from airflow.utils.module_loading import qualname
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -79,8 +79,6 @@ class TestPluginsManager:
         plugins_manager.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         with mock_plugin_manager(plugins=[]):
             from airflow import plugins_manager
 
@@ -120,8 +118,6 @@ class TestPluginsManager:
             assert "testplugin.py" in received_logs
 
     def test_should_warning_about_incompatible_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -156,8 +152,6 @@ class TestPluginsManager:
         ]
 
     def test_should_warning_about_conflicting_url_route(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
@@ -185,8 +179,6 @@ class TestPluginsManager:
             assert len(plugins_manager.react_apps) == 0
 
     def test_should_warning_about_external_views_or_react_app_wrong_object(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class TestPluginA(AirflowPlugin):
             name = "test_plugin_a"
 
@@ -224,8 +216,6 @@ class TestPluginsManager:
         ]
 
     def test_should_not_warning_about_fab_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -247,8 +237,6 @@ class TestPluginsManager:
         assert caplog.record_tuples == []
 
     def test_should_not_warning_about_fab_and_flask_admin_plugins(self, caplog):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         class AirflowAdminViewsPlugin(AirflowPlugin):
             name = "test_admin_views_plugin"
 
@@ -370,8 +358,6 @@ class TestPluginsManager:
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_not_double_import_entrypoint_provider_plugins(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         from airflow import plugins_manager
 
         mock_entrypoint = mock.Mock()

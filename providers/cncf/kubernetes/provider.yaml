@@ -22,12 +22,16 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 state: ready
-source-date-epoch: 1758645793
+source-date-epoch: 1765298874
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 10.11.1
+  - 10.11.0
+  - 10.10.0
+  - 10.9.0
   - 10.8.2
   - 10.8.1
   - 10.8.0
@@ -209,6 +213,9 @@ config:
         type: string
         example: ~
         default: ""
+        deprecated: true
+        deprecation_reason: |
+          This configuration is deprecated. Use `pod_template_file` to specify container image instead.
       worker_container_tag:
         description: |
           The tag of the Kubernetes Image for the Worker to Run
@@ -216,6 +223,9 @@ config:
         type: string
         example: ~
         default: ""
+        deprecated: true
+        deprecation_reason: |
+          This configuration is deprecated. Use `pod_template_file` to specify the image tag instead.
       namespace:
         description: |
           The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
@@ -223,6 +233,9 @@ config:
         type: string
         example: ~
         default: "default"
+        deprecated: true
+        deprecation_reason: |
+          This configuration is deprecated. Use `pod_template_file` to specify namespace instead.
       delete_worker_pods:
         description: |
           If True, all worker pods will be deleted upon termination

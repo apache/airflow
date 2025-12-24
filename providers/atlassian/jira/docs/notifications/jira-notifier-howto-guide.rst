@@ -30,11 +30,11 @@ Example Code
 .. code-block:: python
 
     from datetime import datetime
-    from airflow import Dag
+    from airflow import DAG
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.atlassian.jira.notifications.jira import send_jira_notification
 
-    with Dag(
+    with DAG(
         "test-dag",
         start_date=datetime(2023, 11, 3),
         on_failure_callback=[

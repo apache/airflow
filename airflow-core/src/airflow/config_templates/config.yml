@@ -121,12 +121,11 @@ core:
       default: "32"
     max_active_tasks_per_dag:
       description: |
-        The maximum number of task instances allowed to run concurrently in each DAG. To calculate
-        the number of tasks that is running concurrently for a DAG, add up the number of running
-        tasks for all DAG runs of the DAG. This is configurable at the DAG level with ``max_active_tasks``,
+        The maximum number of task instances allowed to run concurrently in each dag run.
+        This is also configurable per-dag with ``max_active_tasks``,
         which is defaulted as ``[core] max_active_tasks_per_dag``.
 
-        An example scenario when this would be useful is when you want to stop a new dag with an early
+        An example scenario when this would be useful is when you want to stop a new dag run with an early
         start date from stealing all the executor slots in a cluster.
       version_added: 2.2.0
       type: integer
@@ -843,6 +842,15 @@ logging:
       type: string
       example: ~
       default: "WARNING"
+    uvicorn_logging_level:
+      description: |
+        Logging level for uvicorn (API server and serve-logs).
+
+        Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "INFO"
     logging_config_class:
       description: |
         Logging class
@@ -1360,6 +1368,66 @@ api:
       type: string
       example: ~
       default:
+    theme:
+      description: |
+        JSON config to customize the Chakra UI theme.
+        Currently only supports ``brand`` color customization.
+
+        Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+        For usage see :ref:`customizing-ui-theme`
+
+        .. important::
+          ``oklch(l c h)`` must follow next format:
+
+          - l (lightness) : ``float`` Must be between 0 and 1
+          - c (chroma) : ``float`` Must be between 0 and 0.5
+          - h (hue) : ``float`` Must be between 0 and 360
+
+        Note: As shown below, you can split your json config over multiple lines by indenting.
+        See configparser documentation for an example:
+        https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
+      version_added: ~
+      type: string
+      example: >
+        {
+              "tokens": {
+                "colors": {
+                  "brand": {
+                    "50": { "value": "oklch(0.971 0.013 17.38)" },
+                    "100": { "value": "oklch(0.936 0.032 17.717)" },
+                    "200": { "value": "oklch(0.885 0.062 18.334)" },
+                    "300": { "value": "oklch(0.808 0.114 19.571)" },
+                    "400": { "value": "oklch(0.704 0.191 22.216)" },
+                    "500": { "value": "oklch(0.637 0.237 25.331)" },
+                    "600": { "value": "oklch(0.577 0.245 27.325)" },
+                    "700": { "value": "oklch(0.505 0.213 27.518)" },
+                    "800": { "value": "oklch(0.444 0.177 26.899)" },
+                    "900": { "value": "oklch(0.396 0.141 25.723)" },
+                    "950": { "value": "oklch(0.258 0.092 26.042)" }
+                  }
+                }
+              }
+            }
+      default: >
+        {{
+              "tokens": {{
+                "colors": {{
+                  "brand": {{
+                    "50": {{ "value": "oklch(0.98 0.006 248.717)" }},
+                    "100": {{ "value": "oklch(0.962 0.012 249.460)" }},
+                    "200": {{ "value": "oklch(0.923 0.023 255.082)" }},
+                    "300": {{ "value": "oklch(0.865 0.039 252.420)" }},
+                    "400": {{ "value": "oklch(0.705 0.066 256.378)" }},
+                    "500": {{ "value": "oklch(0.575 0.08 257.759)" }},
+                    "600": {{ "value": "oklch(0.469 0.084 257.657)" }},
+                    "700": {{ "value": "oklch(0.399 0.084 257.850)" }},
+                    "800": {{ "value": "oklch(0.324 0.072 260.329)" }},
+                    "900": {{ "value": "oklch(0.259 0.062 265.566)" }},
+                    "950": {{ "value": "oklch(0.179 0.05 265.487)" }}
+                  }}
+                }}
+              }}
+            }}
     enable_swagger_ui:
       description: |
         Boolean for running SwaggerUI in the webserver.
@@ -1421,9 +1489,9 @@ api:
       default: "8080"
     workers:
       description: |
-        Number of workers to run on the API server. Should be roughly equal to the number of
-        cpu cores available. If you need to scale the API server, consider deploying multiple API
-        servers instead of increasing the number of workers.
+        Number of workers to run on the API server. Should be roughly equal to the number of cpu cores
+        available. If you need to scale the API server, strongly consider deploying multiple API servers
+        instead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.
       version_added: ~
       type: integer
       example: ~
@@ -1618,6 +1686,15 @@ workers:
       type: float
       example: ~
       default: "90.0"
+    execution_api_timeout:
+      description: |
+        The timeout (in seconds) for HTTP requests from workers to the Execution API server.
+        This controls how long a worker will wait for a response from the API server before
+        timing out. Increase this value if you experience timeout errors under high load.
+      version_added: 3.1.1
+      type: float
+      example: ~
+      default: "5.0"
     socket_cleanup_timeout:
       description: |
         Number of seconds to wait after a task process exits before forcibly closing any
@@ -2073,10 +2150,19 @@ scheduler:
       type: float
       example: ~
       default: "5.0"
-    running_metrics_interval:
+    ti_metrics_interval:
       description: |
-        How often (in seconds) should running task instance stats be sent to StatsD (if statsd_on is enabled)
+        How often (in seconds) should task instance (scheduled, queued, running and deferred) stats
+        be sent to StatsD (if statsd_on is enabled)
       version_added: 3.0.0
+      type: float
+      example: ~
+      default: "30.0"
+    dagrun_metrics_interval:
+      description: |
+        How often (in seconds) the scheduler emits metrics on running DAG runs
+        to StatsD (if statsd_on is enabled)
+      version_added: 3.1.0
       type: float
       example: ~
       default: "30.0"
@@ -2308,6 +2394,15 @@ triggerer:
       type: float
       example: ~
       default: "30"
+    max_trigger_to_select_per_loop:
+      description: |
+        Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
+        to keep load balanced across triggerers in HA deployments.
+        Benchmarks show that two triggerers can still claim about 1,000 triggers within one second by default.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "50"
 kerberos:
   description: ~
   options:
@@ -2493,10 +2588,26 @@ dag_processor:
       type: integer
       example: ~
       default: "30"
+    health_check_threshold:
+      description: |
+        If the last dag processor heartbeat happened more than
+        ``[dag_processor] health_check_threshold`` ago (in seconds),
+        dag processor is considered unhealthy.
+        This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
+        CLI for DagProcessorJob.
+      version_added: 3.2.0
+      type: integer
+      example: ~
+      default: "30"
     disable_bundle_versioning:
       description: |
         Always run tasks with the latest code.  If set to True, the bundle version will not
         be stored on the dag run and therefore, the latest code will always be used.
+
+        .. note::
+
+          This setting only applies to bundles that support versioning and does not affect
+          DAG versions displayed in the UI.
       version_added: ~
       type: boolean
       example: ~
@@ -2552,3 +2663,26 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
+profiling:
+  description: |
+    Configuration for memory profiling in Airflow component.
+    Currently, we provide profiling using Memray and additional tools may be added in the future
+    Also, see the guide in Link (TBD)
+  options:
+    memray_trace_components:
+      description: |
+        Comma-separated list of Airflow components to profile with memray.
+        Valid components are: scheduler, api, dag_processor
+
+        This option only takes effect when it is not set to blank (default option).
+        start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
+        To generate analyzed view, run this command in base directory where the bin file is generated
+        ```
+        # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
+        memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
+        ```
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.2.0
+      type: string
+      example: "scheduler,api,dag_processor"
+      default: ~

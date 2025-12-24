@@ -21,8 +21,8 @@ from collections.abc import Iterable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
-from airflow.providers.qdrant.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from qdrant_client.models import VectorStruct

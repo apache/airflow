@@ -21,7 +21,6 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import (
@@ -30,6 +29,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -144,9 +144,9 @@ class TestSageMakerProcessingOperator:
         assert (
             sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
         )
-        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
-            if key3:
-                (key3,) = key3
+        for key1, key2, *key3_raw in EXPECTED_INTEGER_FIELDS:
+            if key3_raw:
+                (key3,) = key3_raw
                 assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
             else:
                 sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])

@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import functools
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from datetime import datetime
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
@@ -38,11 +40,14 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
     BaseAssetUniqueKey,
 )
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowNotFoundException, AirflowRuntimeError, ErrorType
 from airflow.sdk.log import mask_secret
 
 if TYPE_CHECKING:
     from uuid import UUID
+
+    from pydantic.types import JsonValue
+    from typing_extensions import Self
 
     from airflow.sdk import Variable
     from airflow.sdk.bases.operator import BaseOperator
@@ -149,7 +154,8 @@ def _get_connection(conn_id: str) -> Connection:
     except SecretCache.NotPresentException:
         pass  # continue to backends
 
-    # iterate over configured backends if not in cache (or expired)
+    # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
+    # in worker contexts or MetastoreBackend in API server contexts)
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
@@ -159,32 +165,15 @@ def _get_connection(conn_id: str) -> Connection:
                 _mask_connection_secrets(conn)
                 return conn
         except Exception:
-            log.exception(
+            log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Connection not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            conn_id=conn_id,
-        )
+    # If no backend found the connection, raise an error
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.connection`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    #   Also applies to _async_get_connection.
-    from airflow.sdk.execution_time.comms import GetConnection
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
-
-    conn = _process_connection_result_conn(msg)
-    SecretCache.save_connection_uri(conn_id, conn.get_uri())
-    return conn
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
@@ -201,37 +190,35 @@ async def _async_get_connection(conn_id: str) -> Connection:
         _mask_connection_secrets(conn)
         return conn
     except SecretCache.NotPresentException:
-        pass  # continue to API
+        pass  # continue to backends
 
-    from airflow.sdk.execution_time.comms import GetConnection
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-    # TODO: check cache first
-    # enabled only if SecretCache.init() has been called first
-
-    # Try secrets backends first using async wrapper
+    # Try secrets backends
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+            # Use async method if available, otherwise wrap sync method
+            if hasattr(secrets_backend, "aget_connection"):
+                conn = await secrets_backend.aget_connection(conn_id)  # type: ignore[assignment]
+            else:
+                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+
             if conn:
-                # TODO: this should probably be in get conn
-                if conn.password:
-                    mask_secret(conn.password)
-                if conn.extra:
-                    mask_secret(conn.extra)
+                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                _mask_connection_secrets(conn)
                 return conn
         except Exception:
             # If one backend fails, try the next one
-            continue
+            log.debug(
+                "Unable to retrieve connection from secrets backend (%s). "
+                "Checking subsequent secrets backend.",
+                type(secrets_backend).__name__,
+            )
 
-    # If no secrets backend has the connection, fall back to API server
-    msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
-    conn = _process_connection_result_conn(msg)
-    SecretCache.save_connection_uri(conn_id, conn.get_uri())
-    _mask_connection_secrets(conn)
-    return conn
+    # If no backend found the connection, raise an error
+
+    raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
@@ -253,7 +240,8 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         pass  # Continue to check backends
 
     backends = ensure_secrets_backend_loaded()
-    # iterate over backends if not in cache (or expired)
+
+    # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
             var_val = secrets_backend.get_variable(key=key)
@@ -273,31 +261,13 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 type(secrets_backend).__name__,
             )
 
-    if backends:
-        log.debug(
-            "Variable not found in any of the configured Secrets Backends. Trying to retrieve from API server",
-            key=key,
-        )
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
+    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    from airflow.sdk.execution_time.comms import ErrorResponse
 
-    # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
-    #   or `airflow.sdk.execution_time.variable`
-    #   A reason to not move it to `airflow.sdk.execution_time.comms` is that it
-    #   will make that module depend on Task SDK, which is not ideal because we intend to
-    #   keep Task SDK as a separate package than execution time mods.
-    from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
-    msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
-
-    if isinstance(msg, ErrorResponse):
-        raise AirflowRuntimeError(msg)
-
-    if TYPE_CHECKING:
-        assert isinstance(msg, VariableResult)
-    variable = _convert_variable_result_to_variable(msg, deserialize_json)
-    # Save raw value to ensure cache consistency regardless of deserialize_json parameter
-    SecretCache.save_variable(key, msg.value)
-    return variable.value
+    raise AirflowRuntimeError(
+        ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": f"Variable {key} not found"})
+    )
 
 
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
@@ -310,18 +280,21 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
 
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.comms import PutVariable
+    from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
     from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
     # check for write conflicts on the worker
     for secrets_backend in ensure_secrets_backend_loaded():
+        if isinstance(secrets_backend, ExecutionAPISecretsBackend):
+            continue
         try:
             var_val = secrets_backend.get_variable(key=key)
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
                     "The variable %s is defined in the %s secrets backend, which takes "
-                    "precedence over reading from the database. The value in the database will be "
+                    "precedence over reading from the API Server. The value from the API Server will be "
                     "updated, but to read it you have to delete the conflicting variable "
                     "from %s",
                     key,
@@ -381,6 +354,9 @@ class ConnectionAccessor:
         # All instances of ConnectionAccessor are equal since it is a stateless dynamic accessor
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
     def get(self, conn_id: str, default_conn: Any = None) -> Any:
         try:
             return _get_connection(conn_id)
@@ -388,6 +364,8 @@ class ConnectionAccessor:
             if e.error.error == ErrorType.CONNECTION_NOT_FOUND:
                 return default_conn
             raise
+        except AirflowNotFoundException:
+            return default_conn
 
 
 class VariableAccessor:
@@ -401,6 +379,9 @@ class VariableAccessor:
             return False
         # All instances of VariableAccessor are equal since it is a stateless dynamic accessor
         return True
+
+    def __hash__(self):
+        return hash(self.__class__.__name__)
 
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
@@ -438,11 +419,14 @@ class MacrosAccessor:
             return False
         return True
 
+    def __hash__(self):
+        return hash(self.__class__.__name__)
+
 
 class _AssetRefResolutionMixin:
-    _asset_ref_cache: dict[AssetRef, AssetUniqueKey] = {}
+    _asset_ref_cache: dict[AssetRef, tuple[AssetUniqueKey, dict[str, JsonValue]]] = {}
 
-    def _resolve_asset_ref(self, ref: AssetRef) -> AssetUniqueKey:
+    def _resolve_asset_ref(self, ref: AssetRef) -> tuple[AssetUniqueKey, dict[str, JsonValue]]:
         with contextlib.suppress(KeyError):
             return self._asset_ref_cache[ref]
 
@@ -457,8 +441,8 @@ class _AssetRefResolutionMixin:
             raise TypeError(f"Unimplemented asset ref: {type(ref)}")
         unique_key = AssetUniqueKey.from_asset(asset)
         for ref in refs_to_cache:
-            self._asset_ref_cache[ref] = unique_key
-        return unique_key
+            self._asset_ref_cache[ref] = (unique_key, asset.extra)
+        return (unique_key, asset.extra)
 
     # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
     @staticmethod
@@ -494,23 +478,25 @@ class OutletEventAccessor(_AssetRefResolutionMixin):
     """Wrapper to access an outlet asset event in template."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any] = attrs.Factory(dict)
+    extra: dict[str, JsonValue] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset | AssetRef, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset | AssetRef, extra: dict[str, JsonValue] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
         if not isinstance(self.key, AssetAliasUniqueKey):
             return
 
         if isinstance(asset, AssetRef):
-            asset_key = self._resolve_asset_ref(asset)
+            asset_key, asset_extra = self._resolve_asset_ref(asset)
         else:
             asset_key = AssetUniqueKey.from_asset(asset)
+            asset_extra = asset.extra
 
         asset_alias_name = self.key.name
         event = AssetAliasEvent(
             source_alias_name=asset_alias_name,
             dest_asset_key=asset_key,
+            dest_asset_extra=asset_extra,
             extra=extra or {},
         )
         self.asset_alias_events.append(event)
@@ -571,7 +557,7 @@ class OutletEventAccessors(
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+            hashable_key, _ = self._resolve_asset_ref(key)
         else:
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
@@ -581,9 +567,105 @@ class OutletEventAccessors(
 
 
 @attrs.define(init=False)
+class InletEventsAccessor(Sequence["AssetEventResult"]):
+    _after: str | datetime | None
+    _before: str | datetime | None
+    _ascending: bool
+    _limit: int | None
+    _asset_name: str | None
+    _asset_uri: str | None
+    _alias_name: str | None
+
+    def __init__(
+        self, asset_name: str | None = None, asset_uri: str | None = None, alias_name: str | None = None
+    ):
+        self._asset_name = asset_name
+        self._asset_uri = asset_uri
+        self._alias_name = alias_name
+        self._after = None
+        self._before = None
+        self._ascending = True
+        self._limit = None
+
+    def after(self, after: str) -> Self:
+        self._after = after
+        self._reset_cache()
+        return self
+
+    def before(self, before: str) -> Self:
+        self._before = before
+        self._reset_cache()
+        return self
+
+    def ascending(self, ascending: bool = True) -> Self:
+        self._ascending = ascending
+        self._reset_cache()
+        return self
+
+    def limit(self, limit: int) -> Self:
+        self._limit = limit
+        self._reset_cache()
+        return self
+
+    @functools.cached_property
+    def _asset_events(self) -> list[AssetEventResult]:
+        from airflow.sdk.execution_time.comms import (
+            ErrorResponse,
+            GetAssetEventByAsset,
+            GetAssetEventByAssetAlias,
+            ToSupervisor,
+        )
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        query_dict: dict[str, Any] = {
+            "after": self._after,
+            "before": self._before,
+            "ascending": self._ascending,
+            "limit": self._limit,
+        }
+
+        msg: ToSupervisor
+        if self._alias_name is not None:
+            msg = GetAssetEventByAssetAlias(alias_name=self._alias_name, **query_dict)
+        else:
+            if self._asset_name is None and self._asset_uri is None:
+                raise ValueError("Either asset_name or asset_uri must be provided")
+            msg = GetAssetEventByAsset(name=self._asset_name, uri=self._asset_uri, **query_dict)
+        resp = SUPERVISOR_COMMS.send(msg)
+        if isinstance(resp, ErrorResponse):
+            raise AirflowRuntimeError(resp)
+
+        if TYPE_CHECKING:
+            assert isinstance(resp, AssetEventsResult)
+
+        return list(resp.iter_asset_event_results())
+
+    def _reset_cache(self) -> None:
+        try:
+            del self._asset_events
+        except AttributeError:
+            pass
+
+    def __iter__(self) -> Iterator[AssetEventResult]:
+        return iter(self._asset_events)
+
+    def __len__(self) -> int:
+        return len(self._asset_events)
+
+    @overload
+    def __getitem__(self, key: int) -> AssetEventResult: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[AssetEventResult]: ...
+
+    def __getitem__(self, key: int | slice) -> AssetEventResult | Sequence[AssetEventResult]:
+        return self._asset_events[key]
+
+
+@attrs.define(init=False)
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
-    _AssetEventAccessorsMixin[list["AssetEventResult"]],
+    _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
 ):
     """Lazy mapping of inlet asset event accessors."""
 
@@ -614,17 +696,12 @@ class InletEventsAccessors(
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | Asset | AssetAlias | AssetRef) -> list[AssetEventResult]:
+    def __getitem__(
+        self,
+        key: int | Asset | AssetAlias | AssetRef,
+    ) -> InletEventsAccessor:
         from airflow.sdk.definitions.asset import Asset
-        from airflow.sdk.execution_time.comms import (
-            ErrorResponse,
-            GetAssetEventByAsset,
-            GetAssetEventByAssetAlias,
-            ToSupervisor,
-        )
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg: ToSupervisor
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
@@ -634,33 +711,23 @@ class InletEventsAccessors(
 
         if isinstance(obj, Asset):
             asset = self._assets[AssetUniqueKey.from_asset(obj)]
-            msg = GetAssetEventByAsset(name=asset.name, uri=asset.uri)
-        elif isinstance(obj, AssetNameRef):
+            return InletEventsAccessor(asset_name=asset.name, asset_uri=asset.uri)
+        if isinstance(obj, AssetNameRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.name == obj.name)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=asset.name, uri=None)
-        elif isinstance(obj, AssetUriRef):
+            return InletEventsAccessor(asset_name=asset.name)
+        if isinstance(obj, AssetUriRef):
             try:
                 asset = next(a for k, a in self._assets.items() if k.uri == obj.uri)
             except StopIteration:
                 raise KeyError(obj) from None
-            msg = GetAssetEventByAsset(name=None, uri=asset.uri)
-        elif isinstance(obj, AssetAlias):
+            return InletEventsAccessor(asset_uri=asset.uri)
+        if isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(obj)]
-            msg = GetAssetEventByAssetAlias(alias_name=asset_alias.name)
-        else:
-            raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
-
-        resp = SUPERVISOR_COMMS.send(msg)
-        if isinstance(resp, ErrorResponse):
-            raise AirflowRuntimeError(resp)
-
-        if TYPE_CHECKING:
-            assert isinstance(resp, AssetEventsResult)
-
-        return list(resp.iter_asset_event_results())
+            return InletEventsAccessor(alias_name=asset_alias.name)
+        raise TypeError(f"`key` is of unknown type ({type(key).__name__})")
 
 
 @attrs.define
@@ -699,7 +766,7 @@ class TriggeringAssetEventsAccessor(
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
         elif isinstance(key, AssetRef):
-            hashable_key = self._resolve_asset_ref(key)
+            hashable_key, _ = self._resolve_asset_ref(key)
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         else:
@@ -800,18 +867,18 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     ]
 
     context_params = settings.get_airflow_context_vars(context)
-    for key, value in context_params.items():
-        if not isinstance(key, str):
-            raise TypeError(f"key <{key}> must be string")
+    for key_raw, value in context_params.items():
+        if not isinstance(key_raw, str):
+            raise TypeError(f"key <{key_raw}> must be string")
         if not isinstance(value, str):
-            raise TypeError(f"value of key <{key}> must be string, not {type(value)}")
+            raise TypeError(f"value of key <{key_raw}> must be string, not {type(value)}")
 
-        if in_env_var_format:
-            if not key.startswith(ENV_VAR_FORMAT_PREFIX):
-                key = ENV_VAR_FORMAT_PREFIX + key.upper()
+        if in_env_var_format and not key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
+            key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
+        elif not key_raw.startswith(DEFAULT_FORMAT_PREFIX):
+            key = DEFAULT_FORMAT_PREFIX + key_raw
         else:
-            if not key.startswith(DEFAULT_FORMAT_PREFIX):
-                key = DEFAULT_FORMAT_PREFIX + key
+            key = key_raw
         params[key] = value
 
     for subject, attr, mapping_key in ops:

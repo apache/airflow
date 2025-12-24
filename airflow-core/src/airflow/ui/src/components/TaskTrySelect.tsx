@@ -100,7 +100,7 @@ export const TaskTrySelect = ({ onSelectTryNumber, selectedTryNumber, taskInstan
           width="200px"
         >
           <Select.Trigger>
-            <Select.ValueText placeholder="Task Try">
+            <Select.ValueText placeholder={translate("taskTryPlaceholder")}>
               {(
                 items: Array<{
                   task_instance: TaskInstanceHistoryResponse;

@@ -193,6 +193,19 @@ def worker(args):
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
+    # Check if a worker with the same hostname already exists
+    if args.celery_hostname:
+        inspect = celery_app.control.inspect()
+        active_workers = inspect.active_queues()
+        if active_workers:
+            active_worker_names = list(active_workers.keys())
+            # Check if any worker ends with @hostname
+            if any(name.endswith(f"@{args.celery_hostname}") for name in active_worker_names):
+                raise SystemExit(
+                    f"Error: A worker with hostname '{args.celery_hostname}' is already running. "
+                    "Please use a different hostname or stop the existing worker first."
+                )
+
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging
 
@@ -256,7 +269,7 @@ def worker(args):
         options.extend(["--pool", pool])
         # Celery pools of type eventlet and gevent use greenlets, which
         # requires monkey patching the app:
-        # https://eventlet.net/doc/patching.html#monkey-patch
+        # https://eventlet.readthedocs.io/en/latest/patching.html#monkeypatching-the-standard-library
         # Otherwise task instances hang on the workers and are never
         # executed.
         maybe_patch_concurrency(["-P", pool])

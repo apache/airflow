@@ -72,7 +72,7 @@ apache-airflow-providers-git package
 `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 
-Release: 0.0.8
+Release: 0.1.1
 
 Provider package
 ----------------
@@ -92,9 +92,38 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``3.0.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=3.0.0``
-``GitPython``       ``>=3.1.44``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=3.0.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``GitPython``                               ``>=3.1.44``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-git[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-git 0.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-git 0.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_git-0.1.1-py3-none-any.whl.sha512>`__)

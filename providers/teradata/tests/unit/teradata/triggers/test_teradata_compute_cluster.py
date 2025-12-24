@@ -81,7 +81,9 @@ async def test_run_suspend_failure():
     with patch.object(trigger, "get_status") as mock_get_status:
         mock_get_status.return_value = None
         async for event in trigger.run():
-            assert event == TriggerEvent({"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG})
+            assert event == TriggerEvent(
+                {"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG % "manage"}
+            )
         mock_get_status.assert_called_once()
 
 
@@ -117,7 +119,9 @@ async def test_run_resume_failure():
     with patch.object(trigger, "get_status") as mock_get_status:
         mock_get_status.return_value = None
         async for event in trigger.run():
-            assert event == TriggerEvent({"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG})
+            assert event == TriggerEvent(
+                {"status": "error", "message": Constants.CC_GRP_PRP_NON_EXISTS_MSG % "manage"}
+            )
         mock_get_status.assert_called_once()
 
 

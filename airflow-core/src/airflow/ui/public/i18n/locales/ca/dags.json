@@ -20,8 +20,7 @@
       "all": "Tots",
       "paused": "Pausats"
     },
-    "runIdPatternFilter": "Cerca execucions de Dag",
-    "triggeringUserNameFilter": "Cerca per Usuari que executa"
+    "runIdPatternFilter": "Cerca execucions de Dag"
   },
   "ownerLink": "Enllaç del propietari {{owner}}",
   "runAndTaskActions": {
@@ -34,6 +33,10 @@
       "buttonTooltip": "Prem shift+c per a rellançar",
       "error": "No s'ha pogut rellançar {{type}}",
       "title": "Rellançar {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "La tasca es troba en estat {{state}} iniciada per l'usuari {{user}} a les {{time}}. \nL'usuari no pot rellançar aquesta tasca fins que no hagi acabat d'executar-se o fins que un usuari desmarqui l'opció \"Evitar rellançar tasques en execució\" al diàleg de rellançament de tasques.",
+      "title": "No s'ha pogut rellançar la instància de tasca"
     },
     "delete": {
       "button": "Eliminar {{type}}",
@@ -62,6 +65,7 @@
       "future": "Futur",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
+      "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
       "upstream": "Aigües amunt"

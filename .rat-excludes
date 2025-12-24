@@ -19,6 +19,7 @@
 .rat-excludes
 .stylelintignore
 .stylelintrc
+.env
 .venv
 requirements
 requirements.txt
@@ -176,9 +177,12 @@ auth_generated.py
 www-hash.txt
 
 # go setup files
-go.mod
-go.sum
-mocks/*
+**/go.mod
+**/go.sum
+**/protov1/*
+
+# go mocks
+**/mocks/*
 
 # Generated protobuf files
 .*proto
@@ -187,3 +191,140 @@ mocks/*
 
 # Kubernetes env
 .env
+
+# SVG files
+**/*.svg
+
+# Doc only change marker file
+**/.latest-doc-only-change.txt
+**/*-gen/*
+
+
+# Redirects
+**/redirects.txt
+
+# Ignore files
+
+**/.git-blame-ignore-revs
+**/.gitattributes
+**/.rat-excludes
+**/.gitignore
+**/.prettierignore
+**/.prettierrc
+**/.airflowignore
+**/.airflowignore_glob
+
+
+# Vendor includes
+**/_vendor/
+
+# Generated files
+**/*-generated.yaml
+**/*-generated.py
+**/generated.py
+**/generated/*
+**/auth_generated.py
+
+# Lock files
+**/pnpm-lock.yaml
+**/yarn.lock
+**/Chart.lock
+**/uv.lock
+
+# Generated UI files
+**/ui/index.html
+**/ui/dev/index.html
+**/ui/dist/index.html
+**/_private_ui.yaml
+**/dist/**
+**/www/index.html
+
+# PNG files
+**/*.png
+
+# CSV files
+**/*.csv
+
+# LICENCE files
+**/LICENCE*.txt
+**/LICENSE*.txt
+
+
+# Checksum files
+**/*.sha256
+**/*.md5sum
+
+# Requirement files
+**/requirements.txt
+
+# Hashes
+**/command_hashes.txt
+**/www-hash.txt
+
+# Spelling wordlist
+**/spelling_wordlist.txt
+**/dictionary.txt
+
+# Empty files
+**/empty.txt
+
+# Script files
+**/script
+**/script.bteq
+**/script_utf16.bteq
+
+# Reproducible build files
+**/reproducible_build.yaml
+
+# Other files
+**/test_notifier.txt
+**/email.html
+**/*.log
+**/example_upload.txt
+**/dummy.pdf
+**/java_streaming_src/*
+**/kube_config
+**/prod_image_installed_providers.txt
+**/text.txt
+**/newsfragments/**
+**/warnings.txt
+**/rtd-deprecation/404.html
+**/.env
+**/*.jsonl
+**/tdload_src_file.txt
+
+# API files
+**/_api/**
+**/node_modules/**
+
+# Doc files
+/docs/.latest-doc-only-change.txt
+/docs/redirects.txt
+/docs/integration-logos/*.svg
+/docs/img/*.md5sum
+/docs/img/*.svg
+
+# Log files
+*.log
+
+# md5 sum files
+.*\.md5sum
+
+# Generated files
+*generated.*
+/src/airflow/providers/keycloak/auth_manager/openapi/v2-keycloak-auth-manager-generated.yaml
+/src/airflow/providers/edge3/plugins/www/*
+/src/airflow/providers/edge3/worker_api/v2-edge-generated.yaml
+/src/airflow/providers/fab/auth_manager/api_fastapi/openapi/v2-fab-auth-manager-generated.yaml
+/src/airflow/providers/fab/www/static/dist/*
+/any/dag_id=dag_for_testing_redis_task_handler/run_id=test/task_id=task_for_testing_redis_log_handler/attempt=1.log
+/src/airflow/providers/google/ads/.gitignore
+
+# Vendored-in code
+/src/airflow/providers/google/_vendor/*
+
+# Git ignore file
+.gitignore
+
+# Last release date is automatically generated
+**/.last_release_date.txt

@@ -21,8 +21,6 @@ import datetime
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING
-
 from flask import current_app, g
 from flask_appbuilder import Model
 from sqlalchemy import (
@@ -43,22 +41,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, backref, declared_attr, relationship
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
-
-try:
-    from sqlalchemy.orm import mapped_column
-except ImportError:
-    # fallback for SQLAlchemy < 2.0
-    def mapped_column(*args, **kwargs):
-        from sqlalchemy import Column
-
-        return Column(*args, **kwargs)
-
-
-if TYPE_CHECKING:
-    try:
-        from sqlalchemy import Identity
-    except Exception:
-        Identity = None
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -166,6 +149,9 @@ class Resource(Model):
     def __eq__(self, other):
         return (isinstance(other, self.__class__)) and (self.name == other.name)
 
+    def __hash__(self):
+        return hash((self.id, self.name))
+
     def __neq__(self, other):
         return self.name != other.name
 
@@ -225,9 +211,9 @@ class Group(Model):
         Sequence("ab_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
         primary_key=True,
     )
-    name: Mapped[str] = Column(String(100), unique=True, nullable=False)
-    label: Mapped[str] = Column(String(150))
-    description: Mapped[str] = Column(String(512))
+    name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    label: Mapped[str | None] = mapped_column(String(150))
+    description: Mapped[str | None] = mapped_column(String(512))
     users: Mapped[list[User]] = relationship(
         "User", secondary=assoc_user_group, backref="groups", passive_deletes=True
     )

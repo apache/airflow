@@ -30,10 +30,10 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource, StorageSource
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_build import (
     BuildProcessor,
     CloudBuildCancelBuildOperator,
@@ -138,7 +138,7 @@ class TestCloudBuildOperator:
             CloudBuildCreateBuildOperator(task_id="id")
 
     @pytest.mark.parametrize(
-        "file_type, file_content",
+        ("file_type", "file_content"),
         [
             (
                 ".json",
@@ -333,7 +333,7 @@ class TestBuildProcessor:
             BuildProcessor(build={"source": {}}).process_body()
 
     @pytest.mark.parametrize(
-        "url, expected_dict",
+        ("url", "expected_dict"),
         [
             (
                 "https://source.cloud.google.com/airflow-project/airflow-repo",
@@ -372,7 +372,7 @@ class TestBuildProcessor:
             BuildProcessor(build=body).process_body()
 
     @pytest.mark.parametrize(
-        "url, expected_dict",
+        ("url", "expected_dict"),
         [
             (
                 "gs://bucket-name/airflow-object.tar.gz",
@@ -502,7 +502,7 @@ def test_async_create_build_with_missing_build_should_throw_exception(mock_hook)
 
 
 @pytest.mark.parametrize(
-    "file_type, file_content",
+    ("file_type", "file_content"),
     [
         (
             ".json",

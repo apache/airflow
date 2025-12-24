@@ -30,7 +30,6 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
-from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
@@ -71,7 +70,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
-from airflow.stats import Stats
+from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -165,6 +164,7 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self.completed: set[KubernetesResults] = set()
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -343,6 +343,9 @@ class KubernetesExecutor(BaseExecutor):
                 finally:
                     self.result_queue.task_done()
 
+                for result in self.completed:
+                    self._change_state(result)
+
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
@@ -385,6 +388,7 @@ class KubernetesExecutor(BaseExecutor):
                     if (
                         (str(e.status) == "403" and "exceeded quota" in message)
                         or (str(e.status) == "409" and "object has been modified" in message)
+                        or str(e.status) == "500"
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -501,7 +505,11 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             from airflow.models.taskinstance import TaskInstance
 
-            state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
+            filter_for_tis = TaskInstance.filter_for_tis([key])
+            if filter_for_tis is not None:
+                state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
+            else:
+                state = None
             state = TaskInstanceState(state) if state else None
 
         self.event_buffer[key] = state, None
@@ -511,7 +519,8 @@ class KubernetesExecutor(BaseExecutor):
         pod_override = ti.executor_config.get("pod_override")
         namespace = None
         with suppress(Exception):
-            namespace = pod_override.metadata.namespace
+            if pod_override is not None:
+                namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
@@ -565,7 +574,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
             kube_client: client.CoreV1Api = self.kube_client
             for scheduler_job_id in scheduler_job_ids:
-                scheduler_job_id = self._make_safe_label_value(str(scheduler_job_id))
+                scheduler_job_id_safe_label = self._make_safe_label_value(str(scheduler_job_id))
                 # We will look for any pods owned by the no-longer-running scheduler,
                 # but will exclude only successful pods, as those TIs will have a terminal state
                 # and not be up for adoption!
@@ -575,7 +584,7 @@ class KubernetesExecutor(BaseExecutor):
                     "field_selector": "status.phase!=Succeeded",
                     "label_selector": (
                         "kubernetes_executor=True,"
-                        f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True"
+                        f"airflow-worker={scheduler_job_id_safe_label},{POD_EXECUTOR_DONE_KEY}!=True"
                     ),
                 }
                 pod_list = self._list_pods(query_kwargs)
@@ -720,7 +729,16 @@ class KubernetesExecutor(BaseExecutor):
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
-            self.running.add(ti_id)
+            self.completed.add(
+                KubernetesResults(
+                    key=ti_id,
+                    state="completed",
+                    pod_name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=pod.metadata.resource_version,
+                    failure_details=None,
+                )
+            )
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:

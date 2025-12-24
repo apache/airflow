@@ -340,6 +340,20 @@ def get_provider_info():
                 "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune.rst"],
                 "tags": ["aws"],
             },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "external-doc-url": "https://aws.amazon.com/kinesis/",
+                "logo": "/docs/integration-logos/Amazon-Kinesis-Data-Firehose_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "external-doc-url": "https://aws.amazon.com/managed-workflows-for-apache-airflow/",
+                "logo": "/docs/integration-logos/Amazon-MWAA.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa.rst"],
+                "tags": ["aws"],
+            },
         ],
         "operators": [
             {
@@ -695,8 +709,12 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Amazon Kinesis Data Firehose",
+                "integration-name": "Amazon Kinesis Data Stream",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.kinesis"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Firehose",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.firehose"],
             },
             {
                 "integration-name": "AWS Lambda",

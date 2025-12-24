@@ -25,6 +25,7 @@
     "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "모든 추가 JSON 접기",
   "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
+    "partitionKey": "파티션 키",
     "queuedAt": "대기열에 추가된 시간",
     "runAfter": "다음 실행",
     "runType": "실행 유형",
@@ -72,18 +74,30 @@
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
+  "delete": "삭제",
+  "diff": "비교",
+  "diffCompareWith": "비교 대상",
+  "diffExit": "비교 종료",
+  "diffSelectVersionToCompare": "비교할 버전 선택",
   "direction": "방향",
   "docs": {
     "documentation": "문서",
     "githubRepo": "GitHub 저장소",
     "restApiReference": "REST API 참조"
   },
+  "download": {
+    "download": "다운로드",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} 키를 눌러 로그를 다운로드하세요."
+  },
   "duration": "기간",
+  "edit": "편집",
   "endDate": "종료일",
   "error": {
     "back": "뒤로",
     "defaultMessage": "예기치 않은 오류가 발생했습니다.",
     "home": "홈",
+    "invalidUrl": "페이지를 찾을 수 없습니다. URL을 확인하고 다시 시도해 주세요.",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
   },
@@ -93,6 +107,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
+  "expandAllExtra": "모든 추가 JSON 펼치기",
   "expression": {
     "all": "모두",
     "and": "그리고",
@@ -101,22 +116,29 @@
   },
   "filter": "필터",
   "filters": {
+    "durationFrom": "기간 (시작)",
+    "durationTo": "기간 (종료)",
+    "endTime": "종료 시간",
     "logicalDateFrom": "논리적 날짜 (시작)",
     "logicalDateTo": "논리적 날짜 (종료)",
     "runAfterFrom": "실행 이후 (시작)",
-    "runAfterTo": "실행 이후 (종료)"
+    "runAfterTo": "실행 이후 (종료)",
+    "selectDateRange": "날짜 범위 선택",
+    "startTime": "시작 시간"
   },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
   "mapIndex": "맵 인덱스",
   "modal": {
+    "add": "추가",
     "cancel": "취소",
     "confirm": "확인",
     "delete": {
       "button": "삭제",
       "confirmation": "{{resourceName}}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-    }
+    },
+    "save": "저장"
   },
   "nav": {
     "admin": "관리자",
@@ -161,7 +183,6 @@
     },
     "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
   },
-  "seconds": "{{count}}초",
   "security": {
     "actions": "작업",
     "permissions": "권한",
@@ -171,6 +192,7 @@
   },
   "selectLanguage": "언어 선택",
   "showDetailsPanel": "세부 정보 패널 펼치기",
+  "signedInAs": "로그인한 사용자",
   "source": {
     "hide": "소스 숨기기",
     "hotkey": "s",

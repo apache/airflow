@@ -8,6 +8,12 @@
     "Variables": "Változók"
   },
   "allOperators": "Összes adatkészlet",
+  "appearance": {
+    "appearance": "Megjelenés",
+    "darkMode": "Sötét mód",
+    "lightMode": "Világos mód",
+    "systemMode": "Automatikus (rendszer szerint)"
+  },
   "asset_one": "Adatkészlet",
   "asset_other": "Adatkészletek",
   "assetEvent_one": "Adatkészlet esemény",
@@ -19,6 +25,7 @@
     "requiredActions": "Szükséges műveletek",
     "xcoms": "XComok"
   },
+  "collapseAllExtra": "Összes extra JSON összecsukása",
   "collapseDetailsPanel": "Részletek panel összecsukása",
   "createdAssetEvent_one": "Létrehozott adatkészlet esemény",
   "createdAssetEvent_other": "Létrehozott adatkészlet események",
@@ -33,6 +40,7 @@
     "fileLocation": "Fájl helye",
     "hasTaskConcurrencyLimits": "Van feladat párhuzamossági korlát",
     "lastExpired": "Legutóbb lejárt",
+    "lastParseDuration": "Utolsó feldolgozás időtartama",
     "lastParsed": "Legutóbb feldolgozva",
     "latestDagVersion": "Legújabb Dag verzió",
     "latestRun": "Legutóbbi futás",
@@ -71,6 +79,11 @@
     "githubRepo": "GitHub repo",
     "restApiReference": "REST API referencia"
   },
+  "download": {
+    "download": "Letöltés",
+    "hotkey": "d",
+    "tooltip": "Nyomja meg a(z) {{hotkey}} billentyűt a naplók letöltéséhez"
+  },
   "duration": "Időtartam",
   "endDate": "Befejezés dátuma",
   "error": {
@@ -86,6 +99,7 @@
     "hotkey": "e",
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a kibontáshoz"
   },
+  "expandAllExtra": "Összes extra JSON kibontása",
   "expression": {
     "all": "Mind",
     "and": "ÉS",
@@ -94,8 +108,10 @@
   },
   "filter": "Szűrő",
   "filters": {
-    "logicalDateFrom": "Logikai dátum -tól",
-    "logicalDateTo": "Logikai dátum -ig",
+    "durationFrom": "Kezdő időtartam",
+    "durationTo": "Záró időtartam",
+    "logicalDateFrom": "Kezdő logikai dátum",
+    "logicalDateTo": "Záró logikai dátum",
     "runAfterFrom": "Futás ekkortól",
     "runAfterTo": "Futás eddig"
   },
@@ -154,7 +170,6 @@
     },
     "tooltip": "Nyomd meg a(z) {{hotkey}} gombot a görgetéshez ide: {{direction}}"
   },
-  "seconds": "{{count}} mp",
   "security": {
     "actions": "Műveletek",
     "permissions": "Jogosultságok",
@@ -190,8 +205,6 @@
     "up_for_retry": "Újrapróbálkozásra vár",
     "upstream_failed": "Előfeltétel sikertelen"
   },
-  "switchToDarkMode": "Váltás sötét módra",
-  "switchToLightMode": "Váltás világos módra",
   "table": {
     "completedAt": "Befejezve ekkor",
     "createdAt": "Létrehozva ekkor",

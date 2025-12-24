@@ -30,11 +30,13 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
+from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
+from airflow.serialization.definitions.node import DAGNode
+from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
 if TYPE_CHECKING:
@@ -45,10 +47,11 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.sdk import BaseOperatorLink, Context
+    from airflow.sdk import Context
+    from airflow.sdk.definitions._internal.node import DAGNode as TaskSDKDAGNode
     from airflow.sdk.definitions.operator_resources import Resources
-    from airflow.sdk.definitions.param import ParamsDict
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.task.trigger_rule import TriggerRule
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
@@ -82,7 +85,6 @@ def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator |
     getstate_setstate=False,
     repr=False,
 )
-# TODO (GH-52141): Duplicate DAGNode in the scheduler.
 class MappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
@@ -92,8 +94,8 @@ class MappedOperator(DAGNode):
 
     # Needed for serialization.
     task_id: str
-    params: ParamsDict | dict = attrs.field(init=False, factory=dict)
-    operator_extra_links: Collection[BaseOperatorLink]
+    params: SerializedParamsDict = attrs.field(init=False, factory=SerializedParamsDict)
+    operator_extra_links: Collection[XComOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
     template_fields_renderers: dict[str, str]
@@ -108,11 +110,6 @@ class MappedOperator(DAGNode):
     start_trigger_args: StartTriggerArgs | None = None
     start_from_trigger: bool = False
     _needs_expansion: bool = True
-
-    # TODO (GH-52141): These should contain serialized containers, but currently
-    # this class inherits from an SDK one.
-    dag: SerializedDAG = attrs.field(init=False)  # type: ignore[assignment]
-    task_group: SerializedTaskGroup = attrs.field(init=False)  # type: ignore[assignment]
 
     doc: str | None = attrs.field(init=False)
     doc_json: str | None = attrs.field(init=False)
@@ -142,6 +139,9 @@ class MappedOperator(DAGNode):
 
     def __repr__(self) -> str:
         return f"<SerializedMappedTask({self.task_type}): {self.task_id}>"
+
+    def _get_partial_kwargs_or_operator_default(self, key: str):
+        return self.partial_kwargs.get(key, getattr(SerializedBaseOperator, key))
 
     @property
     def node_id(self) -> str:
@@ -187,140 +187,151 @@ class MappedOperator(DAGNode):
 
     @property
     def owner(self) -> str:
-        return self.partial_kwargs.get("owner", SerializedBaseOperator.owner)
+        return self._get_partial_kwargs_or_operator_default("owner")
 
     @property
     def trigger_rule(self) -> TriggerRule:
-        return self.partial_kwargs.get("trigger_rule", SerializedBaseOperator.trigger_rule)
+        return self._get_partial_kwargs_or_operator_default("trigger_rule")
 
     @property
     def is_setup(self) -> bool:
-        return bool(self.partial_kwargs.get("is_setup"))
+        return self._get_partial_kwargs_or_operator_default("is_setup")
 
     @property
     def is_teardown(self) -> bool:
-        return bool(self.partial_kwargs.get("is_teardown"))
+        return self._get_partial_kwargs_or_operator_default("is_teardown")
 
     @property
     def depends_on_past(self) -> bool:
-        return bool(self.partial_kwargs.get("depends_on_past"))
+        return self._get_partial_kwargs_or_operator_default("depends_on_past")
 
     @property
     def ignore_first_depends_on_past(self) -> bool:
-        value = self.partial_kwargs.get(
-            "ignore_first_depends_on_past", SerializedBaseOperator.ignore_first_depends_on_past
-        )
-        return bool(value)
+        return self._get_partial_kwargs_or_operator_default("ignore_first_depends_on_past")
 
     @property
     def wait_for_downstream(self) -> bool:
-        return bool(self.partial_kwargs.get("wait_for_downstream"))
+        return self._get_partial_kwargs_or_operator_default("wait_for_downstream")
 
     @property
     def retries(self) -> int:
-        return self.partial_kwargs.get("retries", SerializedBaseOperator.retries)
+        return self._get_partial_kwargs_or_operator_default("retries")
 
     @property
     def queue(self) -> str:
-        return self.partial_kwargs.get("queue", SerializedBaseOperator.queue)
+        return self._get_partial_kwargs_or_operator_default("queue")
 
     @property
     def pool(self) -> str:
-        return self.partial_kwargs.get("pool", SerializedBaseOperator.pool)
+        return self._get_partial_kwargs_or_operator_default("pool")
 
     @property
     def pool_slots(self) -> int:
-        return self.partial_kwargs.get("pool_slots", SerializedBaseOperator.pool_slots)
+        return self._get_partial_kwargs_or_operator_default("pool_slots")
 
     @property
     def resources(self) -> Resources | None:
-        return self.partial_kwargs.get("resources")
+        return self._get_partial_kwargs_or_operator_default("resources")
 
     @property
     def max_active_tis_per_dag(self) -> int | None:
-        return self.partial_kwargs.get("max_active_tis_per_dag")
+        return self._get_partial_kwargs_or_operator_default("max_active_tis_per_dag")
 
     @property
     def max_active_tis_per_dagrun(self) -> int | None:
-        return self.partial_kwargs.get("max_active_tis_per_dagrun")
+        return self._get_partial_kwargs_or_operator_default("max_active_tis_per_dagrun")
 
     @property
     def has_on_execute_callback(self) -> bool:
-        return bool(self.partial_kwargs.get("has_on_execute_callback", False))
+        return self._get_partial_kwargs_or_operator_default("has_on_execute_callback")
 
     @property
     def has_on_failure_callback(self) -> bool:
-        return bool(self.partial_kwargs.get("has_on_failure_callback", False))
+        return self._get_partial_kwargs_or_operator_default("has_on_failure_callback")
 
     @property
     def has_on_retry_callback(self) -> bool:
-        return bool(self.partial_kwargs.get("has_on_retry_callback", False))
+        return self._get_partial_kwargs_or_operator_default("has_on_retry_callback")
 
     @property
     def has_on_success_callback(self) -> bool:
-        return bool(self.partial_kwargs.get("has_on_success_callback", False))
+        return self._get_partial_kwargs_or_operator_default("has_on_success_callback")
 
     @property
     def has_on_skipped_callback(self) -> bool:
-        return bool(self.partial_kwargs.get("has_on_skipped_callback", False))
+        return self._get_partial_kwargs_or_operator_default("has_on_skipped_callback")
 
     @property
     def run_as_user(self) -> str | None:
-        return self.partial_kwargs.get("run_as_user")
+        return self._get_partial_kwargs_or_operator_default("run_as_user")
 
     @property
     def priority_weight(self) -> int:
-        return self.partial_kwargs.get("priority_weight", SerializedBaseOperator.priority_weight)
+        return self._get_partial_kwargs_or_operator_default("priority_weight")
 
     @property
     def retry_delay(self) -> datetime.timedelta:
-        return self.partial_kwargs["retry_delay"]
+        return self._get_partial_kwargs_or_operator_default("retry_delay")
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        value = self._get_partial_kwargs_or_operator_default("retry_exponential_backoff")
+        if value is True:
+            return 2.0
+        if value is False:
+            return 0.0
+        return float(value)
+
+    @property
+    def max_retry_delay(self) -> datetime.timedelta | float | None:
+        return self._get_partial_kwargs_or_operator_default("max_retry_delay")
+
+    @property
+    def retry_delay_multiplier(self) -> float:
+        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
-        return validate_and_load_priority_weight_strategy(
-            self.partial_kwargs.get("weight_rule", SerializedBaseOperator._weight_rule)
-        )
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+        value = self.partial_kwargs.get("weight_rule") or SerializedBaseOperator._weight_rule
+        return validate_and_load_priority_weight_strategy(value)
 
     @property
     def executor(self) -> str | None:
-        return self.partial_kwargs.get("executor")
+        return self._get_partial_kwargs_or_operator_default("executor")
 
     @property
     def executor_config(self) -> dict:
-        return self.partial_kwargs.get("executor_config", {})
+        return self._get_partial_kwargs_or_operator_default("executor_config")
 
     @property
     def execution_timeout(self) -> datetime.timedelta | None:
-        return self.partial_kwargs.get("execution_timeout")
+        return self._get_partial_kwargs_or_operator_default("execution_timeout")
 
     @property
     def inlets(self) -> list[Any]:
-        return self.partial_kwargs.get("inlets", [])
+        return self._get_partial_kwargs_or_operator_default("inlets")
 
     @property
     def outlets(self) -> list[Any]:
-        return self.partial_kwargs.get("outlets", [])
+        return self._get_partial_kwargs_or_operator_default("outlets")
 
     @property
     def email(self) -> str | Iterable[str] | None:
-        return self.partial_kwargs.get("email")
+        return self._get_partial_kwargs_or_operator_default("email")
 
     @property
     def email_on_failure(self) -> bool:
-        return self.partial_kwargs.get("email_on_failure", True)
+        return self._get_partial_kwargs_or_operator_default("email_on_failure")
 
     @property
     def email_on_retry(self) -> bool:
-        return self.partial_kwargs.get("email_on_retry", True)
+        return self._get_partial_kwargs_or_operator_default("email_on_retry")
 
     @property
     def on_failure_fail_dagrun(self) -> bool:
-        return bool(self.partial_kwargs.get("on_failure_fail_dagrun"))
+        return self._get_partial_kwargs_or_operator_default("on_failure_fail_dagrun")
 
     @on_failure_fail_dagrun.setter
     def on_failure_fail_dagrun(self, v) -> None:
@@ -359,7 +370,7 @@ class MappedOperator(DAGNode):
         )
 
     @functools.cached_property
-    def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
+    def operator_extra_link_dict(self) -> dict[str, XComOperatorLink]:
         """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
@@ -489,7 +500,7 @@ class MappedOperator(DAGNode):
 
 
 @functools.singledispatch
-def get_mapped_ti_count(task: DAGNode, run_id: str, *, session: Session) -> int:
+def get_mapped_ti_count(task: DAGNode | TaskSDKDAGNode, run_id: str, *, session: Session) -> int:
     raise NotImplementedError(f"Not implemented for {type(task)}")
 
 

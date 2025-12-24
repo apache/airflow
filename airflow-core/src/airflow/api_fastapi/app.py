@@ -86,13 +86,13 @@ def create_app(apps: str = "all") -> FastAPI:
 
     dag_bag = create_dag_bag()
 
-    if "execution" in apps_list or "all" in apps_list:
+    if "all" in apps_list or "execution" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
-    if "core" in apps_list or "all" in apps_list:
+    if "all" in apps_list or "core" in apps_list:
         app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)
@@ -161,8 +161,6 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    global auth_manager
-
     if auth_manager is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "

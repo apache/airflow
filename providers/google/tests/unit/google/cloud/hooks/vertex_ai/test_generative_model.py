@@ -21,6 +21,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
 from datetime import timedelta
@@ -146,26 +148,28 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
     def test_text_embedding_model_get_embeddings(self, mock_model) -> None:
-        self.hook.text_embedding_model_get_embeddings(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            prompt=TEST_PROMPT,
-            pretrained_model=TEST_TEXT_EMBEDDING_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.text_embedding_model_get_embeddings(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                prompt=TEST_PROMPT,
+                pretrained_model=TEST_TEXT_EMBEDDING_MODEL,
+            )
         mock_model.assert_called_once_with(TEST_TEXT_EMBEDDING_MODEL)
         mock_model.return_value.get_embeddings.assert_called_once_with([TEST_PROMPT])
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     def test_generative_model_generate_content(self, mock_model) -> None:
-        self.hook.generative_model_generate_content(
-            project_id=GCP_PROJECT,
-            contents=TEST_CONTENTS,
-            location=GCP_LOCATION,
-            tools=TEST_TOOLS,
-            generation_config=TEST_GENERATION_CONFIG,
-            safety_settings=TEST_SAFETY_SETTINGS,
-            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.generative_model_generate_content(
+                project_id=GCP_PROJECT,
+                contents=TEST_CONTENTS,
+                location=GCP_LOCATION,
+                tools=TEST_TOOLS,
+                generation_config=TEST_GENERATION_CONFIG,
+                safety_settings=TEST_SAFETY_SETTINGS,
+                pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            )
         mock_model.assert_called_once_with(
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
             system_instruction=None,
@@ -179,12 +183,13 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch("vertexai.preview.tuning.sft.train")
     def test_supervised_fine_tuning_train(self, mock_sft_train) -> None:
-        self.hook.supervised_fine_tuning_train(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            source_model=SOURCE_MODEL,
-            train_dataset=TRAIN_DATASET,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.supervised_fine_tuning_train(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                source_model=SOURCE_MODEL,
+                train_dataset=TRAIN_DATASET,
+            )
 
         mock_sft_train.assert_called_once_with(
             source_model=SOURCE_MODEL,
@@ -198,12 +203,13 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     def test_count_tokens(self, mock_model) -> None:
-        self.hook.count_tokens(
-            project_id=GCP_PROJECT,
-            contents=TEST_CONTENTS,
-            location=GCP_LOCATION,
-            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.count_tokens(
+                project_id=GCP_PROJECT,
+                contents=TEST_CONTENTS,
+                location=GCP_LOCATION,
+                pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            )
         mock_model.assert_called_once_with(
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
@@ -245,15 +251,16 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch("vertexai.preview.caching.CachedContent.create")
     def test_create_cached_content(self, mock_cached_content_create) -> None:
-        self.hook.create_cached_content(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            model_name=TEST_CACHED_MODEL,
-            system_instruction=TEST_CACHED_SYSTEM_INSTRUCTION,
-            contents=TEST_CACHED_CONTENTS,
-            ttl_hours=TEST_CACHED_TTL,
-            display_name=TEST_CACHED_DISPLAY_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.create_cached_content(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                model_name=TEST_CACHED_MODEL,
+                system_instruction=TEST_CACHED_SYSTEM_INSTRUCTION,
+                contents=TEST_CACHED_CONTENTS,
+                ttl_hours=TEST_CACHED_TTL,
+                display_name=TEST_CACHED_DISPLAY_NAME,
+            )
 
         mock_cached_content_create.assert_called_once_with(
             model_name=TEST_CACHED_MODEL,
@@ -265,12 +272,13 @@ class TestGenerativeModelWithDefaultProjectIdHook:
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_cached_context_model"))
     def test_generate_from_cached_content(self, mock_cached_context_model) -> None:
-        self.hook.generate_from_cached_content(
-            project_id=GCP_PROJECT,
-            location=GCP_LOCATION,
-            cached_content_name=TEST_CACHED_CONTENT_NAME,
-            contents=TEST_CACHED_CONTENT_PROMPT,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            self.hook.generate_from_cached_content(
+                project_id=GCP_PROJECT,
+                location=GCP_LOCATION,
+                cached_content_name=TEST_CACHED_CONTENT_NAME,
+                contents=TEST_CACHED_CONTENT_PROMPT,
+            )
 
         mock_cached_context_model.return_value.generate_content.assert_called_once_with(
             contents=TEST_CACHED_CONTENT_PROMPT,

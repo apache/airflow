@@ -19,10 +19,11 @@ from __future__ import annotations
 
 import os
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
 
 TASK_ID = "test-gcs-to-sftp-operator"
@@ -332,7 +333,7 @@ class TestSFTPToGCSOperator:
         )
 
     @pytest.mark.parametrize(
-        "source_object, destination_path, expected_source, expected_destination",
+        ("source_object", "destination_path", "expected_source", "expected_destination"),
         [
             ("folder/test_object.txt", "dest/dir", "folder/test_object.txt", "dest"),
             ("folder/test_object.txt", "dest/dir/", "folder/test_object.txt", "dest/dir"),
@@ -377,3 +378,26 @@ class TestSFTPToGCSOperator:
         assert result.inputs[0].name == expected_source
         assert result.outputs[0].namespace == f"gs://{TEST_BUCKET}"
         assert result.outputs[0].name == expected_destination
+
+    @pytest.mark.parametrize("fail_on_file_not_exist", [False, True])
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_sftp_to_gcs_fail_on_file_not_exist(self, sftp_hook, gcs_hook, fail_on_file_not_exist):
+        invalid_file_name = "main_dir/invalid-object.json"
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=invalid_file_name,
+            destination_bucket=TEST_BUCKET,
+            destination_path=DESTINATION_PATH_FILE,
+            move_object=False,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            fail_on_file_not_exist=fail_on_file_not_exist,
+        )
+        with patch.object(sftp_hook.return_value, "retrieve_file", side_effect=FileNotFoundError):
+            if fail_on_file_not_exist:
+                with pytest.raises(FileNotFoundError):
+                    task.execute(None)
+            else:
+                task.execute(None)

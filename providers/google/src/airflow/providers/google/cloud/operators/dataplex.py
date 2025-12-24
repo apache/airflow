@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
     DataplexDataProfileJobTrigger,
     DataplexDataQualityJobTrigger,
@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.triggers.dataplex import (
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault

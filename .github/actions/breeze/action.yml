@@ -22,6 +22,9 @@ inputs:
   python-version:
     description: 'Python version to use'
     default: "3.10"
+  uv-version:
+    description: 'uv version to use'
+    default: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
 outputs:
   host-python-version:
     description: Python version used in host
@@ -33,6 +36,11 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
+    - name: "Install uv"
+      shell: bash
+      run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      env:
+        UV_VERSION: ${{ inputs.uv-version }}
     # NOTE! Installing Breeze without using cache is FASTER than when using cache - uv is so fast and has
     # so low overhead, that just running upload cache/restore cache is slower than installing it from scratch
     - name: "Install Breeze"

@@ -26,14 +26,11 @@ from typing import TYPE_CHECKING
 
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.types import RuntimeTaskInstanceProtocol
-    except ImportError:
-        from airflow.models import TaskInstance as RuntimeTaskInstanceProtocol  # type: ignore[assignment]
+    from airflow.providers.common.compat.sdk import RuntimeTaskInstanceProtocol
     from airflow.utils.context import Context
 
 # MAX XCOM Size is 48KB

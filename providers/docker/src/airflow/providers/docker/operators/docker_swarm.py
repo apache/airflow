@@ -27,16 +27,12 @@ from typing import TYPE_CHECKING, Literal
 from docker import types
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DockerSwarmOperator(DockerOperator):

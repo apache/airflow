@@ -33,6 +33,8 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
     # as one of the first thing when Airflow is started. This allows gevent to patch networking and other
@@ -87,13 +89,16 @@ __lazy_imports: dict[str, tuple[str, str, bool]] = {
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),
     "Dataset": (".sdk", "Asset", True),
+    "Stats": (".observability.stats", "Stats", True),
+    "Trace": (".observability.trace", "Trace", True),
+    "metrics": (".observability.metrics", "", True),
+    "traces": (".observability.traces", "", True),
 }
 if TYPE_CHECKING:
     # These objects are imported by PEP-562, however, static analyzers and IDE's
     # have no idea about typing of these objects.
     # Add it under TYPE_CHECKING block should help with it.
-    from airflow.models.xcom_arg import XComArg
-    from airflow.sdk import DAG, Asset, Asset as Dataset
+    from airflow.sdk import DAG, Asset, Asset as Dataset, XComArg
 
 
 def __getattr__(name: str):
@@ -105,7 +110,7 @@ def __getattr__(name: str):
         warnings.warn(
             f"Import {name!r} directly from the airflow module is deprecated and "
             f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",
-            DeprecationWarning,
+            DeprecatedImportWarning,
             stacklevel=2,
         )
 

@@ -122,6 +122,10 @@ jobs:
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+      - name: "Helm release package (RC version)"
+        run: >
+          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
+          --version-suffix rc1
       - name: "Sign artifacts for ASF distribution"
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:

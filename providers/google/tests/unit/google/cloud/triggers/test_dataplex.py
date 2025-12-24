@@ -132,4 +132,4 @@ class TestDataplexDataQualityJobTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert f"Current state is: {DataScanJob.State.RUNNING}, sleeping for {TEST_POLL_INTERVAL} seconds."
+        assert f"Current state is: RUNNING, sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text

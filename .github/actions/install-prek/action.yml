@@ -24,13 +24,10 @@ inputs:
     default: "3.10"
   uv-version:
     description: 'uv version to use'
-    default: "0.8.22"  # Keep this comment to allow automatic replacement of uv version
+    default: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
   prek-version:
     description: 'prek version to use'
-    default: "0.2.1"  # Keep this comment to allow automatic replacement of prek version
-  skip-prek-hooks:
-    description: "Skip some prek hooks from installation"
-    default: ""
+    default: "0.2.23"  # Keep this comment to allow automatic replacement of prek version
   save-cache:
     description: "Whether to save prek cache"
     required: true
@@ -40,14 +37,17 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install uv and prek
+    - name: "Install uv"
+      shell: bash
+      run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      env:
+        UV_VERSION: ${{ inputs.uv-version }}
+    - name: Install prek
       shell: bash
       env:
-        UV_VERSION: ${{inputs.uv-version}}
         PREK_VERSION: ${{inputs.prek-version}}
-        SKIP: ${{ inputs.skip-prek-hooks }}
+        UV_VERSION: ${{ inputs.uv-version }}
       run: |
-        curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
         uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
       working-directory: ${{ github.workspace }}
     # We need to use tar file with archive to restore all the permissions and symlinks
@@ -64,7 +64,7 @@ runs:
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{inputs.skip-prek-hooks}}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/
       id: restore-prek-cache
     - name: "Check if prek cache tarball exists"
@@ -88,12 +88,21 @@ runs:
         echo
       shell: bash
       if: steps.restore-prek-cache.outputs.stash-hit == 'true'
+    - name: "Make sure cache is cleared on cache miss"
+      run: |
+        echo "Cleaning up prek cache in case of cache miss (in case of pre-installed-cache from the system)"
+        ls -la ~/.cache/prek || true
+        rm -rf ~/.cache/prek
+      shell: bash
+      if: steps.restore-prek-cache.outputs.stash-hit != 'true'
     - name: Install prek hooks
       shell: bash
-      run: prek install-hooks || (cat ~/.cache/prek/prek.log && exit 1)
+      run: prek install-hooks
       working-directory: ${{ github.workspace }}
-      env:
-        SKIP: ${{ inputs.skip-prek-hooks }}
+    - name: "Show prek log"
+      shell: bash
+      run: cat ~/.cache/prek/prek.log || true
+      if: always()
     - name: "Prepare .tar file from prek cache"
       run: |
         tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
@@ -103,7 +112,7 @@ runs:
       uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
         # yamllint disable rule:line-length
-        key: cache-prek-v6-${{ inputs.platform }}-${{ inputs.python-version }}-${{ inputs.skip-prek-hooks }}-${{ hashFiles('.pre-commit-config.yaml') }}
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
         path: /tmp/cache-prek.tar.gz
         if-no-files-found: 'error'
         retention-days: '2'

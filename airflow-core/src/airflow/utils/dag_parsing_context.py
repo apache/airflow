@@ -21,13 +21,14 @@ import warnings
 
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions.context import get_parsing_context
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 
 # TODO: Remove this module in Airflow 3.2
 
 warnings.warn(
     "Import from the airflow.utils.dag_parsing_context module is deprecated and "
     "will be removed in Airflow 3.2. Please import it from 'airflow.sdk'.",
-    DeprecationWarning,
+    DeprecatedImportWarning,
     stacklevel=2,
 )
 

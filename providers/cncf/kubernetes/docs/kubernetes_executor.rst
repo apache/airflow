@@ -165,14 +165,14 @@ Here is an example of a task with both features:
 
     import pendulum
 
-    from airflow import Dag
+    from airflow import DAG
     from airflow.decorators import task
     from airflow.example_dags.libs.helper import print_stuff
     from airflow.settings import AIRFLOW_HOME
 
     from kubernetes.client import models as k8s
 
-    with Dag(
+    with DAG(
         dag_id="example_pod_template_file",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),

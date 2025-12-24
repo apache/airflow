@@ -25,7 +25,7 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
@@ -33,7 +33,7 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 WILDCARD = "*"
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GCSToSFTPOperator(BaseOperator):

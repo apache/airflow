@@ -26,8 +26,8 @@ from airflow.api_fastapi.common.parameters import state_priority
 from airflow.api_fastapi.core_api.services.ui.task_group import get_task_group_children_getter
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmap import TaskMap
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -98,28 +98,26 @@ def _find_aggregates(
             "type": "mapped_task",
             "parent_id": parent_id,
             **_get_aggs_for_node(mapped_details),
+            "details": mapped_details,
         }
 
         return
     if isinstance(node, SerializedTaskGroup):
-        children = []
+        children_details = []
         for child in get_task_group_children_getter()(node):
             for child_node in _find_aggregates(node=child, parent_node=node, ti_details=ti_details):
                 if child_node["parent_id"] == node_id:
-                    children.append(
-                        {
-                            "state": child_node["state"],
-                            "start_date": child_node["min_start_date"],
-                            "end_date": child_node["max_end_date"],
-                        }
-                    )
+                    # Collect detailed task instance data from all children
+                    if child_node.get("details"):
+                        children_details.extend(child_node["details"])
                 yield child_node
         if node_id:
             yield {
                 "task_id": node_id,
                 "type": "group",
                 "parent_id": parent_id,
-                **_get_aggs_for_node(children),
+                **_get_aggs_for_node(children_details),
+                "details": children_details,
             }
         return
     if isinstance(node, SerializedBaseOperator):
@@ -128,5 +126,6 @@ def _find_aggregates(
             "type": "task",
             "parent_id": parent_id,
             **_get_aggs_for_node(details),
+            "details": details,
         }
         return

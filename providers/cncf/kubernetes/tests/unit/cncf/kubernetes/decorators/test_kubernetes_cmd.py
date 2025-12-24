@@ -20,7 +20,7 @@ import contextlib
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowSkipException
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -81,7 +81,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "func_return, exception",
+        ("func_return", "exception"),
         [
             pytest.param("string", TypeError, id="iterable_str"),
             pytest.param(True, TypeError, id="bool"),
@@ -236,7 +236,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        argnames=["command", "op_arg", "expected_command"],
+        argnames=("command", "op_arg", "expected_command"),
         argvalues=[
             pytest.param(
                 ["echo", "hello"],
@@ -397,3 +397,26 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             self.execute_task(hello_task)
         self.mock_hook.assert_not_called()
         self.mock_create_pod.assert_not_called()
+
+    def test_kubernetes_cmd_template_fields_include_taskflow_args(self):
+        """Test that kubernetes_cmd operator has op_args and op_kwargs in template_fields"""
+        with self.dag_maker:
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+            )
+            def hello(name: str) -> list[str]:
+                return ["echo", name]
+
+            hello_task = hello("world")
+
+        op = hello_task.operator
+
+        assert "op_args" in op.template_fields
+        assert "op_kwargs" in op.template_fields
+        assert "cmds" in op.template_fields
+        assert "arguments" in op.template_fields

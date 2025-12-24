@@ -32,6 +32,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The default branch for the repository"
         required: true
         type: string
+      run-task-sdk-integration-tests:
+        description: "Whether to run Task SDK integration tests (true/false)"
+        required: true
+        type: string
       constraints-branch:
         description: "Branch used to construct constraints URL from."
         required: true
@@ -58,6 +62,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       use-uv:
         description: "Whether to use uv"
+        required: true
+        type: string
+      run-ui-e2e-tests:
+        description: "Whether to run UI e2e tests (true/false)"
         required: true
         type: string
 permissions:
@@ -190,13 +198,93 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       - name: "Run Task SDK integration tests"
-        run: breeze testing task-sdk-integration-tests
+        run: breeze testing task-sdk-integration-tests --skip-mounting-local-volumes
+    if: inputs.run-task-sdk-integration-tests == 'true'
 
-  test-e2e-integration-tests:
+  test-e2e-integration-tests-basic:
     name: "Test e2e integration tests with PROD image"
     uses: ./.github/workflows/airflow-e2e-tests.yml
     with:
+      workflow-name: "Regular e2e test"
       runners: ${{ inputs.runners }}
       platform: ${{ inputs.platform }}
       default-python-version: "${{ inputs.default-python-version }}"
       use-uv: ${{ inputs.use-uv }}
+
+  test-e2e-integration-tests-remote-log:
+    name: "Remote logging tests with PROD image"
+    uses: ./.github/workflows/airflow-e2e-tests.yml
+    with:
+      workflow-name: "Remote logging e2e test"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      e2e_test_mode: "remote_log"
+
+  test-ui-e2e-chromium:
+    name: "Chromium UI e2e tests with PROD image"
+    uses: ./.github/workflows/ui-e2e-tests.yml
+    with:
+      workflow-name: "Chromium UI e2e tests"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      browser: "chromium"
+    if: inputs.run-ui-e2e-tests == 'true'
+
+  test-ui-e2e-firefox:
+    name: "Firefox UI e2e tests with PROD image"
+    uses: ./.github/workflows/ui-e2e-tests.yml
+    with:
+      workflow-name: "Firefox UI e2e tests"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      browser: "firefox"
+    if: inputs.run-ui-e2e-tests == 'true'
+
+  test-ui-e2e-webkit:
+    name: "WebKit UI e2e tests with PROD image"
+    uses: ./.github/workflows/ui-e2e-tests.yml
+    with:
+      workflow-name: "WebKit UI e2e tests"
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      default-python-version: "${{ inputs.default-python-version }}"
+      use-uv: ${{ inputs.use-uv }}
+      browser: "webkit"
+    if: inputs.run-ui-e2e-tests == 'true'
+
+  airflow-ctl-integration-tests:
+    timeout-minutes: 60
+    name: "Airflow CTL integration tests with PROD image"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      - name: "Run airflowctl integration tests"
+        run: breeze testing airflow-ctl-integration-tests

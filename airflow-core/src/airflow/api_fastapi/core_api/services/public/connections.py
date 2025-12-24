@@ -152,7 +152,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
 
             for connection in action.entities:
                 if connection.connection_id in update_connection_ids:
-                    old_connection: Connection = self.session.scalar(
+                    old_connection = self.session.scalar(
                         select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
                     )
                     if old_connection is None:

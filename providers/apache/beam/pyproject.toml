@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-beam"
-version = "6.1.5"
+version = "6.2.1"
 description = "Provider package apache-airflow-providers-apache-beam for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -56,7 +57,8 @@ requires-python = ">=3.10,!=3.13"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",
     'apache-beam>=2.60.0; python_version < "3.13"',
     "pyarrow>=16.1.0; python_version < '3.13'",
     "numpy>=1.22.4; python_version<'3.11'",
@@ -69,9 +71,6 @@ dependencies = [
 [project.optional-dependencies]
 "google" = [
     'apache-beam[gcp]>=2.60.0; python_version < "3.13"',
-]
-"common.compat" = [
-    "apache-airflow-providers-common-compat; python_version < '3.13'",
 ]
 
 [dependency-groups]
@@ -110,8 +109,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.5"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.1.5/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

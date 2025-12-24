@@ -20,11 +20,10 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
-    Column,
     ForeignKeyConstraint,
     Integer,
     PrimaryKeyConstraint,
@@ -34,7 +33,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
@@ -42,13 +41,36 @@ from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+
+def _get_nested_value(obj: Any, path: str) -> Any:
+    """
+    Get a nested value from an object using a dot-separated path.
+
+    :param obj: The object to extract the value from
+    :param path: A dot-separated path (e.g., "configuration.query.sql")
+    :return: The value at the nested path, or None if the path doesn't exist
+    """
+    keys = path.split(".")
+    current = obj
+    for key in keys:
+        if isinstance(current, dict):
+            current = current.get(key)
+        elif hasattr(current, key):
+            current = getattr(current, key)
+        else:
+            return None
+        if current is None:
+            return None
+    return current
 
 
 def get_serialized_template_fields(task: SerializedBaseOperator):
@@ -61,7 +83,24 @@ def get_serialized_template_fields(task: SerializedBaseOperator):
 
     :meta private:
     """
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    rendered_fields = {}
+
+    for field in task.template_fields:
+        rendered_fields[field] = serialize_template_field(getattr(task, field), field)
+
+    renderers = getattr(task, "template_fields_renderers", {})
+    for renderer_path in renderers:
+        if "." in renderer_path:
+            base_field = renderer_path.split(".", 1)[0]
+
+            if base_field in task.template_fields:
+                base_value = getattr(task, base_field)
+                nested_value = _get_nested_value(base_value, renderer_path[len(base_field) + 1 :])
+
+                if nested_value is not None:
+                    rendered_fields[renderer_path] = serialize_template_field(nested_value, renderer_path)
+
+    return rendered_fields
 
 
 class RenderedTaskInstanceFields(TaskInstanceDependencies):
@@ -69,12 +108,14 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     __tablename__ = "rendered_task_instance_fields"
 
-    dag_id = Column(StringID(), primary_key=True)
-    task_id = Column(StringID(), primary_key=True)
-    run_id = Column(StringID(), primary_key=True)
-    map_index = Column(Integer, primary_key=True, server_default=text("-1"))
-    rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
-    k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    run_id: Mapped[str] = mapped_column(StringID(), primary_key=True)
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True, server_default=text("-1"))
+    rendered_fields: Mapped[dict] = mapped_column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
+    k8s_pod_yaml: Mapped[dict | None] = mapped_column(
+        sqlalchemy_jsonfield.JSONField(json=json), nullable=True
+    )
 
     __table_args__ = (
         PrimaryKeyConstraint(
@@ -203,7 +244,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @provide_session
     @retry_db_transaction
-    def write(self, session: Session = None):
+    def write(self, session: Session):
         """
         Write instance to database.
 

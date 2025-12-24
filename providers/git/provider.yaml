@@ -22,12 +22,15 @@ description: |
     `Distributed version control system (GIT) <https://git-scm.com/>`__
 
 state: ready
-source-date-epoch: 1757950328
+source-date-epoch: 1765299145
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 0.1.1
+  - 0.1.0
+  - 0.0.9
   - 0.0.8
   - 0.0.7
   - 0.0.6
@@ -43,11 +46,11 @@ integrations:
     tags: [software]
 
 hooks:
-  - integration-name: GIT
+  - integration-name: GIT (Git)
     python-modules:
       - airflow.providers.git.hooks.git
 bundles:
-  - integration-name: GIT
+  - integration-name: GIT (Git)
     python-modules:
       - airflow.providers.git.bundles.git
 

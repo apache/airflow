@@ -34,6 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
@@ -43,7 +44,7 @@ from airflow.utils.state import State
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -85,7 +86,7 @@ def _prepare_app(broker_url=None, execute=None):
         execute_name = "execute_command"
         execute = execute or celery_executor_utils.execute_command.__wrapped__
 
-    test_config = dict(celery_executor_utils.celery_configuration)
+    test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
@@ -120,6 +121,11 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
+    def test_sentry_integration(self):
+        assert CeleryExecutor.sentry_integration == "sentry_sdk.integrations.celery.CeleryIntegration"
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow < 3.2")
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
 
@@ -177,7 +183,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 3 doesn't have execute_command anymore")
     @pytest.mark.parametrize(
-        "command, raise_exception",
+        ("command", "raise_exception"),
         [
             pytest.param(["true"], True, id="wrong-command"),
             pytest.param(["airflow", "tasks"], True, id="incomplete-command"),
@@ -303,7 +309,7 @@ class TestCeleryExecutor:
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
             assert executor.has_task(ti)
-            with pytest.warns(DeprecationWarning, match="cleanup_stuck_queued_tasks"):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
                 executor.cleanup_stuck_queued_tasks(tis=tis)
             executor.sync()
         assert executor.tasks == {}

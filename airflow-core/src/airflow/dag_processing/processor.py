@@ -31,18 +31,23 @@ from pydantic import BaseModel, Field, TypeAdapter
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
-    EmailNotificationRequest,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import DagBag
+from airflow.observability.stats import Stats
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
+    GetTaskStates,
+    GetTICount,
     GetVariable,
     GetXCom,
     GetXComCount,
@@ -51,8 +56,10 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    TaskStatesResult,
     VariableResult,
     XComCountResponse,
     XComResult,
@@ -60,9 +67,8 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_task_error_email
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -71,7 +77,10 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
     from airflow.sdk.api.client import Client
+    from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
     from airflow.typing_compat import Self
 
 
@@ -87,6 +96,9 @@ class DagFileParseRequest(BaseModel):
 
     bundle_path: Path
     """Passing bundle path around lets us figure out relative file path."""
+
+    bundle_name: str
+    """Bundle name for team-specific executor validation."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
@@ -112,9 +124,12 @@ ToManager = Annotated[
     | GetConnection
     | GetVariable
     | PutVariable
+    | GetTaskStates
+    | GetTICount
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetPreviousTI
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
@@ -127,7 +142,9 @@ ToDagProcessor = Annotated[
     DagFileParseRequest
     | ConnectionResult
     | VariableResult
+    | TaskStatesResult
     | PreviousDagRunResult
+    | PreviousTIResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
     | OKResponse
@@ -156,11 +173,15 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
     for module in iter_airflow_imports(file_path):
         try:
             importlib.import_module(module)
-        except ModuleNotFoundError as e:
+        except Exception as e:
             log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 
 def _parse_file_entrypoint():
+    # Mark as client-side (runs user DAG code)
+    # Prevents inheriting server context from parent DagProcessorManager
+    os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+
     import structlog
 
     from airflow.sdk.execution_time import comms, task_runner
@@ -193,6 +214,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     bag = DagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
+        bundle_name=msg.bundle_name,
         include_examples=False,
         load_op_links=False,
     )
@@ -221,7 +243,7 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
-            data = SerializedDAG.to_dict(dag)
+            data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
             log.exception("Failed to serialize DAG: %s", dag.fileloc)
@@ -234,6 +256,39 @@ def _serialize_dags(
     return serialized_dags, serialization_import_errors
 
 
+def _get_dag_with_task(
+    dagbag: DagBag, dag_id: str, task_id: str | None = None
+) -> tuple[DAG, BaseOperator | MappedOperator | None]:
+    """
+    Retrieve a DAG and optionally a task from the DagBag.
+
+    :param dagbag: DagBag to retrieve from
+    :param dag_id: DAG ID to retrieve
+    :param task_id: Optional task ID to retrieve from the DAG
+    :return: tuple of (dag, task) where task is None if not requested
+    :raises ValueError: If DAG or task is not found
+    """
+    if dag_id not in dagbag.dags:
+        raise ValueError(
+            f"DAG '{dag_id}' not found in DagBag. "
+            f"This typically indicates a race condition where the DAG was removed or failed to parse."
+        )
+
+    dag = dagbag.dags[dag_id]
+
+    if task_id is not None:
+        try:
+            task = dag.get_task(task_id)
+            return dag, task
+        except TaskNotFound:
+            raise ValueError(
+                f"Task '{task_id}' not found in DAG '{dag_id}'. "
+                f"This typically indicates a race condition where the task was removed or the DAG structure changed."
+            ) from None
+
+    return dag, None
+
+
 def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
@@ -243,15 +298,14 @@ def _execute_callbacks(
             _execute_task_callbacks(dagbag, request, log)
         elif isinstance(request, DagCallbackRequest):
             _execute_dag_callbacks(dagbag, request, log)
-        elif isinstance(request, EmailNotificationRequest):
+        elif isinstance(request, EmailRequest):
             _execute_email_callbacks(dagbag, request, log)
 
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
 
-    dag = dagbag.dags[request.dag_id]
-
+    dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
     if not callbacks:
         log.warning("Callback requested, but dag didn't have any", dag_id=request.dag_id)
@@ -303,8 +357,10 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
         )
         return
 
-    dag = dagbag.dags[request.ti.dag_id]
-    task = dag.get_task(request.ti.task_id)
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
 
     if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
         callbacks = task.on_retry_callback
@@ -354,12 +410,12 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
-def _execute_email_callbacks(
-    dagbag: DagBag, request: EmailNotificationRequest, log: FilteringBoundLogger
-) -> None:
+def _execute_email_callbacks(dagbag: DagBag, request: EmailRequest, log: FilteringBoundLogger) -> None:
     """Execute email notification for task failure/retry."""
-    dag = dagbag.dags[request.ti.dag_id]
-    task = dag.get_task(request.ti.task_id)
+    dag, task = _get_dag_with_task(dagbag, request.ti.dag_id, request.ti.task_id)
+
+    if TYPE_CHECKING:
+        assert task is not None
 
     if not task.email:
         log.warning(
@@ -405,7 +461,9 @@ def _execute_email_callbacks(
     )
 
     try:
-        _send_task_error_email(task.email, runtime_ti, request.msg, log)
+        context = runtime_ti.get_template_context()
+        error = Exception(request.msg) if request.msg else None
+        _send_error_email_notification(task, runtime_ti, context, error, log)
     except Exception:
         log.exception(
             "Failed to send %s email",
@@ -449,6 +507,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
         *,
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_name: str,
         callbacks: list[CallbackRequest],
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
@@ -460,7 +519,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
 
         proc: Self = super().start(target=target, client=client, **kwargs)
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
         return proc
 
     def _on_child_started(
@@ -468,10 +527,12 @@ class DagFileProcessorProcess(WatchedSubprocess):
         callbacks: list[CallbackRequest],
         path: str | os.PathLike[str],
         bundle_path: Path,
+        bundle_name: str,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
+            bundle_name=bundle_name,
             callback_requests=callbacks,
         )
         self.send_msg(msg, request_id=0)
@@ -479,6 +540,7 @@ class DagFileProcessorProcess(WatchedSubprocess):
     def _handle_request(self, msg: ToManager, log: FilteringBoundLogger, req_id: int) -> None:
         from airflow.sdk.api.datamodels._generated import (
             ConnectionResponse,
+            TaskStatesResponse,
             VariableResponse,
             XComSequenceIndexResponse,
         )
@@ -551,6 +613,37 @@ class DagFileProcessorProcess(WatchedSubprocess):
             from airflow.sdk.log import mask_secret
 
             mask_secret(msg.value, msg.name)
+        elif isinstance(msg, GetTICount):
+            resp = self.client.task_instances.get_count(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+                states=msg.states,
+            )
+        elif isinstance(msg, GetTaskStates):
+            task_states_map = self.client.task_instances.get_task_states(
+                dag_id=msg.dag_id,
+                map_index=msg.map_index,
+                task_ids=msg.task_ids,
+                task_group_id=msg.task_group_id,
+                logical_dates=msg.logical_dates,
+                run_ids=msg.run_ids,
+            )
+            if isinstance(task_states_map, TaskStatesResponse):
+                resp = TaskStatesResult.from_api_response(task_states_map)
+            else:
+                resp = task_states_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

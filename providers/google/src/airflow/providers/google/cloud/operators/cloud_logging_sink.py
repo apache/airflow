@@ -25,14 +25,14 @@ import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.logging_v2.types import LogSink
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_logging import CloudLoggingHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _validate_inputs(obj, required_fields: list[str]) -> None:

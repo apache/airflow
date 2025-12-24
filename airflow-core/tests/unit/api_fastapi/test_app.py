@@ -97,7 +97,7 @@ def test_catch_all_route_last(client):
 
 
 @pytest.mark.parametrize(
-    "fastapi_apps, expected_message, invalid_path",
+    ("fastapi_apps", "expected_message", "invalid_path"),
     [
         (
             [{"name": "test", "app": FastAPI(), "url_prefix": ""}],

@@ -32,11 +32,11 @@ distinguish between various installations of Airflow or simply amend the page te
 
 To make this change, simply:
 
-1.  Add the configuration option of ``instance_name`` under the ``[webserver]`` section inside ``airflow.cfg``:
+1.  Add the configuration option of ``instance_name`` under the ``[api]`` section inside ``airflow.cfg``:
 
 .. code-block::
 
-  [webserver]
+  [api]
 
   instance_name = "DevEnv"
 
@@ -45,7 +45,7 @@ To make this change, simply:
 
 .. code-block::
 
-  AIRFLOW__WEBSERVER__INSTANCE_NAME = "DevEnv"
+  AIRFLOW__API__INSTANCE_NAME = "DevEnv"
 
 
 Screenshots
@@ -60,6 +60,95 @@ After
 """""
 
 .. image:: ../img/change-site-title/example_instance_name_configuration.png
+
+.. _customizing-ui-theme:
+
+Customizing UI theme
+--------------------
+
+We can provide a JSON configuration to customize the UI.
+
+.. important::
+
+  - Currently only the ``brand`` color palette can be customized.
+  - You must supply ``50``-``950`` OKLCH color values for ``brand`` color.
+  - OKLCH colors must have next format ``oklch(l c h)`` For more info see :ref:`config:api__theme`
+
+.. note::
+
+  Modifying the ``brand`` color palette you also modify the navbar/sidebar.
+
+To customize the UI, simply:
+
+1.  Add the configuration option of ``theme`` under the ``[api]`` section inside ``airflow.cfg``:
+
+.. code-block::
+
+  [api]
+
+  theme = {
+      "tokens": {
+        "colors": {
+          "brand": {
+            "50": { "value": "oklch(0.971 0.013 17.38)" },
+            "100": { "value": "oklch(0.936 0.032 17.717)" },
+            "200": { "value": "oklch(0.885 0.062 18.334)" },
+            "300": { "value": "oklch(0.808 0.114 19.571)" },
+            "400": { "value": "oklch(0.704 0.191 22.216)" },
+            "500": { "value": "oklch(0.637 0.237 25.331)" },
+            "600": { "value": "oklch(0.577 0.245 27.325)" },
+            "700": { "value": "oklch(0.505 0.213 27.518)" },
+            "800": { "value": "oklch(0.444 0.177 26.899)" },
+            "900": { "value": "oklch(0.396 0.141 25.723)" },
+            "950": { "value": "oklch(0.258 0.092 26.042)" }
+          }
+        }
+      }
+    }
+
+
+.. note::
+
+  The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
+  the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
+
+2.  Alternatively, you can set a custom title using the environment variable:
+
+.. code-block::
+
+  AIRFLOW__API__THEME='{
+    "tokens": {
+      "colors": {
+        "brand": {
+          "50": { "value": "oklch(0.971 0.013 17.38)" },
+          "100": { "value": "oklch(0.936 0.032 17.717)" },
+          "200": { "value": "oklch(0.885 0.062 18.334)" },
+          "300": { "value": "oklch(0.808 0.114 19.571)" },
+          "400": { "value": "oklch(0.704 0.191 22.216)" },
+          "500": { "value": "oklch(0.637 0.237 25.331)" },
+          "600": { "value": "oklch(0.577 0.245 27.325)" },
+          "700": { "value": "oklch(0.505 0.213 27.518)" },
+          "800": { "value": "oklch(0.444 0.177 26.899)" },
+          "900": { "value": "oklch(0.396 0.141 25.723)" },
+          "950": { "value": "oklch(0.258 0.092 26.042)" }
+        }
+      }
+    }
+  }'
+
+
+Screenshots
+^^^^^^^^^^^
+
+Light Mode
+""""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_light_mode.png
+
+Dark Mode
+"""""""""
+
+.. image:: ../img/change-theme/exmaple_theme_configuration_dark_mode.png
 
 |
 
@@ -84,10 +173,10 @@ To add static alert messages that remain constant until the webserver is restart
 
   .. code-block:: python
 
-      from airflow.www.utils import UIAlert
+      from airflow.api_fastapi.common.types import UIAlert
 
       DASHBOARD_UIALERTS = [
-          UIAlert("Welcome to Airflow"),
+          UIAlert("Welcome to Airflow", category="info"),
       ]
 
 3. Restart the Airflow webserver, and you should now see the alert message displayed on the dashboard.
@@ -121,7 +210,7 @@ message of heading 2 with a link included:
 
 .. code-block:: python
 
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
     DASHBOARD_UIALERTS = [
         UIAlert(text="## Visit [airflow.apache.org](https://airflow.apache.org)", category="info"),
@@ -163,7 +252,7 @@ cases might include alerts yielded from APIs, database queries or files.
 .. code-block:: python
 
     import random
-    from airflow.www.utils import UIAlert
+    from airflow.api_fastapi.common.types import UIAlert
 
 
     class DynamicAlerts(list):

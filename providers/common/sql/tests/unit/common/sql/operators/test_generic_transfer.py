@@ -289,6 +289,38 @@ class TestGenericTransfer:
             **{"rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]], "table": "NEW_HR.EMPLOYEES"},
         }
 
+    def test_non_paginated_read_for_multiple_sql_statements(self):
+        with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection", side_effect=self.get_connection):
+            with mock.patch(f"{BASEHOOK_PATCH_PATH}.get_hook", side_effect=self.get_hook):
+                operator = GenericTransfer(
+                    task_id="transfer_table",
+                    source_conn_id="my_source_conn_id",
+                    destination_conn_id="my_destination_conn_id",
+                    sql=["SELECT * FROM HR.EMPLOYEES", "SELECT * FROM HR.PEOPLE"],
+                    destination_table="NEW_HR.EMPLOYEES",
+                    insert_args=INSERT_ARGS,
+                    execution_timeout=timedelta(hours=1),
+                )
+
+                operator.execute(context=mock_context(task=operator))
+
+            assert self.mocked_source_hook.get_records.call_count == 2
+            assert [call.args[0] for call in self.mocked_source_hook.get_records.call_args_list] == [
+                "SELECT * FROM HR.EMPLOYEES",
+                "SELECT * FROM HR.PEOPLE",
+            ]
+            assert self.mocked_destination_hook.insert_rows.call_count == 2
+            assert self.mocked_destination_hook.insert_rows.call_args_list[0].kwargs == {
+                **INSERT_ARGS,
+                "rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]],
+                "table": "NEW_HR.EMPLOYEES",
+            }
+            assert self.mocked_destination_hook.insert_rows.call_args_list[1].kwargs == {
+                **INSERT_ARGS,
+                "rows": [[1, 2], [11, 12], [3, 4], [13, 14], [3, 4], [13, 14]],
+                "table": "NEW_HR.EMPLOYEES",
+            }
+
     def test_paginated_read(self):
         """
         This unit test is based on the example described in the medium article:

@@ -10,6 +10,7 @@
     "hourly": "שעתי",
     "legend": {
       "less": "פחות",
+      "mixed": "מעורב",
       "more": "יותר"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "השנה הקודמת"
     },
     "noData": "אין נתונים זמינים",
+    "noFailedRuns": "אין הרצות שנכשלו",
     "noRuns": "אין הרצות",
     "totalRuns": "סה״כ הרצות",
     "week": "שבוע {{weekNumber}}",
@@ -116,6 +118,18 @@
     },
     "graphDirection": {
       "label": "כיוון התרשים"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "מסנן פעיל",
+      "clearFilter": "נקה מסנן",
+      "clickTask": "לחץ על משימה כדי לבחור אותה כבסיס המסנן",
+      "label": "מסנן",
+      "options": {
+        "both": "גם במעלה וגם במורד הזרם",
+        "downstream": "במורד הזרם",
+        "upstream": "במעלה הזרם"
+      },
+      "selectedTask": "משימה נבחרת"
     }
   },
   "paramsFailed": "טעינת הפרמטרים נכשלה",

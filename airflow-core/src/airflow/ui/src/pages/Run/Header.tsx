@@ -37,13 +37,7 @@ import DeleteRunButton from "src/pages/DeleteRunButton";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
 import { getDuration, useContainerWidth } from "src/utils";
 
-export const Header = ({
-  dagRun,
-  isRefreshing,
-}: {
-  readonly dagRun: DAGRunResponse;
-  readonly isRefreshing?: boolean;
-}) => {
+export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
   const { t: translate } = useTranslation();
   const [note, setNote] = useState<string | null>(dagRun.note);
 
@@ -71,7 +65,7 @@ export const Header = ({
     setNote(dagRun.note ?? "");
   };
 
-  const containerRef = useRef<HTMLDivElement>();
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const containerWidth = useContainerWidth(containerRef);
 
   return (
@@ -113,7 +107,6 @@ export const Header = ({
           </>
         }
         icon={<FiBarChart />}
-        isRefreshing={isRefreshing}
         state={dagRun.state}
         stats={[
           ...(dagRun.logical_date === null
@@ -122,6 +115,14 @@ export const Header = ({
                 {
                   label: translate("logicalDate"),
                   value: <Time datetime={dagRun.logical_date} />,
+                },
+              ]),
+          ...(dagRun.partition_key === null
+            ? []
+            : [
+                {
+                  label: translate("dagRun.partitionKey"),
+                  value: dagRun.partition_key,
                 },
               ]),
           {
@@ -164,7 +165,7 @@ export const Header = ({
             ),
           },
         ]}
-        title={<Time datetime={dagRun.run_after} />}
+        title={dagRun.dag_run_id}
       />
     </Box>
   );

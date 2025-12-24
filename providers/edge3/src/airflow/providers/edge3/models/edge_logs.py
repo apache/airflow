@@ -19,14 +19,15 @@ from __future__ import annotations
 from datetime import datetime
 
 from sqlalchemy import (
-    Column,
     Integer,
     Text,
     text,
 )
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import Base, StringID
+from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -45,13 +46,15 @@ class EdgeLogsModel(Base, LoggingMixin):
     """
 
     __tablename__ = "edge_logs"
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    try_number = Column(Integer, primary_key=True, default=0)
-    log_chunk_time = Column(UtcDateTime, primary_key=True, nullable=False)
-    log_chunk_data = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
+    dag_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    task_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    run_id: Mapped[str] = mapped_column(StringID(), primary_key=True, nullable=False)
+    map_index: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, server_default=text("-1")
+    )
+    try_number: Mapped[int] = mapped_column(Integer, primary_key=True, default=0)
+    log_chunk_time: Mapped[datetime] = mapped_column(UtcDateTime, primary_key=True, nullable=False)
+    log_chunk_data: Mapped[str] = mapped_column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
 
     def __init__(
         self,

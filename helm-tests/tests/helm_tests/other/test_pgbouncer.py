@@ -109,7 +109,7 @@ class TestPgbouncer:
         assert jmespath.search("spec.clusterIP", docs[0]) == "10.10.10.10"
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -850,7 +850,7 @@ class TestPgbouncerNetworkPolicy:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer-policy"
 
     @pytest.mark.parametrize(
-        "conf, expected_selector",
+        ("conf", "expected_selector"),
         [
             # test with workers.keda enabled without namespace labels
             (

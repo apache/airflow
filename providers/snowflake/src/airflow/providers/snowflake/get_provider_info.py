@@ -73,11 +73,13 @@ def get_provider_info():
                 "source-integration-name": "Google Cloud Storage (GCS)",
                 "target-integration-name": "Snowflake",
                 "python-module": "airflow.providers.snowflake.transfers.copy_into_snowflake",
+                "how-to-guide": "/docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst",
             },
             {
                 "source-integration-name": "Microsoft Azure Blob Storage",
                 "target-integration-name": "Snowflake",
                 "python-module": "airflow.providers.snowflake.transfers.copy_into_snowflake",
+                "how-to-guide": "/docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst",
             },
         ],
         "connection-types": [
@@ -92,4 +94,18 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.snowflake.triggers.snowflake_trigger"],
             }
         ],
+        "config": {
+            "snowflake": {
+                "description": "Configuration for Snowflake hooks and operators.\n",
+                "options": {
+                    "azure_oauth_scope": {
+                        "description": "The scope to use while retrieving OAuth token for Snowflake from Azure Entra authentication.\n",
+                        "version_added": "6.6.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "api://snowflake_oauth_server/.default",
+                    }
+                },
+            }
+        },
     }

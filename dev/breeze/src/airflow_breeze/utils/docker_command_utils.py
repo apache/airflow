@@ -230,6 +230,36 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
+def check_container_engine(quiet: bool = False):
+    """Checks if the container engine is Docker or podman."""
+    response = run_command(
+        ["docker", "version"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            "[error]Could not determine the container engine.[/]\n"
+            "[warning]Please ensure that Docker is installed and running.[/]"
+        )
+        sys.exit(1)
+    run_command_output = "\n".join(
+        " ".join(line.split()) for line in response.stdout.strip().lower().splitlines()
+    )
+    podman_engine_enabled = any(
+        "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
+    )
+    if podman_engine_enabled:
+        get_console().print(
+            "[error]Podman is not yet supported as a container engine in breeze.[/]\n"
+            "[warning]Please switch to Docker.[/]"
+        )
+        sys.exit(1)
+
+
 def check_remote_ghcr_io_commands():
     """Checks if you have permissions to pull an empty image from ghcr.io.
 
@@ -501,16 +531,19 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
                 f"repository should only be checked out on a filesystem that is POSIX compliant."
             )
             sys.exit(1)
-    if not quiet:
+    if get_verbose() and not quiet:
         get_console().print("[success]Executable permissions on entrypoints are OK[/]")
 
 
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
+    check_container_engine(quiet)
     check_docker_version(quiet)
     check_docker_compose_version(quiet)
     check_executable_entrypoint_permissions(quiet)
+    if not quiet:
+        get_console().print(f"[success]Host python version is {sys.version}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -642,9 +675,10 @@ def remove_docker_volumes(volumes: list[str] | None = None) -> None:
 # When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
 # because the docker socket to use is created in the .docker/ directory in the user's home directory
 # and it does not require the user to belong to the "docker" group.
+# The "rancher-desktop" context is the preferred context for the Rancher dockerd (moby) Container Engine.
 # The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
 # user running the docker command.
-PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "default"]
+PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "rancher-desktop", "default"]
 
 
 def autodetect_docker_context():
@@ -778,6 +812,7 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
+    perform_environment_checks(quiet=shell_params.quiet)
     return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
@@ -795,7 +830,6 @@ def enter_shell(
     * shuts down existing project
     * executes the command to drop the user to Breeze shell
     """
-    perform_environment_checks(quiet=shell_params.quiet)
     fix_ownership_using_docker(quiet=shell_params.quiet)
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None and not shell_params.quiet:
@@ -825,8 +859,6 @@ def enter_shell(
     cmd.extend(["run", "--service-ports", "--rm"])
     if shell_params.tty == "disabled":
         cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
     cmd.append("airflow")
     cmd_added = shell_params.command_passed
     if cmd_added is not None:

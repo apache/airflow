@@ -1485,13 +1485,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `conn_id,
-            conn_type, description, host, port, id`'
+            conn_type, description, host, port, id, connection_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `conn_id, conn_type,
-          description, host, port, id`'
+          description, host, port, id, connection_id`'
       - name: connection_id_pattern
         in: query
         required: false
@@ -2285,14 +2285,14 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at,
-            conf, duration`'
+            conf, duration, dag_run_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, dag_id,
           run_id, logical_date, run_after, start_date, end_date, updated_at, conf,
-          duration`'
+          duration, dag_run_id`'
       - name: run_id_pattern
         in: query
         required: false
@@ -2698,53 +2698,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/dagReports:
-    get:
-      tags:
-      - DagReport
-      summary: Get Dag Reports
-      description: Get DAG report.
-      operationId: get_dag_reports
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: subdir
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Subdir
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '422':
           description: Validation Error
           content:
@@ -3236,13 +3189,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-            next_dagrun, state, start_date`'
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
           default:
           - dag_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
-          next_dagrun, state, start_date`'
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
       - name: is_favorite
         in: query
         required: false
@@ -3815,13 +3768,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, dttm,
-            dag_id, task_id, run_id, event, logical_date, owner, extra`'
+            dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, dttm, dag_id,
-          task_id, run_id, event, logical_date, owner, extra`'
+          task_id, run_id, event, logical_date, owner, extra, when, event_log_id`'
       - name: dag_id
         in: query
         required: false
@@ -4153,13 +4106,13 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, timestamp,
-            filename, bundle_name, stacktrace`'
+            filename, bundle_name, stacktrace, import_error_id`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, timestamp, filename,
-          bundle_name, stacktrace`'
+          bundle_name, stacktrace, import_error_id`'
       - name: filename_pattern
         in: query
         required: false
@@ -4665,12 +4618,13 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id, pool`'
+            Prefix with `-` for descending order. Supported attributes: `id, pool,
+            name`'
           default:
           - id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id, pool`'
+          with `-` for descending order. Supported attributes: `id, pool, name`'
       - name: pool_name_pattern
         in: query
         required: false
@@ -4996,6 +4950,81 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/XComResponseNative'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - XCom
+      summary: Delete Xcom Entry
+      description: Delete an XCom entry.
+      operationId: delete_xcom_entry
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: -1
+          default: -1
+          title: Map Index
+      responses:
+        '204':
+          description: Successful Response
         '401':
           content:
             application/json:
@@ -5805,6 +5834,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -5813,6 +5854,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -5845,6 +5898,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -5879,14 +5944,16 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator`'
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            run_after, logical_date, data_interval_start, data_interval_end`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator`'
+          data_interval_end, rendered_map_index, operator, run_after, logical_date,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -6605,6 +6672,18 @@ paths:
           title: Task Display Name Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
+      - name: task_group_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by exact task group ID. Returns all tasks within the
+            specified task group.
+          title: Task Group Id
+        description: Filter by exact task group ID. Returns all tasks within the specified
+          task group.
       - name: dag_id_pattern
         in: query
         required: false
@@ -6615,6 +6694,18 @@ paths:
           description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
             \ Regular expressions are **not** supported."
           title: Dag Id Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      - name: run_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Run Id Pattern
         description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
           \ Regular expressions are **not** supported."
       - name: state
@@ -6633,6 +6724,18 @@ paths:
           items:
             type: string
           title: Pool
+      - name: pool_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Pool Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: queue
         in: query
         required: false
@@ -6641,6 +6744,18 @@ paths:
           items:
             type: string
           title: Queue
+      - name: queue_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Queue Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: executor
         in: query
         required: false
@@ -6673,6 +6788,18 @@ paths:
           items:
             type: string
           title: Operator
+      - name: operator_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Operator Name Pattern
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       - name: map_index
         in: query
         required: false
@@ -6707,14 +6834,16 @@ paths:
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `id, state,
             duration, start_date, end_date, map_index, try_number, logical_date, run_after,
-            data_interval_start, data_interval_end, rendered_map_index, operator`'
+            data_interval_start, data_interval_end, rendered_map_index, operator,
+            logical_date, run_after, data_interval_start, data_interval_end`'
           default:
           - map_index
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, state, duration,
           start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start,
-          data_interval_end, rendered_map_index, operator`'
+          data_interval_end, rendered_map_index, operator, logical_date, run_after,
+          data_interval_start, data_interval_end`'
       responses:
         '200':
           description: Successful Response
@@ -7053,6 +7182,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -8347,13 +8482,17 @@ paths:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
             Prefix with `-` for descending order. Supported attributes: `ti_id, subject,
-            responded_at, created_at, responded_by_user_id, responded_by_user_name`'
+            responded_at, created_at, responded_by_user_id, responded_by_user_name,
+            dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator,
+            task_instance_state`'
           default:
           - ti_id
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `ti_id, subject, responded_at,
-          created_at, responded_by_user_id, responded_by_user_name`'
+          created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id,
+          task_display_name, run_after, rendered_map_index, task_instance_operator,
+          task_instance_state`'
       - name: dag_id_pattern
         in: query
         required: false
@@ -8579,15 +8718,6 @@ paths:
       summary: Logout
       description: Logout the user.
       operationId: logout
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
       responses:
         '200':
           description: Successful Response
@@ -8595,51 +8725,11 @@ paths:
             application/json:
               schema: {}
         '307':
+          description: Temporary Redirect
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/auth/refresh:
-    get:
-      tags:
-      - Login
-      summary: Refresh
-      description: Refresh the authentication token.
-      operationId: refresh
-      parameters:
-      - name: next
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Next
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '307':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Temporary Redirect
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -8779,7 +8869,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8810,6 +8901,11 @@ components:
           type: string
           format: date-time
           title: Timestamp
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - id
@@ -8835,7 +8931,8 @@ components:
           title: Group
         extra:
           anyOf:
-          - additionalProperties: true
+          - additionalProperties:
+              $ref: '#/components/schemas/JsonValue'
             type: object
           - type: 'null'
           title: Extra
@@ -8955,6 +9052,10 @@ components:
           type: integer
           title: Max Active Runs
           default: 10
+        run_on_latest_version:
+          type: boolean
+          title: Run On Latest Version
+          default: true
       additionalProperties: false
       type: object
       required:
@@ -9265,7 +9366,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/ConnectionBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9289,7 +9390,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/PoolBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9313,7 +9414,7 @@ components:
           items:
             anyOf:
             - type: string
-            - $ref: '#/components/schemas/BulkTaskInstanceBody'
+            - $ref: '#/components/schemas/VariableBody'
           type: array
           title: Entities
           description: A list of entity id/key or entity objects to be deleted.
@@ -9395,6 +9496,16 @@ components:
           - type: integer
           - type: 'null'
           title: Map Index
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
       additionalProperties: false
       type: object
       required:
@@ -9573,6 +9684,9 @@ components:
             type: array
           - type: 'null'
           title: Task Ids
+          description: A list of `task_id` or [`task_id`, `map_index`]. If only the
+            `task_id` is provided for a mapped task, all of its map indices will be
+            targeted.
         dag_run_id:
           anyOf:
           - type: string
@@ -9599,6 +9713,10 @@ components:
           title: Run On Latest Version
           description: (Experimental) Run on the latest bundle version of the dag
             after clearing the task instances.
+          default: false
+        prevent_running_task:
+          type: boolean
+          title: Prevent Running Task
           default: false
       additionalProperties: false
       type: object
@@ -9701,6 +9819,12 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -9767,6 +9891,11 @@ components:
           - type: string
           - type: 'null'
           title: Extra
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - connection_id
@@ -9778,6 +9907,7 @@ components:
       - port
       - password
       - extra
+      - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
     ConnectionTestResponse:
@@ -9799,6 +9929,11 @@ components:
         asset_id:
           type: integer
           title: Asset Id
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
         extra:
           additionalProperties: true
           type: object
@@ -10017,6 +10152,14 @@ components:
             type: object
           - type: 'null'
           title: Owner Links
+        is_favorite:
+          type: boolean
+          title: Is Favorite
+          default: false
+        active_runs_count:
+          type: integer
+          title: Active Runs Count
+          default: 0
         file_token:
           type: string
           title: File Token
@@ -10399,6 +10542,11 @@ components:
         dag_display_name:
           type: string
           title: Dag Display Name
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       type: object
       required:
       - dag_run_id
@@ -10421,6 +10569,7 @@ components:
       - dag_versions
       - bundle_version
       - dag_display_name
+      - partition_key
       title: DAGRunResponse
       description: DAG Run serializer for responses.
     DAGRunsBatchBody:
@@ -10911,7 +11060,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -11166,8 +11314,97 @@ components:
       description: Serializer for Plugin FastAPI root middleware responses.
     HITLDetail:
       properties:
+        options:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Options
+        subject:
+          type: string
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
+          anyOf:
+          - $ref: '#/components/schemas/HITLUser'
+          - type: 'null'
+        responded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Responded At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
         task_instance:
           $ref: '#/components/schemas/TaskInstanceResponse'
+      type: object
+      required:
+      - options
+      - subject
+      - created_at
+      - task_instance
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
+    HITLDetailCollection:
+      properties:
+        hitl_details:
+          items:
+            $ref: '#/components/schemas/HITLDetail'
+          type: array
+          title: Hitl Details
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - hitl_details
+      - total_entries
+      title: HITLDetailCollection
+      description: Schema for a collection of Human-in-the-loop details.
+    HITLDetailHistory:
+      properties:
         options:
           items:
             type: string
@@ -11233,28 +11470,11 @@ components:
           default: false
       type: object
       required:
-      - task_instance
       - options
       - subject
       - created_at
-      title: HITLDetail
-      description: Schema for Human-in-the-loop detail.
-    HITLDetailCollection:
-      properties:
-        hitl_details:
-          items:
-            $ref: '#/components/schemas/HITLDetail'
-          type: array
-          title: Hitl Details
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - hitl_details
-      - total_entries
-      title: HITLDetailCollection
-      description: Schema for a collection of Human-in-the-loop details.
+      title: HITLDetailHistory
+      description: Schema for Human-in-the-loop detail history.
     HITLDetailResponse:
       properties:
         responded_by:
@@ -11758,7 +11978,6 @@ components:
       required:
       - name
       - slots
-      - description
       - include_deferred
       - occupied_slots
       - running_slots
@@ -11795,11 +12014,17 @@ components:
         version:
           type: string
           title: Version
+        documentation_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Documentation Url
       type: object
       required:
       - package_name
       - description
       - version
+      - documentation_url
       title: ProviderResponse
       description: Provider serializer for responses.
     QueuedEventCollectionResponse:
@@ -12142,6 +12367,10 @@ components:
           anyOf:
           - $ref: '#/components/schemas/DagVersionResponse'
           - type: 'null'
+        hitl_detail:
+          anyOf:
+          - $ref: '#/components/schemas/HITLDetailHistory'
+          - type: 'null'
       type: object
       required:
       - task_id
@@ -12170,6 +12399,7 @@ components:
       - executor
       - executor_config
       - dag_version
+      - hitl_detail
       title: TaskInstanceHistoryResponse
       description: TaskInstanceHistory serializer for responses.
     TaskInstanceResponse:
@@ -12680,7 +12910,7 @@ components:
           - $ref: '#/components/schemas/TimeDelta'
           - type: 'null'
         retry_exponential_backoff:
-          type: boolean
+          type: number
           title: Retry Exponential Backoff
         priority_weight:
           anyOf:
@@ -12845,6 +13075,11 @@ components:
           - type: string
           - type: 'null'
           title: Note
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
       additionalProperties: false
       type: object
       required:
@@ -12949,6 +13184,12 @@ components:
           - type: string
           - type: 'null'
           title: Description
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
       additionalProperties: false
       type: object
       required:
@@ -12988,12 +13229,18 @@ components:
         is_encrypted:
           type: boolean
           title: Is Encrypted
+        team_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Name
       type: object
       required:
       - key
       - value
       - description
       - is_encrypted
+      - team_name
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:

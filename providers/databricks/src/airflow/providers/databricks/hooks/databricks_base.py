@@ -49,7 +49,8 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers_manager import ProvidersManager
 
 try:
@@ -166,12 +167,12 @@ class BaseDatabricksHook(BaseHook):
         return ua_string
 
     @cached_property
-    def host(self) -> str:
+    def host(self) -> str | None:
+        host = None
         if "host" in self.databricks_conn.extra_dejson:
             host = self._parse_host(self.databricks_conn.extra_dejson["host"])
-        else:
+        elif self.databricks_conn.host:
             host = self._parse_host(self.databricks_conn.host)
-
         return host
 
     async def __aenter__(self):
@@ -207,6 +208,11 @@ class BaseDatabricksHook(BaseHook):
         # In this case, host = xx.cloud.databricks.com
         return host
 
+    def _get_connection_attr(self, attr_name: str) -> str:
+        if not (attr := getattr(self.databricks_conn, attr_name)):
+            raise ValueError(f"`{attr_name}` must be present in Connection")
+        return attr
+
     def _get_retry_object(self) -> Retrying:
         """
         Instantiate a retry object.
@@ -235,7 +241,7 @@ class BaseDatabricksHook(BaseHook):
                 with attempt:
                     resp = requests.post(
                         resource,
-                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -271,7 +277,9 @@ class BaseDatabricksHook(BaseHook):
                 with attempt:
                     async with self._session.post(
                         resource,
-                        auth=aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=aiohttp.BasicAuth(
+                            self._get_connection_attr("login"), self.databricks_conn.password
+                        ),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -316,7 +324,7 @@ class BaseDatabricksHook(BaseHook):
                         token = ManagedIdentityCredential().get_token(f"{resource}/.default")
                     else:
                         credential = ClientSecretCredential(
-                            client_id=self.databricks_conn.login,
+                            client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         )
@@ -364,7 +372,7 @@ class BaseDatabricksHook(BaseHook):
                             token = await credential.get_token(f"{resource}/.default")
                     else:
                         async with AsyncClientSecretCredential(
-                            client_id=self.databricks_conn.login,
+                            client_id=self._get_connection_attr("login"),
                             client_secret=self.databricks_conn.password,
                             tenant_id=self.databricks_conn.extra_dejson["azure_tenant_id"],
                         ) as credential:
@@ -678,7 +686,7 @@ class BaseDatabricksHook(BaseHook):
             auth = _TokenAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
 
         request_func: Any
         if method == "GET":
@@ -745,7 +753,7 @@ class BaseDatabricksHook(BaseHook):
             auth = BearerAuth(token)
         else:
             self.log.info("Using basic auth.")
-            auth = aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password)
+            auth = aiohttp.BasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
 
         request_func: Any
         if method == "GET":

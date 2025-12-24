@@ -396,7 +396,7 @@ While enabling lineage on a Dag implicitly enables it for all tasks within that 
 
     from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
-    with Dag(...) as dag:
+    with DAG(...) as dag:
         t1 = MyOperator(...)
         t2 = AnotherOperator(...)
 
@@ -476,6 +476,56 @@ You can enable this automation by setting ``spark_inject_transport_info`` option
 .. code-block:: ini
 
   AIRFLOW__OPENLINEAGE__SPARK_INJECT_TRANSPORT_INFO=true
+
+
+Passing parent information to Airflow DAG
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable full OpenLineage lineage tracking across dependent DAGs, you can pass parent and root job information
+through the DAG's ``dag_run.conf``. When a DAG run configuration includes an ``openlineage`` section with valid metadata,
+this information is automatically parsed and converted into DAG run's ``parentRunFacet``, from which the root information
+is also propagated to all tasks. If no DAG run ``openlineage`` configuration is provided, the DAG run will not contain
+``parentRunFacet`` and root of all tasks will default to Dag run.
+
+The ``openlineage`` dict in conf should contain the following keys:
+
+
+*(all three values must be included to create a parent reference)*
+
+- **parentRunId** — the unique run ID (uuid) of the direct parent job
+- **parentJobName** — the name of the parent job
+- **parentJobNamespace** — the namespace of the parent job
+
+*(all three values must be included to create a root reference, otherwise parent will be used as root)*
+
+- **rootParentRunId** — the run ID (uuid) of the top-level (root) job
+- **rootParentJobName** — the name of the top-level (root) job
+- **rootParentJobNamespace** — the namespace of the top-level (root) job
+
+.. note::
+
+  We highly recommend providing all six OpenLineage identifiers (parent and root) to ensure complete lineage tracking. If the root information is missing, the parent set will be used as the root; if any of the three parent fields are missing, no parent facet will be created. Partial or mixed configurations are not supported - either all three parent or all three root values must be provided together.
+
+
+Example:
+
+.. code-block:: shell
+
+    curl -X POST "http://<AIRFLOW_HOST>/api/v2/dags/my_dag_name/dagRuns" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "logical_date": "2019-08-24T14:15:22Z",
+      "conf": {
+        "openlineage": {
+          "parentRunId": "3bb703d1-09c1-4a42-8da5-35a0b3216072",
+          "parentJobNamespace": "prod_biz",
+          "parentJobName": "get_files",
+          "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
+          "rootParentJobNamespace": "prod_analytics",
+          "rootParentJobName": "generate_report_sales_e2e"
+        }
+      }
+    }'
 
 
 Troubleshooting

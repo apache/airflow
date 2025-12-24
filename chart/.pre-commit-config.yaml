@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+default_stages: [pre-commit, pre-push]
+minimum_prek_version: '0.2.0'
+default_language_version:
+  python: python3
+  node: 22.19.0
+  golang: 1.24.0
+repos:
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    # replace hash with version once PR #103 merged comes in a release
+    rev: f5cfd5fdaf0211dfd1027d9d8442b764a232c7ad
+    hooks:
+      - id: insert-license
+        name: Add license for all Helm template files
+        files: ^templates/.*
+        args:
+          - --comment-style
+          - "{{/*||*/}}"
+          - --license-filepath
+          - ../scripts/ci/license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+  - repo: local
+    hooks:
+      - id: update-chart-dependencies
+        name: Update chart dependencies to latest (manual)
+        entry: ../scripts/ci/prek/update_chart_dependencies.py
+        stages: ['manual']
+        language: python
+        files: ^\.pre-commit-config\.yaml$|^../scripts/ci/prek/update_build_dependencies\.py$
+        pass_filenames: false
+        require_serial: true
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
+    hooks:
+      - id: pretty-format-json
+        name: Format JSON files
+        args:
+          - --autofix
+          - --no-sort-keys
+          - --indent
+          - "4"
+        files:
+          (?x)
+          ^values\.schema\.json$|
+          ^values_schema\.schema\.json$
+        pass_filenames: true
+  - repo: local
+    hooks:
+      - id: lint-helm-chart
+        name: Lint Helm Chart
+        entry: ../scripts/ci/prek/lint_helm.py
+        language: python
+        pass_filenames: false
+        files: ^.*
+        require_serial: true
+      - id: validate-chart-annotations
+        name: Validate chart annotations
+        entry: ../scripts/ci/prek/validate_chart_annotations.py
+        language: python
+        pass_filenames: false
+        files: ^Chart\.yaml$
+      - id: kubeconform
+        name: Kubeconform check on our helm chart
+        entry: ../scripts/ci/prek/check_kubeconform.py
+        language: python
+        pass_filenames: false
+        files: ^.*
+        require_serial: true
+      - id: lint-json-schema
+        name: Lint chart/values.schema.json
+        entry: ../scripts/ci/prek/lint_json_schema.py
+        args:
+          - --spec-file
+          - values_schema.schema.json
+          - values.schema.json
+        language: python
+        pass_filenames: false
+        files: ^values\.schema\.json$|^values_schema\.schema\.json$
+        require_serial: true
+      - id: update-vendored-in-k8s-json-schema
+        name: Vendor k8s definitions into values.schema.json
+        entry: ../scripts/ci/prek/vendor_k8s_json_schema.py
+        language: python
+        files: ^values\.schema\.json$
+      - id: lint-json-schema
+        name: Lint chart/values.yaml
+        entry: ../scripts/ci/prek/lint_json_schema.py
+        args:
+          - --enforce-defaults
+          - --spec-file
+          - values.schema.json
+          - values.yaml
+        language: python
+        pass_filenames: false
+        files: ^values\.yaml$|^values\.schema\.json$
+        require_serial: true
+      - id: lint-chart-schema
+        name: Lint chart/values.schema.json file
+        entry: ../scripts/ci/prek/chart_schema.py
+        language: python
+        pass_filenames: false
+        files: ^values\.schema\.json$
+        require_serial: true

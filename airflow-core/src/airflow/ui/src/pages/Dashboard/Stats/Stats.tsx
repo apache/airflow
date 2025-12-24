@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiClipboard, FiZap } from "react-icons/fi";
 
@@ -51,7 +51,7 @@ export const Stats = () => {
         </Heading>
       </Flex>
 
-      <HStack gap={4}>
+      <Flex flexWrap="wrap" gap={4}>
         <NeedsReviewButton />
 
         <StatsCard
@@ -99,7 +99,7 @@ export const Stats = () => {
           label={translate("stats.activeDags")}
           link="dags?paused=false"
         />
-      </HStack>
+      </Flex>
     </Box>
   );
 };

@@ -28,7 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import types
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
     HyperparameterTuningJobHook,
 )
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.aiplatform import HyperparameterTuningJob, gapic, hyperparameter_tuning
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):

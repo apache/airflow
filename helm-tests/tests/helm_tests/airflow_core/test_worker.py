@@ -26,7 +26,7 @@ class TestWorker:
     """Tests worker."""
 
     @pytest.mark.parametrize(
-        "executor, persistence, kind",
+        ("executor", "persistence", "kind"),
         [
             ("CeleryExecutor", False, "Deployment"),
             ("CeleryExecutor", True, "StatefulSet"),
@@ -47,7 +47,7 @@ class TestWorker:
         assert kind == jmespath.search("kind", docs[0])
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -127,6 +127,38 @@ class TestWorker:
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
         )
         assert actual is None
+
+    @pytest.mark.parametrize(
+        ("logs_values", "expect_sub_path"),
+        [
+            ({"persistence": {"enabled": False}}, None),
+            ({"persistence": {"enabled": True, "subPath": "test/logs"}}, "test/logs"),
+        ],
+    )
+    def test_logs_mount_on_wait_for_migrations_initcontainer(self, logs_values, expect_sub_path):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "logs": logs_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        mounts = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'] | [0].volumeMounts",
+            docs[0],
+        )
+        assert mounts is not None, (
+            "wait-for-airflow-migrations initContainer not found or has no volumeMounts"
+        )
+        assert any(m.get("name") == "logs" and m.get("mountPath") == "/opt/airflow/logs" for m in mounts)
+        if expect_sub_path is not None:
+            assert any(
+                m.get("name") == "logs"
+                and m.get("mountPath") == "/opt/airflow/logs"
+                and m.get("subPath") == expect_sub_path
+                for m in mounts
+            )
 
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
@@ -272,7 +304,7 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
 
     @pytest.mark.parametrize(
-        "persistence, update_strategy, expected_update_strategy",
+        ("persistence", "update_strategy", "expected_update_strategy"),
         [
             (False, None, None),
             (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
@@ -294,7 +326,7 @@ class TestWorker:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        "persistence, strategy, expected_strategy",
+        ("persistence", "strategy", "expected_strategy"),
         [
             (True, None, None),
             (
@@ -447,7 +479,7 @@ class TestWorker:
         )
 
     @pytest.mark.parametrize(
-        "base_scheduler_name, worker_scheduler_name, expected",
+        ("base_scheduler_name", "worker_scheduler_name", "expected"),
         [
             ("default-scheduler", "most-allocated", "most-allocated"),
             ("default-scheduler", None, "default-scheduler"),
@@ -491,7 +523,7 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
     @pytest.mark.parametrize(
-        "airflow_version, default_cmd",
+        ("airflow_version", "default_cmd"),
         [
             ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
             ("2.6.3", "airflow.executors.celery_executor.app"),
@@ -565,7 +597,7 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.initContainers[1].restartPolicy", docs[0]) == "Always"
 
     @pytest.mark.parametrize(
-        "log_values, expected_volume",
+        ("log_values", "expected_volume"),
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
@@ -675,7 +707,7 @@ class TestWorker:
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
-        "airflow_version, init_container_enabled, expected_init_containers",
+        ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
             ("1.9.0", True, 2),
             ("1.9.0", False, 2),
@@ -711,7 +743,7 @@ class TestWorker:
             assert initContainers[1]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("airflow_version", "expected_arg"),
         [
             ("1.9.0", "airflow worker"),
             ("1.10.14", "airflow worker"),
@@ -799,7 +831,7 @@ class TestWorker:
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
     @pytest.mark.parametrize(
-        "globalScope, localScope, precedence",
+        ("globalScope", "localScope", "precedence"),
         [
             ({}, {}, "false"),
             ({}, {"safeToEvict": True}, "true"),
@@ -986,7 +1018,7 @@ class TestWorker:
         )
 
     @pytest.mark.parametrize(
-        "globalScope, localScope, precedence",
+        ("globalScope", "localScope", "precedence"),
         [
             ({"scope": "global"}, {"podAnnotations": {}}, "global"),
             ({}, {"podAnnotations": {"scope": "local"}}, "local"),
@@ -1054,7 +1086,7 @@ class TestWorkerKedaAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
-        "query, executor, expected_query",
+        ("query", "executor", "expected_query"),
         [
             # default query with CeleryExecutor
             (
@@ -1164,7 +1196,7 @@ class TestWorkerHPAAutoScaler:
         assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
-        "metrics, executor, expected_metrics",
+        ("metrics", "executor", "expected_metrics"),
         [
             # default metrics
             (
@@ -1275,7 +1307,7 @@ class TestWorkerServiceAccount:
         ],
     )
     @pytest.mark.parametrize(
-        "workers_values, obj",
+        ("workers_values", "obj"),
         [
             ({"serviceAccount": {"create": True}}, "worker"),
             (
@@ -1310,7 +1342,7 @@ class TestWorkerServiceAccount:
         ],
     )
     @pytest.mark.parametrize(
-        "workers_values, obj",
+        ("workers_values", "obj"),
         [
             ({"serviceAccount": {"create": True}}, "worker"),
             (
@@ -1388,7 +1420,7 @@ class TestWorkerServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     @pytest.mark.parametrize(
-        "workers_values, obj",
+        ("workers_values", "obj"),
         [
             (
                 {"useWorkerDedicatedServiceAccounts": True, "celery": {"serviceAccount": {"create": True}}},
@@ -1415,7 +1447,7 @@ class TestWorkerServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     @pytest.mark.parametrize(
-        "workers_values, obj",
+        ("workers_values", "obj"),
         [
             ({"serviceAccount": {"create": True, "automountServiceAccountToken": False}}, "worker"),
             (

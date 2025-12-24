@@ -25,6 +25,7 @@ from airflow.models import DagModel
 from airflow.models.backfill import Backfill
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dag_bundles,
@@ -77,7 +78,7 @@ class TestBackfillEndpoint:
 
 class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "test_params, response_params, total_entries",
+        ("test_params", "response_params", "total_entries"),
         [
             ({}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"active": True}, ["backfill2", "backfill3"], 2),
@@ -152,7 +153,8 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        response = test_client.get("/backfills", params=test_params)
+        with assert_queries_count(2):
+            response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
             "backfills": expected_response,

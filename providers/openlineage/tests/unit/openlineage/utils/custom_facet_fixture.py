@@ -23,7 +23,7 @@ import attrs
 from airflow.providers.common.compat.openlineage.facet import RunFacet
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceState
+    from airflow.providers.common.compat.sdk import TaskInstance, TaskInstanceState
 
 
 @attrs.define

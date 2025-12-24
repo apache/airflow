@@ -21,9 +21,9 @@ from unittest import mock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -60,6 +60,24 @@ class TestSsmRunCommandTrigger:
 
         assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
         assert kwargs.get("command_id") == COMMAND_ID
+
+    def test_serialization_with_region(self):
+        """Test that region_name and other AWS parameters are properly serialized."""
+        trigger = SsmRunCommandTrigger(
+            command_id=COMMAND_ID,
+            region_name="us-east-1",
+            aws_conn_id="test_conn",
+            verify=True,
+            botocore_config={"retries": {"max_attempts": 3}},
+        )
+        classpath, kwargs = trigger.serialize()
+
+        assert classpath == BASE_TRIGGER_CLASSPATH + "SsmRunCommandTrigger"
+        assert kwargs.get("command_id") == COMMAND_ID
+        assert kwargs.get("region_name") == "us-east-1"
+        assert kwargs.get("aws_conn_id") == "test_conn"
+        assert kwargs.get("verify") is True
+        assert kwargs.get("botocore_config") == {"retries": {"max_attempts": 3}}
 
     @pytest.mark.asyncio
     @mock.patch.object(SsmHook, "get_async_conn")

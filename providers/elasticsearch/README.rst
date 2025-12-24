@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-elasticsearch``
 
-Release: ``6.3.3``
+Release: ``6.4.1``
 
 
 `Elasticsearch <https://www.elastic.co/elasticsearch>`__
@@ -36,7 +36,7 @@ This is a provider package for ``elasticsearch`` provider. All classes for this 
 are in ``airflow.providers.elasticsearch`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.3.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.4.1/>`_.
 
 Installation
 ------------
@@ -50,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.27.0``
-``elasticsearch``                        ``>=8.10,<9``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-sql``     ``>=1.27.0``
+``elasticsearch``                           ``>=8.10,<9``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -68,14 +69,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-elasticsearch[common.sql]
+    pip install apache-airflow-providers-elasticsearch[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.3.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-elasticsearch/6.4.1/changelog.html>`_.
