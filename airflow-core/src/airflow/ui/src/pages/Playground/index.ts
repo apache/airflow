@@ -17,23 +17,17 @@
  * under the License.
  */
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./Switch";
-export * from "./Tooltip";
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Toaster";
-export * from "./Breadcrumb";
-export * from "./Clipboard";
-export * from "./Popover";
-export * from "./Checkbox";
-export * from "./ResetButton";
-export * from "./InputWithAddon";
-export * from "./NumberInput";
-export * from "./RadioCard";
-export * from "./Tag";
-export { default as SegmentedControl } from "./SegmentedControl";
+export { Playground } from "./Playground";
+export { AirflowComponents } from "./airflow/AirflowComponents";
+export { Colors } from "./colors/Colors";
+export { Layout } from "./layout/Layout";
+export { Typography } from "./typography/Typography";
+export { Buttons } from "./buttons/Buttons";
+export { Collections } from "./collections/Collections";
+export { Forms } from "./forms/Forms";
+export { Feedback } from "./feedback/Feedback";
+export { Graph } from "./graphs/Graph";
+export { Charts } from "./charts/Charts";
+export { Overlays } from "./overlays/Overlays";
+export { TableOfContents } from "./TableOfContents";
+export { ModalDialog } from "./overlays/ModalDialog";
