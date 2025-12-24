@@ -63,7 +63,7 @@ def _covers_every_hour(cron: croniter) -> bool:
 class CronMixin:
     """Mixin to provide interface to work with croniter."""
 
-    def __init__(self, cron: str, timezone: str | Timezone | FixedTimezone) -> None:
+    def __init__(self, cron: str, timezone: str | Timezone | FixedTimezone, **kwargs) -> None:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
@@ -80,6 +80,7 @@ class CronMixin:
 
         except (CroniterBadCronError, FormatException, MissingFieldException):
             self.description = ""
+        super().__init__(**kwargs)
 
     def _describe_with_dom_dow_fix(self, expression: str) -> str:
         """
