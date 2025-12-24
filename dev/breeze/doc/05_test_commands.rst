@@ -567,6 +567,13 @@ If skaffold cannot find the pods (for example if the release was deployed outsid
 
     breeze k8s dev --deploy
 
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_dev.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_dev.svg
+  :width: 100%
+  :alt: Breeze k8s dev
+
 Checking status of the K8S cluster
 ..................................
 
