@@ -351,12 +351,10 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
 
 def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
     """Test that a task can transition to a deferred state."""
-    from pendulum import datetime
-
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
     # Use the time machine to set the current time
-    instant = datetime(2024, 11, 22, tz="UTC")
+    instant = timezone.datetime(2024, 11, 22)
     task = DateTimeSensorAsync(
         task_id="async",
         target_time=str(instant + timedelta(seconds=3)),
@@ -365,23 +363,30 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     )
     time_machine.move_to(instant, tick=False)
 
-    # Expected DeferTask
-    from airflow.sdk.serde import serialize
-
-    expected_trigger_kwargs = serialize(
-        {
-            "end_from_trigger": False,
-            "moment": instant + timedelta(seconds=3),
-        }
-    )
-
+    # Expected DeferTask, it is constructed by _defer_task from exception and is sent to supervisor
     expected_defer_task = DeferTask(
         state="deferred",
         classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-        trigger_kwargs=expected_trigger_kwargs,
+        trigger_kwargs={
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1732233603.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
+            "end_from_trigger": False,
+        },
         trigger_timeout=None,
         next_method="execute_complete",
         next_kwargs={},
+        rendered_map_index=None,
+        type="DeferTask",
     )
 
     # Run the task
