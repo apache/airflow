@@ -17,16 +17,34 @@
 
 from __future__ import annotations
 
-import warnings
+from typing import TYPE_CHECKING
 
-from airflow.sdk import XComArg
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
+from airflow.sdk.module_loading import qualname
 
-__all__ = ["XComArg"]
+if TYPE_CHECKING:
+    import uuid
 
-warnings.warn(
-    "Importing airflow.models.xcom_arg is deprecated and will be removed in "
-    "the future. Please import from 'airflow.sdk' instead.",
-    DeprecatedImportWarning,
-    stacklevel=2,
-)
+    from airflow.sdk.serde import U
+
+__version__ = 1
+
+serializers = ["uuid.UUID"]
+deserializers = serializers
+
+
+def serialize(o: object) -> tuple[U, str, int, bool]:
+    """Serialize a UUID object to a string representation."""
+    import uuid
+
+    if isinstance(o, uuid.UUID):
+        return str(o), qualname(o), __version__, True
+    return "", "", 0, False
+
+
+def deserialize(cls: type, version: int, data: str) -> uuid.UUID:
+    """Deserialize a string back to a UUID object."""
+    import uuid
+
+    if cls is uuid.UUID and isinstance(data, str):
+        return uuid.UUID(data)
+    raise TypeError(f"cannot deserialize {qualname(cls)} from {type(data)}")
