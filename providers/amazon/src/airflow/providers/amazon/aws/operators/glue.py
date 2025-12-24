@@ -36,6 +36,9 @@ from airflow.providers.amazon.aws.triggers.glue import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.amazon.aws.utils.openlineage import (
+    inject_parent_job_information_into_glue_script_args,
+)
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
@@ -139,10 +142,14 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
         job_poll_interval: int | float = 6,
         waiter_delay: int = 60,
         waiter_max_attempts: int = 75,
+        openlineage_inject_parent_job_info: bool = conf.getboolean(
+            "openlineage", "spark_inject_parent_job_info", fallback=False
+        ),
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_name = job_name
+        self._openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.job_desc = job_desc
         self.script_location = script_location
         self.concurrent_run_limit = concurrent_run_limit or 1
@@ -217,6 +224,9 @@ class GlueJobOperator(AwsBaseOperator[GlueJobHook]):
 
         :return: the current Glue job ID.
         """
+        if self._openlineage_inject_parent_job_info:
+            self.log.debug("Injecting OpenLineage parent job information into Glue script_args.")
+            self.script_args = inject_parent_job_information_into_glue_script_args(self.script_args, context)
         self.log.info(
             "Initializing AWS Glue Job: %s. Wait for completion: %s",
             self.job_name,
