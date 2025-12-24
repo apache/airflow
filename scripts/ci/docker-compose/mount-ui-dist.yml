@@ -21,6 +21,6 @@ services:
     # This allows using pre-compiled UI assets without rebuilding in container
     volumes:
       # Mount main UI dist directory
-      - ../../../airflow-core/src/airflow/ui/dist:/opt/airflow/.build/ui-dist/main:cached
+      - ../../../airflow-core/src/airflow/ui/dist:/usr/python/lib/python3.10/site-packages/airflow/ui/dist:cached
       # Mount Simple Auth Manager UI dist directory
-      - ../../../airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/dist:/opt/airflow/.build/ui-dist/simple-auth:cached
+      - ../../../airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/dist:/usr/python/lib/python3.10/site-packages/airflow/api_fastapi/auth/managers/simple/ui/dist:cached
