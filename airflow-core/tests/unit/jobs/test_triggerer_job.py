@@ -1237,6 +1237,7 @@ class TestTriggererMessageTypes:
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
+            "PreviousTIResult",
             "HITLDetailRequestResult",
         }
 

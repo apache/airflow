@@ -762,13 +762,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
-
-        |experimental|
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
-
-        |experimental|
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | all_skipped | one_success | one_done |

@@ -77,7 +77,7 @@ class OtelTrace:
             log.info("(otel_tracer.__init__) - [BatchSpanProcessor] is being used")
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
-        self.otel_service = otel_service
+        self.otel_service: str = otel_service or "airflow"
         self.resource = Resource.create(attributes={SERVICE_NAME: self.otel_service})
         self.debug = debug
 
