@@ -225,8 +225,9 @@ class TestCliDags:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
 
-        assert "airflow/example_dags/example_complex.py" in out
-        assert "example_complex" in out
+        data = json.loads(out)
+        assert any(item["file"].endswith("example_complex.py") for item in data)
+        assert any("example_complex" in item["dags"] for item in data)
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self, stdout_capture):

@@ -368,7 +368,7 @@ class TestDagBag:
             dagbag = DagBag(include_examples=False, safe_mode=True)
 
         assert len(dagbag.dagbag_stats) == 1
-        assert dagbag.dagbag_stats[0].file == f"/{path.name}"
+        assert dagbag.dagbag_stats[0].file == path.name
 
     def test_safe_mode_heuristic_mismatch(self, tmp_path):
         """
@@ -388,7 +388,65 @@ class TestDagBag:
         with conf_vars({("core", "dags_folder"): os.fspath(path.parent)}):
             dagbag = DagBag(include_examples=False, safe_mode=False)
         assert len(dagbag.dagbag_stats) == 1
-        assert dagbag.dagbag_stats[0].file == f"/{path.name}"
+        assert dagbag.dagbag_stats[0].file == path.name
+
+    def test_dagbag_stats_file_is_relative_path_with_mixed_separators(self, tmp_path):
+        """
+        Test that dagbag_stats.file contains a relative path even when DAGS_FOLDER
+        and filepath have different path separators (simulates Windows behavior).
+
+        On Windows, settings.DAGS_FOLDER may use forward slashes (e.g., 'C:/foo/dags')
+        while filepath from os.path operations uses backslashes (e.g., 'C:\\foo\\dags\\my_dag.py').
+        This test verifies that path normalization works correctly in such cases.
+
+        See: https://github.com/apache/airflow/issues/XXXXX
+        """
+        path = tmp_path / "testfile.py"
+        path.write_text("# airflow\n# DAG")
+
+        # Simulate the Windows scenario where DAGS_FOLDER has forward slashes
+        # but the filesystem returns paths with backslashes
+        dags_folder_with_forward_slashes = path.parent.as_posix()
+        with conf_vars({("core", "dags_folder"): dags_folder_with_forward_slashes}):
+            dagbag = DagBag(include_examples=False, safe_mode=True)
+
+        assert len(dagbag.dagbag_stats) == 1
+        assert dagbag.dagbag_stats[0].file == path.name
+
+    def test_dagbag_stats_includes_bundle_info(self, tmp_path):
+        """Test that FileLoadStat includes bundle_path and bundle_name from DagBag."""
+        path = tmp_path / "testfile.py"
+        path.write_text("# airflow\n# DAG")
+
+        bundle_path = tmp_path / "bundle"
+        bundle_path.mkdir()
+        bundle_name = "test_bundle"
+
+        with conf_vars({("core", "dags_folder"): os.fspath(path.parent)}):
+            dagbag = DagBag(
+                include_examples=False,
+                safe_mode=True,
+                bundle_path=bundle_path,
+                bundle_name=bundle_name,
+            )
+
+        assert len(dagbag.dagbag_stats) == 1
+        stat = dagbag.dagbag_stats[0]
+        assert stat.bundle_path == bundle_path
+        assert stat.bundle_name == bundle_name
+
+    def test_dagbag_stats_bundle_info_none_when_not_provided(self, tmp_path):
+        """Test that FileLoadStat has None for bundle_path and bundle_name when not provided."""
+        path = tmp_path / "testfile.py"
+        path.write_text("# airflow\n# DAG")
+
+        with conf_vars({("core", "dags_folder"): os.fspath(path.parent)}):
+            dagbag = DagBag(include_examples=False, safe_mode=True)
+
+        assert len(dagbag.dagbag_stats) == 1
+        stat = dagbag.dagbag_stats[0]
+        assert stat.bundle_path is None
+        assert stat.bundle_name is None
 
     def test_process_file_that_contains_multi_bytes_char(self, tmp_path):
         """
