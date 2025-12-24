@@ -36,7 +36,6 @@ class TestAdbcHook:
                 extra=json.dumps(
                     {
                         "driver": "adbc_driver_sqlite",
-                        "dialect": "sqlite",
                     }
                 ),
             )
