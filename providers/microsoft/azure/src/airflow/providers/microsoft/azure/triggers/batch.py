@@ -69,7 +69,7 @@ class AzureBatchJobTrigger(BaseTrigger):
 
         try:
             while timezone.utcnow() < timeout_time:
-                tasks = await asyncio.to_thread(lambda: list(hook.connection.task.list(self.job_id)))
+                tasks = await asyncio.to_thread(list, hook.connection.task.list(self.job_id))
                 incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
 
                 if not incomplete_tasks:
