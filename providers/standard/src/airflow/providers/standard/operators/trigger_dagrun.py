@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import inspect
 import json
 import time
 from collections.abc import Sequence
@@ -45,6 +46,11 @@ from airflow.providers.standard.utils.openlineage import safe_inject_openlineage
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+
+try:
+    from airflow.utils.types import DagRunTriggeredByType
+except Exception:
+    DagRunTriggeredByType = None  # type: ignore[assignment,misc,unused-ignore]
 
 try:
     from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
@@ -171,8 +177,9 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         fail_when_dag_is_paused: bool = False,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_info: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        note: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -190,6 +197,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
+        self.note = note
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
@@ -264,7 +272,25 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
-        from airflow.providers.common.compat.sdk import DagRunTriggerException
+        try:
+            from airflow.providers.common.compat.sdk import DagRunTriggerException
+        except Exception:
+            if TYPE_CHECKING:
+                from airflow.providers.common.compat.sdk import (
+                    DagRunTriggerException,  # type: ignore[no-redef]
+                )
+            else:
+                DagRunTriggerException = None  # type: ignore[assignment]
+
+        if self.note is not None:
+            if (logger := getattr(self, "log", None)) is not None:
+                logger.info("Triggered DAG with note: %s", self.note)
+
+        if DagRunTriggerException is None:
+            raise RuntimeError(
+                f"Triggered DAG {self.trigger_dag_id} with run_id {run_id}. "
+                "DagRunTriggerException is not available in this Airflow version."
+            )
 
         raise DagRunTriggerException(
             trigger_dag_id=self.trigger_dag_id,
@@ -281,14 +307,33 @@ class TriggerDagRunOperator(BaseOperator):
         )
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+        if self.note:
+            self.log.info("Triggered DAG with note: %s", self.note)
+
         try:
-            dag_run = trigger_dag(
-                dag_id=self.trigger_dag_id,
-                run_id=run_id,
-                conf=self.conf,
-                execution_date=parsed_logical_date,
-                replace_microseconds=False,
-            )
+            sig = inspect.signature(trigger_dag)
+            params = sig.parameters
+
+            kwargs = {}
+            kwargs["dag_id"] = self.trigger_dag_id
+            if "run_id" in params:
+                kwargs["run_id"] = run_id
+
+            if "conf" in params:
+                kwargs["conf"] = self.conf
+
+            if "logical_date" in params:
+                kwargs["logical_date"] = parsed_logical_date
+            elif "execution_date" in params:
+                kwargs["execution_date"] = parsed_logical_date
+
+            if "replace_microseconds" in params:
+                kwargs["replace_microseconds"] = False
+
+            if "triggered_by" in params and DagRunTriggeredByType is not None:
+                kwargs["triggered_by"] = DagRunTriggeredByType.MANUAL
+
+            dag_run = trigger_dag(**kwargs)
 
         except DagRunAlreadyExists as e:
             if self.reset_dag_run:
