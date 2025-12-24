@@ -1817,10 +1817,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # we need to set DagModel.next_dagrun_info if the DagRun already exists or if we
             # create a new one. This is so that in the next scheduling loop we try to create new runs
             # instead of falling in a loop of IntegrityError.
-            created_dag_run = None
             if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
-                    created_dag_run = serdag.create_dagrun(
+                    serdag.create_dagrun(
                         run_id=serdag.timetable.generate_run_id(
                             run_type=DagRunType.SCHEDULED,
                             run_after=timezone.coerce_datetime(dag_model.next_dagrun),
@@ -1849,14 +1848,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     #  https://github.com/apache/airflow/issues/59120
                     continue
 
-            if created_dag_run:
-                self._update_next_dagrun_fields(
-                    serdag=serdag,
-                    dag_model=dag_model,
-                    session=session,
-                    active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
-                    data_interval=data_interval,
-                )
+            self._update_next_dagrun_fields(
+                serdag=serdag,
+                dag_model=dag_model,
+                session=session,
+                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
+                data_interval=data_interval,
+            )
 
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         #  memory for larger dags? or expunge_all()
