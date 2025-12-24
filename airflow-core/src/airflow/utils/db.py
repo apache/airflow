@@ -682,34 +682,35 @@ class AutocommitEngineForMySQL:
         settings.configure_orm()
 
 
-def _create_db_from_orm(session):
-    """Create database tables from ORM models and stamp alembic version."""
+def _create_db_from_orm_mysql(session) -> None:
+    """Create database tables from ORM models for MySQL."""
+    from alembic import command
+
     from airflow.models.base import Base
 
-    log.info("Creating Airflow database tables from the ORM")
+    # MySQL: Commit session to release metadata locks before DDL
+    log.info("MySQL: Committing session to release metadata locks")
+    session.commit()
 
-    _setup_debug_logging_if_needed()
+    engine = session.get_bind().engine
+    log.info("Creating tables (MySQL)")
+    Base.metadata.create_all(engine)
 
-    if get_dialect_name(session) == "mysql":
-        # MySQL: Commit session to release metadata locks before DDL
-        log.info("MySQL: Committing session to release metadata locks")
-        session.commit()
+    log.info("Getting alembic config")
+    config = _get_alembic_config()
 
-        engine = session.get_bind().engine
-        log.info("Creating tables (MySQL)")
-        Base.metadata.create_all(engine)
+    with AutocommitEngineForMySQL():
+        log.info("Stamping migration head")
+        command.stamp(config, "head")
 
-        log.info("Getting alembic config")
-        config = _get_alembic_config()
+    log.info("Airflow database tables created")
 
-        with AutocommitEngineForMySQL():
-            from alembic import command
 
-            log.info("Stamping migration head")
-            command.stamp(config, "head")
+def _create_db_from_orm_default(session) -> None:
+    """Create database tables from ORM models for PostgreSQL/SQLite."""
+    from alembic import command
 
-        log.info("Airflow database tables created")
-        return
+    from airflow.models.base import Base
 
     # PostgreSQL / SQLite: Use transactional global lock
     log.info("Creating global lock context")
@@ -723,13 +724,21 @@ def _create_db_from_orm(session):
         log.info("Getting alembic config")
         config = _get_alembic_config()
 
-        with AutocommitEngineForMySQL():
-            from alembic import command
-
-            log.info("Stamping migration head")
-            command.stamp(config, "head")
+        log.info("Stamping migration head")
+        command.stamp(config, "head")
 
     log.info("Airflow database tables created")
+
+
+def _create_db_from_orm(session):
+    """Create database tables from ORM models and stamp alembic version."""
+    log.info("Creating Airflow database tables from the ORM")
+    _setup_debug_logging_if_needed()
+
+    if get_dialect_name(session) == "mysql":
+        _create_db_from_orm_mysql(session)
+    else:
+        _create_db_from_orm_default(session)
 
 
 def _setup_debug_logging_if_needed():
@@ -800,16 +809,15 @@ def _single_connection_pool() -> Generator[None, None, None]:
     """
     import sqlalchemy.pool
 
-    val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
+    previous_pool_size = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
     try:
         os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = "1"
         settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)
         yield
     finally:
-        if val is None:
-            os.environ.pop("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE", None)
-        else:
-            os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
+        os.environ.pop("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE", None)
+        if previous_pool_size:
+            os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = previous_pool_size
         settings.reconfigure_orm()
 
 
@@ -1139,6 +1147,38 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
             )
 
 
+def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
+    """Run database upgrade with appropriate locking for the dialect."""
+    from alembic import command
+
+    is_mysql = settings.get_engine().dialect.name == "mysql"
+    dialect_label = " (MySQL)" if is_mysql else ""
+    log.info("Migrating the Airflow database%s", dialect_label)
+
+    # MySQL needs a separate lock session; others use the original session
+    session_cm: contextlib.AbstractContextManager[Session] = (
+        _mysql_lock_session_for_migration(session) if is_mysql else contextlib.nullcontext(session)
+    )
+
+    with (
+        session_cm as work_session,
+        create_global_lock(session=work_session, lock=DBLocks.MIGRATIONS),
+        _single_connection_pool(),
+    ):
+        command.upgrade(config, revision=to_revision or "heads")
+
+        current_revision = _get_current_revision(session=work_session)
+        with _configured_alembic_environment() as env:
+            source_heads = env.script.get_heads()
+
+        if current_revision == source_heads[0]:
+            external_db_manager = RunDBManager()
+            external_db_manager.upgradedb(work_session)
+
+    add_default_pool_if_not_exists(session=work_session)
+    synchronize_log_template(session=work_session)
+
+
 @provide_session
 def upgradedb(
     *,
@@ -1202,45 +1242,52 @@ def upgradedb(
         initdb(session=session)
         return
 
-    if settings.get_engine().dialect.name == "mysql":
-        # MySQL: Commit session to release metadata locks before Alembic DDL
-        log.info("Migrating the Airflow database (MySQL)")
+    _run_upgradedb(config, to_revision, session)
+
+
+def _resetdb_mysql(session: Session) -> None:
+    """Drop all Airflow tables for MySQL."""
+    from sqlalchemy.orm import Session as SASession
+
+    # MySQL: Release metadata locks and use AUTOCOMMIT for DDL
+    log.info("MySQL: Releasing metadata locks before DDL operations")
+    session.commit()
+    session.close()
+
+    # Use create_global_lock for migration safety (now handles MySQL with AUTOCOMMIT)
+    engine = settings.get_engine()
+    lock_session = SASession(bind=engine)
+    try:
         with (
-            _mysql_lock_session_for_migration(session) as lock_session,
             create_global_lock(session=lock_session, lock=DBLocks.MIGRATIONS),
-            _single_connection_pool(),
+            engine.connect() as connection,
         ):
-            command.upgrade(config, revision=to_revision or "heads")
+            ddl_conn = connection.execution_options(isolation_level="AUTOCOMMIT")
 
-            current_revision = _get_current_revision(session=lock_session)
-            with _configured_alembic_environment() as env:
-                source_heads = env.script.get_heads()
+            drop_airflow_models(ddl_conn)
+            drop_airflow_moved_tables(ddl_conn)
+            log.info("Dropped all Airflow tables")
 
-            if current_revision == source_heads[0]:
+            # Use raw Session to avoid scoped session issues
+            work_session = SASession(bind=ddl_conn)
+            try:
                 external_db_manager = RunDBManager()
-                external_db_manager.upgradedb(lock_session)
+                external_db_manager.drop_tables(work_session, ddl_conn)
+            finally:
+                work_session.close()
+    finally:
+        lock_session.close()
 
-        add_default_pool_if_not_exists(session=lock_session)
-        synchronize_log_template(session=lock_session)
-    else:
-        # PostgreSQL / SQLite: Standard approach
-        log.info("Migrating the Airflow database")
-        with (
-            create_global_lock(session=session, lock=DBLocks.MIGRATIONS),
-            _single_connection_pool(),
-        ):
-            command.upgrade(config, revision=to_revision or "heads")
 
-            current_revision = _get_current_revision(session=session)
-            with _configured_alembic_environment() as env:
-                source_heads = env.script.get_heads()
-
-            if current_revision == source_heads[0]:
-                external_db_manager = RunDBManager()
-                external_db_manager.upgradedb(session)
-
-        add_default_pool_if_not_exists(session=session)
-        synchronize_log_template(session=session)
+def _resetdb_default(session: Session) -> None:
+    """Drop all Airflow tables for PostgreSQL/SQLite."""
+    connection = settings.get_engine().connect()
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
+        log.info("Dropped all Airflow tables")
+        external_db_manager = RunDBManager()
+        external_db_manager.drop_tables(session, connection)
 
 
 @provide_session
@@ -1253,42 +1300,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     import_all_models()
 
     if get_dialect_name(session) == "mysql":
-        # MySQL: Release metadata locks and use AUTOCOMMIT for DDL
-        log.info("MySQL: Releasing metadata locks before DDL operations")
-        session.commit()
-        session.close()
-
-        from sqlalchemy.orm import Session as SASession
-
-        # Use create_global_lock for migration safety (now handles MySQL with AUTOCOMMIT)
-        lock_session = SASession(bind=settings.engine)
-        try:
-            with create_global_lock(session=lock_session, lock=DBLocks.MIGRATIONS):
-                with settings.engine.connect() as connection:
-                    ddl_conn = connection.execution_options(isolation_level="AUTOCOMMIT")
-
-                    drop_airflow_models(ddl_conn)
-                    drop_airflow_moved_tables(ddl_conn)
-                    log.info("Dropped all Airflow tables")
-
-                    # Use raw Session to avoid scoped session issues
-                    work_session = SASession(bind=ddl_conn)
-                    try:
-                        external_db_manager = RunDBManager()
-                        external_db_manager.drop_tables(work_session, ddl_conn)
-                    finally:
-                        work_session.close()
-        finally:
-            lock_session.close()
+        _resetdb_mysql(session)
     else:
-        # PostgreSQL / SQLite: Standard transactional approach
-        connection = settings.engine.connect()
-        with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
-            log.info("Dropped all Airflow tables")
-            external_db_manager = RunDBManager()
-            external_db_manager.drop_tables(session, connection)
+        _resetdb_default(session)
 
     if not skip_init:
         # Create a fresh non-scoped session for initdb since the original was closed (MySQL)
@@ -1327,14 +1341,13 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
-    is_mysql = get_dialect_name(session) == "mysql"
 
     # If downgrading to less than 3.0.0, we need to handle the FAB provider
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        _handle_fab_downgrade(session=session, is_mysql=is_mysql)
+        _handle_fab_downgrade(session=session)
 
     # Determine which session to use for the migration operations
-    if is_mysql:
+    if get_dialect_name(session) == "mysql":
         # MySQL: Commit session to release metadata locks before Alembic DDL
         session_cm: contextlib.AbstractContextManager[Session] = _mysql_lock_session_for_migration(session)
     else:
@@ -1352,7 +1365,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
-            dialect_label = " (MySQL)" if is_mysql else ""
+            dialect_label = " (MySQL)" if get_dialect_name(session) == "mysql" else ""
             log.info("Applying downgrade migrations to Airflow database%s.", dialect_label)
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
@@ -1375,7 +1388,7 @@ def _get_fab_migration_version(*, session: Session) -> str | None:
         return None
 
 
-def _handle_fab_downgrade(*, session: Session, is_mysql: bool) -> None:
+def _handle_fab_downgrade(*, session: Session) -> None:
     """
     Handle FAB downgrade requirements for downgrades to Airflow versions < 3.0.0.
 
@@ -1384,7 +1397,6 @@ def _handle_fab_downgrade(*, session: Session, is_mysql: bool) -> None:
     Otherwise, imports the FABDBManager and calls its downgrade method.
 
     :param session: sqlalchemy session for connection to airflow metadata database
-    :param is_mysql: whether the database dialect is MySQL
     :raises RuntimeError: If FAB provider is required but cannot be imported
     """
     fab_version = _get_fab_migration_version(session=session)
@@ -1397,7 +1409,6 @@ def _handle_fab_downgrade(*, session: Session, is_mysql: bool) -> None:
         )
         return
 
-    # Use context manager to ensure connection is closed
     with settings.get_engine().connect() as connection:
         insp = inspect(connection)
         if not fab_version and insp.has_table("ab_user"):
@@ -1417,7 +1428,7 @@ def _handle_fab_downgrade(*, session: Session, is_mysql: bool) -> None:
         )
 
     # For MySQL: commit session to release metadata locks before FABDBManager operations
-    if is_mysql:
+    if get_dialect_name(session) == "mysql":
         log.info("MySQL: Committing session to release metadata locks before FAB operations")
         session.commit()
 
@@ -1487,6 +1498,77 @@ class DBLocks(enum.IntEnum):
 
 
 @contextlib.contextmanager
+def _create_global_lock_mysql(lock: DBLocks, lock_timeout: int) -> Generator[None, None, None]:
+    """
+    Create a global advisory lock for MySQL.
+
+    Uses a dedicated AUTOCOMMIT connection because:
+    - GET_LOCK is session-level, not transaction-level
+    - DDL operations cause implicit commits that would break transaction wrappers
+    """
+    lock_conn = settings.get_engine().connect()
+    try:
+        lock_conn = lock_conn.execution_options(isolation_level="AUTOCOMMIT")
+
+        # GET_LOCK returns: 1 = acquired, 0 = timeout, NULL = error
+        lock_result = lock_conn.execute(
+            text("SELECT GET_LOCK(:lock_name, :timeout)"),
+            {"lock_name": str(lock), "timeout": lock_timeout},
+        ).scalar()
+
+        if lock_result != 1:
+            raise RuntimeError(
+                f"Could not acquire MySQL advisory lock '{lock}'. "
+                f"Result: {lock_result}. Another process may be holding the lock."
+            )
+
+        try:
+            yield
+        finally:
+            lock_conn.execute(text("SELECT RELEASE_LOCK(:lock_name)"), {"lock_name": str(lock)})
+    finally:
+        lock_conn.close()
+
+
+@contextlib.contextmanager
+def _create_global_lock_postgresql(
+    session: Session, lock: DBLocks, lock_timeout: int
+) -> Generator[None, None, None]:
+    """Create a global advisory lock for PostgreSQL using transactional advisory locks."""
+    bind = session.get_bind()
+    if hasattr(bind, "connect"):
+        conn = bind.connect()
+    else:
+        conn = bind
+
+    try:
+        if _USE_PSYCOPG3:
+            conn.execute(
+                text("SELECT set_config('lock_timeout', :timeout, false)"),
+                {"timeout": str(lock_timeout)},
+            )
+            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        else:
+            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+
+        yield
+    finally:
+        if _USE_PSYCOPG3:
+            conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
+        else:
+            conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+
+        result = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+
+        if result is None:
+            raise RuntimeError("Error releasing DB lock!")
+        (unlocked,) = result
+        if not unlocked:
+            raise RuntimeError("Error releasing DB lock!")
+
+
+@contextlib.contextmanager
 def create_global_lock(
     session: Session,
     lock: DBLocks,
@@ -1504,70 +1586,11 @@ def create_global_lock(
     dialect_name = get_dialect_name(session)
 
     if dialect_name == "mysql":
-        # MySQL: Use dedicated AUTOCOMMIT connection for advisory lock
-        # GET_LOCK is session-level and survives implicit DDL commits
-        server_version = settings.get_engine().dialect.server_version_info
-        if not (server_version and server_version >= (5, 6)):
-            # MySQL < 5.6 doesn't support GET_LOCK timeout parameter reliably
+        with _create_global_lock_mysql(lock, lock_timeout):
             yield
-            return
-
-        lock_conn = settings.get_engine().connect()
-        try:
-            lock_conn = lock_conn.execution_options(isolation_level="AUTOCOMMIT")
-
-            # GET_LOCK returns: 1 = acquired, 0 = timeout, NULL = error
-            lock_result = lock_conn.execute(
-                text("SELECT GET_LOCK(:lock_name, :timeout)"),
-                {"lock_name": str(lock), "timeout": lock_timeout},
-            ).scalar()
-
-            if lock_result != 1:
-                raise RuntimeError(
-                    f"Could not acquire MySQL advisory lock '{lock}'. "
-                    f"Result: {lock_result}. Another process may be holding the lock."
-                )
-
-            try:
-                yield
-            finally:
-                lock_conn.execute(text("SELECT RELEASE_LOCK(:lock_name)"), {"lock_name": str(lock)})
-        finally:
-            lock_conn.close()
-
     elif dialect_name == "postgresql":
-        # PostgreSQL: Use transactional advisory locks
-        bind = session.get_bind()
-        if hasattr(bind, "connect"):
-            conn = bind.connect()
-        else:
-            conn = bind
-
-        try:
-            if _USE_PSYCOPG3:
-                conn.execute(
-                    text("SELECT set_config('lock_timeout', :timeout, false)"),
-                    {"timeout": str(lock_timeout)},
-                )
-                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-            else:
-                conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-
+        with _create_global_lock_postgresql(session, lock, lock_timeout):
             yield
-        finally:
-            if _USE_PSYCOPG3:
-                conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
-            else:
-                conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-
-            result = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
-
-            if result is None:
-                raise RuntimeError("Error releasing DB lock!")
-            (unlocked,) = result
-            if not unlocked:
-                raise RuntimeError("Error releasing DB lock!")
     else:
         # SQLite and others: no advisory lock support
         yield

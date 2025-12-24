@@ -49,18 +49,15 @@ class BaseDBManager(LoggingMixin):
         super().__init__()
         self.session = session
 
-    def _is_mysql(self) -> bool:
-        """Check if the database is MySQL."""
-        return get_dialect_name(self.session) == "mysql"
-
-    def _release_metadata_locks(self) -> None:
+    def _release_metadata_locks_if_needed(self) -> None:
         """
         Release MySQL metadata locks by committing the session.
 
         MySQL requires metadata locks to be released before DDL operations.
         This is done by committing the current transaction.
+        This method is a no-op for non-MySQL databases.
         """
-        if not self._is_mysql():
+        if get_dialect_name(self.session) != "mysql":
             return
 
         self.log.debug("MySQL: Releasing metadata locks for DDL operations")
@@ -109,7 +106,7 @@ class BaseDBManager(LoggingMixin):
     def create_db_from_orm(self):
         """Create database from ORM."""
         self.log.info("Creating %s tables from the ORM", self.__class__.__name__)
-        self._release_metadata_locks()
+        self._release_metadata_locks_if_needed()
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
@@ -127,7 +124,7 @@ class BaseDBManager(LoggingMixin):
     def resetdb(self, skip_init=False):
         from airflow.utils.db import DBLocks, create_global_lock
 
-        self._release_metadata_locks()
+        self._release_metadata_locks_if_needed()
 
         connection = settings.engine.connect()
 
@@ -139,7 +136,7 @@ class BaseDBManager(LoggingMixin):
 
     def initdb(self):
         """Initialize the database."""
-        self._release_metadata_locks()
+        self._release_metadata_locks_if_needed()
         db_exists = self.get_current_revision()
         if db_exists:
             self.upgradedb()
@@ -150,7 +147,7 @@ class BaseDBManager(LoggingMixin):
         """Upgrade the database."""
         self.log.info("Upgrading the %s database", self.__class__.__name__)
 
-        self._release_metadata_locks()
+        self._release_metadata_locks_if_needed()
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
