@@ -185,6 +185,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--kubernetes-version",
                 "--executor",
+                "--log-level",
                 "--use-standard-naming",
                 "--multi-namespace-mode",
                 "--dags-path",
