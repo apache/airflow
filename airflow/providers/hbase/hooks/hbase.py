@@ -473,6 +473,40 @@ class HBaseHook(BaseHook):
         command = f"backup merge {backup_path} {backup_ids_str}"
         return self.execute_hbase_command(command)
 
+    def is_standalone_mode(self) -> bool:
+        """
+        Check if HBase is running in standalone mode.
+        
+        :return: True if standalone mode, False if distributed mode.
+        """
+        try:
+            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool hbase.cluster.distributed')
+            return result.strip().lower() == 'false'
+        except Exception as e:
+            self.log.warning("Could not determine HBase mode, assuming distributed: %s", e)
+            return False
+
+    def validate_backup_path(self, backup_path: str) -> str:
+        """
+        Validate and adjust backup path based on HBase configuration.
+        
+        :param backup_path: Original backup path.
+        :return: Validated backup path with correct prefix.
+        """
+        if self.is_standalone_mode():
+            # Standalone mode - should not be used for backup
+            raise ValueError(
+                "HBase backup is not supported in standalone mode. "
+                "Please configure HDFS for distributed mode."
+            )
+        else:
+            # For distributed mode, ensure HDFS path
+            if backup_path.startswith('file://'):
+                self.log.warning("Converting file:// path to HDFS for distributed mode")
+                return backup_path.replace('file://', '/user/hbase/')
+            elif not backup_path.startswith('hdfs://') and not backup_path.startswith('/'):
+                return f"/user/hbase/{backup_path}"
+            return backup_path
     def close(self) -> None:
         """Close HBase connection."""
         if self._connection:

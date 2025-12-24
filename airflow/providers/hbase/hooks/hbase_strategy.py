@@ -279,7 +279,12 @@ class SSHStrategy(HBaseStrategy):
         """Check if table exists via SSH."""
         try:
             result = self._execute_hbase_command(f"shell <<< \"list\"")
-            return table_name in result
+            # Parse table list more carefully - look for exact table name
+            lines = result.split('\n')
+            for line in lines:
+                if line.strip() == table_name:
+                    return True
+            return False
         except Exception:
             return False
 
