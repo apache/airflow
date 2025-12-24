@@ -34,7 +34,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
 
     from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 

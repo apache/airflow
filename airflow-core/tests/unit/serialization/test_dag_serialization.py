@@ -69,17 +69,18 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.notset import NOTSET
+from airflow.serialization.definitions.operatorlink import XComOperatorLink
+from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
-    SerializedBaseOperator,
-    SerializedParam,
-    XComOperatorLink,
+    OperatorSerialization,
 )
 from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -105,6 +106,16 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
 
 
+def _operator_equal(a, b):
+    if not isinstance(a, (BaseOperator, SerializedBaseOperator)):
+        return NotImplemented
+    if not isinstance(b, (BaseOperator, SerializedBaseOperator)):
+        return NotImplemented
+    a_fields = {getattr(a, f) for f in BaseOperator._comps}
+    b_fields = {getattr(b, f) for f in BaseOperator._comps}
+    return a_fields == b_fields
+
+
 @pytest.fixture
 def operator_defaults(monkeypatch):
     """
@@ -117,7 +128,7 @@ def operator_defaults(monkeypatch):
     """
     import airflow.sdk.definitions._internal.abstractoperator as abstract_op_module
     from airflow.sdk.bases.operator import OPERATOR_DEFAULTS
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.serialized_objects import OperatorSerialization
 
     @contextlib.contextmanager
     def _operator_defaults(overrides):
@@ -131,13 +142,13 @@ def operator_defaults(monkeypatch):
                 monkeypatch.setattr(abstract_op_module, const_name, value)
 
         # Clear the cache to ensure fresh generation
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+        OperatorSerialization.generate_client_defaults.cache_clear()
 
         try:
             yield
         finally:
             # Clear cache again to restore normal behavior
-            SerializedBaseOperator.generate_client_defaults.cache_clear()
+            OperatorSerialization.generate_client_defaults.cache_clear()
 
     return _operator_defaults
 
@@ -866,9 +877,10 @@ class TestStringifiedDAGs:
             assert serialized_partial_kwargs == original_partial_kwargs
 
             # ExpandInputs have different classes between scheduler and definition
-            assert attrs.asdict(serialized_task._get_specified_expand_input()) == attrs.asdict(
-                task._get_specified_expand_input()
-            )
+            ser_expand_input_data = attrs.asdict(serialized_task._get_specified_expand_input())
+            sdk_expand_input_data = attrs.asdict(task._get_specified_expand_input())
+            with mock.patch.object(SerializedBaseOperator, "__eq__", _operator_equal):
+                assert ser_expand_input_data == sdk_expand_input_data
 
     @pytest.mark.parametrize(
         ("dag_start_date", "task_start_date", "expected_task_start_date"),
@@ -1478,8 +1490,8 @@ class TestStringifiedDAGs:
         op = MyOperator(task_id="dummy")
         assert op.do_xcom_push is False
 
-        blob = SerializedBaseOperator.serialize_operator(op)
-        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        blob = OperatorSerialization.serialize_operator(op)
+        serialized_op = OperatorSerialization.deserialize_operator(blob)
 
         assert serialized_op.do_xcom_push is False
 
@@ -1589,11 +1601,9 @@ class TestStringifiedDAGs:
             "ui_fgcolor": "#000",
         }
 
-        DagSerialization._json_schema.validate(
-            blob,
-            _schema=load_dag_schema_dict()["definitions"]["operator"],
-        )
-        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        operator_schema = load_dag_schema_dict()["definitions"]["operator"]
+        DagSerialization._json_schema.validate(blob, _schema=operator_schema)
+        serialized_op = OperatorSerialization.deserialize_operator(blob)
         assert serialized_op.downstream_task_ids == {"foo"}
 
     def test_task_resources(self):
@@ -1650,11 +1660,11 @@ class TestStringifiedDAGs:
                 children = node.children.values()
             except AttributeError:
                 # Round-trip serialization and check the result
-                expected_serialized = SerializedBaseOperator.serialize_operator(dag.get_task(node.task_id))
-                expected_deserialized = SerializedBaseOperator.deserialize_operator(expected_serialized)
-                expected_dict = SerializedBaseOperator.serialize_operator(expected_deserialized)
+                expected_serialized = OperatorSerialization.serialize_operator(dag.get_task(node.task_id))
+                expected_deserialized = OperatorSerialization.deserialize_operator(expected_serialized)
+                expected_dict = OperatorSerialization.serialize_operator(expected_deserialized)
                 assert node
-                assert SerializedBaseOperator.serialize_operator(node) == expected_dict
+                assert OperatorSerialization.serialize_operator(node) == expected_dict
                 return
 
             for child in children:
@@ -1796,11 +1806,11 @@ class TestStringifiedDAGs:
         assert op.inlets == []
         assert op.outlets == []
 
-        serialized = SerializedBaseOperator.serialize_mapped_operator(op)
+        serialized = OperatorSerialization.serialize_mapped_operator(op)
         assert "inlets" not in serialized
         assert "outlets" not in serialized
 
-        round_tripped = SerializedBaseOperator.deserialize_operator(serialized)
+        round_tripped = OperatorSerialization.deserialize_operator(serialized)
         assert isinstance(round_tripped, MappedOperator)
         assert round_tripped.inlets == []
         assert round_tripped.outlets == []
@@ -2178,10 +2188,10 @@ class TestStringifiedDAGs:
 
         op = DummySensor(task_id="dummy", mode=mode, poke_interval=23)
 
-        blob = SerializedBaseOperator.serialize_operator(op)
+        blob = OperatorSerialization.serialize_operator(op)
         assert "_is_sensor" in blob
 
-        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        serialized_op = OperatorSerialization.deserialize_operator(blob)
         assert serialized_op.reschedule == (mode == "reschedule")
         assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
 
@@ -2196,11 +2206,11 @@ class TestStringifiedDAGs:
 
         op = DummySensor.partial(task_id="dummy", mode=mode).expand(poke_interval=[23])
 
-        blob = SerializedBaseOperator.serialize_mapped_operator(op)
+        blob = OperatorSerialization.serialize_mapped_operator(op)
         assert "_is_sensor" in blob
         assert "_is_mapped" in blob
 
-        serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        serialized_op = OperatorSerialization.deserialize_operator(blob)
         assert ReadyToRescheduleDep in [type(d) for d in serialized_op.deps]
 
     @pytest.mark.parametrize(
@@ -2696,7 +2706,8 @@ def test_operator_expand_xcomarg_serde():
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_literal_serde(strict):
     from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.serialized_objects import DEFAULT_OPERATOR_DEPS, _XComRef
+    from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS
+    from airflow.serialization.serialized_objects import _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
@@ -2764,7 +2775,7 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand_kwargs(XComArg(task1), strict=strict)
 
-    serialized = SerializedBaseOperator.serialize(mapped)
+    serialized = OperatorSerialization.serialize(mapped)
     assert serialized["__var"] == {
         "_is_mapped": True,
         "_task_module": "tests_common.test_utils.mock_operators",
@@ -3038,7 +3049,7 @@ def test_mapped_task_group_serde():
 
         tg.expand(a=[".", ".."])
 
-    ser_dag = SerializedBaseOperator.serialize(dag)
+    ser_dag = OperatorSerialization.serialize(dag)
     assert ser_dag[Encoding.VAR]["task_group"]["children"]["tg"] == (
         "taskgroup",
         {
@@ -3083,7 +3094,7 @@ def test_mapped_task_with_operator_extra_links_property():
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         _DummyOperator.partial(task_id="task").expand(inputs=[1, 2, 3])
-    serialized_dag = SerializedBaseOperator.serialize(dag)
+    serialized_dag = OperatorSerialization.serialize(dag)
     assert serialized_dag[Encoding.VAR]["tasks"][0]["__var"] == {
         "task_id": "task",
         "expand_input": {
@@ -3127,11 +3138,11 @@ def test_python_callable_in_partial_kwargs():
         python_callable=empty_function,
     ).expand(op_kwargs=[{"x": 1}])
 
-    serialized = SerializedBaseOperator.serialize_mapped_operator(operator)
+    serialized = OperatorSerialization.serialize_mapped_operator(operator)
     assert "python_callable" not in serialized["partial_kwargs"]
     assert serialized["partial_kwargs"]["python_callable_name"] == qualname(empty_function)
 
-    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    deserialized = OperatorSerialization.deserialize_operator(serialized)
     assert "python_callable" not in deserialized.partial_kwargs
     assert deserialized.partial_kwargs["python_callable_name"] == qualname(empty_function)
 
@@ -3422,6 +3433,7 @@ def test_handle_v1_serdag():
     expected = DagSerialization.from_dict(expected_sdag)
 
     fields_to_verify = set(vars(expected).keys()) - {
+        "task_dict",  # Tested separately
         "task_group",  # Tested separately
         "dag_dependencies",  # Tested separately
         "last_loaded",  # Dynamically set to utcnow
@@ -3430,10 +3442,12 @@ def test_handle_v1_serdag():
     for f in fields_to_verify:
         dag_value = getattr(dag, f)
         expected_value = getattr(expected, f)
-
         assert dag_value == expected_value, (
             f"V2 DAG field '{f}' differs from V3: V2={dag_value!r} != V3={expected_value!r}"
         )
+
+    with mock.patch.object(SerializedBaseOperator, "__eq__", _operator_equal):
+        assert dag.task_dict == expected.task_dict
 
     for f in set(vars(expected.task_group).keys()) - {"dag"}:
         dag_tg_value = getattr(dag.task_group, f)
@@ -3627,6 +3641,7 @@ def test_handle_v2_serdag():
     expected = DagSerialization.from_dict(expected_sdag)
 
     fields_to_verify = set(vars(expected).keys()) - {
+        "task_dict",  # Tested separately
         "task_group",  # Tested separately
         "last_loaded",  # Dynamically set to utcnow
     }
@@ -3634,15 +3649,16 @@ def test_handle_v2_serdag():
     for f in fields_to_verify:
         dag_value = getattr(dag, f)
         expected_value = getattr(expected, f)
-
         assert dag_value == expected_value, (
             f"V2 DAG field '{f}' differs from V3: V2={dag_value!r} != V3={expected_value!r}"
         )
 
+    with mock.patch.object(SerializedBaseOperator, "__eq__", _operator_equal):
+        assert dag.task_dict == expected.task_dict
+
     for f in set(vars(expected.task_group).keys()) - {"dag"}:
         dag_tg_value = getattr(dag.task_group, f)
         expected_tg_value = getattr(expected.task_group, f)
-
         assert dag_tg_value == expected_tg_value, (
             f"V2 task_group field '{f}' differs: V2={dag_tg_value!r} != V3={expected_tg_value!r}"
         )
@@ -3963,7 +3979,7 @@ def test_task_callback_backward_compatibility(old_callback_name, new_callback_na
     }
 
     # Test deserialization converts old format to new format
-    deserialized_task = SerializedBaseOperator.deserialize_operator(old_serialized_task)
+    deserialized_task = OperatorSerialization.deserialize_operator(old_serialized_task)
 
     # Verify the new format is present and correct
     assert hasattr(deserialized_task, new_callback_name)
@@ -3973,7 +3989,7 @@ def test_task_callback_backward_compatibility(old_callback_name, new_callback_na
     # Test with empty/None callback (should convert to False)
     old_serialized_task[old_callback_name] = None
 
-    deserialized_task_empty = SerializedBaseOperator.deserialize_operator(old_serialized_task)
+    deserialized_task_empty = OperatorSerialization.deserialize_operator(old_serialized_task)
     assert getattr(deserialized_task_empty, new_callback_name) is False
 
 
@@ -4003,7 +4019,7 @@ class TestClientDefaultsGeneration:
 
     def test_generate_client_defaults_basic(self):
         """Test basic client defaults generation."""
-        client_defaults = SerializedBaseOperator.generate_client_defaults()
+        client_defaults = OperatorSerialization.generate_client_defaults()
 
         assert isinstance(client_defaults, dict)
 
@@ -4014,8 +4030,8 @@ class TestClientDefaultsGeneration:
 
     def test_generate_client_defaults_excludes_schema_defaults(self):
         """Test that client defaults excludes values that match schema defaults."""
-        client_defaults = SerializedBaseOperator.generate_client_defaults()
-        schema_defaults = SerializedBaseOperator.get_schema_defaults("operator")
+        client_defaults = OperatorSerialization.generate_client_defaults()
+        schema_defaults = OperatorSerialization.get_schema_defaults("operator")
 
         # Check that values matching schema defaults are excluded
         for field, value in client_defaults.items():
@@ -4026,7 +4042,7 @@ class TestClientDefaultsGeneration:
 
     def test_generate_client_defaults_excludes_none_and_empty(self):
         """Test that client defaults excludes None and empty collection values."""
-        client_defaults = SerializedBaseOperator.generate_client_defaults()
+        client_defaults = OperatorSerialization.generate_client_defaults()
 
         for field, value in client_defaults.items():
             assert value is not None, f"Field {field} has None value"
@@ -4035,23 +4051,23 @@ class TestClientDefaultsGeneration:
     def test_generate_client_defaults_caching(self):
         """Test that client defaults generation is cached."""
         # Clear cache first
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+        OperatorSerialization.generate_client_defaults.cache_clear()
 
         # First call
-        client_defaults_1 = SerializedBaseOperator.generate_client_defaults()
+        client_defaults_1 = OperatorSerialization.generate_client_defaults()
 
         # Second call should return same object (cached)
-        client_defaults_2 = SerializedBaseOperator.generate_client_defaults()
+        client_defaults_2 = OperatorSerialization.generate_client_defaults()
 
         assert client_defaults_1 is client_defaults_2, "Client defaults should be cached"
 
         # Check cache info
-        cache_info = SerializedBaseOperator.generate_client_defaults.cache_info()
+        cache_info = OperatorSerialization.generate_client_defaults.cache_info()
         assert cache_info.hits >= 1, "Cache should have at least one hit"
 
     def test_generate_client_defaults_only_operator_defaults_fields(self):
         """Test that only fields from OPERATOR_DEFAULTS are considered."""
-        client_defaults = SerializedBaseOperator.generate_client_defaults()
+        client_defaults = OperatorSerialization.generate_client_defaults()
 
         # All fields in client_defaults should originate from OPERATOR_DEFAULTS
         for field in client_defaults:
@@ -4063,7 +4079,7 @@ class TestSchemaDefaults:
 
     def test_get_schema_defaults_operator(self):
         """Test getting schema defaults for operator type."""
-        schema_defaults = SerializedBaseOperator.get_schema_defaults("operator")
+        schema_defaults = OperatorSerialization.get_schema_defaults("operator")
 
         assert isinstance(schema_defaults, dict)
 
@@ -4086,12 +4102,12 @@ class TestSchemaDefaults:
 
     def test_get_schema_defaults_nonexistent_type(self):
         """Test getting schema defaults for nonexistent type."""
-        schema_defaults = SerializedBaseOperator.get_schema_defaults("nonexistent")
+        schema_defaults = OperatorSerialization.get_schema_defaults("nonexistent")
         assert schema_defaults == {}
 
     def test_get_operator_optional_fields_from_schema(self):
         """Test getting optional fields from schema."""
-        optional_fields = SerializedBaseOperator.get_operator_optional_fields_from_schema()
+        optional_fields = OperatorSerialization.get_operator_optional_fields_from_schema()
 
         assert isinstance(optional_fields, set)
 
@@ -4127,7 +4143,7 @@ class TestDeserializationDefaultsResolution:
         encoded_op = {"task_id": "test_task", "task_type": "BashOperator", "retries": 10}
         client_defaults = {"tasks": {"retry_delay": 300.0, "retries": 2}}  # Fix: wrap in "tasks"
 
-        result = SerializedBaseOperator._apply_defaults_to_encoded_op(encoded_op, client_defaults)
+        result = OperatorSerialization._apply_defaults_to_encoded_op(encoded_op, client_defaults)
 
         # Should merge in order: client_defaults, encoded_op
         assert result["retry_delay"] == 300.0  # From client_defaults
@@ -4139,7 +4155,7 @@ class TestDeserializationDefaultsResolution:
         encoded_op = {"task_id": "test_task"}
 
         # With None client_defaults
-        result = SerializedBaseOperator._apply_defaults_to_encoded_op(encoded_op, None)
+        result = OperatorSerialization._apply_defaults_to_encoded_op(encoded_op, None)
         assert result == encoded_op
 
     def test_multiple_tasks_share_client_defaults(self, operator_defaults):
@@ -4379,7 +4395,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
     )
     def test_partial_kwargs_deserialization_formats(self, partial_kwargs_data, expected_results):
         """Test deserialization of partial_kwargs in various formats (encoded, non-encoded, mixed)."""
-        result = SerializedBaseOperator._deserialize_partial_kwargs(partial_kwargs_data)
+        result = OperatorSerialization._deserialize_partial_kwargs(partial_kwargs_data)
 
         # Verify all expected results
         for key, expected_value in expected_results.items():
