@@ -2266,7 +2266,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Conditionally update fields next_dagrun and next_dagrun_create_after on dag table.
 
-        The ``dag_run`` param is only to be given when
+        If dag exceeds max active runs, don't update.
+
+        If dag's timetable not schedulable, don't update.
+
+        Otherwise, update.
         """
         exceeds_max, active_runs = self._exceeds_max_active_runs(
             dag_model=dag_model,
@@ -3025,7 +3029,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _exceeds_max_active_runs(
         self,
         *,
-        dag_model,
+        dag_model: DagModel,
         active_non_backfill_runs: int | None = None,
         session: Session,
     ):
