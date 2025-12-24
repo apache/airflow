@@ -183,12 +183,7 @@ class HBaseHook(BaseHook):
         :param columns: List of columns to retrieve (optional).
         :return: Dictionary of column:value pairs.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            raise NotImplementedError(
-                "get_row() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
-        else:
-            table = self.get_table(table_name)
-            return table.row(row_key, columns=columns)
+        return self._get_strategy().get_row(table_name, row_key, columns)
 
     def scan_table(
         self,
@@ -208,17 +203,7 @@ class HBaseHook(BaseHook):
         :param limit: Maximum number of rows to return.
         :return: List of (row_key, data) tuples.
         """
-        if self._get_connection_mode() == ConnectionMode.SSH:
-            raise NotImplementedError(
-                "scan_table() is not implemented for SSH mode. Use HBase shell commands via execute_hbase_command().")
-        else:
-            table = self.get_table(table_name)
-            return list(table.scan(
-                row_start=row_start,
-                row_stop=row_stop,
-                columns=columns,
-                limit=limit
-            ))
+        return self._get_strategy().scan_table(table_name, row_start, row_stop, columns, limit)
 
     def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
         """
@@ -227,15 +212,10 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table.
         :param rows: List of dictionaries with 'row_key' and data columns.
         """
-        table = self.get_table(table_name)
-        with table.batch() as batch:
-            for row in rows:
-                row_key = row.pop('row_key')
-                batch.put(row_key, row)
+        self._get_strategy().batch_put_rows(table_name, rows)
         self.log.info("Batch put %d rows into table %s", len(rows), table_name)
 
-    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[
-        dict[str, Any]]:
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
         """
         Get multiple rows in batch.
 
@@ -244,8 +224,7 @@ class HBaseHook(BaseHook):
         :param columns: List of columns to retrieve.
         :return: List of row data dictionaries.
         """
-        table = self.get_table(table_name)
-        return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
+        return self._get_strategy().batch_get_rows(table_name, row_keys, columns)
 
     def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
         """
@@ -255,8 +234,7 @@ class HBaseHook(BaseHook):
         :param row_key: Row key to delete.
         :param columns: List of columns to delete (if None, deletes entire row).
         """
-        table = self.get_table(table_name)
-        table.delete(row_key, columns=columns)
+        self._get_strategy().delete_row(table_name, row_key, columns)
         self.log.info("Deleted row %s from table %s", row_key, table_name)
 
     def get_table_families(self, table_name: str) -> dict[str, dict]:
@@ -266,8 +244,7 @@ class HBaseHook(BaseHook):
         :param table_name: Name of the table.
         :return: Dictionary of column families and their properties.
         """
-        table = self.get_table(table_name)
-        return table.families()
+        return self._get_strategy().get_table_families(table_name)
 
     def get_openlineage_database_info(self, connection):
         """Return HBase specific information for OpenLineage."""

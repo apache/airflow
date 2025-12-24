@@ -56,6 +56,26 @@ class HBaseStrategy(ABC):
         pass
 
     @abstractmethod
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """Delete row or specific columns."""
+        pass
+
+    @abstractmethod
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """Get column families for a table."""
+        pass
+
+    @abstractmethod
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows in batch."""
+        pass
+
+    @abstractmethod
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
+        """Insert multiple rows in batch."""
+        pass
+
+    @abstractmethod
     def scan_table(
         self,
         table_name: str,
@@ -98,6 +118,29 @@ class ThriftStrategy(HBaseStrategy):
         """Get row via Thrift."""
         table = self.connection.table(table_name)
         return table.row(row_key, columns=columns)
+
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """Delete row via Thrift."""
+        table = self.connection.table(table_name)
+        table.delete(row_key, columns=columns)
+
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """Get column families via Thrift."""
+        table = self.connection.table(table_name)
+        return table.families()
+
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows via Thrift."""
+        table = self.connection.table(table_name)
+        return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
+
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
+        """Insert multiple rows via Thrift."""
+        table = self.connection.table(table_name)
+        with table.batch() as batch:
+            for row in rows:
+                row_key = row.pop('row_key')
+                batch.put(row_key, row)
 
     def scan_table(
         self,
@@ -206,6 +249,41 @@ class SSHStrategy(HBaseStrategy):
         result = self._execute_hbase_command(f"shell <<< \"{command}\"")
         # TODO: Parse result - this is a simplified implementation
         return {}
+
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """Delete row via SSH."""
+        if columns:
+            cols_str = "', '".join(columns)
+            command = f"delete '{table_name}', '{row_key}', '{cols_str}'"
+        else:
+            command = f"deleteall '{table_name}', '{row_key}'"
+        self._execute_hbase_command(f"shell <<< \"{command}\"")
+
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """Get column families via SSH."""
+        command = f"describe '{table_name}'"
+        result = self._execute_hbase_command(f"shell <<< \"{command}\"")
+        # TODO: Parse result - this is a simplified implementation
+        # For now return empty dict, should parse HBase describe output
+        return {}
+
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows via SSH."""
+        results = []
+        for row_key in row_keys:
+            row_data = self.get_row(table_name, row_key, columns)
+            results.append(row_data)
+        return results
+
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
+        """Insert multiple rows via SSH."""
+        puts = []
+        for row in rows:
+            row_key = row.pop('row_key')
+            for col, val in row.items():
+                puts.append(f"put '{table_name}', '{row_key}', '{col}', '{val}'")
+        command = "; ".join(puts)
+        self._execute_hbase_command(f"shell <<< \"{command}\"")
 
     def scan_table(
         self,
