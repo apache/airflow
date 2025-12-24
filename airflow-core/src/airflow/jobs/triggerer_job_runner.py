@@ -79,7 +79,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -955,8 +955,8 @@ class TriggerRunner:
             raise RuntimeError(f"Required first message to be a messages.StartTriggerer, it was {msg}")
 
     async def create_triggers(self):
-        def create_runtime_ti(dag: dict) -> RuntimeTaskInstance:
-            task = SerializedDAG.from_dict(dag).get_task(workload.ti.task_id)
+        def create_runtime_ti(encoded_dag: dict) -> RuntimeTaskInstance:
+            task = DagSerialization.deserialize_dag(encoded_dag).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
             return RuntimeTaskInstance.model_construct(
