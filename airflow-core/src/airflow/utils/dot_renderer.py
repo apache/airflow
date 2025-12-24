@@ -27,8 +27,8 @@ from airflow.exceptions import AirflowException
 from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup
 from airflow.sdk.definitions.mappedoperator import MappedOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 
     from airflow.models import TaskInstance
     from airflow.serialization.dag_dependency import DagDependency
+    from airflow.serialization.definitions.dag import SerializedDAG
 else:
     try:
         import graphviz

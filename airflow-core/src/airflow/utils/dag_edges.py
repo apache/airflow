@@ -20,10 +20,11 @@ from typing import TYPE_CHECKING, TypeAlias, cast
 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 

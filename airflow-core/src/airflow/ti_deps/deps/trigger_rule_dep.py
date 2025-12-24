@@ -37,8 +37,8 @@ if TYPE_CHECKING:
 
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 

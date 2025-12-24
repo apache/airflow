@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol, Operator
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
