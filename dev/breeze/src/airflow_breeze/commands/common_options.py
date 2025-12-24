@@ -285,7 +285,7 @@ option_mount_ui_dist = click.option(
     default=False,
     show_default=True,
     envvar="MOUNT_UI_DIST",
-    help="Mount pre-built UI dist directories from host to container to skip UI assets compilation.",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
 )
 option_mysql_version = click.option(
     "-M",
