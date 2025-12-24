@@ -264,13 +264,16 @@ class TestVaultSecrets:
         assert test_client.get_variable("hello") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_variable_does_not_contain_value_key(self, mock_hvac):
+    @mock.patch("airflow.utils.log.logging_mixin.structlog.get_logger")
+    def test_get_variable_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
         """
         Test that if the 'value' key is not present in Vault, _VaultClient.get_variable
         should log a warning and return None
         """
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
+        mock_logger = mock.MagicMock()
+        mock_get_logger.return_value = mock_logger
 
         kwargs = {
             "variables_path": "variables",
@@ -280,20 +283,26 @@ class TestVaultSecrets:
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
         test_client = VaultBackend(**kwargs)
+        test_client._log = mock_logger
         response = {"test_key": "data"}
         test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
-
         result = test_client.get_variable("hello")
         assert result is None
+        mock_logger.warning.assert_called_with(
+            'Vault secret %s fetched but does not have required key "value"', "hello"
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_config_does_not_contain_value_key(self, mock_hvac):
+    @mock.patch("airflow.utils.log.logging_mixin.structlog.get_logger")
+    def test_get_config_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
         """
         Test that if the 'value' key is not present in Vault, _VaultClient.get_config
         should log a warning and return None
         """
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
+        mock_logger = mock.MagicMock()
+        mock_get_logger.return_value = mock_logger
 
         kwargs = {
             "variables_path": "variables",
@@ -303,11 +312,15 @@ class TestVaultSecrets:
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
         }
         test_client = VaultBackend(**kwargs)
+        test_client._log = mock_logger
         response = {"test_key": "data"}
         test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
 
         returned_uri = test_client.get_config("sql_alchemy_conn")
         assert returned_uri is None
+        mock_logger.warning.assert_called_with(
+            'Vault config %s fetched but does not have required key "value"', "sql_alchemy_conn"
+        )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_auth_failure_raises_error(self, mock_hvac):
