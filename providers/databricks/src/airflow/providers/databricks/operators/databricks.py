@@ -260,7 +260,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         https://docs.databricks.com/api/workspace/jobs/reset
 
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/create`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/create`` endpoint. The other named parameters
         (i.e. ``name``, ``tags``, ``tasks``, etc.) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -391,7 +391,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+    Submits a Spark job run to Databricks using the api/2.2/jobs/runs/submit API endpoint.
 
     See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
@@ -406,7 +406,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/runs/submit`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/runs/submit`` endpoint. The other named parameters
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
@@ -644,14 +644,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.2/jobs/run-now API endpoint.
 
     See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 
     In the first way, you can take the JSON payload that you typically use
-    to call the ``api/2.1/jobs/run-now`` endpoint and pass it directly
+    to call the ``api/2.2/jobs/run-now`` endpoint and pass it directly
     to our ``DatabricksRunNowOperator`` through the ``json`` parameter.
     For example ::
 
@@ -729,7 +729,7 @@ class DatabricksRunNowOperator(BaseOperator):
             https://docs.databricks.com/en/workflows/jobs/settings.html#add-parameters-for-all-job-tasks
 
     :param json: A JSON object containing API parameters which will be passed
-        directly to the ``api/2.1/jobs/run-now`` endpoint. The other named parameters
+        directly to the ``api/2.2/jobs/run-now`` endpoint. The other named parameters
         (i.e. ``notebook_params``, ``spark_submit_params``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will

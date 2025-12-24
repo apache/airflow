@@ -31,12 +31,12 @@ Using the Operator
 ------------------
 
 There are three ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.1/jobs/create`` endpoint and pass it directly to our ``DatabricksCreateJobsOperator`` through the
+to call the ``api/2.2/jobs/create`` endpoint and pass it directly to our ``DatabricksCreateJobsOperator`` through the
 ``json`` parameter.  With this approach you get full control over the underlying payload to Jobs REST API, including
 execution of Databricks jobs with multiple tasks, but it's harder to detect errors because of the lack of the type checking.
 
 The second way to accomplish the same thing is to use the named parameters of the ``DatabricksCreateJobsOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``api/2.1/jobs/create`` endpoint.
+one named parameter for each top level parameter in the ``api/2.2/jobs/create`` endpoint.
 
 The third way is to use both the json parameter **AND** the named parameters. They will be merged
 together. If there are conflicts during the merge, the named parameters will take precedence and
