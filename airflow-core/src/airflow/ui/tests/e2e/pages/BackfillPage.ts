@@ -73,7 +73,7 @@ export class BackfillPage extends BasePage {
 
     await this.page.waitForTimeout(2000);
 
-    const runButton = dialog.locator('button:has-text("Run")');
+    const runButton = dialog.locator('button:has-text("Run Backfill")');
 
     await runButton.click({ force: true });
 
