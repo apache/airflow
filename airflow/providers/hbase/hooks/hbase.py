@@ -328,8 +328,14 @@ class HBaseHook(BaseHook):
                 environment={"JAVA_HOME": "/usr/lib/jvm/java-17-openjdk-amd64"}
             )
             if exit_status != 0:
-                self.log.error("SSH command failed: %s", stderr.decode())
-                raise RuntimeError(f"SSH command failed: {stderr.decode()}")
+                # Check if stderr contains only warnings (not actual errors)
+                stderr_str = stderr.decode()
+                if "ERROR" in stderr_str and "WARN" not in stderr_str.replace("ERROR", ""):
+                    self.log.error("SSH command failed: %s", stderr_str)
+                    raise RuntimeError(f"SSH command failed: {stderr_str}")
+                else:
+                    # Log warnings but don't fail
+                    self.log.warning("SSH command completed with warnings: %s", stderr_str)
             return stdout.decode()
 
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:

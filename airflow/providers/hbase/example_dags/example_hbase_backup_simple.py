@@ -22,24 +22,24 @@ This DAG demonstrates basic HBase backup functionality:
 1. Creating backup sets
 2. Creating full backup
 3. Getting backup history
+
+You need to have a proper HBase setup suitable for backups!
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-import os
-
 from airflow import DAG
 from airflow.providers.hbase.operators.hbase import (
     HBaseBackupHistoryOperator,
     HBaseBackupSetOperator,
     HBaseCreateBackupOperator,
+    HBaseCreateTableOperator,
+    HBaseDeleteTableOperator,
+    HBasePutOperator,
 )
-
-# Configuration via environment variables
-HBASE_SSH_CONN_ID = os.getenv("HBASE_SSH_CONNECTION_ID", "hbase_ssh")
-HBASE_THRIFT_CONN_ID = os.getenv("HBASE_THRIFT_CONNECTION_ID", "hbase_thrift")
+from airflow.providers.hbase.sensors.hbase import HBaseTableSensor
 
 default_args = {
     "owner": "airflow",
@@ -52,12 +52,39 @@ default_args = {
 }
 
 dag = DAG(
-    "example_hbase_backup_simple",
+    "example_hbase_backup_simple_v2",
     default_args=default_args,
     description="Simple HBase backup operations",
-    schedule=None,
+    schedule_interval=None,
     catchup=False,
     tags=["example", "hbase", "backup", "simple"],
+)
+
+# Delete table if exists for idempotency
+delete_table_cleanup = HBaseDeleteTableOperator(
+    task_id="delete_table_cleanup",
+    table_name="test_table",
+    hbase_conn_id="hbase_kerberos",
+    dag=dag,
+)
+
+# Create test table for backup
+create_table = HBaseCreateTableOperator(
+    task_id="create_table",
+    table_name="test_table",
+    families={"cf1": {}, "cf2": {}},
+    hbase_conn_id="hbase_kerberos",
+    dag=dag,
+)
+
+# Add some test data
+put_data = HBasePutOperator(
+    task_id="put_test_data",
+    table_name="test_table",
+    row_key="test_row",
+    data={"cf1:col1": "test_value"},
+    hbase_conn_id="hbase_kerberos",
+    dag=dag,
 )
 
 # Create backup set
@@ -66,7 +93,7 @@ create_backup_set = HBaseBackupSetOperator(
     action="add",
     backup_set_name="test_backup_set",
     tables=["test_table"],
-    ssh_conn_id=HBASE_SSH_CONN_ID,
+    hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
 
@@ -74,7 +101,7 @@ create_backup_set = HBaseBackupSetOperator(
 list_backup_sets = HBaseBackupSetOperator(
     task_id="list_backup_sets",
     action="list",
-    ssh_conn_id=HBASE_SSH_CONN_ID,
+    hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
 
@@ -85,7 +112,7 @@ create_full_backup = HBaseCreateBackupOperator(
     backup_path="/tmp/hbase-backup",
     backup_set_name="test_backup_set",
     workers=1,
-    ssh_conn_id=HBASE_SSH_CONN_ID,
+    hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
 
@@ -93,9 +120,9 @@ create_full_backup = HBaseCreateBackupOperator(
 get_backup_history = HBaseBackupHistoryOperator(
     task_id="get_backup_history",
     backup_set_name="test_backup_set",
-    ssh_conn_id=HBASE_SSH_CONN_ID,
+    hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
 
 # Define task dependencies
-create_backup_set >> list_backup_sets >> create_full_backup >> get_backup_history
+delete_table_cleanup >> create_table >> put_data >> create_backup_set >> list_backup_sets >> create_full_backup >> get_backup_history
