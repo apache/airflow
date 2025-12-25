@@ -67,7 +67,9 @@ class HBaseHook(BaseHook):
         """Determine connection mode based on configuration."""
         if self._connection_mode is None:
             conn = self.get_connection(self.hbase_conn_id)
-            self.log.info("Connection extra: %s", conn.extra_dejson)
+            # Log only non-sensitive connection info
+            connection_mode = conn.extra_dejson.get("connection_mode") if conn.extra_dejson else None
+            self.log.info("Connection mode: %s", connection_mode or "thrift (default)")
             # Check if SSH connection is configured
             if conn.extra_dejson and conn.extra_dejson.get("connection_mode") == ConnectionMode.SSH.value:
                 self._connection_mode = ConnectionMode.SSH
@@ -297,7 +299,9 @@ class HBaseHook(BaseHook):
             raise ValueError("SSH connection ID must be specified in extra parameters")
 
         full_command = f"hbase {command}"
-        self.log.info("Executing HBase command: %s", full_command)
+        # Log command without sensitive data - mask potential sensitive parts
+        safe_command = self._mask_sensitive_command_parts(full_command)
+        self.log.info("Executing HBase command: %s", safe_command)
 
         ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
 
@@ -320,7 +324,9 @@ class HBaseHook(BaseHook):
         # Add JAVA_HOME export to command
         full_command = f"export JAVA_HOME={java_home} && {full_command}"
 
-        self.log.info("Executing via SSH with Kerberos: %s", full_command)
+        # Log safe version of the final command
+        safe_final_command = self._mask_sensitive_command_parts(full_command)
+        self.log.info("Executing via SSH: %s", safe_final_command)
         with ssh_hook.get_conn() as ssh_client:
             exit_status, stdout, stderr = ssh_hook.exec_ssh_client_command(
                 ssh_client=ssh_client,
@@ -332,11 +338,14 @@ class HBaseHook(BaseHook):
                 # Check if stderr contains only warnings (not actual errors)
                 stderr_str = stderr.decode()
                 if "ERROR" in stderr_str and "WARN" not in stderr_str.replace("ERROR", ""):
-                    self.log.error("SSH command failed: %s", stderr_str)
-                    raise RuntimeError(f"SSH command failed: {stderr_str}")
+                    # Mask sensitive data in error messages too
+                    safe_stderr = self._mask_sensitive_data_in_output(stderr_str)
+                    self.log.error("SSH command failed: %s", safe_stderr)
+                    raise RuntimeError(f"SSH command failed: {safe_stderr}")
                 else:
-                    # Log warnings but don't fail
-                    self.log.warning("SSH command completed with warnings: %s", stderr_str)
+                    # Log warnings but don't fail - also mask sensitive data
+                    safe_stderr = self._mask_sensitive_data_in_output(stderr_str)
+                    self.log.warning("SSH command completed with warnings: %s", safe_stderr)
             return stdout.decode()
 
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
@@ -549,3 +558,46 @@ class HBaseHook(BaseHook):
         if self._connection:
             self._connection.close()
             self._connection = None
+
+    def _mask_sensitive_command_parts(self, command: str) -> str:
+        """
+        Mask sensitive parts in HBase commands for logging.
+        
+        :param command: Original command string.
+        :return: Command with sensitive parts masked.
+        """
+        import re
+        
+        # Mask potential keytab paths
+        command = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', command)
+        
+        # Mask potential passwords in commands
+        command = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', command, flags=re.IGNORECASE)
+        
+        # Mask potential tokens
+        command = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', command, flags=re.IGNORECASE)
+        
+        # Mask JAVA_HOME paths that might contain sensitive info
+        command = re.sub(r'(JAVA_HOME=[^\s]+)', 'JAVA_HOME=***MASKED***', command)
+        
+        return command
+    
+    def _mask_sensitive_data_in_output(self, output: str) -> str:
+        """
+        Mask sensitive data in command output for logging.
+        
+        :param output: Original output string.
+        :return: Output with sensitive data masked.
+        """
+        import re
+        
+        # Mask potential file paths that might contain sensitive info
+        output = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', output)
+        
+        # Mask potential passwords
+        output = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', output, flags=re.IGNORECASE)
+        
+        # Mask potential authentication tokens
+        output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
+        
+        return output

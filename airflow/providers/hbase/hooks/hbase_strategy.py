@@ -241,7 +241,9 @@ class SSHStrategy(HBaseStrategy):
             raise ValueError("SSH connection ID must be specified in extra parameters")
 
         full_command = f"hbase {command}"
-        self.log.info("Executing HBase command: %s", full_command)
+        # Mask sensitive data in command logging
+        safe_command = self._mask_sensitive_command_parts(full_command)
+        self.log.info("Executing HBase command: %s", safe_command)
 
         # Get hbase_home and java_home from SSH connection extra
         ssh_conn = self.ssh_hook.get_connection(ssh_conn_id)
@@ -262,7 +264,9 @@ class SSHStrategy(HBaseStrategy):
         # Add JAVA_HOME export to command
         full_command = f"export JAVA_HOME={java_home} && {full_command}"
 
-        self.log.info("Executing via SSH with Kerberos: %s", full_command)
+        # Log safe version of final command
+        safe_final_command = self._mask_sensitive_command_parts(full_command)
+        self.log.info("Executing via SSH: %s", safe_final_command)
         with SSHHook(ssh_conn_id=ssh_conn_id).get_conn() as ssh_client:
             exit_status, stdout, stderr = SSHHook(ssh_conn_id=ssh_conn_id).exec_ssh_client_command(
                 ssh_client=ssh_client,
@@ -271,8 +275,10 @@ class SSHStrategy(HBaseStrategy):
                 environment={"JAVA_HOME": java_home}
             )
             if exit_status != 0:
-                self.log.error("SSH command failed: %s", stderr.decode())
-                raise RuntimeError(f"SSH command failed: {stderr.decode()}")
+                # Mask sensitive data in error messages
+                safe_stderr = self._mask_sensitive_data_in_output(stderr.decode())
+                self.log.error("SSH command failed: %s", safe_stderr)
+                raise RuntimeError(f"SSH command failed: {safe_stderr}")
             return stdout.decode()
 
     def table_exists(self, table_name: str) -> bool:
@@ -434,3 +440,46 @@ class SSHStrategy(HBaseStrategy):
             command += " -o"
         
         return self._execute_hbase_command(command)
+
+    def _mask_sensitive_command_parts(self, command: str) -> str:
+        """
+        Mask sensitive parts in HBase commands for logging.
+        
+        :param command: Original command string.
+        :return: Command with sensitive parts masked.
+        """
+        import re
+        
+        # Mask potential keytab paths
+        command = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', command)
+        
+        # Mask potential passwords in commands
+        command = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', command, flags=re.IGNORECASE)
+        
+        # Mask potential tokens
+        command = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', command, flags=re.IGNORECASE)
+        
+        # Mask JAVA_HOME paths that might contain sensitive info
+        command = re.sub(r'(JAVA_HOME=[^\s]+)', 'JAVA_HOME=***MASKED***', command)
+        
+        return command
+    
+    def _mask_sensitive_data_in_output(self, output: str) -> str:
+        """
+        Mask sensitive data in command output for logging.
+        
+        :param output: Original output string.
+        :return: Output with sensitive data masked.
+        """
+        import re
+        
+        # Mask potential file paths that might contain sensitive info
+        output = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', output)
+        
+        # Mask potential passwords
+        output = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', output, flags=re.IGNORECASE)
+        
+        # Mask potential authentication tokens
+        output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
+        
+        return output
