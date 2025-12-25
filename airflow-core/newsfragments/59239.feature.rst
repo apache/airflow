@@ -1,1 +1,1 @@
-Support for Trigger assignment to specific Triggerer hosts via the ``trigger_queue`` and ``--consume-trigger-queues`` parameters of the ``BaseTrigger`` class and ``trigger`` CLI, respectively.
+Support for task queue-based Trigger assignment to specific Triggerer hosts via the new ``--queues`` CLI option for the ``trigger`` command.

@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add ``trigger_queue`` column to ``trigger`` table.
+Add ``queue`` column to ``trigger`` table.
 
 Revision ID: c47f2e1ab9d4
 Revises: edc4f85a4619
@@ -39,12 +39,12 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Add ``trigger_queue`` column in trigger table."""
+    """Add ``queue`` column in trigger table."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.add_column(sa.Column("trigger_queue", sa.String(length=128), nullable=True))
+        batch_op.add_column(sa.Column("queue", sa.String(length=128), nullable=True))
 
 
 def downgrade():
-    """Remove ``trigger_queue`` column from trigger table."""
+    """Remove ``queue`` column from trigger table."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.drop_column("trigger_queue")
+        batch_op.drop_column("queue")

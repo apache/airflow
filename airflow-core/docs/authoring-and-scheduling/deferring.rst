@@ -483,27 +483,32 @@ To achieve trigger assignment, you may use the optional "trigger queues" feature
 
 To use trigger queues, do the following:
 
-1. For a given group of ``triggerer`` hosts, add ``--consume-trigger-queues=<comma-separated string of queue names to consume from>`` to the Triggerers' startup CLI command. This option ensures the triggerer will only run ``trigger`` instances with a ``trigger_queue`` value in the provided list.
-2. To ensure a given ``trigger`` instance is assigned to that set of ``triggerers``, assign your Trigger instance's ``trigger_queue`` value in the ``kwargs`` in your trigger to any value in the ``--consume-trigger-queues`` list.
+1. Set the :ref:`config:triggerer__queues_enabled` config value to ``true``. This will ensure when tasks defer, they pass their assigned task queue to the newly registered trigger instance.
+2. For a given ``triggerer`` host(s), add ``--queues=<comma-separated string of task queue names to consume from>`` to the Triggerers' startup command. This option ensures the triggerer will only pick up ``trigger`` instances deferred by tasks from the specified task queues.
 
-For example, let's say you are running two triggerer (Triggerers "X", and "Y") hosts with the following commands, then any ``trigger`` instance with
-``trigger_queue`` set to either ``"alice"``, or ``"bob"``, would be exclusively run by triggerer "X"; whereas, any ``trigger`` instance with
-``trigger_queue`` set to ``"test_q"`` would be exclusively run by triggerer "Y".
+For example, let's say you are running two triggerer hosts (labeled "X", and "Y") with the following commands:
 
 .. code-block:: bash
 
       # triggerer "X" startup command
-      airflow triggerer --consume-trigger-queues=alice,bob
+      airflow triggerer --queues=alice,bob
       # triggerer "Y" startup command
-      airflow triggerer --consume-trigger-queues=test_q
+      airflow triggerer --queues=test_q
 
+In this scenario, triggerer "X" will exclusively run triggers deferred from tasks originating from task queue ``"alice"`` or ``"bob"``.
+Similarly, triggerer "Y" will exclusively run triggers deferred from tasks originating from task queue ``"test_q"``.
 
-If the ``--consume-trigger-queue`` option is not provided to any of your triggerer's startup commands, then there is no trigger assignment constraint.
+Trigger Queue Assignment Caveats
+''''''''''''''''''''''''''''''''
+
+This feature is only compatible with executors which utilize the task ``queue`` concept (such as the CeleryExecutor).
+Similarly, queue assignment is only compatible with triggers associated with a task. Triggers associated with non-task
+entities like assets or :doc:`administration-and-deployment/logging-monitoring/callbacks.rst` will have their ``queue`` value set to ``None``.
 
 .. note::
-    To enable this feature, you must set the ``--consume-trigger-queues`` option on the triggerers' startup command.
-    If you set the ``trigger_queue`` value of a trigger instance to some value which is not present in the ``--consume-trigger-queues`` option, that trigger will never run.
-    Similarly, all ``triggerer`` instances running without the ``--consume-trigger-queues`` option will only consume trigger instances without a ``trigger_queue`` value.
+    To enable this feature, you must set the ``--queues`` option on the triggerers' startup command.
+    If you set the ``queue`` value of a trigger instance to some value which is not present in the ``--queues`` option, that trigger will never run.
+    Similarly, all ``triggerer`` instances running without the ``--queues`` option will only consume trigger instances registered without a ``queue`` value.
 
 
 The following example shows how to only assign some triggers to a specific triggerer host, while leaving other trigger instances unconstrained:
@@ -511,12 +516,12 @@ The following example shows how to only assign some triggers to a specific trigg
 .. code-block:: bash
 
       # triggerer "A" startup command, consumes only from trigger queues "alice" and "bob"
-      airflow triggerer --consume-trigger-queues=alice,bob
-      # triggerer "B" startup command, consumes only from triggers which have no assigned trigger_queue value (the default behavior).
+      airflow triggerer --queues=alice,bob
+      # triggerer "B" startup command, consumes only from triggers which have no assigned queue value (the default behavior).
       airflow triggerer
 
-In this scenario, triggerer "A" will only run trigger instances with an assigned ``trigger_queue`` value of ``"alice"``, or ``"bob"``; whereas,
-triggerer "B" will only run trigger instances with no ``trigger_queue`` value assigned.
+In this scenario, triggerer "A" will only run trigger instances with an assigned ``queue`` value of ``"alice"``, or ``"bob"``; whereas,
+triggerer "B" will only run trigger instances with no ``queue`` value assigned.
 
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors

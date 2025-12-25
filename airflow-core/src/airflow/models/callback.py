@@ -202,7 +202,6 @@ class TriggererCallback(Callback):
         super().__init__(**kwargs)
         self.fetch_method = CallbackFetchMethod.IMPORT_PATH
         self.data |= callback_def.serialize()
-        self.trigger_queue = kwargs.get("trigger_queue")
 
     def __repr__(self):
         return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
@@ -215,7 +214,6 @@ class TriggererCallback(Callback):
             trigger=CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
-                trigger_queue=self.trigger_queue,
             ),
         )
         super().queue()

@@ -894,7 +894,7 @@ class TriggerResponse(BaseModel):
     classpath: Annotated[str, Field(title="Classpath")]
     kwargs: Annotated[str, Field(title="Kwargs")]
     created_date: Annotated[datetime, Field(title="Created Date")]
-    trigger_queue: Annotated[str | None, Field(title="Trigger Queue")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = None
     triggerer_id: Annotated[int | None, Field(title="Triggerer Id")] = None
 
 

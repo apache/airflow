@@ -352,42 +352,49 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     assert ti.task.dag.dag_id == "dag_name"
 
 
-def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
+@pytest.mark.parametrize("use_queues", [False, True])
+def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms, use_queues: bool):
     """Test that a task can transition to a deferred state."""
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
+    task_queue = "fake_q"
+    deferred_queue = task_queue if use_queues else None
     # Use the time machine to set the current time
     instant = timezone.datetime(2024, 11, 22)
-    task = DateTimeSensorAsync(
-        task_id="async",
-        target_time=str(instant + timedelta(seconds=3)),
-        poke_interval=60,
-        timeout=600,
-    )
-    time_machine.move_to(instant, tick=False)
-
-    # Expected DeferTask
-    expected_defer_task = DeferTask(
-        state="deferred",
-        classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-        # Since we are in the task process here, we expect this to have not been encoded by serde yet
-        trigger_kwargs={
+    with conf_vars({("triggerer", "enable_queues"): use_queues}):
+        task = DateTimeSensorAsync(
+            task_id="async",
+            target_time=str(instant + timedelta(seconds=3)),
+            poke_interval=60,
+            timeout=600,
+            queue=task_queue,
+        )
+        time_machine.move_to(instant, tick=False)
+        expected_trigger_kwargs = {
             "end_from_trigger": False,
             "moment": instant + timedelta(seconds=3),
-        },
-        trigger_timeout=None,
-        next_method="execute_complete",
-        next_kwargs={},
-    )
+        }
 
-    # Run the task
-    ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+        # Expected DeferTask
+        expected_defer_task = DeferTask(
+            state="deferred",
+            classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+            # Since we are in the task process here, we expect this to have not been encoded by serde yet
+            trigger_kwargs=expected_trigger_kwargs,
+            trigger_timeout=None,
+            queue=deferred_queue,
+            next_method="execute_complete",
+            next_kwargs={},
+        )
 
-    assert ti.state == TaskInstanceState.DEFERRED
+        # Run the task
+        ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
 
-    # send will only be called when the TaskDeferred exception is raised
-    mock_supervisor_comms.send.assert_any_call(expected_defer_task)
+        assert ti.state == TaskInstanceState.DEFERRED
+
+        # send will only be called when the TaskDeferred exception is raised
+        mock_supervisor_comms.send.assert_any_call(expected_defer_task)
 
 
 def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms):
