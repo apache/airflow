@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-24T04:07:41.725015
+# This constraints file was automatically generated on 2025-12-25T15:52:08.273642
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -230,7 +230,7 @@ boto3==1.41.5
 botocore==1.41.5
 build==1.3.0
 cachetools==6.2.4
-cadwyn==5.6.1
+cadwyn==5.6.2
 cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.6.0
@@ -390,7 +390,7 @@ ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.0.1
+jaraco.context==6.0.2
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
@@ -632,8 +632,8 @@ tornado==6.5.4
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-typer-slim==0.20.1
-typer==0.20.1
+typer-slim==0.21.0
+typer==0.21.0
 types-protobuf==6.32.1.20251210
 types-pytz==2025.2.0.20251108
 types-requests==2.32.4.20250913
