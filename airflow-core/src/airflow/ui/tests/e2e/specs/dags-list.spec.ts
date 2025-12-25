@@ -197,7 +197,7 @@ test.describe("Dags Status Filtering", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should filter Dags by status", async () => {
+  test("should display status filter buttons", async () => {
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -207,16 +207,10 @@ test.describe("Dags Status Filtering", () => {
     await expect(dagsPage.queuedFilter).toBeVisible();
 
     await dagsPage.filterByStatus("success");
-
-    const successCount = await dagsPage.getDagsCount();
-
-    expect(successCount).toBeGreaterThanOrEqual(0);
+    await dagsPage.verifyDagsListVisible();
 
     await dagsPage.filterByStatus("failed");
-
-    const failedCount = await dagsPage.getDagsCount();
-
-    expect(failedCount).toBeGreaterThanOrEqual(0);
+    await dagsPage.verifyDagsListVisible();
   });
 });
 
@@ -227,7 +221,7 @@ test.describe("Dags Sorting", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("should display sort select in card view", async () => {
+  test("should sort Dags by name in card view", async () => {
     await dagsPage.navigate();
     await dagsPage.verifyDagsListVisible();
 
@@ -235,12 +229,32 @@ test.describe("Dags Sorting", () => {
 
     await expect(dagsPage.sortSelect).toBeVisible();
 
-    const initialDagNames = await dagsPage.getDagNames();
+    const ascNames = await dagsPage.getDagNames();
 
-    expect(initialDagNames.length).toBeGreaterThan(0);
+    expect(ascNames.length).toBeGreaterThan(1);
 
     await dagsPage.clickSortSelect();
 
     await expect(dagsPage.page.getByRole("option").first()).toBeVisible();
+
+    await dagsPage.page.getByRole("option", { name: "Sort by Display Name (Z-A)" }).click();
+
+    await dagsPage.page.waitForTimeout(500);
+
+    const descNames = await dagsPage.getDagNames();
+
+    expect(descNames.length).toBeGreaterThan(1);
+
+    const [firstName] = descNames;
+    const lastName = descNames[descNames.length - 1];
+
+    expect(firstName).toBeDefined();
+    expect(lastName).toBeDefined();
+
+    expect(firstName).not.toEqual(ascNames[0]);
+
+    if (firstName !== undefined && firstName !== "" && lastName !== undefined && lastName !== "") {
+      expect(firstName.localeCompare(lastName)).toBeGreaterThan(0);
+    }
   });
 });
