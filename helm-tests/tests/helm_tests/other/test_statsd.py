@@ -307,7 +307,7 @@ class TestStatsd:
             "--statsd.cache-type=",
             "--ttl=",
             "--statsd.mapping-config=/custom/path",
-         ]
+        ]
         docs = render_chart(
             values={"statsd": {"enabled": True, "args": args, "cache": {"size": 0, "type": "", "ttl": ""}}},
             show_only=["templates/statsd/statsd-deployment.yaml"],
