@@ -29,8 +29,10 @@ from typing import Any
 import happybase
 
 from airflow.hooks.base import BaseHook
+from airflow.models import Variable
 from airflow.providers.hbase.auth import AuthenticatorFactory
 from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, SSHStrategy
+from airflow.providers.hbase.ssl_connection import create_ssl_connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -127,7 +129,17 @@ class HBaseHook(BaseHook):
             self.log.info("Connecting to HBase at %s:%s with %s authentication%s",
                           connection_args["host"], connection_args["port"], auth_method,
                           " (SSL)" if ssl_args else "")
-            self._connection = happybase.Connection(**connection_args)
+            
+            # Use custom SSL connection if SSL is configured
+            if conn.extra_dejson and conn.extra_dejson.get("use_ssl", False):
+                self._connection = create_ssl_connection(
+                    host=connection_args["host"],
+                    port=connection_args["port"],
+                    ssl_config=conn.extra_dejson or {},
+                    **{k: v for k, v in connection_args.items() if k not in ['host', 'port']}
+                )
+            else:
+                self._connection = happybase.Connection(**connection_args)
 
         return self._connection
 
