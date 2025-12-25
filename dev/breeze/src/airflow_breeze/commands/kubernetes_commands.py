@@ -1052,7 +1052,7 @@ def _deploy_helm_chart(
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
         if not use_flask_appbuilder:
-            helm_command.extend(["--set", "createUserJob.defaultUser.enabled=false"])
+            helm_command.extend(["--set", "createUserJob.enabled=false"])
         if upgrade:
             # force upgrade
             helm_command.append("--force")
