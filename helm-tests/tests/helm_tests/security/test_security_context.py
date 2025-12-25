@@ -38,7 +38,6 @@ class TestSCBackwardsCompatibility:
             values={
                 "uid": 3000,
                 "gid": 30,
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "airflowVersion": "2.2.0",
                 "executor": executor,
@@ -135,7 +134,6 @@ class TestSecurityContext:
         docs = render_chart(
             values={
                 "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "statsd": {"enabled": False},
                 "airflowVersion": "2.2.0",
@@ -165,7 +163,7 @@ class TestSecurityContext:
                 "uid": 3000,
                 "gid": 30,
                 "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "webserver": {"defaultUser": {"enabled": True}, **component_contexts},
+                "webserver": {**component_contexts},
                 "workers": {**component_contexts},
                 "flower": {"enabled": True, **component_contexts},
                 "scheduler": {**component_contexts},
