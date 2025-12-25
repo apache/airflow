@@ -59,5 +59,6 @@ connection-types:
 
 example-dags:
   - airflow.providers.hbase.example_dags.example_hbase
+  - airflow.providers.hbase.example_dags.example_hbase_ssl
   - airflow.providers.hbase.example_dags.example_hbase_advanced
   - airflow.providers.hbase.example_dags.example_hbase_backup_simple

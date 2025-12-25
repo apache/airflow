@@ -19,8 +19,10 @@
 
 from __future__ import annotations
 
+import os
 import re
-import subprocess
+import ssl
+import tempfile
 from enum import Enum
 from typing import Any
 
@@ -118,8 +120,13 @@ class HBaseHook(BaseHook):
             auth_kwargs = authenticator.authenticate(conn.extra_dejson or {})
             connection_args.update(auth_kwargs)
 
-            self.log.info("Connecting to HBase at %s:%s with %s authentication",
-                          connection_args["host"], connection_args["port"], auth_method)
+            # Setup SSL/TLS if configured
+            ssl_args = self._setup_ssl_connection(conn.extra_dejson or {})
+            connection_args.update(ssl_args)
+
+            self.log.info("Connecting to HBase at %s:%s with %s authentication%s",
+                          connection_args["host"], connection_args["port"], auth_method,
+                          " (SSL)" if ssl_args else "")
             self._connection = happybase.Connection(**connection_args)
 
         return self._connection
@@ -252,7 +259,7 @@ class HBaseHook(BaseHook):
     def get_openlineage_database_info(self, connection):
         """
         Return HBase specific information for OpenLineage.
-        
+
         :param connection: HBase connection object.
         :return: DatabaseInfo object or None if OpenLineage not available.
         """
@@ -270,18 +277,28 @@ class HBaseHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """
         Return custom UI field behaviour for HBase connection.
-        
+
         :return: Dictionary defining UI field behaviour.
         """
         return {
-            "hidden_fields": ["schema", "extra"],
+            "hidden_fields": ["schema"],
             "relabeling": {
                 "host": "HBase Thrift Server Host",
                 "port": "HBase Thrift Server Port",
             },
             "placeholders": {
                 "host": "localhost",
-                "port": "9090",
+                "port": "9090 (HTTP) / 9091 (HTTPS)",
+                "extra": '''{
+  "connection_mode": "thrift",
+  "auth_method": "simple",
+  "use_ssl": false,
+  "ssl_verify_mode": "CERT_REQUIRED",
+  "ssl_ca_secret": "hbase/ca-cert",
+  "ssl_cert_secret": "hbase/client-cert",
+  "ssl_key_secret": "hbase/client-key",
+  "ssl_port": 9091
+}'''
             },
         }
 
@@ -351,7 +368,7 @@ class HBaseHook(BaseHook):
     def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
         """
         Create backup set.
-        
+
         :param backup_set_name: Name of the backup set to create.
         :param tables: List of table names to include in the backup set.
         :return: Command output.
@@ -361,7 +378,7 @@ class HBaseHook(BaseHook):
     def list_backup_sets(self) -> str:
         """
         List backup sets.
-        
+
         :return: Command output with list of backup sets.
         """
         return self._get_strategy().list_backup_sets()
@@ -375,7 +392,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Create full backup.
-        
+
         :param backup_path: Path where backup will be stored.
         :param tables: List of tables to backup (mutually exclusive with backup_set_name).
         :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
@@ -393,7 +410,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Create incremental backup.
-        
+
         :param backup_path: Path where backup will be stored.
         :param tables: List of tables to backup (mutually exclusive with backup_set_name).
         :param backup_set_name: Name of backup set to use (mutually exclusive with tables).
@@ -408,7 +425,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Get backup history.
-        
+
         :param backup_set_name: Name of backup set to get history for.
         :return: Command output with backup history.
         """
@@ -423,7 +440,7 @@ class HBaseHook(BaseHook):
     ) -> str:
         """
         Restore backup.
-        
+
         :param backup_path: Path where backup is stored.
         :param backup_id: Backup ID to restore.
         :param tables: List of tables to restore (optional).
@@ -435,7 +452,7 @@ class HBaseHook(BaseHook):
     def describe_backup(self, backup_id: str) -> str:
         """
         Describe backup.
-        
+
         :param backup_id: ID of the backup to describe.
         :return: Command output.
         """
@@ -486,7 +503,7 @@ class HBaseHook(BaseHook):
     def is_standalone_mode(self) -> bool:
         """
         Check if HBase is running in standalone mode.
-        
+
         :return: True if standalone mode, False if distributed mode.
         """
         try:
@@ -499,7 +516,7 @@ class HBaseHook(BaseHook):
     def get_hdfs_uri(self) -> str:
         """
         Get HDFS URI from HBase configuration.
-        
+
         :return: HDFS URI (e.g., hdfs://namenode:9000).
         """
         try:
@@ -510,18 +527,18 @@ class HBaseHook(BaseHook):
                 # Extract just the hdfs://host:port part
                 parts = rootdir.split('/')
                 return f"{parts[0]}//{parts[2]}"
-            
+
             # Try fs.defaultFS
             result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool fs.defaultFS')
             fs_default = result.strip()
             if fs_default.startswith('hdfs://'):
                 return fs_default
-            
+
             # Try connection config
             conn = self.get_connection(self.hbase_conn_id)
             if conn.extra_dejson and conn.extra_dejson.get('hdfs_uri'):
                 return conn.extra_dejson['hdfs_uri']
-            
+
             raise ValueError("Could not determine HDFS URI from configuration")
         except Exception as e:
             raise ValueError(f"Failed to get HDFS URI: {e}")
@@ -529,7 +546,7 @@ class HBaseHook(BaseHook):
     def validate_backup_path(self, backup_path: str) -> str:
         """
         Validate and adjust backup path based on HBase configuration.
-        
+
         :param backup_path: Original backup path.
         :return: Validated backup path with correct prefix.
         """
@@ -554,50 +571,135 @@ class HBaseHook(BaseHook):
                 hdfs_uri = self.get_hdfs_uri()
                 return f"{hdfs_uri}/user/hbase/{backup_path}"
     def close(self) -> None:
-        """Close HBase connection."""
+        """Close HBase connection and cleanup temporary files."""
         if self._connection:
             self._connection.close()
             self._connection = None
+        self._cleanup_temp_files()
+
+    def _cleanup_temp_files(self) -> None:
+        """Clean up temporary certificate files."""
+        if hasattr(self, '_temp_cert_files'):
+            for temp_file in self._temp_cert_files:
+                try:
+                    if os.path.exists(temp_file):
+                        os.unlink(temp_file)
+                        self.log.debug("Cleaned up temporary file: %s", temp_file)
+                except Exception as e:
+                    self.log.warning("Failed to cleanup temporary file %s: %s", temp_file, e)
+            delattr(self, '_temp_cert_files')
 
     def _mask_sensitive_command_parts(self, command: str) -> str:
         """
         Mask sensitive parts in HBase commands for logging.
-        
+
         :param command: Original command string.
         :return: Command with sensitive parts masked.
         """
-        import re
-        
         # Mask potential keytab paths
         command = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', command)
-        
+
         # Mask potential passwords in commands
         command = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', command, flags=re.IGNORECASE)
-        
+
         # Mask potential tokens
         command = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', command, flags=re.IGNORECASE)
-        
+
         # Mask JAVA_HOME paths that might contain sensitive info
         command = re.sub(r'(JAVA_HOME=[^\s]+)', 'JAVA_HOME=***MASKED***', command)
-        
+
         return command
-    
+
     def _mask_sensitive_data_in_output(self, output: str) -> str:
         """
         Mask sensitive data in command output for logging.
-        
+
         :param output: Original output string.
         :return: Output with sensitive data masked.
         """
-        import re
-        
         # Mask potential file paths that might contain sensitive info
         output = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', output)
-        
+
         # Mask potential passwords
         output = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', output, flags=re.IGNORECASE)
-        
+
         # Mask potential authentication tokens
         output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
-        
+
         return output
+
+    def _setup_ssl_connection(self, extra_config: dict[str, Any]) -> dict[str, Any]:
+        """
+        Setup SSL/TLS connection parameters for Thrift.
+
+        :param extra_config: Connection extra configuration.
+        :return: Dictionary with SSL connection arguments.
+        """
+        ssl_args = {}
+
+        if not extra_config.get("use_ssl", False):
+            return ssl_args
+
+        # Create SSL context
+        ssl_context = ssl.create_default_context()
+
+        # Configure SSL verification
+        verify_mode = extra_config.get("ssl_verify_mode", "CERT_REQUIRED")
+        if verify_mode == "CERT_NONE":
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        elif verify_mode == "CERT_OPTIONAL":
+            ssl_context.verify_mode = ssl.CERT_OPTIONAL
+        else:  # CERT_REQUIRED (default)
+            ssl_context.verify_mode = ssl.CERT_REQUIRED
+
+        # Load CA certificate from Variables (fallback for Secrets Backend)
+        if extra_config.get("ssl_ca_secret"):
+            ca_cert_content = Variable.get(extra_config["ssl_ca_secret"], None)
+            if ca_cert_content:
+                ca_cert_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False)
+                ca_cert_file.write(ca_cert_content)
+                ca_cert_file.close()
+                ssl_context.load_verify_locations(cafile=ca_cert_file.name)
+                self._temp_cert_files = [ca_cert_file.name]
+
+        # Load client certificates from Variables (fallback for Secrets Backend)
+        if extra_config.get("ssl_cert_secret") and extra_config.get("ssl_key_secret"):
+            cert_content = Variable.get(extra_config["ssl_cert_secret"], None)
+            key_content = Variable.get(extra_config["ssl_key_secret"], None)
+
+            if cert_content and key_content:
+                cert_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False)
+                cert_file.write(cert_content)
+                cert_file.close()
+
+                key_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False)
+                key_file.write(key_content)
+                key_file.close()
+
+                ssl_context.load_cert_chain(certfile=cert_file.name, keyfile=key_file.name)
+
+                if hasattr(self, '_temp_cert_files'):
+                    self._temp_cert_files.extend([cert_file.name, key_file.name])
+                else:
+                    self._temp_cert_files = [cert_file.name, key_file.name]
+
+        # Configure SSL protocols
+        if extra_config.get("ssl_min_version"):
+            min_version = getattr(ssl.TLSVersion, extra_config["ssl_min_version"], None)
+            if min_version:
+                ssl_context.minimum_version = min_version
+
+        # For happybase, we need to use transport="framed" and protocol="compact" with SSL
+        ssl_args["transport"] = "framed"
+        ssl_args["protocol"] = "compact"
+
+        # Store SSL context for potential future use
+        self._ssl_context = ssl_context
+
+        # Override port to SSL default if not specified
+        if extra_config.get("ssl_port") and not extra_config.get("port_override"):
+            ssl_args["port"] = extra_config.get("ssl_port")
+
+        self.log.info("SSL/TLS enabled for Thrift connection")
+        return ssl_args

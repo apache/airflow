@@ -31,7 +31,7 @@ class TestHBaseHook:
         assert "hidden_fields" in result
         assert "relabeling" in result
         assert "placeholders" in result
-        assert result["hidden_fields"] == ["schema", "extra"]
+        assert result["hidden_fields"] == ["schema"]
         assert result["relabeling"]["host"] == "HBase Thrift Server Host"
         assert result["placeholders"]["host"] == "localhost"
 
