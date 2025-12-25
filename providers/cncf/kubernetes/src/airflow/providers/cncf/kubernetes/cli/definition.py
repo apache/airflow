@@ -85,7 +85,7 @@ KUBERNETES_COMMANDS = (
 
 
 def get_kubernetes_cli_commands() -> list[GroupCommand]:
-    [
+    return [
         GroupCommand(
             name="kubernetes",
             help="Tools to help run the KubernetesExecutor",
