@@ -72,7 +72,6 @@ export class EventsPage extends BasePage {
    */
   public async clickNextPage(): Promise<void> {
     await this.paginationNextButton.click();
-    await this.waitForPageLoad();
     await this.waitForTableLoad();
   }
 
@@ -81,7 +80,6 @@ export class EventsPage extends BasePage {
    */
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
-    await this.waitForPageLoad();
     await this.waitForTableLoad();
   }
 
@@ -127,7 +125,6 @@ export class EventsPage extends BasePage {
       const eventTypes: Array<string> = [];
 
       for (const row of rows) {
-        // Event type is typically in the second column (index 1)
         const cells = row.locator("td");
         const eventCell = cells.nth(1);
         const text = await eventCell.textContent();
@@ -182,18 +179,23 @@ export class EventsPage extends BasePage {
    * Navigate to audit log tab for a specific DAG
    */
   public async navigateToAuditLog(dagId: string): Promise<void> {
-    await this.navigateTo(EventsPage.getEventsUrl(dagId));
+    await this.page.goto(EventsPage.getEventsUrl(dagId), {
+      timeout: 30_000,
+      waitUntil: "domcontentloaded",
+    });
+    await this.waitForTableLoad();
   }
 
   /**
    * Wait for table to finish loading
    */
   public async waitForTableLoad(): Promise<void> {
-    try {
-      await this.skeletonLoader.waitFor({ state: "hidden", timeout: 10_000 });
-    } catch {
-      // Skeleton may not appear if data loads quickly
-    }
-    await this.eventsTable.waitFor({ state: "visible", timeout: 10_000 });
+    await this.eventsTable.waitFor({ state: "visible", timeout: 30_000 });
+
+    const cellWithContent = this.eventsTable.locator("tbody tr td").filter({
+      hasText: /.+/,
+    });
+
+    await cellWithContent.first().waitFor({ state: "visible", timeout: 60_000 });
   }
 }

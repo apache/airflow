@@ -64,7 +64,6 @@ export class DagsPage extends BasePage {
    */
   public async clickNextPage(): Promise<void> {
     await this.paginationNextButton.click();
-    await this.waitForPageLoad();
   }
 
   /**
@@ -72,7 +71,6 @@ export class DagsPage extends BasePage {
    */
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
-    await this.waitForPageLoad();
   }
 
   /**
@@ -106,7 +104,7 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await this.triggerButton.waitFor({ state: "visible", timeout: 30_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
