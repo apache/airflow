@@ -2,9 +2,9 @@ StatsD metrics aggregation now supports configurable TTL-enabled LRU cache to pr
 
 The Helm Chart now includes new configuration options for StatsD aggregation management:
 
-* ``statsd.cacheType`` - Enable TTL-enabled ``lru`` cache or ``random`` cache for metrics aggregation (default: ``lru``)
-* ``statsd.cacheSize`` - Maximum number of metrics to cache (default: ``1000``)
-* ``statsd.ttl`` - Time-to-live for cached metrics in seconds (``0s`` is TTL disabled) (default: ``0s``)
+* ``statsd.cache.type`` - Enable TTL-enabled ``lru`` cache or ``random`` cache for metrics aggregation (default: ``lru``)
+* ``statsd.cache.size`` - Maximum number of metrics to cache (default: 1000)
+* ``statsd.cache.ttl`` - Time-to-live for cached metrics in seconds (``0s`` is TTL disabled) (default: ``0s``)
 
 This feature addresses uncontrolled memory growth in StatsD daemons by automatically cleaning up stale or unused metric entries. When enabled, the cache uses both LRU (Least Recently Used) eviction and TTL (Time To Live) expiration to manage memory usage effectively.
 
