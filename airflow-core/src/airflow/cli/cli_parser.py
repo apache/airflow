@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import sys
 from argparse import Action
 from collections import Counter
 from collections.abc import Iterable
@@ -36,6 +35,7 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
+from airflow._shared.module_loading import import_string
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
@@ -64,11 +64,8 @@ try:
     providers_manager = ProvidersManager()
     for function_name in providers_manager.cli_command_function_names:
         try:
-            from airflow._shared.module_loading import import_string
-
             get_cli_commands_func = import_string(function_name)
-            commands = get_cli_commands_func()
-            airflow_commands.extend(commands)
+            airflow_commands.extend(get_cli_commands_func())
         except Exception:
             log.exception("Failed to load CLI commands from provider function: %s", function_name)
             log.error("Ensure all dependencies are met and try again.")
@@ -89,7 +86,6 @@ if len(ALL_COMMANDS_DICT) < len(airflow_commands):
         f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
         f"This can be due to a Provider redefining core airflow CLI commands."
     )
-
 
 
 class AirflowHelpFormatter(RichHelpFormatter):
