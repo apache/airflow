@@ -22,10 +22,12 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
+from airflow.providers.microsoft.azure.triggers.batch import AzureBatchJobTrigger
 
 TASK_ID = "MyDag"
 BATCH_POOL_ID = "MyPool"
@@ -247,3 +249,47 @@ class TestAzureBatchOperator:
         self.operator.clean_up("mypool", "myjob")
         self.batch_client.job.delete.assert_called_with("myjob")
         self.batch_client.pool.delete.assert_called_with("mypool")
+
+    def test_execute_deferrable_defers_with_expected_trigger(self):
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            sku_starts_with=self.test_vm_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            timeout=7,
+            deferrable=True,
+        )
+
+        hook_mock = mock.MagicMock(spec=AzureBatchHook)
+        hook_mock.connection = mock.MagicMock()
+        hook_mock.connection.config = mock.MagicMock()
+        hook_mock.connection.pool.get.return_value = mock.Mock(resize_errors=None)
+        hook_mock.connection.compute_node.list.return_value = []
+        hook_mock.configure_pool.return_value = mock.sentinel.pool
+        hook_mock.configure_job.return_value = mock.sentinel.job
+        hook_mock.configure_task.return_value = mock.sentinel.task
+        operator.hook = hook_mock
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(context={})
+
+        assert deferred.value.method_name == "execute_complete"
+        assert isinstance(deferred.value.trigger, AzureBatchJobTrigger)
+
+        class_path, trigger_kwargs = deferred.value.trigger.serialize()
+        assert class_path == "airflow.providers.microsoft.azure.triggers.batch.AzureBatchJobTrigger"
+        assert trigger_kwargs == {
+            "job_id": BATCH_JOB_ID,
+            "azure_batch_conn_id": self.test_vm_conn_id,
+            "timeout": 7,
+            "poll_interval": 15,
+        }
