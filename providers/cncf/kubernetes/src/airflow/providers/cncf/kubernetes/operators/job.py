@@ -81,7 +81,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param completion_mode: CompletionMode specifies how Pod completions are tracked. It can be `NonIndexed` (default) or `Indexed`.
     :param completions: Specifies the desired number of successfully finished pods the job should be run with.
     :param manual_selector: manualSelector controls generation of pod labels and pod selectors.
-    :param parallelism: Specifies the maximum desired number of pods the job should run at any given time.
+    :param parallelism: Specifies the maximum desired number of pods the job should run at any given time. Defaults to 1
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
@@ -115,7 +115,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         completion_mode: str | None = None,
         completions: int | None = None,
         manual_selector: bool | None = None,
-        parallelism: int | None = None,
+        parallelism: int = 1,
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
@@ -208,16 +208,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
-        self.pods: Sequence[k8s.V1Pod] | None = None
-        if self.parallelism is None and self.pod is None:
-            self.pods = [
-                self.get_or_create_pod(
-                    pod_request_obj=self.pod_request_obj,
-                    context=context,
-                )
-            ]
-        else:
-            self.pods = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
+        self.pods: Sequence[k8s.V1Pod] = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
 
         if self.wait_until_job_complete and self.deferrable:
             self.execute_deferrable()
@@ -461,7 +452,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         pod_list: Sequence[k8s.V1Pod] = []
         retry_number: int = 0
 
-        while len(pod_list) != self.parallelism or retry_number <= self.discover_pods_retry_number:
+        while retry_number <= self.discover_pods_retry_number:
+            if len(pod_list) == self.parallelism:
+                break
             pod_list = self.client.list_namespaced_pod(
                 namespace=pod_request_obj.metadata.namespace,
                 label_selector=label_selector,
