@@ -91,6 +91,7 @@ def get_provider_info():
                 "name": "kubernetes_cmd",
             },
         ],
+        "cli": ["airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands"],
         "config": {
             "local_kubernetes_executor": {
                 "description": "This section only applies if you are using the ``LocalKubernetesExecutor`` in\n``[core]`` section above\n",
