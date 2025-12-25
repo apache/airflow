@@ -173,8 +173,8 @@ The `staging` documentation is produced automatically with `staging` watermark a
 
 ![Publishing site](images/publish_site.png)
 
-This workflow also invalidates cache in Fastly that Apache Software Foundation uses to serve the website,
-so you should always run it after you modify the documentation for the website. Other than that Fastly is
+This workflow also invalidates cache in Fatly that Apache Software Foundation uses to serve the website,
+so you should always run it after you modify the documentation for the website. Other than that Fatly is
 configured with 3600 seconds TTL - which means that changes will propagate to the website in ~1 hour.
 
 Shortly after the workflow succeeds and documentation is published, in the live bucket, the [airflow-site-archive](https://github.com/apache/airflow-site-archive)
@@ -212,7 +212,7 @@ and only after that can we switch to the new version of the theme.
 # Publishing changes manually
 
 Sometimes you do not want to use Publishing workflows to publish individual files and caches might get
-into the way as both Cloudfront and Fastly caches might take some time to invalidate. In such a case, when
+into the way as both Cloudfront and Fatly caches might take some time to invalidate. In such a case, when
 you manually upload the files to S3 bucket, you can immediately invalidate the caches:
 
 1) Manually run invalidation request in Cloudfront for the documentation S3 bucket you uploaded the files
@@ -220,7 +220,7 @@ you manually upload the files to S3 bucket, you can immediately invalidate the c
 
 ![Cloudfront invalidation](images/cloudfront_invalidation.png)
 
-2) Run the `Build docs` workflow in `airflow-site` repository to invalidate Fastly cache for the website.
+2) Run the `Build docs` workflow in `airflow-site` repository to invalidate Fatly cache for the website.
    Use `main` branch to rebuild site for `live` site and `staging` to rebuild the `staging` site:
 
 ![Build docs](images/build-docs.png)
