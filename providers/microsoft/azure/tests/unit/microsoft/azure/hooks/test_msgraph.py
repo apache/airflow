@@ -387,6 +387,27 @@ class TestKiotaRequestAdapterHook:
             error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
             assert error_code == "TenantThrottleThresholdExceeded"
 
+    @pytest.mark.asyncio
+    async def test_build_request_adapter_masks_secrets(self):
+        """Test that sensitive data is masked when building request adapter."""
+        with patch(
+            f"{BASEHOOK_PATCH_PATH}.get_connection",
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id=conn_id,
+                password="my_secret_password",
+                proxies={"http": "http://user:pass@proxy:3128"},
+            ),
+        ):
+            with patch("airflow.providers.microsoft.azure.hooks.msgraph.redact") as mock_redact:
+                mock_redact.side_effect = lambda x, name=None: "***" if x else x
+
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
+
+                assert mock_redact.call_count >= 3
+                mock_redact.assert_any_call({"http": "http://user:pass@proxy:3128"}, name="proxies")
+                mock_redact.assert_any_call("my_secret_password", name="client_secret")
+
 
 class TestResponseHandler:
     def test_default_response_handler_when_json(self):

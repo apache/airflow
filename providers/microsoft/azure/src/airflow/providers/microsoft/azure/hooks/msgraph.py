@@ -63,6 +63,8 @@ if TYPE_CHECKING:
 
     from airflow.models import Connection
 
+from airflow_shared.secrets_masker import redact
+
 
 class DefaultResponseHandler(ResponseHandler):
     """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
@@ -272,7 +274,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Host: %s", host)
         self.log.info("Base URL: %s", base_url)
         self.log.info("Client id: %s", client_id)
-        self.log.info("Client secret: %s", client_secret)
+        self.log.info("Client secret: %s", redact(client_secret, name="client_secret"))
         self.log.info("API version: %s", api_version)
         self.log.info("Scope: %s", scopes)
         self.log.info("Verify: %s", verify)
@@ -280,8 +282,8 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Trust env: %s", trust_env)
         self.log.info("Authority: %s", authority)
         self.log.info("Allowed hosts: %s", allowed_hosts)
-        self.log.info("Proxies: %s", proxies)
-        self.log.info("HTTPX Proxies: %s", httpx_proxies)
+        self.log.info("Proxies: %s", redact(proxies, name="proxies"))
+        self.log.info("HTTPX Proxies: %s", redact(httpx_proxies, name="proxies"))
         credentials = self.get_credentials(
             login=connection.login,
             password=connection.password,
@@ -391,7 +393,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Certificate data: %s", certificate_data is not None)
         self.log.info("Authority: %s", authority)
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
-        self.log.info("MSAL Proxies: %s", msal_proxies)
+        self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
             return CertificateCredential(
                 tenant_id=tenant_id,
