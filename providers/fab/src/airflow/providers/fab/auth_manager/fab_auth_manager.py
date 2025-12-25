@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-import packaging.version
 from connexion import FlaskApi
 from fastapi import FastAPI
 from flask import Blueprint, current_app, g
@@ -32,7 +31,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 from starlette.middleware.wsgi import WSGIMiddleware
 
-from airflow import __version__ as airflow_version
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
@@ -52,21 +50,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.cli.cli_config import (
-    DefaultHelpParser,
-    GroupCommand,
-)
+from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, DagModel, Pool, Variable
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.fab.auth_manager.cli_commands.definition import (
-    DB_COMMANDS,
-    PERMISSIONS_CLEANUP_COMMAND,
-    ROLES_COMMANDS,
-    SYNC_PERM_COMMAND,
-    USERS_COMMANDS,
-)
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
@@ -202,26 +190,9 @@ class FabAuthManager(BaseAuthManager[User]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        commands: list[CLICommand] = [
-            GroupCommand(
-                name="users",
-                help="Manage users",
-                subcommands=USERS_COMMANDS,
-            ),
-            GroupCommand(
-                name="roles",
-                help="Manage roles",
-                subcommands=ROLES_COMMANDS,
-            ),
-            SYNC_PERM_COMMAND,  # not in a command group
-            PERMISSIONS_CLEANUP_COMMAND,  # single command for permissions cleanup
-        ]
-        # If Airflow version is 3.0.0 or higher, add the fab-db command group
-        if packaging.version.parse(
-            packaging.version.parse(airflow_version).base_version
-        ) >= packaging.version.parse("3.0.0"):
-            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
-        return commands
+        from airflow.providers.fab.auth_manager.cli_commands import get_fab_cli_commands
+
+        return get_fab_cli_commands()
 
     def get_fastapi_app(self) -> FastAPI | None:
         """Get the FastAPI app."""

@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 
-from airflow.api_fastapi.app import get_auth_manager_cls
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
@@ -46,7 +45,7 @@ from airflow.cli.cli_config import (
 )
 from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import partition
 
 if TYPE_CHECKING:
@@ -60,30 +59,24 @@ airflow_commands = core_commands.copy()  # make a copy to prevent bad interactio
 log = logging.getLogger(__name__)
 
 
-for executor_name in ExecutorLoader.get_executor_names(validate_teams=False):
-    try:
-        executor, _ = ExecutorLoader.import_executor_cls(executor_name)
-        airflow_commands.extend(executor.get_cli_commands())
-    except Exception:
-        log.exception("Failed to load CLI commands from executor: %s", executor_name)
-        log.error(
-            "Ensure all dependencies are met and try again. If using a Celery based executor install "
-            "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
-            "7.4.0+ version of the CNCF provider"
-        )
-        # Do not re-raise the exception since we want the CLI to still function for
-        # other commands.
-
+# Load CLI commands from providers
 try:
-    auth_mgr = get_auth_manager_cls()
-    airflow_commands.extend(auth_mgr.get_cli_commands())
+    providers_manager = ProvidersManager()
+    for function_name in providers_manager.cli_command_function_names:
+        try:
+            from airflow._shared.module_loading import import_string
+
+            get_cli_commands_func = import_string(function_name)
+            commands = get_cli_commands_func()
+            airflow_commands.extend(commands)
+        except Exception:
+            log.exception("Failed to load CLI commands from provider function: %s", function_name)
+            log.error("Ensure all dependencies are met and try again.")
+            # Do not re-raise the exception since we want the CLI to still function for
+            # other commands.
 except Exception as e:
-    log.warning("cannot load CLI commands from auth manager: %s", e)
-    log.warning("Auth manager is not configured and api-server will not be able to start.")
+    log.warning("Failed to load CLI commands from providers: %s", e)
     # do not re-raise for the same reason as above
-    if len(sys.argv) > 1 and sys.argv[1] == "api-server":
-        log.exception(e)
-        sys.exit(1)
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
@@ -94,8 +87,9 @@ if len(ALL_COMMANDS_DICT) < len(airflow_commands):
     dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
     raise CliConflictError(
         f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
-        f"This can be due to an Executor or Auth Manager redefining core airflow CLI commands."
+        f"This can be due to a Provider redefining core airflow CLI commands."
     )
+
 
 
 class AirflowHelpFormatter(RichHelpFormatter):
