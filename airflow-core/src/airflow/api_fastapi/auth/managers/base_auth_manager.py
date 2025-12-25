@@ -75,7 +75,7 @@ if TYPE_CHECKING:
 # List of methods (or actions) a user can do against a resource
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
 # Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
-ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU", "PATCH"]
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
