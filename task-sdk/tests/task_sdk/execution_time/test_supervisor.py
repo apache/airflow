@@ -248,12 +248,21 @@ class TestWatchedSubprocess:
         This fixture ensures test isolation when running in parallel with pytest-xdist,
         regardless of what other tests patch.
         """
-        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        import importlib
+
+        import airflow.sdk.execution_time.secrets.execution_api as execution_api_module
         from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        fresh_execution_backend = importlib.reload(execution_api_module).ExecutionAPISecretsBackend
+
+        # Ensure downstream imports see the restored class instead of any AsyncMock left by other tests
+        import airflow.sdk.execution_time.secrets as secrets_package
+
+        monkeypatch.setattr(secrets_package, "ExecutionAPISecretsBackend", fresh_execution_backend)
 
         monkeypatch.setattr(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
-            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+            lambda: [EnvironmentVariablesBackend(), fresh_execution_backend()],
         )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
