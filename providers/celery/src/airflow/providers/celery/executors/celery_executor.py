@@ -37,7 +37,6 @@ from typing import TYPE_CHECKING, Any
 from celery import states as celery_states
 from deprecated import deprecated
 
-from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -57,6 +56,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -357,7 +357,7 @@ class CeleryExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        from airflow.providers.celery.cli_commands.definition import get_celery_cli_commands
+        from airflow.providers.celery.cli.definition import get_celery_cli_commands
 
         return get_celery_cli_commands()
 
