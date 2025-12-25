@@ -23,10 +23,13 @@ import os
 import re
 import ssl
 import tempfile
+import time
 from enum import Enum
+from functools import wraps
 from typing import Any
 
 import happybase
+from thriftpy2.transport.base import TTransportException
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Variable
@@ -40,6 +43,43 @@ class ConnectionMode(Enum):
     """HBase connection modes."""
     THRIFT = "thrift"
     SSH = "ssh"
+
+
+def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff_factor: float = 2.0):
+    """Decorator for retrying connection operations with exponential backoff.
+    
+    Args:
+        max_attempts: Maximum number of connection attempts
+        delay: Initial delay between attempts in seconds
+        backoff_factor: Multiplier for delay after each failed attempt
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return func(self, *args, **kwargs)
+                except (ConnectionError, TimeoutError, TTransportException, OSError) as e:
+                    last_exception = e
+                    if attempt == max_attempts - 1:  # Last attempt
+                        self.log.error("All %d connection attempts failed. Last error: %s", max_attempts, e)
+                        raise e
+                    
+                    wait_time = delay * (backoff_factor ** attempt)
+                    self.log.warning(
+                        "Connection attempt %d/%d failed: %s. Retrying in %.1fs...", 
+                        attempt + 1, max_attempts, e, wait_time
+                    )
+                    time.sleep(wait_time)
+            
+            # This should never be reached, but just in case
+            if last_exception:
+                raise last_exception
+                
+        return wrapper
+    return decorator
 
 
 class HBaseHook(BaseHook):
@@ -126,22 +166,61 @@ class HBaseHook(BaseHook):
             ssl_args = self._setup_ssl_connection(conn.extra_dejson or {})
             connection_args.update(ssl_args)
 
-            self.log.info("Connecting to HBase at %s:%s with %s authentication%s",
+            # Get retry configuration from connection extra
+            retry_config = self._get_retry_config(conn.extra_dejson or {})
+
+            self.log.info("Connecting to HBase at %s:%s with %s authentication%s (retry: %d attempts)",
                           connection_args["host"], connection_args["port"], auth_method,
-                          " (SSL)" if ssl_args else "")
+                          " (SSL)" if ssl_args else "", retry_config["max_attempts"])
             
-            # Use custom SSL connection if SSL is configured
-            if conn.extra_dejson and conn.extra_dejson.get("use_ssl", False):
-                self._connection = create_ssl_connection(
-                    host=connection_args["host"],
-                    port=connection_args["port"],
-                    ssl_config=conn.extra_dejson or {},
-                    **{k: v for k, v in connection_args.items() if k not in ['host', 'port']}
-                )
-            else:
-                self._connection = happybase.Connection(**connection_args)
+            # Use retry logic for connection
+            self._connection = self._connect_with_retry(conn.extra_dejson or {}, **connection_args)
 
         return self._connection
+
+    def _get_retry_config(self, extra_config: dict[str, Any]) -> dict[str, Any]:
+        """Get retry configuration from connection extra.
+        
+        Args:
+            extra_config: Connection extra configuration
+            
+        Returns:
+            Dictionary with retry configuration
+        """
+        return {
+            "max_attempts": extra_config.get("retry_max_attempts", 3),
+            "delay": extra_config.get("retry_delay", 1.0),
+            "backoff_factor": extra_config.get("retry_backoff_factor", 2.0)
+        }
+
+    @retry_on_connection_error(max_attempts=3, delay=1.0, backoff_factor=2.0)
+    def _connect_with_retry(self, extra_config: dict[str, Any], **connection_args) -> happybase.Connection:
+        """Connect to HBase with retry logic.
+        
+        Args:
+            extra_config: Connection extra configuration
+            **connection_args: Connection arguments for HappyBase
+            
+        Returns:
+            Connected HappyBase connection
+        """
+        # Use custom SSL connection if SSL is configured
+        if extra_config.get("use_ssl", False):
+            connection = create_ssl_connection(
+                host=connection_args["host"],
+                port=connection_args["port"],
+                ssl_config=extra_config,
+                **{k: v for k, v in connection_args.items() if k not in ['host', 'port']}
+            )
+        else:
+            connection = happybase.Connection(**connection_args)
+        
+        # Test the connection by opening it
+        connection.open()
+        self.log.info("Successfully connected to HBase at %s:%s", 
+                     connection_args["host"], connection_args["port"])
+        
+        return connection
 
     def get_table(self, table_name: str) -> happybase.Table:
         """
@@ -309,7 +388,10 @@ class HBaseHook(BaseHook):
   "ssl_ca_secret": "hbase/ca-cert",
   "ssl_cert_secret": "hbase/client-cert",
   "ssl_key_secret": "hbase/client-key",
-  "ssl_port": 9091
+  "ssl_port": 9091,
+  "retry_max_attempts": 3,
+  "retry_delay": 1.0,
+  "retry_backoff_factor": 2.0
 }'''
             },
         }
