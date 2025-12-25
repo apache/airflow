@@ -1239,6 +1239,16 @@ scheduler:
 createUserJob:
   # Whether the create user job should be created
   enabled: true
+
+  # Create initial user.
+  defaultUser:
+    role: Admin
+    username: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+    password: admin
+
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
@@ -1253,17 +1263,17 @@ createUserJob:
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
     - --
     - "-r"
-    - "{{ .Values.webserver.defaultUser.role }}"
+    - "{{ .Values.createUserJob.defaultUser.role }}"
     - "-u"
-    - "{{ .Values.webserver.defaultUser.username }}"
+    - "{{ .Values.createUserJob.defaultUser.username }}"
     - "-e"
-    - "{{ .Values.webserver.defaultUser.email }}"
+    - "{{ .Values.createUserJob.defaultUser.email }}"
     - "-f"
-    - "{{ .Values.webserver.defaultUser.firstName }}"
+    - "{{ .Values.createUserJob.defaultUser.firstName }}"
     - "-l"
-    - "{{ .Values.webserver.defaultUser.lastName }}"
+    - "{{ .Values.createUserJob.defaultUser.lastName }}"
     - "-p"
-    - "{{ .Values.webserver.defaultUser.password }}"
+    - "{{ .Values.createUserJob.defaultUser.password }}"
 
   # Annotations on the create user job pod
   annotations: {}
@@ -1760,16 +1770,6 @@ webserver:
   #   requests:
   #     cpu: 100m
   #     memory: 128Mi
-
-  # Create initial user.
-  defaultUser:
-    enabled: true
-    role: Admin
-    username: admin
-    email: admin@example.com
-    firstName: admin
-    lastName: user
-    password: admin
 
   # Launch additional containers into webserver (templated).
   extraContainers: []

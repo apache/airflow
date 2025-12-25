@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1788,6 +1788,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
+            if dag_model.next_dagrun is None:
+                self.log.error(
+                    "dag_model.next_dagrun is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+            if dag_model.next_dagrun_create_after is None:
+                self.log.error(
+                    "dag_model.next_dagrun_create_after is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+
             serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
@@ -1804,38 +1817,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # instead of falling in a loop of IntegrityError.
             if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
-                    if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
-                        serdag.create_dagrun(
-                            run_id=serdag.timetable.generate_run_id(
-                                run_type=DagRunType.SCHEDULED,
-                                run_after=timezone.coerce_datetime(dag_model.next_dagrun),
-                                data_interval=data_interval,
-                            ),
-                            logical_date=dag_model.next_dagrun,
-                            data_interval=data_interval,
-                            run_after=dag_model.next_dagrun_create_after,
+                    serdag.create_dagrun(
+                        run_id=serdag.timetable.generate_run_id(
                             run_type=DagRunType.SCHEDULED,
-                            triggered_by=DagRunTriggeredByType.TIMETABLE,
-                            state=DagRunState.QUEUED,
-                            creating_job_id=self.job.id,
-                            session=session,
-                        )
-                        active_runs_of_dags[serdag.dag_id] += 1
-                    else:
-                        if dag_model.next_dagrun is None:
-                            raise ValueError("dag_model.next_dagrun is None; expected datetime")
-                        raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
+                            run_after=timezone.coerce_datetime(dag_model.next_dagrun),
+                            data_interval=data_interval,
+                        ),
+                        logical_date=dag_model.next_dagrun,
+                        data_interval=data_interval,
+                        run_after=dag_model.next_dagrun_create_after,
+                        run_type=DagRunType.SCHEDULED,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
+                    )
+                    active_runs_of_dags[serdag.dag_id] += 1
+
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
                 # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
                 # and continue to the next serdag.
                 except Exception:
                     self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
-                    # todo: continuing here does not work because session needs rollback
-                    #  but you need either to make smaller transactions and commit after every dag run
-                    #  or to use savepoints.
+                    # todo: if you get a database error here, continuing does not work because
+                    #  session needs rollback. you need either to make smaller transactions and
+                    #  commit after every dag run or use savepoints.
                     #  https://github.com/apache/airflow/issues/59120
                     continue
+
             if self._should_update_dag_next_dagruns(
                 serdag,
                 dag_model,
@@ -2178,6 +2188,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
+                dag_run_reloaded = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
+                )
+                if dag_run_reloaded is None:
+                    # This should never happen since we just had the dag_run
+                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                    return None
+                dag_run = dag_run_reloaded
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc or "",
                     dag_id=dag.dag_id,
@@ -2450,8 +2473,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
         metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
-        all_states_metric = (
-            session.query(
+        stmt = (
+            select(
                 TaskInstance.state,
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
@@ -2460,22 +2483,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .filter(TaskInstance.state.in_(metric_states))
             .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
-            .all()
         )
+        all_states_metric = session.execute(stmt).all()
 
         for state in metric_states:
             if state not in self.previous_ti_metrics:
                 self.previous_ti_metrics[state] = {}
 
             ti_metrics = {
-                (row.dag_id, row.task_id, row.queue): row.count
-                for row in all_states_metric
-                if row.state == state
+                (dag_id, task_id, queue): count
+                for row_state, dag_id, task_id, queue, count in all_states_metric
+                if row_state == state
             }
 
             for (dag_id, task_id, queue), count in ti_metrics.items():
-                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", count)
-                Stats.gauge(f"ti.{state}", count, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", float(count))
+                Stats.gauge(
+                    f"ti.{state}", float(count), tags={"queue": queue, "dag_id": dag_id, "task_id": task_id}
+                )
 
             for prev_key in self.previous_ti_metrics[state]:
                 # Reset previously exported stats that are no longer present in current metrics to zero
@@ -2584,8 +2609,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
+                        # If we reset a TI, it will be eligible to be scheduled again.
+                        # This can cause the scheduler to increase the try_number on the TI.
+                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
+                        # the attempt that was abandoned.
+                        ti.prepare_db_for_next_try(session=session)
+
                         ti.state = None
                         ti.queued_by_job_id = None
+                        ti.external_executor_id = None
+                        ti.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id

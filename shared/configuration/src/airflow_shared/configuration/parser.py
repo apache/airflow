@@ -248,7 +248,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
-        self.upgraded_values = {}
+        self.upgraded_values: dict[tuple[str, str], str] = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -281,12 +281,6 @@ class AirflowConfigParser(ConfigParser):
         }
         sensitive.update(depr_section, depr_option)
         return sensitive
-
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
@@ -1079,13 +1073,15 @@ class AirflowConfigParser(ConfigParser):
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
         """Get config value as list."""
         val = self.get(section, key, **kwargs)
-        if val is None:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
-            raise AirflowConfigException(
-                f"Failed to convert value None to list. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
+
+        if isinstance(val, list) or val is None:
+            # `get` will always return a (possibly-empty) string, so the only way we can
+            # have these types is with `fallback=` was specified. So just return it.
+            return val
+
+        if val == "":
+            return []
+
         try:
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
@@ -1119,7 +1115,9 @@ class AirflowConfigParser(ConfigParser):
 
     def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
         """Get config value as list of enums."""
+        kwargs.setdefault("fallback", [])
         string_list = self.getlist(section, key, delimiter, **kwargs)
+
         enum_names = [enum_item.name for enum_item in enum_class]
         enum_list = []
 
@@ -1128,8 +1126,9 @@ class AirflowConfigParser(ConfigParser):
                 enum_list.append(enum_class[val])
             except KeyError:
                 log.warning(
-                    "Failed to convert value. Please check %s key in %s section. "
+                    "Failed to convert value %r. Please check %s key in %s section. "
                     "it must be one of %s, if not the value is ignored",
+                    val,
                     key,
                     section,
                     ", ".join(enum_names),

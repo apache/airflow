@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Callable
 from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO
@@ -36,12 +37,33 @@ if TYPE_CHECKING:
     from airflow.sdk.types import Logger, RuntimeTaskInstanceProtocol as RuntimeTI
 
 
-__all__ = ["configure_logging", "reset_logging", "mask_secret"]
+from airflow.sdk._shared.secrets_masker import redact
+
+
+class _WarningsInterceptor:
+    """A class to hold the reference to the original warnings.showwarning function."""
+
+    _original_showwarning: Callable | None = None
+
+    @staticmethod
+    def register(new_callable: Callable) -> None:
+        if _WarningsInterceptor._original_showwarning is None:
+            _WarningsInterceptor._original_showwarning = warnings.showwarning
+        warnings.showwarning = new_callable
+
+    @staticmethod
+    def reset() -> None:
+        if _WarningsInterceptor._original_showwarning is not None:
+            warnings.showwarning = _WarningsInterceptor._original_showwarning
+            _WarningsInterceptor._original_showwarning = None
+
+    @staticmethod
+    def emit_warning(*args: Any) -> None:
+        if _WarningsInterceptor._original_showwarning is not None:
+            _WarningsInterceptor._original_showwarning(*args)
 
 
 def mask_logs(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
-    from airflow.sdk._shared.secrets_masker import redact
-
     event_dict = redact(event_dict)  # type: ignore[assignment]
     return event_dict
 
@@ -121,12 +143,7 @@ def configure_logging(
         callsite_parameters=callsite_params,
     )
 
-    global _warnings_showwarning
-
-    if _warnings_showwarning is None:
-        _warnings_showwarning = warnings.showwarning
-        # Capture warnings and show them via structlog -- i.e. in task logs
-        warnings.showwarning = _showwarning
+    _WarningsInterceptor.register(_showwarning)
 
 
 def logger_at_level(name: str, level: int) -> Logger:
@@ -169,14 +186,12 @@ def init_log_file(local_relative_path: str) -> Path:
 
 
 def load_remote_log_handler() -> RemoteLogIO | None:
-    import airflow.logging_config
+    from airflow.logging_config import get_remote_task_log
 
-    return airflow.logging_config.REMOTE_TASK_LOG
+    return get_remote_task_log()
 
 
 def load_remote_conn_id() -> str | None:
-    import airflow.logging_config
-
     # TODO: Over time, providers should use SDK's conf only. Verify and make changes to ensure we're aligned with that aim here?
     # Currently using Core's conf for remote logging consistency.
     from airflow.configuration import conf
@@ -184,7 +199,9 @@ def load_remote_conn_id() -> str | None:
     if conn_id := conf.get("logging", "remote_log_conn_id", fallback=None):
         return conn_id
 
-    return airflow.logging_config.DEFAULT_REMOTE_CONN_ID
+    from airflow.logging_config import get_default_remote_conn_id
+
+    return get_default_remote_conn_id()
 
 
 def relative_path_from_logger(logger) -> Path | None:
@@ -258,16 +275,9 @@ def reset_logging():
     """
     from airflow.sdk._shared.logging.structlog import structlog_processors
 
-    global _warnings_showwarning
-    if _warnings_showwarning is not None:
-        warnings.showwarning = _warnings_showwarning
-        _warnings_showwarning = None
-
+    _WarningsInterceptor.reset()
     structlog_processors.cache_clear()
     logging_processors.cache_clear()
-
-
-_warnings_showwarning: Any = None
 
 
 def _showwarning(
@@ -288,8 +298,7 @@ def _showwarning(
     warnings logger named "py.warnings" with level logging.WARNING.
     """
     if file is not None:
-        if _warnings_showwarning is not None:
-            _warnings_showwarning(message, category, filename, lineno, file, line)
+        _WarningsInterceptor.emit_warning(message, category, filename, lineno, file, line)
     else:
         from airflow.sdk._shared.logging.structlog import reconfigure_logger
 

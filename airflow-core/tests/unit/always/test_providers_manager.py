@@ -67,8 +67,10 @@ class TestProviderManager:
             for provider in provider_list:
                 package_name = provider_manager.providers[provider].data["package-name"]
                 version = provider_manager.providers[provider].version
+                documentation_url = provider_manager.providers[provider].data["documentation-url"]
                 assert re.search(r"[0-9]*\.[0-9]*\.[0-9]*.*", version)
                 assert package_name == provider
+                assert isinstance(documentation_url, str)
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
