@@ -307,7 +307,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        from airflow.providers.keycloak.auth_manager.cli import get_keycloak_cli_commands
+        from airflow.providers.keycloak.auth_manager.cli.definition import get_keycloak_cli_commands
 
         return get_keycloak_cli_commands()
 

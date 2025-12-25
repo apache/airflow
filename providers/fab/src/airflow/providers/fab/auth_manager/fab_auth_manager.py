@@ -190,7 +190,7 @@ class FabAuthManager(BaseAuthManager[User]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        from airflow.providers.fab.auth_manager.cli_commands import get_fab_cli_commands
+        from airflow.providers.fab.auth_manager.cli_commands.definition import get_fab_cli_commands
 
         return get_fab_cli_commands()
 

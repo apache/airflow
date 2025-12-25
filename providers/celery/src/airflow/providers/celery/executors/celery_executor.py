@@ -357,9 +357,9 @@ class CeleryExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        from airflow.providers.celery.cli_commands.definition import CELERY_CLI_COMMANDS
+        from airflow.providers.celery.cli_commands.definition import get_celery_cli_commands
 
-        return CELERY_CLI_COMMANDS
+        return get_celery_cli_commands()
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads

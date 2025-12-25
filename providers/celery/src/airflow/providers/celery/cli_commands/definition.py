@@ -227,3 +227,9 @@ CELERY_CLI_COMMANDS = [
         subcommands=CELERY_COMMANDS,
     ),
 ]
+
+
+def get_celery_cli_commands():
+    """Return CLI commands for Celery executor."""
+    return CELERY_CLI_COMMANDS
+

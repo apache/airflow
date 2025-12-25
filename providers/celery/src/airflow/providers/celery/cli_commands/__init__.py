@@ -15,12 +15,3 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-
-__all__ = ["get_celery_cli_commands"]
-
-
-def get_celery_cli_commands():
-    """Return CLI commands for Celery executor."""
-    from airflow.providers.celery.cli_commands.definition import CELERY_CLI_COMMANDS
-
-    return CELERY_CLI_COMMANDS

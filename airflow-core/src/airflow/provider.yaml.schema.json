@@ -423,17 +423,7 @@
             "type": "array",
             "description": "CLI command functions exposed by the provider",
             "items": {
-                "type": "object",
-                "properties": {
-                    "function": {
-                        "type": "string",
-                        "description": "Python path to the function that returns CLI commands"
-                    }
-                },
-                "required": [
-                    "function"
-                ],
-                "additionalProperties": false
+                "type": "string"
             }
         },
         "config": {

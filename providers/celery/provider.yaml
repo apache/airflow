@@ -98,7 +98,7 @@ executors:
   - airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor
 
 cli:
-  - function: airflow.providers.celery.cli_commands.get_celery_cli_commands
+  - airflow.providers.celery.cli_commands.definition.get_celery_cli_commands
 
 config:
   celery_kubernetes_executor:

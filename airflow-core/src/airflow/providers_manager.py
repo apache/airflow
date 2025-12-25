@@ -1151,9 +1151,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             cli_items = provider.data.get("cli", [])
             if cli_items:
                 for cli_item in cli_items:
-                    function_name = cli_item.get("function")
-                    if function_name:
-                        self._cli_command_function_names.append(function_name)
+                    # cli_item is now a string directly
+                    if isinstance(cli_item, str):
+                        self._cli_command_function_names.append(cli_item)
 
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
