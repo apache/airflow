@@ -33,6 +33,7 @@ def get_provider_info():
             }
         ],
         "executors": ["airflow.providers.edge3.executors.EdgeExecutor"],
+        "cli": ["airflow.providers.edge3.cli.definition.get_edge_cli_commands"],
         "config": {
             "edge": {
                 "description": "This section only applies if you are using the EdgeExecutor in\n``[core]`` section above\n",
