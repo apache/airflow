@@ -39,9 +39,8 @@ class CallbackTrigger(BaseTrigger):
         self,
         callback_path: str,
         callback_kwargs: dict[str, Any] | None = None,
-        trigger_queue: str | None = None,
     ):
-        super().__init__(trigger_queue=trigger_queue)
+        super().__init__()
         self.callback_path = callback_path
         self.callback_kwargs = callback_kwargs or {}
 

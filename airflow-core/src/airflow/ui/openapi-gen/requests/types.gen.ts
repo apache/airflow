@@ -1566,7 +1566,7 @@ export type TriggerResponse = {
     classpath: string;
     kwargs: string;
     created_date: string;
-    trigger_queue: string | null;
+    queue: string | null;
     triggerer_id: number | null;
 };
 

@@ -1018,6 +1018,7 @@ def _defer_task(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        queue=ti.task.queue if conf.getboolean("triggerer", "queues_enabled", fallback=False) else None,
         next_method=defer.method_name,
         next_kwargs=next_kwargs,
     )

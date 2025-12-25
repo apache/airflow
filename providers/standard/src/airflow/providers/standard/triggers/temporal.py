@@ -41,10 +41,8 @@ class DateTimeTrigger(BaseTrigger):
         reached or resume the task after time condition reached.
     """
 
-    def __init__(
-        self, moment: datetime.datetime, *, end_from_trigger: bool = False, trigger_queue: str | None = None
-    ) -> None:
-        super().__init__(trigger_queue=trigger_queue)
+    def __init__(self, moment: datetime.datetime, *, end_from_trigger: bool = False) -> None:
+        super().__init__()
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
         # Make sure it's in UTC
