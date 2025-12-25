@@ -256,20 +256,29 @@ class TestDatabaseCleanup:
             f'CLEAN_TS=$(date -d "-{retention} days" +"%Y-%m-%dT%H:%M:%S"); echo "Cleaning up metadata DB entries older than ${{CLEAN_TS}}"; exec airflow db clean --clean-before-timestamp "${{CLEAN_TS}}" --yes{command_args}',
         ]
 
-    def test_should_add_extraEnvs(self):
+    @pytest.mark.parametrize("cleanup_envs", [[], [{"name": "TEST_ENV_1", "value": "test_env_1"}]])
+    @pytest.mark.parametrize("all_containers_envs", [[], [{"name": "TEST_ENV_2", "value": "test_env_2"}]])
+    @pytest.mark.parametrize("custom_envs_enabled", [False, True])
+    def test_should_add_extraEnvs(self, cleanup_envs, all_containers_envs, custom_envs_enabled):
         docs = render_chart(
             values={
+                "env": all_containers_envs,
+                "applyCustomEnv": custom_envs_enabled,
                 "databaseCleanup": {
                     "enabled": True,
-                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": cleanup_envs,
                 },
             },
             show_only=["templates/database-cleanup/database-cleanup-cronjob.yaml"],
         )
-
-        assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
-            "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
-        )
+        if cleanup_envs:
+            assert cleanup_envs[0] in jmespath.search(
+                "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
+            )
+        if all_containers_envs:
+            assert all_containers_envs[0] in jmespath.search(
+                "spec.jobTemplate.spec.template.spec.containers[0].env", docs[0]
+            )
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
