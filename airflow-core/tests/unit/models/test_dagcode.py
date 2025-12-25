@@ -28,7 +28,7 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.sdk import task as task_decorator
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
