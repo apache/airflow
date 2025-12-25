@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from enum import Enum
 from typing import Any
@@ -46,7 +47,7 @@ class HBaseHook(BaseHook):
     """
 
     conn_name_attr = "hbase_conn_id"
-    default_conn_name = "hbase_default"
+    default_conn_name = "hbase_kerberos"
     conn_type = "hbase"
     hook_name = "HBase"
 
@@ -486,6 +487,36 @@ class HBaseHook(BaseHook):
             self.log.warning("Could not determine HBase mode, assuming distributed: %s", e)
             return False
 
+    def get_hdfs_uri(self) -> str:
+        """
+        Get HDFS URI from HBase configuration.
+        
+        :return: HDFS URI (e.g., hdfs://namenode:9000).
+        """
+        try:
+            # Try to get from hbase.rootdir
+            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool hbase.rootdir')
+            rootdir = result.strip()
+            if rootdir.startswith('hdfs://'):
+                # Extract just the hdfs://host:port part
+                parts = rootdir.split('/')
+                return f"{parts[0]}//{parts[2]}"
+            
+            # Try fs.defaultFS
+            result = self.execute_hbase_command('org.apache.hadoop.hbase.util.HBaseConfTool fs.defaultFS')
+            fs_default = result.strip()
+            if fs_default.startswith('hdfs://'):
+                return fs_default
+            
+            # Try connection config
+            conn = self.get_connection(self.hbase_conn_id)
+            if conn.extra_dejson and conn.extra_dejson.get('hdfs_uri'):
+                return conn.extra_dejson['hdfs_uri']
+            
+            raise ValueError("Could not determine HDFS URI from configuration")
+        except Exception as e:
+            raise ValueError(f"Failed to get HDFS URI: {e}")
+
     def validate_backup_path(self, backup_path: str) -> str:
         """
         Validate and adjust backup path based on HBase configuration.
@@ -500,13 +531,19 @@ class HBaseHook(BaseHook):
                 "Please configure HDFS for distributed mode."
             )
         else:
-            # For distributed mode, ensure HDFS path
-            if backup_path.startswith('file://'):
+            # For distributed mode, ensure full HDFS URI
+            if backup_path.startswith('hdfs://'):
+                return backup_path
+            elif backup_path.startswith('file://'):
                 self.log.warning("Converting file:// path to HDFS for distributed mode")
-                return backup_path.replace('file://', '/user/hbase/')
-            elif not backup_path.startswith('hdfs://') and not backup_path.startswith('/'):
-                return f"/user/hbase/{backup_path}"
-            return backup_path
+                hdfs_uri = self.get_hdfs_uri()
+                return f"{hdfs_uri}/user/hbase/{backup_path.replace('file://', '')}"
+            elif backup_path.startswith('/'):
+                hdfs_uri = self.get_hdfs_uri()
+                return f"{hdfs_uri}{backup_path}"
+            else:
+                hdfs_uri = self.get_hdfs_uri()
+                return f"{hdfs_uri}/user/hbase/{backup_path}"
     def close(self) -> None:
         """Close HBase connection."""
         if self._connection:

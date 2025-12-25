@@ -372,7 +372,9 @@ class HBaseCreateBackupOperator(BaseOperator):
         if self.ignore_checksum:
             command += " -i"
         
-        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+        output = hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+        self.log.info("Backup command output: %s", output)
+        return output
 
 
 class HBaseRestoreOperator(BaseOperator):
@@ -387,7 +389,7 @@ class HBaseRestoreOperator(BaseOperator):
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
-    template_fields: Sequence[str] = ("backup_path", "backup_id", "backup_set_name", "tables")
+    template_fields: Sequence[str] = ("backup_path", "backup_set_name", "tables")
 
     def __init__(
         self,
