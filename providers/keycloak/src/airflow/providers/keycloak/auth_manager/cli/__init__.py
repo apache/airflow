@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+__all__ = ["get_keycloak_cli_commands"]
+
+
+def get_keycloak_cli_commands():
+    """Return CLI commands for Keycloak auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+    from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
+
+    return [
+        GroupCommand(
+            name="keycloak-auth-manager",
+            help="Manage resources used by Keycloak auth manager",
+            subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+        ),
+    ]
+

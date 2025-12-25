@@ -1299,5 +1299,8 @@ executors:
 auth-managers:
   - airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager
 
+cli:
+  - function: airflow.providers.amazon.aws.auth_manager.cli.get_aws_cli_commands
+
 queues:
   - airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider

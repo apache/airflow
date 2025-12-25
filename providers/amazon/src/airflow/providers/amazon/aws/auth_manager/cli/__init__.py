@@ -14,3 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+__all__ = ["get_aws_cli_commands"]
+
+
+def get_aws_cli_commands():
+    """Return CLI commands for AWS auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+    from airflow.providers.amazon.aws.auth_manager.cli.definition import AWS_AUTH_MANAGER_COMMANDS
+
+    return [
+        GroupCommand(
+            name="aws-auth-manager",
+            help="Manage resources used by AWS auth manager",
+            subcommands=AWS_AUTH_MANAGER_COMMANDS,
+        ),
+    ]
+

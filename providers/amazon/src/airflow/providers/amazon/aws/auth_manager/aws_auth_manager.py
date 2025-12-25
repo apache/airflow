@@ -468,13 +468,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
-            GroupCommand(
-                name="aws-auth-manager",
-                help="Manage resources used by AWS auth manager",
-                subcommands=AWS_AUTH_MANAGER_COMMANDS,
-            ),
-        ]
+        from airflow.providers.amazon.aws.auth_manager.cli import get_aws_cli_commands
+
+        return get_aws_cli_commands()
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.amazon.aws.auth_manager.routes.login import login_router

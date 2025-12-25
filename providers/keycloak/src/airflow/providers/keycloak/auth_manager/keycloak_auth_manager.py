@@ -307,13 +307,9 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
-            GroupCommand(
-                name="keycloak-auth-manager",
-                help="Manage resources used by Keycloak auth manager",
-                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
-            ),
-        ]
+        from airflow.providers.keycloak.auth_manager.cli import get_keycloak_cli_commands
+
+        return get_keycloak_cli_commands()
 
     @staticmethod
     def get_keycloak_client() -> KeycloakOpenID:
