@@ -1281,9 +1281,9 @@ def test_excluded_providers():
             pytest.param(
                 ("scripts/ci/prek/file.sh",),
                 {
-                    "full-tests-needed": "false",
+                    "full-tests-needed": "true",
                 },
-                id="No full tests needed when prek scripts change",
+                id="Full tests needed when prek scripts change",
             )
         ),
         (

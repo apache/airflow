@@ -341,7 +341,13 @@ repos:
         entry: ./scripts/ci/prek/check_shared_distributions_structure.py
         language: python
         pass_filenames: false
-        files: ^shared/.*$
+        files: >
+          (?x)
+          ^shared/.*$||
+          ^.*/pyproject.toml$|
+          ^.*/_shared/.*$|
+          ^airflow-core/.*.py$|
+          ^task-sdk/.*.py$
       - id: check-shared-distributions-usage
         name: Check shared distributions usage
         entry: ./scripts/ci/prek/check_shared_distributions_usage.py
