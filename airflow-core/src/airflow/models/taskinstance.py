@@ -1502,12 +1502,14 @@ class TaskInstance(Base, LoggingMixin):
                 classpath=trigger_classpath,
                 kwargs=trigger_kwargs or {},
             )
-        elif not (not self.next_trigger_id and (start_trigger_args := self.start_trigger_args())):
+        elif not (not self.next_trigger_id and (start_trigger_args := self.start_trigger_args)):
             # self.log.warning("Couldn't create trigger from start_from_trigger for task_id %s thus could not be deferred!", self.task_id)
             return False
         else:
             trigger_kwargs = start_trigger_args.trigger_kwargs or {}
             timeout = start_trigger_args.timeout
+            self.next_method = start_trigger_args.next_method
+            self.next_kwargs = start_trigger_args.next_kwargs or {}
 
             # Calculate timeout too if it was passed
             if timeout is not None:
@@ -1532,8 +1534,6 @@ class TaskInstance(Base, LoggingMixin):
         # depending on self.next_method semantics
         self.state = TaskInstanceState.DEFERRED
         self.trigger_id = trigger_row.id
-        self.next_method = start_trigger_args.next_method
-        self.next_kwargs = start_trigger_args.next_kwargs or {}
 
         # If an execution_timeout is set, set the timeout to the minimum of
         # it and the trigger timeout
