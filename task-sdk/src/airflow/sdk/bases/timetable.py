@@ -47,6 +47,8 @@ class BaseTimetable:
 
     asset_condition: BaseAsset | None = None
 
+    # TODO: AIP-76 just add partition-driven field here to differentiate the behavior
+
     def validate(self) -> None:
         """
         Validate the timetable is correctly specified.
