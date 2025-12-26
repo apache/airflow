@@ -1565,7 +1565,7 @@ class DagRun(Base, LoggingMixin):
             return ()
 
         def is_unmapped_task(ti: TI) -> bool:
-            from airflow.models.mappedoperator import MappedOperator
+            from airflow.sdk.definitions.mappedoperator import MappedOperator
 
             # TODO: check why task is still MappedOperator even when not an unmapped task anymore
             return isinstance(ti.task, MappedOperator) and ti.map_index == -1
