@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import itertools
 import json
@@ -729,13 +728,15 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
-        self.task = task
+        from airflow.serialization.serialized_objects import create_scheduler_operator
+
+        # Many tests are not set up well to use serialized tasks.
+        # TODO: Fix tests to get rid of this.
+        self.task = task = create_scheduler_operator(task)
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
-        with contextlib.suppress(Exception):
-            # This method is called from the different places, and sometimes the TI is not fully initialized
-            self.priority_weight = self.task.weight_rule.get_weight(self)
+        self.priority_weight = self.task.weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
