@@ -41,12 +41,13 @@ OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, 
 OperatorExpandKwargsArgument = Union["XComArg", Sequence[Union["XComArg", Mapping[str, Any]]]]
 
 
-class NotFullyPopulated(RuntimeError):
+class _NotFullyPopulated(RuntimeError):
     """
-    Raise when ``get_map_lengths`` cannot populate all mapping metadata.
+    Raise when an expand input cannot be resolved due to incomplete metadata.
 
-    This is generally due to not all upstream tasks have finished when the
-    function is called.
+    This generally should not happen. The scheduler should have made sure that
+    a not-yet-ready-to-expand task should not be executed. In the off chance
+    this gets raised, it will fail the task instance.
     """
 
     def __init__(self, missing: set[str]) -> None:
@@ -149,7 +150,7 @@ class DictOfListsExpandInput(ResolveMixin):
             k: res for k, v in self.value.items() if v is not None if (res := _get_length(k, v)) is not None
         }
         if len(map_lengths) < len(self.value):
-            raise NotFullyPopulated(set(self.value).difference(map_lengths))
+            raise _NotFullyPopulated(set(self.value).difference(map_lengths))
         return map_lengths
 
     def _expand_mapped_field(self, key: str, value: Any, map_index: int, all_lengths: dict[str, int]) -> Any:

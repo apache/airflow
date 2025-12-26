@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
-from airflow.sdk.definitions._internal.expandinput import MappedArgument, NotFullyPopulated
+from airflow.sdk.definitions._internal.expandinput import MappedArgument
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -39,10 +39,27 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "NotFullyPopulated",
     "SchedulerDictOfListsExpandInput",
     "SchedulerListOfDictsExpandInput",
-    "NotFullyPopulated",
 ]
+
+
+class NotFullyPopulated(RuntimeError):
+    """
+    Raise when mapped length cannot be calculated due to incomplete metadata.
+
+    This is generally due to not all upstream tasks have been completed (or in
+    parse-time length calculations, when any upstream has runtime dependencies
+    on mapped length) when the function is called.
+    """
+
+    def __init__(self, missing: set[str]) -> None:
+        self.missing = missing
+
+    def __str__(self) -> str:
+        keys = ", ".join(repr(k) for k in sorted(self.missing))
+        return f"Failed to populate all mapping metadata; missing: {keys}"
 
 
 def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
