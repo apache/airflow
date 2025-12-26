@@ -82,7 +82,7 @@ from airflow.sdk.execution_time.comms import AssetEventsResult
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
+from airflow.serialization.serialized_objects import OperatorSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
@@ -2812,7 +2812,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
 
-    sdk_task = EmptyOperator(
+    task = EmptyOperator(
         task_id="empty",
         queue=default_queue,
         pool="test_pool1",
@@ -2822,28 +2822,27 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         retries=30,
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
-    ser_task = create_scheduler_operator(sdk_task)
-    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
-    ti.refresh_from_task(ser_task, pool_override=pool_override)
+    ti = TI(task, run_id=None, dag_version_id=mock.MagicMock())
+    ti.refresh_from_task(task, pool_override=pool_override)
 
     assert ti.queue == expected_queue
 
     if pool_override:
         assert ti.pool == pool_override
     else:
-        assert ti.pool == sdk_task.pool
+        assert ti.pool == task.pool
 
-    assert ti.pool_slots == sdk_task.pool_slots
-    assert ti.priority_weight == ser_task.weight_rule.get_weight(ti)
-    assert ti.run_as_user == sdk_task.run_as_user
-    assert ti.max_tries == sdk_task.retries
-    assert ti.executor_config == sdk_task.executor_config
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
     assert ti.operator == EmptyOperator.__name__
 
     # Test that refresh_from_task does not reset ti.max_tries
-    expected_max_tries = sdk_task.retries + 10
+    expected_max_tries = task.retries + 10
     ti.max_tries = expected_max_tries
-    ti.refresh_from_task(ser_task)
+    ti.refresh_from_task(task)
     assert ti.max_tries == expected_max_tries
 
 
