@@ -899,12 +899,15 @@ def test_resetdb(
 ):
     # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
     mock_engine.dialect.name = "postgresql"
-    mock_connect = mock_engine.connect.return_value
+    # The connection is obtained via context manager, so we need __enter__'s return value
+    mock_connect = mock_engine.connect.return_value.__enter__.return_value
 
     session_mock = MagicMock()
+    # Ensure the session's bind also reports a PostgreSQL dialect, matching the non-MySQL path
+    session_mock.get_bind.return_value.dialect.name = "postgresql"
     resetdb(session_mock, skip_init=skip_init)
 
-    # In the non-MySQL path, drop functions are called with the raw connection
+    # In the non-MySQL path, drop functions are called with the connection from context manager
     mock_drop_airflow.assert_called_once_with(mock_connect)
     mock_drop_moved.assert_called_once_with(mock_connect)
     if skip_init:
