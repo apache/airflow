@@ -243,16 +243,18 @@ export const DagRuns = () => {
   return (
     <>
       <DagRunsFilters dagId={dagId} />
-      <DataTable
-        columns={columns}
-        data={data?.dag_runs ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName={translate("common:dagRun_other")}
-        onStateChange={setTableURLState}
-        total={data?.total_entries}
-      />
+      <div data-testid="dag-runs-table">
+        <DataTable
+          columns={columns}
+          data={data?.dag_runs ?? []}
+          errorMessage={<ErrorAlert error={error} />}
+          initialState={tableURLState}
+          isLoading={isLoading}
+          modelName={translate("common:dagRun_other")}
+          onStateChange={setTableURLState}
+          total={data?.total_entries}
+        />
+      </div>
     </>
   );
 };
