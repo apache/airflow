@@ -69,11 +69,15 @@ def _get_aggs_for_node(detail):
         max_end_date = max(x["end_date"] for x in detail if x["end_date"])
     except ValueError:
         max_end_date = None
+
+    dag_version_number = detail[0].get("dag_version_number")
+
     return {
         "state": agg_state(states),
         "min_start_date": min_start_date,
         "max_end_date": max_end_date,
         "child_states": dict(Counter(states)),
+        "dag_version_number": dag_version_number,
     }
 
 

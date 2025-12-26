@@ -25,6 +25,7 @@ import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
 import { useOpenGroups } from "src/context/openGroups";
 import { useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
@@ -35,6 +36,7 @@ import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskNames } from "./TaskNames";
+import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -44,10 +46,18 @@ type Props = {
   readonly limit: number;
   readonly runType?: DagRunType | undefined;
   readonly showGantt?: boolean;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
   readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
+export const Grid = ({
+  dagRunState,
+  limit,
+  runType,
+  showGantt,
+  showVersionIndicatorMode,
+  triggeringUser,
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -95,6 +105,12 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
+  // calculate version change flags
+  const runsWithVersionFlags = useGridRunsWithVersionFlags({
+    gridRuns,
+    showVersionIndicatorMode,
+  });
+
   const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
 
   const { setMode } = useNavigation({
@@ -131,7 +147,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             )}
           </Flex>
           <Flex flexDirection="row-reverse">
-            {gridRuns?.map((dr: GridRunsResponse) => (
+            {runsWithVersionFlags?.map((dr) => (
               <Bar
                 key={dr.run_id}
                 max={max}
@@ -139,10 +155,11 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 onCellClick={() => setMode("TI")}
                 onColumnClick={() => setMode("run")}
                 run={dr}
+                showVersionIndicatorMode={showVersionIndicatorMode}
               />
             ))}
           </Flex>
-          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+          {selectedIsVisible ? (
             <Link to={`/dags/${dagId}`}>
               <IconButton
                 aria-label={translate("grid.buttons.resetToLatest")}
@@ -157,7 +174,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
                 <FiChevronsRight />
               </IconButton>
             </Link>
-          )}
+          ) : undefined}
         </Flex>
       </Box>
     </Flex>
