@@ -255,4 +255,3 @@ auth-managers:
 
 cli:
   - airflow.providers.fab.auth_manager.cli_commands.definition.get_fab_cli_commands
-
