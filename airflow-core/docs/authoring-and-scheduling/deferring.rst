@@ -468,7 +468,6 @@ According to `benchmarks <https://github.com/apache/airflow/pull/58803#pullreque
 
 You can determine a suitable value for your deployment by creating a large number of triggers (for example, by triggering a Dag with many deferrable tasks) and observing both how the load is distributed across Triggerers in your environment and how long it takes for all Triggerers to pick up the triggers.
 
-
 Controlling Triggerer Host Assignment Per Trigger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -479,12 +478,10 @@ Under some circumstances, it may be desirable to assign a Trigger to a specific 
 * In a multi-tenant Airflow system where you run a distinct set of ``triggerers`` per team.
 * Running distinct sets of ``triggerers`` hosts, where each set of hosts are configured for different trigger operations (e.g. each set of triggerers may have different cloud permissions).
 
-To achieve trigger assignment, you may use the optional "trigger queues" feature.
-
-To use trigger queues, do the following:
+To enable queue assignment for triggers, do the following:
 
 1. Set the :ref:`config:triggerer__queues_enabled` config value to ``true``. This will ensure when tasks defer, they pass their assigned task queue to the newly registered trigger instance.
-2. For a given ``triggerer`` host(s), add ``--queues=<comma-separated string of task queue names to consume from>`` to the Triggerers' startup command. This option ensures the triggerer will only pick up ``trigger`` instances deferred by tasks from the specified task queues.
+2. For a given ``triggerer`` host(s), add ``--queues=<comma-separated string of task queue names to consume from>`` to the Triggerers' startup command. This option ensures the triggerer will only pick up ``trigger`` instances deferred by tasks from the specified task queue(s).
 
 For example, let's say you are running two triggerer hosts (labeled "X", and "Y") with the following commands:
 
@@ -495,33 +492,47 @@ For example, let's say you are running two triggerer hosts (labeled "X", and "Y"
       # triggerer "Y" startup command
       airflow triggerer --queues=test_q
 
-In this scenario, triggerer "X" will exclusively run triggers deferred from tasks originating from task queue ``"alice"`` or ``"bob"``.
+In this scenario, triggerer "X" will exclusively run triggers deferred from tasks originating from task queues ``"alice"`` or ``"bob"``.
 Similarly, triggerer "Y" will exclusively run triggers deferred from tasks originating from task queue ``"test_q"``.
 
 Trigger Queue Assignment Caveats
 ''''''''''''''''''''''''''''''''
 
-This feature is only compatible with executors which utilize the task ``queue`` concept (such as the CeleryExecutor).
-Similarly, queue assignment is only compatible with triggers associated with a task. Triggers associated with non-task
-entities like assets or :doc:`administration-and-deployment/logging-monitoring/callbacks.rst` will have their ``queue`` value set to ``None``.
+This feature is only compatible with executors which utilize the task ``queue`` concept
+(such as the :ref:`CeleryExecutor<apache-airflow-providers-celery:celery_executor:queue>`).
+
+Additionally, queue assignment is currently only compatible with the subset of triggers originating from a task's defer ``method``.
+
++------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
+|          Trigger Type                                                                                |   Supports queues?   |  Triggerer assignment when :ref:`config:triggerer__queues_enabled` is ``True``   |
++======================================================================================================+======================+==================================================================================+
+| Task-created Trigger instances                                                                       |   Yes                |  Any triggerer with the the task queue present in its ``--queues`` option        |
++------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
+| :doc:`Event-Driven Triggers<../authoring-and-scheduling/event-scheduling>`                           |   No                 |  Any triggerer running without the ``--queues`` option                           |
++------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
+| Triggers from async :doc:`Callbacks<../administration-and-deployment/logging-monitoring/callbacks>`  |   No                 |  Any triggerer running without the ``--queues`` option                           |
++------------------------------------------------------------------------------------------------------+----------------------+----------------------------------------------------------------------------------+
+
+If you use queues for task-based triggers, while **also** using event-based triggers and/or callback triggers,
+you must run one or more triggerer hosts **without** the ``--queues`` option, so the latter 2 types of triggers are still run.
 
 .. note::
-    To enable this feature, you must set the ``--queues`` option on the triggerers' startup command.
-    If you set the ``queue`` value of a trigger instance to some value which is not present in the ``--queues`` option, that trigger will never run.
-    Similarly, all ``triggerer`` instances running without the ``--queues`` option will only consume trigger instances registered without a ``queue`` value.
+    To enable trigger queues, you must set the ``--queues`` option on one or more triggerers' startup command (these values may differ between the various triggerers).
+    If you set the ``--queue`` value of a triggerer to some value which no task queues exist for, that triggerer will never run any triggers.
+    Similarly, all ``triggerer`` instances running without the ``--queues`` option will only consume event-driven and callback-based triggers.
 
 
-The following example shows how to only assign some triggers to a specific triggerer host, while leaving other trigger instances unconstrained:
+The following example shows how to run HA triggerers so that all trigger types are run (assuming all tasks'
+queue values are set to either ``"team_A"`` or ``"team_B"``):
 
 .. code-block:: bash
 
-      # triggerer "A" startup command, consumes only from trigger queues "alice" and "bob"
-      airflow triggerer --queues=alice,bob
-      # triggerer "B" startup command, consumes only from triggers which have no assigned queue value (the default behavior).
+      # triggerer "A" startup command, only consumes triggers registered by tasks in queue "team_A"
+      airflow triggerer --queues=team_A
+      # triggerer "B" startup command, only consumes triggers registered by tasks in queue "team_B"
+      airflow triggerer --queues=team_B
+      # triggerer "C" startup command, consumes only event-based triggers and callback-based triggers.
       airflow triggerer
-
-In this scenario, triggerer "A" will only run trigger instances with an assigned ``queue`` value of ``"alice"``, or ``"bob"``; whereas,
-triggerer "B" will only run trigger instances with no ``queue`` value assigned.
 
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors
