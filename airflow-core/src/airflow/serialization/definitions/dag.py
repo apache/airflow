@@ -883,6 +883,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -898,6 +899,7 @@ class SerializedDAG:
         run_id: str,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
@@ -916,6 +918,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         session: Session = NEW_SESSION,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
@@ -932,6 +935,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: Literal[False] = False,
         session: Session = NEW_SESSION,
@@ -950,6 +954,7 @@ class SerializedDAG:
         end_date: datetime.datetime | None = None,
         only_failed: bool = False,
         only_running: bool = False,
+        only_new: bool = False,
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
@@ -966,6 +971,7 @@ class SerializedDAG:
         :param end_date: The maximum logical_date to clear
         :param only_failed: Only clear failed tasks
         :param only_running: Only clear running tasks.
+        :param only_new: Only newly added tasks in the latest version without clearing existing tasks
         :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
             be changed.
         :param dry_run: Find the tasks to clear but don't clear them.
@@ -978,6 +984,38 @@ class SerializedDAG:
         from airflow.models.taskinstance import clear_task_instances
 
         state: list[TaskInstanceState] = []
+
+        if only_new:
+            if not run_id:
+                raise ValueError("only_new requires run_id to be specified")
+
+            from airflow.models.dagbag import DBDagBag
+
+            dag_run = session.scalar(select(DagRun).filter_by(dag_id=self.dag_id, run_id=run_id))
+            if not dag_run:
+                raise ValueError(f"DagRun with run_id '{run_id}' not found")
+
+            dagbag = DBDagBag(load_op_links=False)
+            latest_dag = dagbag.get_latest_version_of_dag(self.dag_id, session=session)
+
+            if not latest_dag:
+                raise ValueError(f"Latest DAG version for '{self.dag_id}' not found")
+
+            current_dag = dagbag.get_dag_for_run(dag_run=dag_run, session=session)
+            new_task_ids = set(latest_dag.task_ids) - set(current_dag.task_ids) if current_dag else set()
+
+            # Update dag run to latest version
+            if new_task_ids:
+                dag_version = DagVersion.get_latest_version(self.dag_id, session=session)
+                if dag_version:
+                    dag_run.created_dag_version_id = dag_version.id
+                    dag_run.dag = latest_dag
+                    dag_run.verify_integrity(session=session, dag_version_id=dag_version.id)
+                    session.flush()
+
+                task_ids = list(new_task_ids)
+            else:
+                task_ids = []
         if only_failed:
             state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
         if only_running:
