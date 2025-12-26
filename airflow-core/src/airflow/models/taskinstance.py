@@ -117,6 +117,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
+    from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
 
 
@@ -1461,6 +1462,95 @@ class TaskInstance(Base, LoggingMixin):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
+    @property
+    def start_trigger_args(self) -> StartTriggerArgs | None:
+        if self.task:
+            if self.task.is_mapped:
+                context = self.get_template_context()
+                if self.task.expand_start_from_trigger(context=context):
+                    return self.task.expand_start_trigger_args(context=context)
+            elif self.task.start_from_trigger is True:
+                return self.task.start_trigger_args
+        return None
+
+    # TODO: We have some code duplication here and in the _create_ti_state_update_query_and_update_state
+    #       method of the task_instances module in the execution api when a TIDeferredStatePayload is being
+    #       processed. This is because of a TaskInstance being updated differently using SQLAlchemy.
+    #       If we use the approach from the execution api as common code in the DagRun schedule_tis method,
+    #       the side effect is the changes done to the task instance aren't picked up by the scheduler and
+    #       thus the task instance isn't processed until the scheduler is restarted.
+    @provide_session
+    def defer_task(self, session: Session = NEW_SESSION) -> bool:
+        """
+        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
+
+        :meta: private
+        """
+        from airflow.models.trigger import Trigger
+
+        if TYPE_CHECKING:
+            assert isinstance(self.task, Operator)
+
+        # Remaining task expansion still running from previous triggerer so reschedule
+        if self.context_carrier and "trigger" in self.context_carrier:
+            trigger_classpath, trigger_kwargs = self.context_carrier.pop("trigger", (None, None))
+
+            self.log.info(
+                "Creating trigger from context_carrier for task_id %s: %s", self.task_id, trigger_kwargs
+            )
+            trigger_row = Trigger(
+                classpath=trigger_classpath,
+                kwargs=trigger_kwargs or {},
+            )
+        elif not (not self.next_trigger_id and (start_trigger_args := self.start_trigger_args())):
+            # self.log.warning("Couldn't create trigger from start_from_trigger for task_id %s thus could not be deferred!", self.task_id)
+            return False
+        else:
+            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
+            timeout = start_trigger_args.timeout
+
+            # Calculate timeout too if it was passed
+            if timeout is not None:
+                self.trigger_timeout = timezone.utcnow() + timeout
+            else:
+                self.trigger_timeout = None
+
+            self.log.info(
+                "Creating trigger from start_trigger_args for task_id %s:  %s", self.task_id, trigger_kwargs
+            )
+            trigger_row = Trigger(
+                classpath=start_trigger_args.trigger_cls,
+                kwargs=trigger_kwargs,
+            )
+
+        # First, make the trigger entry
+        session.add(trigger_row)
+        session.flush()
+
+        # Then, update ourselves so it matches the deferral request
+        # Keep an eye on the logic in `check_and_change_state_before_execution()`
+        # depending on self.next_method semantics
+        self.state = TaskInstanceState.DEFERRED
+        self.trigger_id = trigger_row.id
+        self.next_method = start_trigger_args.next_method
+        self.next_kwargs = start_trigger_args.next_kwargs or {}
+
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        if execution_timeout := self.task.execution_timeout:
+            if TYPE_CHECKING:
+                assert self.start_date
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
+        self.start_date = timezone.utcnow()
+        if self.state != TaskInstanceState.UP_FOR_RESCHEDULE:
+            self.try_number += 1
+        if self.test_mode:
+            _add_log(event=self.state, task_instance=self, session=session)
+        return True
+
     @provide_session
     def run(
         self,
@@ -1523,79 +1613,6 @@ class TaskInstance(Base, LoggingMixin):
             or 0,
             0,
         )
-
-    @provide_session
-    def defer_task(self, session: Session = NEW_SESSION) -> bool:
-        """
-        Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
-
-        :meta: private
-        """
-        from airflow.models.trigger import Trigger
-
-        if TYPE_CHECKING:
-            assert isinstance(self.task, Operator)
-
-        # Remaining task expansion still running from previous triggerer so reschedule
-        if self.context_carrier and "trigger" in self.context_carrier:
-            trigger_classpath, trigger_kwargs = self.context_carrier.pop("trigger", (None, None))
-
-            self.log.info(
-                "Creating trigger from context_carrier for task_id %s: %s", self.task_id, trigger_kwargs
-            )
-            trigger_row = Trigger(
-                classpath=trigger_classpath,
-                kwargs=trigger_kwargs or {},
-            )
-        elif not (not self.next_trigger_id and (start_trigger_args := self.start_trigger_args())):
-            # self.log.warning("Couldn't create trigger from start_from_trigger for task_id %s thus could not be deferred!", self.task_id)
-            return False
-        else:
-            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
-            timeout = start_trigger_args.timeout
-            self.next_method = start_trigger_args.next_method
-            self.next_kwargs = start_trigger_args.next_kwargs or {}
-
-            # Calculate timeout too if it was passed
-            if timeout is not None:
-                self.trigger_timeout = timezone.utcnow() + timeout
-            else:
-                self.trigger_timeout = None
-
-            self.log.info(
-                "Creating trigger from start_trigger_args for task_id %s:  %s", self.task_id, trigger_kwargs
-            )
-            trigger_row = Trigger(
-                classpath=start_trigger_args.trigger_cls,
-                kwargs=trigger_kwargs,
-            )
-
-        # First, make the trigger entry
-        session.add(trigger_row)
-        session.flush()
-
-        # Then, update ourselves so it matches the deferral request
-        # Keep an eye on the logic in `check_and_change_state_before_execution()`
-        # depending on self.next_method semantics
-        self.state = TaskInstanceState.DEFERRED
-        self.trigger_id = trigger_row.id
-
-        # If an execution_timeout is set, set the timeout to the minimum of
-        # it and the trigger timeout
-        execution_timeout = self.task.execution_timeout
-        if execution_timeout:
-            if TYPE_CHECKING:
-                assert self.start_date
-            if self.trigger_timeout:
-                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
-            else:
-                self.trigger_timeout = self.start_date + execution_timeout
-        self.start_date = timezone.utcnow()
-        if self.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            self.try_number += 1
-        if self.test_mode:
-            _add_log(event=self.state, task_instance=self, session=session)
-        return True
 
     @classmethod
     def fetch_handle_failure_context(
